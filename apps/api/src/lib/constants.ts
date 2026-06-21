@@ -1,0 +1,11 @@
+export const PLATFORM_FEE_PERCENT = 0.2; // 20% platform fee
+export const CLEANER_PAYOUT_PERCENT = 0.8; // 80% to cleaner
+export const SERVICE_FEE_PERCENT = 0.1; // 10% service fee to customer
+export const TAX_RATE = 0.085; // 8.5% tax
+export const OFFER_EXPIRY_MINUTES = 10; // Job offer expires after 10 min
+export const REVIEW_WINDOW_HOURS = 48; // Hours after completion to leave review
+export const MAX_UPLOAD_BYTES = 10_485_760; // 10 MB
+export const PASSWORD_MIN_LENGTH = 12; // Not directly used (Clerk handles auth)
+export const SESSION_IDLE_MINUTES = 60; // Clerk session config recommendation
+export const DATA_RETENTION_DAYS = 2555; // 7 years for financial records
+export const GDPR_RESPONSE_DAYS = 30; // Max days to respond to GDPR requests

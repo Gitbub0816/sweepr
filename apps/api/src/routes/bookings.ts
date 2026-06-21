@@ -12,31 +12,49 @@ import { getDb } from "../lib/db";
 import { requireAuth } from "../middleware/auth";
 import { rankCleanersForBooking } from "../lib/matching";
 import { sendNotification } from "../lib/notifications";
+import { rateLimit } from "../middleware/rateLimit";
+import { assertValidTransition } from "../lib/statusMachine";
+import { audit } from "../lib/audit";
+import { logger } from "../lib/logger";
 import type { AppBindings } from "../types";
 import type { BookingRow, CleanerRow } from "@sweepr/db";
 
 export const bookingsRouter = new Hono<AppBindings>();
 
 const createSchema = z.object({
-  serviceType: z.string(),
-  bedrooms: z.number().int(),
-  bathrooms: z.number().int(),
-  sqft: z.number().int(),
-  homeType: z.string(),
-  addOnKeys: z.array(z.string()).default([]),
-  scheduledAt: z.string(),
-  addressId: z.string().optional(),
+  serviceType: z.enum(["standard", "deep", "move_in_out", "recurring"]),
+  bedrooms: z.number().int().min(0).max(20),
+  bathrooms: z.number().int().min(0).max(20),
+  sqft: z.number().int().min(100).max(20000),
+  homeType: z.enum(["apartment", "house", "condo", "townhouse", "other"]),
+  hasPets: z.boolean().default(false),
+  heavyMess: z.boolean().default(false),
+  suppliesNeeded: z.boolean().default(false),
+  parkingNotes: z.string().max(500).optional(),
+  entryNotes: z.string().max(500).optional(),
+  addOnKeys: z.array(z.string().max(50)).max(20).default([]),
+  scheduledAt: z.string().datetime(),
+  addressId: z.string().uuid().optional(),
   basePrice: z.number().int(),
   addonsTotal: z.number().int().default(0),
   serviceFee: z.number().int().default(0),
   tax: z.number().int().default(0),
   totalPrice: z.number().int(),
-  notes: z.string().optional(),
+  notes: z.string().max(2000).optional(),
+});
+
+// Customers may only cancel via the status endpoint.
+const statusSchema = z.object({
+  status: z.enum(["cancelled_by_customer"]),
 });
 
 bookingsRouter.use("*", requireAuth);
 
-bookingsRouter.post("/", zValidator("json", createSchema), async (c) => {
+bookingsRouter.post(
+  "/",
+  rateLimit({ limit: 10, windowMs: 60 * 60_000, keyPrefix: "booking-create" }),
+  zValidator("json", createSchema),
+  async (c) => {
   const input = c.req.valid("json");
   const sql = getDb(c.env.DATABASE_URL);
   const user = await getUserByClerkId(sql, c.get("user").clerkId);
@@ -57,15 +75,29 @@ bookingsRouter.post("/", zValidator("json", createSchema), async (c) => {
     ) RETURNING *
   `) as BookingRow[];
 
+  const created = rows[0];
+  if (!created) return c.json({ error: "Failed to create booking" }, 500);
+
   // Booking confirmed -> notify customer.
   await sendNotification(sql, user.id, {
     type: "booking_confirmed",
     title: "Booking confirmed",
     body: `Your ${input.serviceType} clean is booked. We're finding you a cleaner.`,
-    data: { href: `/bookings/${rows[0].id}` },
+    data: { href: `/bookings/${created.id}` },
   });
 
-  return c.json({ booking: rows[0] }, 201);
+  await audit(sql, {
+    action: "booking.created",
+    actorClerkId: c.get("user").clerkId,
+    targetType: "booking",
+    targetId: created.id,
+    metadata: { serviceType: input.serviceType, totalPrice: input.totalPrice },
+    ipAddress: c.req.header("CF-Connecting-IP"),
+    userAgent: c.req.header("User-Agent"),
+    timestamp: new Date().toISOString(),
+  });
+
+  return c.json({ booking: created }, 201);
 });
 
 bookingsRouter.get("/", async (c) => {
@@ -85,22 +117,50 @@ bookingsRouter.get("/:id", async (c) => {
   return c.json({ booking });
 });
 
-const statusSchema = z.object({ status: z.string() });
-
 bookingsRouter.patch(
   "/:id/status",
   zValidator("json", statusSchema),
   async (c) => {
     const sql = getDb(c.env.DATABASE_URL);
-    const updated = await updateBookingStatus(
-      sql,
-      c.req.param("id"),
-      c.req.valid("json").status
-    );
+    const id = c.req.param("id");
+    const { status } = c.req.valid("json");
+
+    const booking = await getBooking(sql, id);
+    if (!booking) return c.json({ error: "Not found" }, 404);
+
+    if (!isValidTransitionSafe(booking.status, status)) {
+      return c.json(
+        { error: `Invalid status transition: ${booking.status} → ${status}` },
+        409
+      );
+    }
+
+    const updated = await updateBookingStatus(sql, id, status);
     if (!updated) return c.json({ error: "Not found" }, 404);
+
+    await audit(sql, {
+      action: "booking.status_changed",
+      actorClerkId: c.get("user").clerkId,
+      targetType: "booking",
+      targetId: id,
+      metadata: { from: booking.status, to: status },
+      ipAddress: c.req.header("CF-Connecting-IP"),
+      userAgent: c.req.header("User-Agent"),
+      timestamp: new Date().toISOString(),
+    });
+
     return c.json({ booking: updated });
   }
 );
+
+function isValidTransitionSafe(from: string, to: string): boolean {
+  try {
+    assertValidTransition(from, to);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** Helper: notify the customer that owns a booking. */
 async function notifyBookingCustomer(
@@ -150,20 +210,28 @@ bookingsRouter.post("/:id/match", async (c) => {
 
   const offers: { id: string; cleanerId: string; rank: number }[] = [];
   for (let i = 0; i < top.length; i++) {
+    const candidate = top[i];
+    if (!candidate) continue;
     const rows = (await sql`
       INSERT INTO job_offers (booking_id, cleaner_id, rank, score, status)
-      VALUES (${booking.id}, ${top[i].cleanerId}, ${i}, ${top[i].score}, ${
+      VALUES (${booking.id}, ${candidate.cleanerId}, ${i}, ${candidate.score}, ${
         i === 0 ? "offered" : "queued"
       })
       RETURNING id
     `) as { id: string }[];
-    offers.push({ id: rows[0].id, cleanerId: top[i].cleanerId, rank: i });
+    const offerRow = rows[0];
+    if (offerRow) {
+      offers.push({ id: offerRow.id, cleanerId: candidate.cleanerId, rank: i });
+    }
   }
 
   await updateBookingStatus(sql, booking.id, "matching");
 
+  const topCleaner = top[0];
+  if (!topCleaner) return c.json({ error: "No eligible cleaners" }, 409);
+
   // Notify the top cleaner (in-app + email best-effort).
-  await notifyCleaner(sql, top[0].cleanerId, {
+  await notifyCleaner(sql, topCleaner.cleanerId, {
     type: "job_offered",
     title: "New job offer",
     body: `A ${booking.service_type} clean is available near you.`,
@@ -220,9 +288,10 @@ bookingsRouter.post(
       ORDER BY rank ASC LIMIT 1
     `) as { id: string; cleaner_id: string }[];
 
-    if (next[0]) {
-      await sql`UPDATE job_offers SET status = 'offered' WHERE id = ${next[0].id}`;
-      await notifyCleaner(sql, next[0].cleaner_id, {
+    const nextOffer = next[0];
+    if (nextOffer) {
+      await sql`UPDATE job_offers SET status = 'offered' WHERE id = ${nextOffer.id}`;
+      await notifyCleaner(sql, nextOffer.cleaner_id, {
         type: "job_offered",
         title: "New job offer",
         body: `A ${booking.service_type} clean is available near you.`,

@@ -10,6 +10,18 @@ export interface Env {
   CUSTOMER_URL?: string;
   CHECKR_API_KEY?: string;
   DIDIT_API_KEY?: string;
+  ALLOWED_ORIGINS?: string;
+  RATE_LIMIT_KV?: KVNamespace;
+}
+
+/** Minimal Cloudflare KV interface (avoids a hard dependency on @cloudflare/workers-types). */
+export interface KVNamespace {
+  get(key: string): Promise<string | null>;
+  put(
+    key: string,
+    value: string,
+    options?: { expirationTtl?: number }
+  ): Promise<void>;
 }
 
 export interface AuthUser {

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
-import { corsMiddleware } from "./middleware/cors";
+import { buildCorsMiddleware } from "./middleware/cors";
+import { securityHeaders } from "./middleware/securityHeaders";
 import { rateLimit } from "./middleware/rateLimit";
 import { authRouter } from "./routes/auth";
 import { bookingsRouter } from "./routes/bookings";
@@ -11,13 +12,26 @@ import { reviewsRouter } from "./routes/reviews";
 import { adminRouter } from "./routes/admin";
 import { storageRouter } from "./routes/storage";
 import { notificationsRouter } from "./routes/notifications";
+import { AppError, toSafeError } from "./lib/errors";
+import { logger } from "./lib/logger";
 import type { AppBindings } from "./types";
 
 const app = new Hono<AppBindings>();
 
-app.use("*", corsMiddleware);
-app.use("/pricing/*", rateLimit({ limit: 60, windowMs: 60_000 }));
-app.use("/payments/*", rateLimit({ limit: 30, windowMs: 60_000 }));
+// Security headers run first so they apply to every response.
+app.use("*", securityHeaders);
+
+// CORS is built per-request so it can read ALLOWED_ORIGINS from env.
+app.use("*", (c, next) => buildCorsMiddleware(c.env)(c, next));
+
+// General API rate limit: 100 req / min per IP.
+app.use("*", rateLimit({ limit: 100, windowMs: 60_000, keyPrefix: "general" }));
+
+// Tighter, route-specific limits.
+app.use("/auth/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "auth" }));
+app.use("/payments/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "payments" }));
+app.use("/storage/*", rateLimit({ limit: 20, windowMs: 60 * 60_000, keyPrefix: "storage" }));
+app.use("/pricing/*", rateLimit({ limit: 60, windowMs: 60_000, keyPrefix: "pricing" }));
 
 app.get("/", (c) => c.json({ name: "sweepr-api", status: "ok" }));
 app.get("/health", (c) => c.json({ ok: true }));
@@ -34,9 +48,17 @@ app.route("/storage", storageRouter);
 app.route("/notifications", notificationsRouter);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
+
 app.onError((err, c) => {
-  console.error(err);
-  return c.json({ error: "Internal server error" }, 500);
+  const isDev = c.env.ENVIRONMENT === "development";
+  logger.error("Unhandled request error", err);
+  if (err instanceof AppError) {
+    return c.json(
+      { error: err.message, code: err.code },
+      err.statusCode as 400
+    );
+  }
+  return c.json(toSafeError(err, isDev), 500);
 });
 
 export default app;
