@@ -1,4 +1,4 @@
-import { MarketingShell, Button, Accordion, type AccordionItemData } from "@sweepr/ui";
+import { MarketingShell, Button, Accordion, SweeprLogo, type AccordionItemData } from "@sweepr/ui";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -114,6 +114,9 @@ export default function Landing() {
         <Section className="!py-24">
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <motion.div initial="hidden" animate="show" variants={stagger}>
+              <motion.div variants={fadeUp} className="mb-6">
+                <SweeprLogo size="xl" />
+              </motion.div>
               <motion.div variants={fadeUp}>
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1 text-xs font-bold text-seafoam-700 shadow-sm backdrop-blur dark:bg-slate-800/70 dark:text-seafoam-300">
                   <Sparkles className="h-3.5 w-3.5" /> Premium cleaning, on demand
@@ -306,8 +309,7 @@ export default function Landing() {
         <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10">
           <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
             <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-seafoam-500 text-sm font-bold text-white">S</div>
-              <span className="font-bold text-charcoal dark:text-white">Sweepr</span>
+              <SweeprLogo size="sm" />
             </div>
             <nav className="flex flex-wrap items-center gap-6 text-sm text-slate-500">
               <a href="#services" className="hover:text-seafoam-600">Services</a>

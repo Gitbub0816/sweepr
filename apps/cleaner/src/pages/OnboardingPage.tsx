@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -14,27 +14,59 @@ import {
 import {
   Card,
   Input,
+  Select,
   Textarea,
   Button,
   AddOnGrid,
   ThemeToggle,
+  SweeprLogo,
   useReducedMotion,
   SMSOptIn,
   toast,
+  track,
+  Events,
 } from "@sweepr/ui";
 import type { ServiceType, AddOn } from "@sweepr/types";
 import { SERVICE_LABELS, ADD_ONS, formatCurrency } from "@sweepr/utils";
 import { ServiceAreaMap } from "../components/ServiceAreaMap";
+import {
+  BusinessVerificationStep,
+  type BusinessVerificationValue,
+} from "./onboarding/BusinessVerificationStep";
+import {
+  AuthorizedRepStep,
+  type AuthorizedRepValue,
+} from "./onboarding/AuthorizedRepStep";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
-const STEPS = [
-  "Welcome",
+type OnboardingMode = "individual" | "business";
+
+const INDIVIDUAL_STEPS = [
+  "Basics",
   "Service Area",
   "Services & Pricing",
   "Background Check",
   "Identity",
   "Review",
+];
+
+const BUSINESS_STEPS = [
+  "Business Info",
+  "Service Area",
+  "Services & Pricing",
+  "Business Verification",
+  "Authorized Rep",
+  "Background Check",
+  "Identity",
+  "Review",
+];
+
+const BUSINESS_TYPES = [
+  { value: "llc", label: "LLC" },
+  { value: "corporation", label: "Corporation" },
+  { value: "sole_prop", label: "Sole Proprietorship" },
+  { value: "partnership", label: "Partnership" },
 ];
 
 const SERVICE_TYPES: ServiceType[] = [
@@ -82,6 +114,13 @@ interface FormState {
   certifyAccurate: boolean;
   agreeIC: boolean;
   smsOptIn: boolean;
+  // Business mode
+  businessLegalName: string;
+  dba: string;
+  businessType: string;
+  yearsInBusiness: string;
+  businessVerification: BusinessVerificationValue;
+  authorizedRep: AuthorizedRepValue;
 }
 
 const initialState: FormState = {
@@ -103,6 +142,26 @@ const initialState: FormState = {
   certifyAccurate: false,
   agreeIC: false,
   smsOptIn: false,
+  businessLegalName: "",
+  dba: "",
+  businessType: "",
+  yearsInBusiness: "",
+  businessVerification: {
+    ein: "",
+    legalName: "",
+    stateOfIncorporation: "",
+    articlesDoc: "",
+    einDoc: "",
+    insuranceDoc: "",
+  },
+  authorizedRep: {
+    name: "",
+    title: "",
+    email: "",
+    phone: "",
+    dob: "",
+    address: "",
+  },
 };
 
 type StatusFlow = "idle" | "submitting" | "submitted";
@@ -111,9 +170,26 @@ export function OnboardingPage() {
   const navigate = useNavigate();
   const { user } = useUser();
   const reduced = useReducedMotion();
+  const [mode, setMode] = useState<OnboardingMode>("individual");
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
   const [form, setForm] = useState<FormState>(initialState);
+
+  const STEPS = mode === "business" ? BUSINESS_STEPS : INDIVIDUAL_STEPS;
+  const stepName = STEPS[step];
+
+  useEffect(() => {
+    track(Events.CLEANER_ONBOARDING_STARTED, { mode });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function switchMode(next: OnboardingMode) {
+    if (next === mode) return;
+    setMode(next);
+    setStep(0);
+    setDirection(1);
+    track(Events.CLEANER_ONBOARDING_STARTED, { mode: next });
+  }
   const [checkrStatus, setCheckrStatus] = useState<StatusFlow>("idle");
   const [diditStatus, setDiditStatus] = useState<StatusFlow>("idle");
   const [submitting, setSubmitting] = useState(false);
@@ -138,6 +214,7 @@ export function OnboardingPage() {
   }, [weeklyHours]);
 
   const goNext = () => {
+    track(Events.CLEANER_ONBOARDING_STEP, { mode, step: stepName });
     setDirection(1);
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
   };
@@ -147,20 +224,39 @@ export function OnboardingPage() {
   };
 
   const canContinue = (): boolean => {
-    switch (step) {
-      case 0:
+    switch (stepName) {
+      case "Basics":
         return (
           form.fullName.trim().length > 0 &&
           form.phone.trim().length > 0 &&
           form.bio.trim().length >= 50
         );
-      case 2:
+      case "Business Info":
+        return (
+          form.businessLegalName.trim().length > 0 &&
+          form.businessType.length > 0
+        );
+      case "Services & Pricing":
         return form.services.length > 0;
-      case 3:
+      case "Business Verification":
+        return (
+          /^\d{2}-\d{7}$/.test(form.businessVerification.ein) &&
+          form.businessVerification.stateOfIncorporation.length > 0 &&
+          Boolean(form.businessVerification.articlesDoc) &&
+          Boolean(form.businessVerification.einDoc)
+        );
+      case "Authorized Rep":
+        return (
+          form.authorizedRep.name.trim().length > 0 &&
+          form.authorizedRep.title.length > 0 &&
+          form.authorizedRep.dob.length > 0 &&
+          form.authorizedRep.address.trim().length > 0
+        );
+      case "Background Check":
         return checkrStatus === "submitted";
-      case 4:
+      case "Identity":
         return diditStatus === "submitted";
-      case 5:
+      case "Review":
         return form.certifyAccurate && form.agreeIC;
       default:
         return true;
@@ -223,7 +319,29 @@ export function OnboardingPage() {
   async function submitApplication() {
     setSubmitting(true);
     try {
-      if (API_URL) {
+      if (API_URL && mode === "business") {
+        // EIN is NEVER sent here / stored — only ein_provided is recorded.
+        await fetch(`${API_URL}/cleaners/business/apply`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            businessName: form.businessLegalName,
+            businessType: form.businessType,
+            einProvided: true,
+            stateOfIncorporation:
+              form.businessVerification.stateOfIncorporation,
+            authorizedRep: {
+              name: form.authorizedRep.name,
+              title: form.authorizedRep.title,
+              dob: form.authorizedRep.dob,
+              address: form.authorizedRep.address,
+            },
+            serviceTypes: form.services,
+            addOnKeys: form.addOns,
+            availability: form.availability,
+          }),
+        });
+      } else if (API_URL) {
         await fetch(`${API_URL}/cleaners/apply`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -240,6 +358,7 @@ export function OnboardingPage() {
           }),
         });
       }
+      track(Events.CLEANER_APPLICATION_SUBMITTED, { mode });
       await user?.update({
         unsafeMetadata: { cleanerStatus: "pending_review" },
       });
@@ -269,14 +388,38 @@ export function OnboardingPage() {
       <div className="mx-auto max-w-2xl px-4 py-8">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-seafoam-500 font-bold text-white">
-              S
-            </div>
-            <span className="font-bold text-charcoal dark:text-white">
-              Become a Sweepr Pro
-            </span>
+            <SweeprLogo size="sm" />
+            <span className="text-sm font-medium text-slate-400">Pro</span>
           </div>
           <ThemeToggle />
+        </div>
+
+        {/* Mode switcher */}
+        <div className="mb-8 flex gap-2 rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-800">
+          <button
+            type="button"
+            onClick={() => switchMode("individual")}
+            className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
+              mode === "individual"
+                ? "bg-seafoam-500 text-white shadow"
+                : "text-slate-600 hover:text-charcoal dark:text-slate-300"
+            }`}
+            aria-pressed={mode === "individual"}
+          >
+            🧹 I'm a Cleaner
+          </button>
+          <button
+            type="button"
+            onClick={() => switchMode("business")}
+            className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
+              mode === "business"
+                ? "bg-seafoam-500 text-white shadow"
+                : "text-slate-600 hover:text-charcoal dark:text-slate-300"
+            }`}
+            aria-pressed={mode === "business"}
+          >
+            🏢 I Have a Business
+          </button>
         </div>
 
         {/* Progress */}

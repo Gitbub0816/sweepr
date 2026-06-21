@@ -1,6 +1,17 @@
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { getMapStyle } from "@sweepr/ui";
+
+function isDarkTheme() {
+  if (typeof document !== "undefined" &&
+    document.documentElement.classList.contains("dark")) return true;
+  try {
+    return localStorage.getItem("theme") === "dark";
+  } catch {
+    return false;
+  }
+}
 
 const TOKEN =
   import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN ||
@@ -21,17 +32,23 @@ export function AdminMap({ center, label }: AdminMapProps) {
     if (!TOKEN || !containerRef.current) return;
     mapboxgl.accessToken = TOKEN;
     if (!mapRef.current) {
-      mapRef.current = new mapboxgl.Map({
+      const dark = isDarkTheme();
+      const map = new mapboxgl.Map({
         container: containerRef.current,
-        style: "mapbox://styles/mapbox/light-v11",
+        style: getMapStyle(dark).style,
         center,
         zoom: 11,
+        pitch: 30,
         interactive: false,
         attributionControl: false,
       });
+      mapRef.current = map;
+      map.on("style.load", () => {
+        map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
+      });
       new mapboxgl.Marker({ color: "#14b8a6" })
         .setLngLat(center)
-        .addTo(mapRef.current);
+        .addTo(map);
     } else {
       mapRef.current.setCenter(center);
     }

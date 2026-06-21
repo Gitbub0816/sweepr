@@ -1,7 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { DashboardShell, Card } from "@sweepr/ui";
+import { DashboardShell, Card, getMapStyle } from "@sweepr/ui";
+
+function isDarkTheme() {
+  if (typeof document !== "undefined" &&
+    document.documentElement.classList.contains("dark")) return true;
+  try {
+    return localStorage.getItem("theme") === "dark";
+  } catch {
+    return false;
+  }
+}
 
 const TOKEN =
   import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN ||
@@ -72,13 +82,19 @@ export function ServiceAreasPage() {
   useEffect(() => {
     if (!TOKEN || !containerRef.current || mapRef.current) return;
     mapboxgl.accessToken = TOKEN;
+    const dark = isDarkTheme();
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: "mapbox://styles/mapbox/light-v11",
+      style: getMapStyle(dark).style,
       center: CITIES[0].center,
       zoom: 10,
+      pitch: 30,
     });
     mapRef.current = map;
+
+    map.on("style.load", () => {
+      map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
+    });
 
     map.on("load", () => {
       map.addSource("density", { type: "geojson", data: bookingDensity });

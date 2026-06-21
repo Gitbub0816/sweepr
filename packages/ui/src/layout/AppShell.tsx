@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 import { Menu, X, type LucideIcon } from "lucide-react";
 import { cn } from "@sweepr/utils";
 import { ThemeToggle } from "./ThemeToggle";
+import { SweeprLogo } from "../assets/SweeprLogo";
 
 export interface NavItem {
   to: string;
@@ -24,21 +25,15 @@ export function AppShell({
   nav,
   children,
   headerRight,
-  accent = "Sweepr",
 }: AppShellProps) {
   const [open, setOpen] = useState(false);
 
   const sidebar = (
     <nav className="flex h-full flex-col gap-1 p-4">
       <div className="mb-6 flex items-center gap-2 px-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-seafoam-500 text-sm font-bold text-white">
-          S
-        </div>
         <div className="leading-tight">
-          <p className="text-sm font-bold text-charcoal dark:text-white">
-            {accent}
-          </p>
-          <p className="text-[11px] text-slate-400">{brand}</p>
+          <SweeprLogo size="sm" />
+          <p className="mt-0.5 text-[11px] text-slate-400">{brand}</p>
         </div>
       </div>
       {nav.map((item) => (

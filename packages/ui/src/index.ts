@@ -29,8 +29,12 @@ export * from "./booking/QuoteCard";
 export * from "./cards/States";
 export * from "./cards/StatCard";
 
+// Assets
+export * from "./assets/SweeprLogo";
+
 // Components
 export * from "./components/SavedPaymentCard";
+export * from "./components/MapR3FOverlay";
 export * from "./components/NotificationBell";
 export * from "./components/SMSOptIn";
 
@@ -45,3 +49,6 @@ export * from "./hooks/useReducedMotion";
 
 // Lib
 export { SafeText, sanitizeText } from "./lib/sanitize";
+export { MAPBOX_STYLES, getMapStyle } from "./lib/mapStyles";
+export { initAnalytics, track, identify, resetAnalytics } from "./lib/analytics";
+export { Events } from "./lib/events";

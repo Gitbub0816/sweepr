@@ -1,6 +1,17 @@
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { getMapStyle, MapR3FOverlay } from "@sweepr/ui";
+
+function isDarkTheme() {
+  if (typeof document !== "undefined" &&
+    document.documentElement.classList.contains("dark")) return true;
+  try {
+    return localStorage.getItem("theme") === "dark";
+  } catch {
+    return false;
+  }
+}
 
 const TOKEN =
   import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN ||
@@ -47,14 +58,19 @@ export function ServiceAreaMap({ center, radiusMi }: ServiceAreaMapProps) {
     mapboxgl.accessToken = TOKEN;
 
     if (!mapRef.current) {
+      const dark = isDarkTheme();
       const map = new mapboxgl.Map({
         container: containerRef.current,
-        style: "mapbox://styles/mapbox/light-v11",
+        style: getMapStyle(dark).style,
         center,
         zoom: 9,
+        pitch: 30,
         attributionControl: false,
       });
       mapRef.current = map;
+      map.on("style.load", () => {
+        map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
+      });
       map.on("load", () => {
         map.addSource("service-area", {
           type: "geojson",
@@ -96,6 +112,27 @@ export function ServiceAreaMap({ center, radiusMi }: ServiceAreaMapProps) {
     map.setCenter(center);
   }, [center, radiusMi]);
 
+  // React to theme changes.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const apply = () => {
+      const map = mapRef.current;
+      if (!map) return;
+      const dark = isDarkTheme();
+      map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
+    };
+    const observer = new MutationObserver(apply);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    window.addEventListener("storage", apply);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("storage", apply);
+    };
+  }, []);
+
   useEffect(() => {
     return () => {
       mapRef.current?.remove();
@@ -116,11 +153,14 @@ export function ServiceAreaMap({ center, radiusMi }: ServiceAreaMapProps) {
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="h-[260px] w-full overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700"
-      role="img"
-      aria-label="Map showing your service area"
-    />
+    <div className="relative h-[260px] w-full overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
+      <div
+        ref={containerRef}
+        className="h-full w-full"
+        role="img"
+        aria-label="Map showing your service area"
+      />
+      <MapR3FOverlay />
+    </div>
   );
 }

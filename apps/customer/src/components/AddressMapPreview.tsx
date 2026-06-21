@@ -1,6 +1,17 @@
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { getMapStyle, MapR3FOverlay } from "@sweepr/ui";
+
+function isDarkTheme() {
+  if (typeof document !== "undefined" &&
+    document.documentElement.classList.contains("dark")) return true;
+  try {
+    return localStorage.getItem("theme") === "dark";
+  } catch {
+    return false;
+  }
+}
 
 const TOKEN =
   import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN ||
@@ -25,14 +36,20 @@ export function AddressMapPreview({ lat, lng }: AddressMapPreviewProps) {
     if (!TOKEN || !containerRef.current) return;
     mapboxgl.accessToken = TOKEN;
 
+    const dark = isDarkTheme();
     if (!mapRef.current) {
-      mapRef.current = new mapboxgl.Map({
+      const map = new mapboxgl.Map({
         container: containerRef.current,
-        style: "mapbox://styles/mapbox/light-v11",
+        style: getMapStyle(dark).style,
         center: [lng, lat],
         zoom: 14,
+        pitch: 45,
         interactive: false,
         attributionControl: false,
+      });
+      mapRef.current = map;
+      map.on("style.load", () => {
+        map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
       });
     } else {
       mapRef.current.setCenter([lng, lat]);
@@ -47,6 +64,27 @@ export function AddressMapPreview({ lat, lng }: AddressMapPreviewProps) {
       markerRef.current?.remove();
     };
   }, [lat, lng]);
+
+  // React to theme changes (class toggled on <html> or theme storage change).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const apply = () => {
+      const map = mapRef.current;
+      if (!map) return;
+      const dark = isDarkTheme();
+      map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
+    };
+    const observer = new MutationObserver(apply);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    window.addEventListener("storage", apply);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("storage", apply);
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -68,12 +106,15 @@ export function AddressMapPreview({ lat, lng }: AddressMapPreviewProps) {
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="h-[200px] w-full overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700"
-      role="img"
-      aria-label="Map showing selected address"
-    />
+    <div className="relative h-[200px] w-full overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
+      <div
+        ref={containerRef}
+        className="h-full w-full"
+        role="img"
+        aria-label="Map showing selected address"
+      />
+      <MapR3FOverlay />
+    </div>
   );
 }
 
