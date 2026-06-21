@@ -22,7 +22,7 @@
     "dompurify": "^3.4.11",
     "framer-motion": "^11.15.0",
     "lucide-react": "^0.469.0",
-    "sonner": "^1.7.1"
+    "sonner": "^2.0.7"
   },
   "peerDependencies": {
     "@react-three/drei": "^9.122.0",
