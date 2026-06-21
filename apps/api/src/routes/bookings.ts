@@ -10,7 +10,10 @@ import {
 } from "@sweepr/db";
 import { getDb } from "../lib/db";
 import { requireAuth } from "../middleware/auth";
+import { rankCleanersForBooking } from "../lib/matching";
+import { sendNotification } from "../lib/notifications";
 import type { AppBindings } from "../types";
+import type { BookingRow, CleanerRow } from "@sweepr/db";
 
 export const bookingsRouter = new Hono<AppBindings>();
 
@@ -52,7 +55,15 @@ bookingsRouter.post("/", zValidator("json", createSchema), async (c) => {
       ${input.scheduledAt}, ${input.basePrice}, ${input.addonsTotal},
       ${input.serviceFee}, ${input.tax}, ${input.totalPrice}, ${input.notes ?? null}
     ) RETURNING *
-  `) as unknown[];
+  `) as BookingRow[];
+
+  // Booking confirmed -> notify customer.
+  await sendNotification(sql, user.id, {
+    type: "booking_confirmed",
+    title: "Booking confirmed",
+    body: `Your ${input.serviceType} clean is booked. We're finding you a cleaner.`,
+    data: { href: `/bookings/${rows[0].id}` },
+  });
 
   return c.json({ booking: rows[0] }, 201);
 });
