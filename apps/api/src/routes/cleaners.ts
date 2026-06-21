@@ -138,32 +138,9 @@ cleanersRouter.get("/stripe-connect/status", async (c) => {
 // Onboarding: background check, identity verification, application submit
 // ---------------------------------------------------------------------------
 
-const backgroundSchema = z.object({
-  fullLegalName: z.string().min(2).max(200),
-  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  // SSN last-4 only; full SSN is never accepted, logged, or stored.
-  ssnLast4: z.string().regex(/^\d{4}$/),
-  address: z.string().max(500),
-});
-
-cleanersRouter.post(
-  "/background-check",
-  zValidator("json", backgroundSchema),
-  async (c) => {
-    const { sql, user } = await currentCleaner(c);
-    if (!user) return c.json({ error: "User not found" }, 404);
-
-    // In production we'd POST to Checkr and store only the candidate id +
-    // status. We never persist SSN/PII in our own database.
-    const candidateId = `cand_${crypto.randomUUID()}`;
-    await sql`
-      UPDATE cleaners
-      SET checkr_candidate_id = ${candidateId}
-      WHERE user_id = ${user.id}
-    `;
-    return c.json({ checkr_status: "submitted", candidateId });
-  }
-);
+// Background check is handled via the Checkr invitation flow at /checkr/invite.
+// Candidates enter all PII directly on Checkr's hosted form — no PII reaches
+// Sweepr servers.  This stub is intentionally removed.
 
 const identitySchema = z.object({
   provider: z.string().default("didit"),
@@ -244,8 +221,8 @@ const businessApplySchema = z.object({
   authorizedRep: z.object({
     name: z.string().min(2).max(200),
     title: z.string().max(80),
-    dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    address: z.string().max(500),
+    email: z.string().email(),
+    // DOB and address are collected directly by Checkr — never by Sweepr.
   }),
   serviceTypes: z.array(z.string()).optional(),
   addOnKeys: z.array(z.string()).optional(),
@@ -312,10 +289,25 @@ cleanersRouter.post(
       `;
     }
 
-    // Trigger a Checkr background check on the authorized representative.
-    const candidateId = `cand_${crypto.randomUUID()}`;
+    // Trigger a Checkr invitation for the authorized rep.
+    // DOB, SSN, and address are collected directly by Checkr's hosted form.
+    const { checkrClient } = await import("../lib/checkr");
+    const client = checkrClient(c.env);
+    const repParts = input.authorizedRep.name.split(" ");
+    const repFirst = repParts[0];
+    const repLast = repParts.slice(1).join(" ") || repFirst;
+    const candidate = await client.createCandidate(
+      input.authorizedRep.email,
+      repFirst,
+      repLast
+    );
+    const invitation = await client.createInvitation(candidate.id, input.stateOfIncorporation.slice(0, 2).toUpperCase());
     await sql`
-      UPDATE cleaners SET checkr_candidate_id = ${candidateId}
+      UPDATE cleaners
+      SET checkr_candidate_id  = ${candidate.id},
+          checkr_invitation_id = ${invitation.id},
+          checkr_status        = 'invited',
+          checkr_invited_at    = NOW()
       WHERE user_id = ${user.id}
     `;
 
@@ -324,6 +316,10 @@ cleanersRouter.post(
       status: "pending_review",
       kyb_status: "pending",
       account_type: "business",
+      checkr: {
+        invitationUrl: invitation.invitation_url,
+        expiresAt: invitation.expires_at,
+      },
     });
   }
 );

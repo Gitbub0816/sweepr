@@ -9,6 +9,8 @@ export interface Env {
   FIREBASE_SERVICE_ACCOUNT: string;
   CUSTOMER_URL?: string;
   CHECKR_API_KEY?: string;
+  CHECKR_PACKAGE?: string;
+  CHECKR_WEBHOOK_SECRET?: string;
   DIDIT_API_KEY?: string;
   ALLOWED_ORIGINS?: string;
   POSTHOG_KEY?: string;

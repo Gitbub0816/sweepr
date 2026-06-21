@@ -1,3 +1,10 @@
+/**
+ * Authorized representative step — business onboarding.
+ *
+ * We collect only name, title, email, and phone here.
+ * DOB, SSN, and address are collected directly by Checkr's hosted form
+ * in the subsequent Background Check step — they never pass through Sweepr.
+ */
 import { Info } from "lucide-react";
 import { Input, Select } from "@sweepr/ui";
 
@@ -6,8 +13,6 @@ export interface AuthorizedRepValue {
   title: string;
   email: string;
   phone: string;
-  dob: string;
-  address: string;
 }
 
 const TITLES = [
@@ -42,8 +47,9 @@ export function AuthorizedRepStep({
       <div className="flex items-start gap-3 rounded-xl bg-seafoam-50 p-4 text-sm text-seafoam-800 dark:bg-seafoam-900/20 dark:text-seafoam-200">
         <Info className="mt-0.5 h-5 w-5 shrink-0" />
         <p>
-          This person will be the primary point of contact and will undergo a
-          background check and identity verification.
+          This person will undergo a background check in the next step. Their
+          date of birth, SSN, and address will be collected securely by our
+          background-check partner Checkr — they never pass through Sweepr.
         </p>
       </div>
 
@@ -51,6 +57,7 @@ export function AuthorizedRepStep({
         label="Full legal name"
         value={value.name}
         onChange={(e) => onChange({ name: e.target.value })}
+        autoComplete="name"
       />
       <Select
         label="Job title"
@@ -64,25 +71,15 @@ export function AuthorizedRepStep({
         type="email"
         value={value.email}
         onChange={(e) => onChange({ email: e.target.value })}
+        hint="Checkr will send the background check invitation to this address."
+        autoComplete="email"
       />
       <Input
         label="Phone"
         value={value.phone}
         onChange={(e) => onChange({ phone: e.target.value })}
         placeholder="(555) 123-4567"
-      />
-      <Input
-        label="Date of birth"
-        type="date"
-        value={value.dob}
-        onChange={(e) => onChange({ dob: e.target.value })}
-        hint="Required for the background check."
-      />
-      <Input
-        label="Home address"
-        value={value.address}
-        onChange={(e) => onChange({ address: e.target.value })}
-        hint="Required for the background check."
+        autoComplete="tel"
       />
     </div>
   );

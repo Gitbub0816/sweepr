@@ -14,6 +14,7 @@ import { storageRouter } from "./routes/storage";
 import { notificationsRouter } from "./routes/notifications";
 import { scheduleRouter } from "./routes/schedule";
 import { subscriptionsRouter } from "./routes/subscriptions";
+import { checkrRouter } from "./routes/checkr";
 import { AppError, toSafeError } from "./lib/errors";
 import { logger } from "./lib/logger";
 import type { AppBindings } from "./types";
@@ -50,6 +51,9 @@ app.route("/storage", storageRouter);
 app.route("/notifications", notificationsRouter);
 app.route("/schedule", scheduleRouter);
 app.route("/subscriptions", subscriptionsRouter);
+app.route("/checkr", checkrRouter);
+// Checkr webhooks use a separate, unauthenticated path verified by HMAC signature.
+app.route("/webhooks/checkr", checkrRouter);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 

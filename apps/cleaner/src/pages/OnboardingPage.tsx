@@ -37,6 +37,7 @@ import {
   AuthorizedRepStep,
   type AuthorizedRepValue,
 } from "./onboarding/AuthorizedRepStep";
+import { BackgroundCheckStep } from "./onboarding/BackgroundCheckStep";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -107,10 +108,6 @@ interface FormState {
   services: ServiceType[];
   addOns: string[];
   availability: Record<string, DayAvail>;
-  legalName: string;
-  dob: string;
-  ssnLast4: string;
-  bgAddress: string;
   certifyAccurate: boolean;
   agreeIC: boolean;
   smsOptIn: boolean;
@@ -135,10 +132,6 @@ const initialState: FormState = {
   services: ["standard"],
   addOns: [],
   availability: Object.fromEntries(DAYS.map((d) => [d, "unavailable"])),
-  legalName: "",
-  dob: "",
-  ssnLast4: "",
-  bgAddress: "",
   certifyAccurate: false,
   agreeIC: false,
   smsOptIn: false,
@@ -159,12 +152,10 @@ const initialState: FormState = {
     title: "",
     email: "",
     phone: "",
-    dob: "",
-    address: "",
   },
 };
 
-type StatusFlow = "idle" | "submitting" | "submitted";
+type StatusFlow = "idle" | "submitting" | "submitted" | "pending";
 
 export function OnboardingPage() {
   const navigate = useNavigate();
@@ -249,11 +240,11 @@ export function OnboardingPage() {
         return (
           form.authorizedRep.name.trim().length > 0 &&
           form.authorizedRep.title.length > 0 &&
-          form.authorizedRep.dob.length > 0 &&
-          form.authorizedRep.address.trim().length > 0
+          form.authorizedRep.email.trim().length > 0
         );
       case "Background Check":
-        return checkrStatus === "submitted";
+        // Allow continuing once Checkr invitation was sent (pending = check in progress)
+        return checkrStatus === "submitted" || checkrStatus === "pending";
       case "Identity":
         return diditStatus === "submitted";
       case "Review":
@@ -263,39 +254,8 @@ export function OnboardingPage() {
     }
   };
 
-  async function submitBackgroundCheck() {
-    if (
-      !form.legalName ||
-      !form.dob ||
-      form.ssnLast4.length !== 4 ||
-      !form.bgAddress
-    ) {
-      toast.error("Please complete all background check fields.");
-      return;
-    }
-    setCheckrStatus("submitting");
-    try {
-      if (API_URL) {
-        // SSN last-4 is sent only to the API which forwards it to Checkr.
-        await fetch(`${API_URL}/cleaners/background-check`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            legalName: form.legalName,
-            dob: form.dob,
-            ssnLast4: form.ssnLast4,
-            address: form.bgAddress,
-          }),
-        });
-      }
-      await new Promise((r) => setTimeout(r, 900));
-      setCheckrStatus("submitted");
-      toast.success("Background check submitted to Checkr.");
-    } catch {
-      setCheckrStatus("idle");
-      toast.error("Could not submit. Try again.");
-    }
-  }
+  // Background check is now handled entirely within BackgroundCheckStep via
+  // the Checkr invitation flow — no PII passes through OnboardingPage.
 
   async function submitIdentity() {
     setDiditStatus("submitting");
@@ -333,8 +293,7 @@ export function OnboardingPage() {
             authorizedRep: {
               name: form.authorizedRep.name,
               title: form.authorizedRep.title,
-              dob: form.authorizedRep.dob,
-              address: form.authorizedRep.address,
+              email: form.authorizedRep.email,
             },
             serviceTypes: form.services,
             addOnKeys: form.addOns,
@@ -487,13 +446,13 @@ export function OnboardingPage() {
                   />
                 )}
                 {stepName === "Background Check" && (
-                  <StepBackground
-                    form={form}
-                    set={set}
-                    status={checkrStatus}
-                    onSubmit={submitBackgroundCheck}
-                    stepNumber={step + 1}
-                    businessMode={mode === "business"}
+                  <BackgroundCheckStep
+                    n={step + 1}
+                    workState="CA"
+                    onComplete={() => {
+                      setCheckrStatus("pending");
+                      goNext();
+                    }}
                   />
                 )}
                 {stepName === "Identity" && (
@@ -892,83 +851,8 @@ function StepServices({
   );
 }
 
-function StepBackground({
-  form,
-  set,
-  status,
-  onSubmit,
-  stepNumber,
-  businessMode,
-}: {
-  form: FormState;
-  set: SetFn;
-  status: StatusFlow;
-  onSubmit: () => void;
-  stepNumber: number;
-  businessMode?: boolean;
-}) {
-  return (
-    <div className="space-y-4">
-      <StepTitle
-        n={stepNumber}
-        title="Background check"
-        subtitle={
-          businessMode
-            ? "We run a background check on your authorized representative via Checkr."
-            : "We partner with Checkr to run a background check."
-        }
-      />
-      <div className="flex items-start gap-3 rounded-xl bg-seafoam-50 p-4 text-sm text-seafoam-800 dark:bg-seafoam-900/20 dark:text-seafoam-200">
-        <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
-        <p>
-          Your information is encrypted and sent directly to Checkr. Results
-          typically arrive in 1–3 business days. We'll email you when complete.
-        </p>
-      </div>
-      {status === "submitted" ? (
-        <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300">
-          <CheckCircle2 className="h-5 w-5" /> Submitted — check in progress.
-        </div>
-      ) : (
-        <>
-          <Input
-            label="Full legal name"
-            value={form.legalName}
-            onChange={(e) => set("legalName", e.target.value)}
-          />
-          <Input
-            label="Date of birth"
-            type="date"
-            value={form.dob}
-            onChange={(e) => set("dob", e.target.value)}
-          />
-          <Input
-            label="SSN (last 4)"
-            inputMode="numeric"
-            maxLength={4}
-            value={form.ssnLast4}
-            onChange={(e) =>
-              set("ssnLast4", e.target.value.replace(/\D/g, "").slice(0, 4))
-            }
-            hint="We never store your full SSN."
-          />
-          <Input
-            label="Current address"
-            value={form.bgAddress}
-            onChange={(e) => set("bgAddress", e.target.value)}
-          />
-          <p className="text-xs text-slate-400">
-            By submitting, you authorize Sweepr to conduct a background check
-            through Checkr.
-          </p>
-          <Button fullWidth onClick={onSubmit} loading={status === "submitting"}>
-            Submit to Checkr
-          </Button>
-        </>
-      )}
-    </div>
-  );
-}
+// StepBackground removed — background check is now handled by BackgroundCheckStep
+// (Checkr native invitation flow). No PII is collected by Sweepr.
 
 function StepIdentity({
   status,

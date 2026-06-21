@@ -17,7 +17,9 @@ preview_id = "placeholder_replace_with_real_preview_id"
 # STRIPE_SECRET_KEY
 # STRIPE_WEBHOOK_SECRET
 # MAILERSEND_API_KEY
-# CHECKR_API_KEY
+# CHECKR_API_KEY        (omit for mock mode while account is under review)
+# CHECKR_PACKAGE        e.g. tasker_standard
+# CHECKR_WEBHOOK_SECRET Checkr dashboard → Webhooks → signing secret
 # DIDIT_API_KEY
 # MAPBOX_SECRET_TOKEN
 # FIREBASE_PROJECT_ID
