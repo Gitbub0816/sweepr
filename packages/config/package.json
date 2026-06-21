@@ -1,0 +1,14 @@
+{
+  "name": "@sweepr/config",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "files": ["tailwind.ts", "index.js"],
+  "exports": {
+    "./tailwind": "./tailwind.ts",
+    "./tsconfig.base.json": "./tsconfig.base.json"
+  },
+  "dependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}

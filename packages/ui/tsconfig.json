@@ -1,0 +1,4 @@
+{
+  "extends": "@sweepr/config/tsconfig.base.json",
+  "include": ["src"]
+}
