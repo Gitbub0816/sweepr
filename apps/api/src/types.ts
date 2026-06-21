@@ -11,6 +11,7 @@ export interface Env {
   CHECKR_API_KEY?: string;
   DIDIT_API_KEY?: string;
   ALLOWED_ORIGINS?: string;
+  POSTHOG_KEY?: string;
   RATE_LIMIT_KV?: KVNamespace;
 }
 

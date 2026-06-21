@@ -18,6 +18,7 @@
     "@sweepr/types": "workspace:*",
     "@sweepr/utils": "workspace:*",
     "hono": "^4.12.26",
+    "posthog-node": "^5.38.2",
     "stripe": "^17.7.0",
     "zod": "^3.25.76"
   },

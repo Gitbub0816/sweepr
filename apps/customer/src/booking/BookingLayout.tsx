@@ -1,12 +1,29 @@
+import { useEffect, useRef } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { ThemeToggle, PriceSummary } from "@sweepr/ui";
+import { ThemeToggle, PriceSummary, SweeprLogo, track, Events } from "@sweepr/ui";
 import { useBookingStore } from "../store/booking";
 import { BOOKING_STEPS, stepIndex } from "./steps";
 
 export function BookingLayout() {
   const location = useLocation();
   const idx = stepIndex(location.pathname);
+  const prevIdx = useRef(-1);
+
+  useEffect(() => {
+    track(Events.BOOKING_STARTED);
+  }, []);
+
+  useEffect(() => {
+    // Fire a step-completed event when advancing forward through the funnel.
+    if (idx > prevIdx.current && prevIdx.current >= 0) {
+      track(Events.BOOKING_STEP_COMPLETED, {
+        step: BOOKING_STEPS[prevIdx.current]?.label ?? prevIdx.current,
+        stepIndex: prevIdx.current,
+      });
+    }
+    prevIdx.current = idx;
+  }, [idx]);
   const quote = useBookingStore((s) => s.getQuote());
   const isRebook = useBookingStore((s) => s.isRebook);
   const rebookedFromDate = useBookingStore((s) => s.rebookedFromDate);
@@ -16,10 +33,8 @@ export function BookingLayout() {
       {/* Sticky progress bar */}
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/85 backdrop-blur dark:border-slate-800 dark:bg-slate-900/85">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
-          <a href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-seafoam-500 font-bold text-white">
-              S
-            </div>
+          <a href="/" className="flex items-center gap-2" aria-label="Sweepr home">
+            <SweeprLogo size="sm" />
           </a>
           <div className="flex-1">
             <p className="text-xs font-medium text-slate-500">

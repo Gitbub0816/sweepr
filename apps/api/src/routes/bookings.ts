@@ -16,6 +16,7 @@ import { sendNotification } from "../lib/notifications";
 import { rateLimit } from "../middleware/rateLimit";
 import { assertValidTransition } from "../lib/statusMachine";
 import { audit } from "../lib/audit";
+import { serverTrack } from "../lib/posthog";
 import { logger } from "../lib/logger";
 import type { AppBindings } from "../types";
 import type { BookingRow, CleanerRow } from "@sweepr/db";
@@ -96,6 +97,12 @@ bookingsRouter.post(
     ipAddress: c.req.header("CF-Connecting-IP"),
     userAgent: c.req.header("User-Agent"),
     timestamp: new Date().toISOString(),
+  });
+
+  await serverTrack(c.env, "booking_confirmed", c.get("user").clerkId, {
+    bookingId: created.id,
+    serviceType: input.serviceType,
+    totalPrice: input.totalPrice,
   });
 
   // Silent auto-assignment: rank cleaners and offer to the best match.

@@ -10,6 +10,7 @@ import { sendNotification } from "../lib/notifications";
 import { requireAuth } from "../middleware/auth";
 import { PLATFORM_FEE_PERCENT } from "../lib/constants";
 import { audit } from "../lib/audit";
+import { serverTrack } from "../lib/posthog";
 import type { AppBindings } from "../types";
 import type { BookingRow, CleanerRow } from "@sweepr/db";
 
@@ -136,6 +137,12 @@ paymentsRouter.post(
       ipAddress: c.req.header("CF-Connecting-IP"),
       userAgent: c.req.header("User-Agent"),
       timestamp: new Date().toISOString(),
+    });
+
+    await serverTrack(c.env, "payout_released", c.get("user").clerkId, {
+      bookingId,
+      cleanerPayout,
+      platformFee,
     });
 
     return c.json({ ok: true, transferId: transfer.id, cleanerPayout, platformFee });

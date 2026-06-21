@@ -4,6 +4,7 @@ import { getDb } from "../lib/db";
 import { sendEmail } from "../lib/mailer";
 import { logger } from "../lib/logger";
 import { audit } from "../lib/audit";
+import { serverTrack } from "../lib/posthog";
 import { initiateAssignment } from "../lib/assignment";
 import { nextOccurrenceDate } from "../lib/subscriptions";
 import type { AppBindings } from "../types";
@@ -55,6 +56,12 @@ stripeWebhookRouter.post("/", async (c) => {
           metadata: { intentId: intent.id, amount: intent.amount },
           timestamp: new Date().toISOString(),
         });
+        await serverTrack(
+          c.env,
+          "payment_captured",
+          intent.metadata?.clerkId ?? "system:stripe",
+          { bookingId, intentId: intent.id, amount: intent.amount }
+        );
         // Payment captured -> kick off silent auto-assignment.
         try {
           await initiateAssignment(sql, bookingId);
@@ -154,6 +161,11 @@ stripeWebhookRouter.post("/", async (c) => {
         targetId: bookingId ?? "unknown",
         metadata: { stripeDisputeId: dispute.id, reason: dispute.reason ?? null },
         timestamp: new Date().toISOString(),
+      });
+      await serverTrack(c.env, "dispute_opened", "system:stripe", {
+        bookingId: bookingId ?? "unknown",
+        stripeDisputeId: dispute.id,
+        reason: dispute.reason ?? null,
       });
       // Notify admin.
       try {

@@ -453,26 +453,64 @@ export function OnboardingPage() {
               transition={reduced ? { duration: 0 } : { duration: 0.25 }}
             >
               <Card>
-                {step === 0 && <StepWelcome form={form} set={set} />}
-                {step === 1 && <StepArea form={form} set={set} />}
-                {step === 2 && <StepServices form={form} set={set} />}
-                {step === 3 && (
+                {stepName === "Basics" && (
+                  <StepWelcome form={form} set={set} />
+                )}
+                {stepName === "Business Info" && (
+                  <StepBusinessInfo form={form} set={set} />
+                )}
+                {stepName === "Service Area" && (
+                  <StepArea form={form} set={set} stepNumber={step + 1} />
+                )}
+                {stepName === "Services & Pricing" && (
+                  <StepServices form={form} set={set} stepNumber={step + 1} />
+                )}
+                {stepName === "Business Verification" && (
+                  <BusinessVerificationStep
+                    n={step + 1}
+                    value={form.businessVerification}
+                    onChange={(next) =>
+                      set("businessVerification", {
+                        ...form.businessVerification,
+                        ...next,
+                      })
+                    }
+                  />
+                )}
+                {stepName === "Authorized Rep" && (
+                  <AuthorizedRepStep
+                    n={step + 1}
+                    value={form.authorizedRep}
+                    onChange={(next) =>
+                      set("authorizedRep", { ...form.authorizedRep, ...next })
+                    }
+                  />
+                )}
+                {stepName === "Background Check" && (
                   <StepBackground
                     form={form}
                     set={set}
                     status={checkrStatus}
                     onSubmit={submitBackgroundCheck}
+                    stepNumber={step + 1}
+                    businessMode={mode === "business"}
                   />
                 )}
-                {step === 4 && (
-                  <StepIdentity status={diditStatus} onSubmit={submitIdentity} />
+                {stepName === "Identity" && (
+                  <StepIdentity
+                    status={diditStatus}
+                    onSubmit={submitIdentity}
+                    stepNumber={step + 1}
+                  />
                 )}
-                {step === 5 && (
+                {stepName === "Review" && (
                   <StepReview
                     form={form}
                     set={set}
                     earnings={earnings}
                     weeklyHours={weeklyHours}
+                    mode={mode}
+                    stepNumber={step + 1}
                   />
                 )}
               </Card>
@@ -639,7 +677,67 @@ function StepWelcome({ form, set }: { form: FormState; set: SetFn }) {
   );
 }
 
-function StepArea({ form, set }: { form: FormState; set: SetFn }) {
+function StepBusinessInfo({ form, set }: { form: FormState; set: SetFn }) {
+  return (
+    <div className="space-y-4">
+      <StepTitle
+        n={1}
+        title="Business information"
+        subtitle="Tell us about your cleaning business."
+      />
+      <Input
+        label="Legal business name"
+        value={form.businessLegalName}
+        onChange={(e) => set("businessLegalName", e.target.value)}
+        placeholder="Sparkle Clean LLC"
+      />
+      <Input
+        label="DBA (if any)"
+        value={form.dba}
+        onChange={(e) => set("dba", e.target.value)}
+        placeholder="Doing-business-as name"
+        hint="Optional"
+      />
+      <Select
+        label="Business type"
+        placeholder="Select a business type"
+        options={BUSINESS_TYPES}
+        value={form.businessType}
+        onChange={(e) => set("businessType", e.target.value)}
+      />
+      <Input
+        label="EIN"
+        value="Provided in the verification step"
+        readOnly
+        disabled
+        hint="You'll enter your EIN securely during Business Verification."
+      />
+      <Input
+        label="Years in business"
+        type="number"
+        min={0}
+        value={form.yearsInBusiness}
+        onChange={(e) => set("yearsInBusiness", e.target.value)}
+        placeholder="3"
+      />
+      <SMSOptIn
+        value={form.smsOptIn}
+        onChange={(v) => set("smsOptIn", v)}
+        phone={form.phone}
+      />
+    </div>
+  );
+}
+
+function StepArea({
+  form,
+  set,
+  stepNumber,
+}: {
+  form: FormState;
+  set: SetFn;
+  stepNumber: number;
+}) {
   const nearby = [
     "Hillcrest",
     "North Park",
@@ -650,7 +748,7 @@ function StepArea({ form, set }: { form: FormState; set: SetFn }) {
   return (
     <div className="space-y-4">
       <StepTitle
-        n={2}
+        n={stepNumber}
         title="Your service area"
         subtitle="Set how far you're willing to travel."
       />
@@ -694,7 +792,15 @@ function StepArea({ form, set }: { form: FormState; set: SetFn }) {
   );
 }
 
-function StepServices({ form, set }: { form: FormState; set: SetFn }) {
+function StepServices({
+  form,
+  set,
+  stepNumber,
+}: {
+  form: FormState;
+  set: SetFn;
+  stepNumber: number;
+}) {
   const toggleService = (t: ServiceType) =>
     set(
       "services",
@@ -711,7 +817,7 @@ function StepServices({ form, set }: { form: FormState; set: SetFn }) {
     );
   return (
     <div className="space-y-6">
-      <StepTitle n={3} title="Services & pricing" subtitle="What can you offer?" />
+      <StepTitle n={stepNumber} title="Services & pricing" subtitle="What can you offer?" />
       <div>
         <p className="mb-3 text-sm font-medium text-charcoal dark:text-slate-200">
           Services you offer
@@ -791,18 +897,26 @@ function StepBackground({
   set,
   status,
   onSubmit,
+  stepNumber,
+  businessMode,
 }: {
   form: FormState;
   set: SetFn;
   status: StatusFlow;
   onSubmit: () => void;
+  stepNumber: number;
+  businessMode?: boolean;
 }) {
   return (
     <div className="space-y-4">
       <StepTitle
-        n={4}
+        n={stepNumber}
         title="Background check"
-        subtitle="We partner with Checkr to run a background check."
+        subtitle={
+          businessMode
+            ? "We run a background check on your authorized representative via Checkr."
+            : "We partner with Checkr to run a background check."
+        }
       />
       <div className="flex items-start gap-3 rounded-xl bg-seafoam-50 p-4 text-sm text-seafoam-800 dark:bg-seafoam-900/20 dark:text-seafoam-200">
         <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
@@ -859,9 +973,11 @@ function StepBackground({
 function StepIdentity({
   status,
   onSubmit,
+  stepNumber,
 }: {
   status: StatusFlow;
   onSubmit: () => void;
+  stepNumber: number;
 }) {
   const [idFront, setIdFront] = useState("");
   const [idBack, setIdBack] = useState("");
@@ -870,7 +986,7 @@ function StepIdentity({
   return (
     <div className="space-y-4">
       <StepTitle
-        n={5}
+        n={stepNumber}
         title="Identity verification"
         subtitle="We partner with Didit to verify your identity."
       />
@@ -914,16 +1030,20 @@ function StepReview({
   set,
   earnings,
   weeklyHours,
+  mode,
+  stepNumber,
 }: {
   form: FormState;
   set: SetFn;
   earnings: { low: number; high: number };
   weeklyHours: number;
+  mode: OnboardingMode;
+  stepNumber: number;
 }) {
   return (
     <div className="space-y-5">
       <StepTitle
-        n={6}
+        n={stepNumber}
         title="Review & submit"
         subtitle="Almost done — review your details."
       />
@@ -939,8 +1059,29 @@ function StepReview({
       </div>
 
       <dl className="space-y-2 text-sm">
-        <Row label="Name" value={form.fullName || "—"} />
-        <Row label="Phone" value={form.phone || "—"} />
+        {mode === "business" ? (
+          <>
+            <Row label="Business" value={form.businessLegalName || "—"} />
+            <Row
+              label="Business type"
+              value={
+                BUSINESS_TYPES.find((t) => t.value === form.businessType)
+                  ?.label || "—"
+              }
+            />
+            <Row
+              label="State of incorporation"
+              value={form.businessVerification.stateOfIncorporation || "—"}
+            />
+            <Row label="EIN" value={form.businessVerification.ein ? "Provided" : "—"} />
+            <Row label="Authorized rep" value={form.authorizedRep.name || "—"} />
+          </>
+        ) : (
+          <>
+            <Row label="Name" value={form.fullName || "—"} />
+            <Row label="Phone" value={form.phone || "—"} />
+          </>
+        )}
         <Row label="Based in" value={form.basedIn} />
         <Row label="Service radius" value={`${form.radiusMi} mi`} />
         <Row

@@ -324,3 +324,13 @@ CREATE INDEX IF NOT EXISTS idx_cleaner_schedule_cleaner_id ON cleaner_schedule(c
 CREATE INDEX IF NOT EXISTS idx_subscriptions_customer_id ON subscriptions(customer_id);
 CREATE INDEX IF NOT EXISTS idx_assignment_queue_booking_id ON assignment_queue(booking_id, status);
 CREATE INDEX IF NOT EXISTS idx_assignment_queue_cleaner_id ON assignment_queue(cleaner_id, status);
+
+-- Business cleaner accounts (KYB). EIN is NEVER stored — only ein_provided.
+ALTER TABLE cleaners ADD COLUMN IF NOT EXISTS account_type TEXT DEFAULT 'individual' CHECK (account_type IN ('individual', 'business'));
+ALTER TABLE cleaners ADD COLUMN IF NOT EXISTS business_name TEXT;
+ALTER TABLE cleaners ADD COLUMN IF NOT EXISTS business_type TEXT;
+ALTER TABLE cleaners ADD COLUMN IF NOT EXISTS kyb_status TEXT DEFAULT 'not_started';
+ALTER TABLE cleaners ADD COLUMN IF NOT EXISTS ein_provided BOOLEAN DEFAULT false;
+ALTER TABLE cleaners ADD COLUMN IF NOT EXISTS state_of_incorporation TEXT;
+ALTER TABLE cleaners ADD COLUMN IF NOT EXISTS authorized_rep_name TEXT;
+ALTER TABLE cleaners ADD COLUMN IF NOT EXISTS authorized_rep_title TEXT;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { MapPin, Navigation, Home, Clock, CheckCircle2 } from "lucide-react";
-import { Card, Button } from "@sweepr/ui";
+import { Card, Button, track, Events } from "@sweepr/ui";
 import { SERVICE_LABELS, formatCurrency, cn } from "@sweepr/utils";
 import type { AvailableJob } from "../data/mock";
 
@@ -27,6 +27,22 @@ export function JobCard({
 }) {
   const [remaining, setRemaining] = useState(expiresInSec);
   const expired = remaining <= 0;
+
+  const handleAccept = () => {
+    track(Events.CLEANER_JOB_ACCEPTED, {
+      jobId: job.id,
+      serviceType: job.serviceType,
+      pay: job.pay,
+    });
+    onAccept();
+  };
+  const handlePass = () => {
+    track(Events.CLEANER_JOB_DECLINED, {
+      jobId: job.id,
+      serviceType: job.serviceType,
+    });
+    onPass();
+  };
 
   useEffect(() => {
     if (accepted) return;
@@ -114,10 +130,10 @@ export function JobCard({
             Offer expires in {fmt(remaining)}
           </p>
           <div className="flex gap-3">
-            <Button variant="ghost" fullWidth onClick={onPass}>
+            <Button variant="ghost" fullWidth onClick={handlePass}>
               Pass
             </Button>
-            <Button fullWidth onClick={onAccept}>
+            <Button fullWidth onClick={handleAccept}>
               Accept
             </Button>
           </div>

@@ -47,6 +47,9 @@ importers:
       mapbox-gl:
         specifier: ^3.25.0
         version: 3.25.0
+      posthog-js:
+        specifier: ^1.391.2
+        version: 1.391.2
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -132,6 +135,9 @@ importers:
       hono:
         specifier: ^4.12.26
         version: 4.12.26
+      posthog-node:
+        specifier: ^5.38.2
+        version: 5.38.2
       stripe:
         specifier: ^17.7.0
         version: 17.7.0
@@ -190,6 +196,9 @@ importers:
       mapbox-gl:
         specifier: ^3.25.0
         version: 3.25.0
+      posthog-js:
+        specifier: ^1.391.2
+        version: 1.391.2
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -302,6 +311,9 @@ importers:
       mapbox-gl:
         specifier: ^3.25.0
         version: 3.25.0
+      posthog-js:
+        specifier: ^1.391.2
+        version: 1.391.2
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -375,6 +387,9 @@ importers:
       lucide-react:
         specifier: ^0.441.0
         version: 0.441.0(react@18.3.1)
+      posthog-js:
+        specifier: ^1.391.2
+        version: 1.391.2
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -445,6 +460,9 @@ importers:
       lucide-react:
         specifier: ^0.469.0
         version: 0.469.0(react@18.3.1)
+      posthog-js:
+        specifier: ^1.391.2
+        version: 1.391.2
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -602,6 +620,9 @@ importers:
       '@types/three':
         specifier: ^0.184.1
         version: 0.184.1
+      posthog-js:
+        specifier: ^1.391.2
+        version: 1.391.2
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -1330,6 +1351,12 @@ packages:
   '@nodelib/fs.walk@1.2.8':
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
+
+  '@posthog/core@1.35.3':
+    resolution: {integrity: sha512-EsGPbSLl39Jgo2KZ+kI9UAxFnh5nddaN5bNm2rXvUwF+vGmam9eN1EXeNbxhRU7ulEeIiGdm7XjoU7pzavkgIQ==}
+
+  '@posthog/types@1.390.2':
+    resolution: {integrity: sha512-WcfKz2GNn2vfDX8vXmJYbKxegPxVWHuDQ/pHdAn0HoZDXDFnEp/+x3qBQA+fEvtbPjjtjgAt2wIgJMlM7asx7g==}
 
   '@radix-ui/number@1.1.2':
     resolution: {integrity: sha512-ceTwaxc4I5IOi97DgCotl3pqiyRGvffcc0oOsE2dQYaJOFIDsDt4VWG6xEbg1QePv9QWausCEIppud/tJ1wNig==}
@@ -2146,6 +2173,9 @@ packages:
     resolution: {integrity: sha512-9Kr/j4O16ISv8zBBhJoi4bXOYNTkFLOqSL3UDB0njXxCXNezjeyVrJyGOWtgfs/q2km1gwBcfH8q1yEGoMYunA==}
     engines: {node: '>=18'}
 
+  core-js@3.49.0:
+    resolution: {integrity: sha512-es1U2+YTtzpwkxVLwAFdSpaIMyQaq0PBgm3YD1W3Qpsn1NAmO3KSgZfu+oGSWVu6NvLHoHCV/aYcsE5wiB7ALg==}
+
   cross-env@7.0.3:
     resolution: {integrity: sha512-+/HKd6EgcQCJGh2PSjZuUitQBQynKor4wrFbRg4DtAgS1aWO+gU52xpH7M9ScGgXSYmAVS9bIJ8EzuaGw0oNAw==}
     engines: {node: '>=10.14', npm: '>=6', yarn: '>=1'}
@@ -2328,6 +2358,9 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
+
+  fflate@0.4.8:
+    resolution: {integrity: sha512-FJqqoDBR00Mdj9ppamLa/Y7vxm+PRmNWA67N846RvsoYVMKB4q3y/de5PA7gUmRMYK/8CMz2GDZQmCRN1wBcWA==}
 
   fflate@0.6.10:
     resolution: {integrity: sha512-IQrh3lEPM93wVCEczc9SaAOvkmcoQn/G8Bo1e8ZPlY3X3bnAxWaBdvTdvM1hP62iZp0BXWDy4vTAy4fF0+Dlpg==}
@@ -2732,8 +2765,23 @@ packages:
   postgres-range@1.1.4:
     resolution: {integrity: sha512-i/hbxIE9803Alj/6ytL7UHQxRvZkI9O4Sy+J3HGc4F4oo/2eQAjTSNJ0bfxyse3bH0nuVesCk+3IRLaMtG3H6w==}
 
+  posthog-js@1.391.2:
+    resolution: {integrity: sha512-q0DZN6ljchSnAFJIXf+sQFTPlsLjTlRa+TvrL+QRb6413BGtib/MNiQy1bnwLKt8KR+f6xJYvkqdLyty9s4Aww==}
+
+  posthog-node@5.38.2:
+    resolution: {integrity: sha512-eiKpU+vX4hVuHbO/EosvPHsmh2AVIdoVmWss/uUOs1t4b0ViCblw2o8OIFqHxKj3mYRnSOBlX0Dw3wBvcCaYpA==}
+    engines: {node: ^20.20.0 || >=22.22.0}
+    peerDependencies:
+      rxjs: ^7.0.0
+    peerDependenciesMeta:
+      rxjs:
+        optional: true
+
   potpack@1.0.2:
     resolution: {integrity: sha512-choctRBIV9EMT9WGAZHn3V7t0Z2pMQyl0EZE6pFc/6ml3ssw7Dlf/oAOvFwjm1HVsqfQN8GfeFyJ+d8tRzqueQ==}
+
+  preact@10.29.2:
+    resolution: {integrity: sha512-7tNmwg/7mzzAoB/8kSg6Hl37JraAZw3Z3A0JSY7VXlZwo82Xn0G7wKbNNs2qoF4ZEEsQGTwDAroNdqKs1ofJxQ==}
 
   printable-characters@1.0.42:
     resolution: {integrity: sha512-dKp+C4iXWK4vVYZmYSd0KBH5F/h1HoZRsbJ82AVKRO3PEo8L4lBS/vLwhVtpwwuYcoIsVY+1JYKR268yn480uQ==}
@@ -2747,6 +2795,9 @@ packages:
   qs@6.15.2:
     resolution: {integrity: sha512-Rzq0KEyX/w/tEybncDgdkZrJgVUsUMk3xjh3t5bv3S1HTAtg+uOYt72+ZfwiQwKdysThkTBdL/rTi6HDmX9Ddw==}
     engines: {node: '>=0.6'}
+
+  query-selector-shadow-dom@1.0.1:
+    resolution: {integrity: sha512-lT5yCqEBgfoMYpf3F2xQRK7zEr1rhIIZuceDK6+xRkJQ4NMbHTwXqk4NkwDwQMNqXgG9r9fyHnzwNVs6zV5KRw==}
 
   queue-microtask@1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
@@ -3192,6 +3243,9 @@ packages:
         optional: true
       yaml:
         optional: true
+
+  web-vitals@5.3.0:
+    resolution: {integrity: sha512-q6LWsLatGYZp5VGBIOvbTj6JBV2nOmC8KvWztXBmwJcfFAzhwKwbOxhUH306XY3CcaZDUlSmSuNPBsCn0bFu+g==}
 
   webgl-constants@1.1.1:
     resolution: {integrity: sha512-LkBXKjU5r9vAW7Gcu3T5u+5cvSvh5WwINdr0C+9jpzVB41cjQAP5ePArDtk/WHYdVj0GefCgM73BA7FlIiNtdg==}
@@ -3813,6 +3867,12 @@ snapshots:
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.20.1
+
+  '@posthog/core@1.35.3':
+    dependencies:
+      '@posthog/types': 1.390.2
+
+  '@posthog/types@1.390.2': {}
 
   '@radix-ui/number@1.1.2': {}
 
@@ -4562,6 +4622,8 @@ snapshots:
 
   cookie@1.0.2: {}
 
+  core-js@3.49.0: {}
+
   cross-env@7.0.3:
     dependencies:
       cross-spawn: 7.0.6
@@ -4753,6 +4815,8 @@ snapshots:
   fdir@6.5.0(picomatch@4.0.4):
     optionalDependencies:
       picomatch: 4.0.4
+
+  fflate@0.4.8: {}
 
   fflate@0.6.10: {}
 
@@ -5080,7 +5144,24 @@ snapshots:
 
   postgres-range@1.1.4: {}
 
+  posthog-js@1.391.2:
+    dependencies:
+      '@posthog/core': 1.35.3
+      '@posthog/types': 1.390.2
+      core-js: 3.49.0
+      dompurify: 3.4.11
+      fflate: 0.4.8
+      preact: 10.29.2
+      query-selector-shadow-dom: 1.0.1
+      web-vitals: 5.3.0
+
+  posthog-node@5.38.2:
+    dependencies:
+      '@posthog/core': 1.35.3
+
   potpack@1.0.2: {}
+
+  preact@10.29.2: {}
 
   printable-characters@1.0.42: {}
 
@@ -5098,6 +5179,8 @@ snapshots:
   qs@6.15.2:
     dependencies:
       side-channel: 1.1.1
+
+  query-selector-shadow-dom@1.0.1: {}
 
   queue-microtask@1.2.3: {}
 
@@ -5606,6 +5689,8 @@ snapshots:
       '@types/node': 22.20.0
       fsevents: 2.3.3
       jiti: 1.21.7
+
+  web-vitals@5.3.0: {}
 
   webgl-constants@1.1.1: {}
 

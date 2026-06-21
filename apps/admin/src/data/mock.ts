@@ -124,6 +124,13 @@ export interface AdminApplicationDetail {
   checkrStatus: "submitted" | "clear" | "consider" | "pending";
   diditStatus: "submitted" | "verified" | "pending";
   submittedAt: string;
+  // Business accounts (optional)
+  accountType?: "individual" | "business";
+  businessName?: string;
+  businessType?: string;
+  stateOfIncorporation?: string;
+  kybStatus?: "not_started" | "pending" | "verified" | "failed";
+  authorizedRep?: { name: string; title: string };
 }
 
 export const adminApplicationDetails: Record<string, AdminApplicationDetail> = {
@@ -160,6 +167,12 @@ export const adminApplicationDetails: Record<string, AdminApplicationDetail> = {
     checkrStatus: "pending",
     diditStatus: "submitted",
     submittedAt: "2026-06-20",
+    accountType: "business",
+    businessName: "Green Sweep Co. LLC",
+    businessType: "LLC",
+    stateOfIncorporation: "California",
+    kybStatus: "pending",
+    authorizedRep: { name: "Casey Wu", title: "Owner" },
   },
 };
 

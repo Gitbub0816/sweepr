@@ -1,0 +1,10 @@
+{
+  "projectName": "sweepr-legal",
+  "buildCommand": "cd ../.. && pnpm --filter @sweepr/legal build",
+  "buildOutputDirectory": "dist",
+  "rootDirectory": "apps/legal",
+  "environmentVariables": {
+    "NODE_VERSION": "20",
+    "PNPM_VERSION": "9"
+  }
+}

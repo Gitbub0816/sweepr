@@ -1,0 +1,10 @@
+{
+  "projectName": "sweepr-admin",
+  "buildCommand": "cd ../.. && pnpm --filter @sweepr/admin build",
+  "buildOutputDirectory": "dist",
+  "rootDirectory": "apps/admin",
+  "environmentVariables": {
+    "NODE_VERSION": "20",
+    "PNPM_VERSION": "9"
+  }
+}

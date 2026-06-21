@@ -27,6 +27,12 @@ const diditVariant: Record<string, "success" | "info" | "warning"> = {
   submitted: "info",
   pending: "warning",
 };
+const kybVariant: Record<string, "success" | "warning" | "error"> = {
+  verified: "success",
+  pending: "warning",
+  not_started: "warning",
+  failed: "error",
+};
 
 export function ApplicationDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -95,9 +101,14 @@ export function ApplicationDetailPage() {
                 </div>
               )}
               <div>
-                <p className="text-lg font-semibold text-charcoal dark:text-white">
-                  {app.name}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-lg font-semibold text-charcoal dark:text-white">
+                    {app.name}
+                  </p>
+                  {app.accountType === "business" && (
+                    <Badge variant="info">Business Account</Badge>
+                  )}
+                </div>
                 <p className="text-sm text-slate-500">{app.email}</p>
                 <p className="text-sm text-slate-500">{app.phone}</p>
               </div>
@@ -145,6 +156,48 @@ export function ApplicationDetailPage() {
         </div>
 
         <div className="space-y-6">
+          {app.accountType === "business" && (
+            <Card>
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="font-semibold text-charcoal dark:text-white">
+                  Business
+                </h3>
+                {app.kybStatus && (
+                  <Badge variant={kybVariant[app.kybStatus] ?? "warning"}>
+                    KYB: {app.kybStatus}
+                  </Badge>
+                )}
+              </div>
+              <dl className="space-y-2 text-sm">
+                <div className="flex justify-between gap-4">
+                  <dt className="text-slate-400">Name</dt>
+                  <dd className="text-right font-medium text-charcoal dark:text-white">
+                    {app.businessName ?? "—"}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-slate-400">Type</dt>
+                  <dd className="text-right font-medium text-charcoal dark:text-white">
+                    {app.businessType ?? "—"}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-slate-400">State of incorporation</dt>
+                  <dd className="text-right font-medium text-charcoal dark:text-white">
+                    {app.stateOfIncorporation ?? "—"}
+                  </dd>
+                </div>
+                {app.authorizedRep && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-slate-400">Authorized rep</dt>
+                    <dd className="text-right font-medium text-charcoal dark:text-white">
+                      {app.authorizedRep.name} ({app.authorizedRep.title})
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </Card>
+          )}
           <Card>
             <h3 className="mb-3 font-semibold text-charcoal dark:text-white">
               Verification

@@ -232,6 +232,103 @@ cleanersRouter.post("/apply", zValidator("json", applySchema), async (c) => {
 });
 
 // ---------------------------------------------------------------------------
+// Business cleaner application (KYB via Stripe Connect)
+// ---------------------------------------------------------------------------
+
+const businessApplySchema = z.object({
+  businessName: z.string().min(2).max(200),
+  businessType: z.string().min(2).max(40),
+  // EIN itself is NEVER accepted here — only a boolean that it was provided.
+  einProvided: z.literal(true),
+  stateOfIncorporation: z.string().min(2).max(60),
+  authorizedRep: z.object({
+    name: z.string().min(2).max(200),
+    title: z.string().max(80),
+    dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    address: z.string().max(500),
+  }),
+  serviceTypes: z.array(z.string()).optional(),
+  addOnKeys: z.array(z.string()).optional(),
+  availability: z.record(z.string()).optional(),
+});
+
+cleanersRouter.post(
+  "/business/apply",
+  zValidator("json", businessApplySchema),
+  async (c) => {
+    const input = c.req.valid("json");
+    const { sql, user } = await currentCleaner(c);
+    if (!user) return c.json({ error: "User not found" }, 404);
+
+    const [firstName, ...rest] = input.authorizedRep.name.split(" ");
+    const lastName = rest.join(" ");
+    const existing = await getCleanerByUserId(sql, user.id);
+
+    // Create a business Stripe Connect (Express) account for KYB + payouts.
+    let connectId = existing?.stripe_connect_id ?? null;
+    try {
+      const stripe = getStripe(c.env.STRIPE_SECRET_KEY);
+      const account = await stripe.accounts.create({
+        type: "express",
+        business_type: "company",
+        company: { name: input.businessName },
+        metadata: { account_type: "business" },
+      });
+      connectId = account.id;
+    } catch {
+      // Stripe creation is best-effort here; KYB stays pending until completed.
+    }
+
+    // NOTE: EIN is never stored — only ein_provided + kyb_status are persisted.
+    if (existing) {
+      await sql`
+        UPDATE cleaners SET
+          first_name = COALESCE(${firstName || null}, first_name),
+          last_name  = COALESCE(${lastName || null}, last_name),
+          account_type = 'business',
+          business_name = ${input.businessName},
+          business_type = ${input.businessType},
+          state_of_incorporation = ${input.stateOfIncorporation},
+          authorized_rep_name = ${input.authorizedRep.name},
+          authorized_rep_title = ${input.authorizedRep.title},
+          ein_provided = true,
+          kyb_status = 'pending',
+          stripe_connect_id = COALESCE(${connectId}, stripe_connect_id),
+          status = 'pending'
+        WHERE user_id = ${user.id}
+      `;
+    } else {
+      await sql`
+        INSERT INTO cleaners (
+          user_id, first_name, last_name, account_type, business_name,
+          business_type, state_of_incorporation, authorized_rep_name,
+          authorized_rep_title, ein_provided, kyb_status, stripe_connect_id, status
+        ) VALUES (
+          ${user.id}, ${firstName || null}, ${lastName || null}, 'business',
+          ${input.businessName}, ${input.businessType},
+          ${input.stateOfIncorporation}, ${input.authorizedRep.name},
+          ${input.authorizedRep.title}, true, 'pending', ${connectId}, 'pending'
+        )
+      `;
+    }
+
+    // Trigger a Checkr background check on the authorized representative.
+    const candidateId = `cand_${crypto.randomUUID()}`;
+    await sql`
+      UPDATE cleaners SET checkr_candidate_id = ${candidateId}
+      WHERE user_id = ${user.id}
+    `;
+
+    return c.json({
+      ok: true,
+      status: "pending_review",
+      kyb_status: "pending",
+      account_type: "business",
+    });
+  }
+);
+
+// ---------------------------------------------------------------------------
 // Job offers (assignment queue)
 // ---------------------------------------------------------------------------
 

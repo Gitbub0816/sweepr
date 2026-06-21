@@ -2,9 +2,11 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { ClerkProvider } from "@clerk/clerk-react";
-import { ErrorBoundary, installGlobalErrorHandlers } from "@sweepr/ui";
+import { ErrorBoundary, installGlobalErrorHandlers, initAnalytics } from "@sweepr/ui";
 import App from "./App";
 import "./index.css";
+
+initAnalytics();
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as
   | string

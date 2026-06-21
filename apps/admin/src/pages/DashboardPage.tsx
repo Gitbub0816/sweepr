@@ -45,6 +45,44 @@ const utilizationData = adminCleaners.slice(0, 6).map((c, i) => ({
   capacity: 10,
 }));
 
+const POSTHOG_DASHBOARD_URL = import.meta.env.VITE_POSTHOG_DASHBOARD_URL as
+  | string
+  | undefined;
+
+function AnalyticsSection() {
+  return (
+    <Card>
+      <h2 className="mb-4 font-semibold text-charcoal dark:text-white">
+        Analytics
+      </h2>
+      {POSTHOG_DASHBOARD_URL ? (
+        <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
+          <iframe
+            title="PostHog dashboard"
+            src={POSTHOG_DASHBOARD_URL}
+            className="h-[480px] w-full"
+            allowFullScreen
+          />
+        </div>
+      ) : (
+        <div className="rounded-xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 dark:border-slate-700">
+          <p className="font-medium text-charcoal dark:text-white">
+            Configure PostHog
+          </p>
+          <p className="mt-1">
+            Set <code>VITE_POSTHOG_DASHBOARD_URL</code> to a shared PostHog
+            dashboard URL to embed it here. See the{" "}
+            <a className="text-seafoam-600 underline" href="/events">
+              Events page
+            </a>{" "}
+            for the live server-side audit feed.
+          </p>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export function DashboardPage() {
   const revenue = adminJobs.reduce((s, j) => s + j.quote.total, 0);
   return (
@@ -175,6 +213,8 @@ export function DashboardPage() {
           Beta
         </span>
       </Card>
+
+      <AnalyticsSection />
 
       <Card>
         <h2 className="mb-4 font-semibold text-charcoal dark:text-white">

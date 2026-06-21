@@ -11,6 +11,7 @@ import {
   Wallet,
   Settings,
   Map,
+  Activity,
 } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -26,6 +27,7 @@ import { DisputeDetailPage } from "./pages/DisputeDetailPage";
 import { PayoutsPage } from "./pages/PayoutsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ServiceAreasPage } from "./pages/ServiceAreasPage";
+import { EventsPage } from "./pages/EventsPage";
 import { AuthPage } from "./components/AuthPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminGuard } from "./components/AdminGuard";
@@ -41,6 +43,7 @@ const nav = [
   { to: "/disputes", label: "Disputes", icon: AlertTriangle },
   { to: "/payouts", label: "Payouts", icon: Wallet },
   { to: "/service-areas", label: "Service Areas", icon: Map },
+  { to: "/events", label: "Events", icon: Activity },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -90,6 +93,7 @@ export default function App() {
       <Route path="/disputes/:id" element={<Guarded><DisputeDetailPage /></Guarded>} />
       <Route path="/payouts" element={<Guarded><PayoutsPage /></Guarded>} />
       <Route path="/service-areas" element={<Guarded><ServiceAreasPage /></Guarded>} />
+      <Route path="/events" element={<Guarded><EventsPage /></Guarded>} />
       <Route path="/settings" element={<Guarded><SettingsPage /></Guarded>} />
     </Routes>
   );

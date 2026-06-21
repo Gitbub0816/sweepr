@@ -1,0 +1,10 @@
+{
+  "projectName": "sweepr-cleaner",
+  "buildCommand": "cd ../.. && pnpm --filter @sweepr/cleaner build",
+  "buildOutputDirectory": "dist",
+  "rootDirectory": "apps/cleaner",
+  "environmentVariables": {
+    "NODE_VERSION": "20",
+    "PNPM_VERSION": "9"
+  }
+}

@@ -35,6 +35,34 @@ adminRouter.get("/stats", async (c) => {
   return c.json({ stats: rows[0] });
 });
 
+// ---------------------------------------------------------------------------
+// Audit event log (analytics / security feed)
+// ---------------------------------------------------------------------------
+
+adminRouter.get("/events", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const action = c.req.query("action");
+  const limit = Math.min(Number(c.req.query("limit") ?? 100) || 100, 500);
+  const offset = Math.max(Number(c.req.query("offset") ?? 0) || 0, 0);
+
+  const events = (await sql`
+    SELECT
+      id, action, actor_clerk_id, target_type, target_id,
+      metadata, ip_address, user_agent, created_at
+    FROM admin_audit_log
+    WHERE ${action ? sql`action = ${action}` : sql`true`}
+    ORDER BY created_at DESC
+    LIMIT ${limit} OFFSET ${offset}
+  `) as unknown[];
+
+  const totalRows = (await sql`
+    SELECT COUNT(*)::int AS total FROM admin_audit_log
+    WHERE ${action ? sql`action = ${action}` : sql`true`}
+  `) as Array<{ total: number }>;
+
+  return c.json({ events, total: totalRows[0]?.total ?? 0 });
+});
+
 adminRouter.get("/cleaners/pending", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const cleaners = (await sql`

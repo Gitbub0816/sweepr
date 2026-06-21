@@ -7,7 +7,8 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "security": "pnpm audit --audit-level=high"
   },
   "devDependencies": {
     "turbo": "^2.3.3",
