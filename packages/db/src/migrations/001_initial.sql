@@ -237,3 +237,90 @@ CREATE INDEX IF NOT EXISTS idx_job_offers_cleaner_id ON job_offers(cleaner_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_cleaner_id ON reviews(cleaner_id);
 CREATE INDEX IF NOT EXISTS idx_payments_booking_id ON payments(booking_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id, read);
+
+-- ===========================================================================
+-- Scheduling, subscriptions & assignment (Part 2)
+-- ===========================================================================
+
+-- Cleaner availability slots (their schedule)
+CREATE TABLE IF NOT EXISTS cleaner_schedule (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  cleaner_id UUID REFERENCES cleaners(id) ON DELETE CASCADE,
+
+  -- 'recurring' = repeats every week, 'flexible' = specific date only, 'available_now' = immediate
+  slot_type TEXT NOT NULL CHECK (slot_type IN ('recurring', 'flexible', 'available_now')),
+
+  -- For recurring slots
+  day_of_week INT CHECK (day_of_week BETWEEN 0 AND 6),  -- 0=Sun
+  start_time TIME,
+  end_time TIME,
+
+  -- For flexible (one-off) slots
+  specific_date DATE,
+
+  -- Applies to both
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Customer recurring booking subscriptions
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  customer_id UUID REFERENCES customers(id) ON DELETE CASCADE,
+  service_type TEXT NOT NULL,
+  cadence TEXT NOT NULL CHECK (cadence IN ('weekly', 'biweekly', 'monthly')),
+  preferred_day_of_week INT CHECK (preferred_day_of_week BETWEEN 0 AND 6),
+  preferred_time_of_day TEXT CHECK (preferred_time_of_day IN ('morning', 'afternoon', 'evening')),
+  address_id UUID REFERENCES addresses(id),
+
+  -- Pricing
+  display_price INT NOT NULL,  -- cents, shown to customer
+  internal_price INT NOT NULL, -- cents, internal
+
+  -- Stripe
+  stripe_subscription_id TEXT UNIQUE,
+  stripe_price_id TEXT,
+
+  -- Status
+  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'paused', 'cancelled')),
+
+  -- Home details (snapshot)
+  home_details JSONB,
+  add_on_keys TEXT[],
+  pricing_inputs JSONB,
+
+  -- Preferred cleaner (optional — customer may request same cleaner)
+  preferred_cleaner_id UUID REFERENCES cleaners(id),
+
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Subscription bookings (instances generated from subscriptions)
+CREATE TABLE IF NOT EXISTS subscription_bookings (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  subscription_id UUID REFERENCES subscriptions(id) ON DELETE CASCADE,
+  booking_id UUID REFERENCES bookings(id),
+  scheduled_for DATE NOT NULL,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'booked', 'completed', 'skipped', 'failed'))
+);
+
+-- Job assignment queue (for the matching/cascading system)
+CREATE TABLE IF NOT EXISTS assignment_queue (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  booking_id UUID REFERENCES bookings(id) ON DELETE CASCADE,
+  cleaner_id UUID REFERENCES cleaners(id),
+  offered_at TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  position INT NOT NULL,  -- 1 = first offered, 2 = second, etc.
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined', 'expired', 'skipped')),
+  score DECIMAL(6,2),
+  score_breakdown JSONB
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_cleaner_schedule_cleaner_id ON cleaner_schedule(cleaner_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_customer_id ON subscriptions(customer_id);
+CREATE INDEX IF NOT EXISTS idx_assignment_queue_booking_id ON assignment_queue(booking_id, status);
+CREATE INDEX IF NOT EXISTS idx_assignment_queue_cleaner_id ON assignment_queue(cleaner_id, status);

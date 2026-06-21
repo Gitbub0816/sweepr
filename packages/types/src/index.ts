@@ -27,11 +27,33 @@ export type ServiceType =
   | "standard"
   | "deep"
   | "move_in_out"
-  | "recurring";
+  | "recurring"
+  | "post_construction"
+  | "vacation_rental";
 
 export type HomeType = "apartment" | "house" | "condo" | "townhouse" | "studio";
 
 export type RecurringCadence = "weekly" | "biweekly" | "monthly" | "none";
+
+export type SubscriptionCadence = "weekly" | "biweekly" | "monthly";
+
+export type SubscriptionStatus = "active" | "paused" | "cancelled";
+
+export type TimeWindow = "morning" | "afternoon" | "evening";
+
+export interface Subscription extends BaseEntity {
+  customerId: string;
+  serviceType: ServiceType;
+  cadence: SubscriptionCadence;
+  preferredDayOfWeek?: number;
+  preferredTimeOfDay?: TimeWindow;
+  displayPrice: number; // cents
+  internalPrice: number; // cents
+  stripeSubscriptionId?: string;
+  status: SubscriptionStatus;
+  nextCleaningDate?: string;
+  preferredCleanerId?: string;
+}
 
 export type PaymentStatus =
   | "pending"
