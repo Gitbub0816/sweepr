@@ -35,3 +35,6 @@ export * from "./components/NotificationBell";
 
 // Hooks
 export * from "./hooks/useReducedMotion";
+
+// Lib
+export { SafeText, sanitizeText } from "./lib/sanitize";
