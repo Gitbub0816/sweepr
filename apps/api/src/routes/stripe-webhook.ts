@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { getStripe } from "../lib/stripe";
 import { getDb } from "../lib/db";
+import { sendEmail } from "../lib/mailer";
 import type { AppBindings } from "../types";
 
 export const stripeWebhookRouter = new Hono<AppBindings>();
@@ -36,6 +37,19 @@ stripeWebhookRouter.post("/", async (c) => {
           WHERE id = ${bookingId}
         `;
       }
+      // Send confirmation email to the receipt address, if Stripe captured one.
+      const email = intent.receipt_email ?? undefined;
+      if (email) {
+        try {
+          await sendEmail(c.env.MAILERSEND_API_KEY, {
+            to: email,
+            subject: "Your Sweepr booking is confirmed",
+            html: `<p>Your payment was received and your clean is booked. We'll match you with a top-rated cleaner shortly.</p>`,
+          });
+        } catch {
+          // Non-fatal.
+        }
+      }
       break;
     }
     case "payment_intent.payment_failed": {
@@ -45,6 +59,93 @@ stripeWebhookRouter.post("/", async (c) => {
         await sql`
           UPDATE bookings SET status = 'payment_pending', updated_at = NOW()
           WHERE id = ${bookingId}
+        `;
+      }
+      const email = intent.receipt_email ?? undefined;
+      if (email) {
+        try {
+          await sendEmail(c.env.MAILERSEND_API_KEY, {
+            to: email,
+            subject: "Payment failed — action needed",
+            html: `<p>We couldn't process your payment. Please update your payment method to confirm your booking.</p>`,
+          });
+        } catch {
+          // Non-fatal.
+        }
+      }
+      break;
+    }
+    case "account.updated": {
+      // Stripe Connect — touch the cleaner row so payout-readiness changes are
+      // reflected. Detailed capability flags are read on demand via the status
+      // endpoint; here we just mark the record as seen.
+      const account = event.data.object;
+      await sql`
+        UPDATE cleaners SET updated_at = NOW()
+        WHERE stripe_connect_id = ${account.id}
+      `;
+      break;
+    }
+    case "transfer.created": {
+      const transfer = event.data.object;
+      const bookingId = transfer.transfer_group?.replace("booking_", "");
+      if (bookingId) {
+        await sql`
+          UPDATE payouts
+          SET status = 'paid', stripe_transfer_id = ${transfer.id}, paid_at = NOW()
+          WHERE booking_id = ${bookingId}
+        `;
+      }
+      break;
+    }
+    case "charge.dispute.created": {
+      const dispute = event.data.object;
+      const paymentIntent =
+        typeof dispute.payment_intent === "string"
+          ? dispute.payment_intent
+          : dispute.payment_intent?.id ?? null;
+      const bookings = paymentIntent
+        ? ((await sql`
+            SELECT id FROM bookings
+            WHERE stripe_payment_intent_id = ${paymentIntent} LIMIT 1
+          `) as Array<{ id: string }>)
+        : [];
+      const bookingId = bookings[0]?.id ?? null;
+      await sql`
+        INSERT INTO disputes (booking_id, reason, description, status)
+        VALUES (${bookingId}, ${dispute.reason ?? "stripe_dispute"},
+                ${"Stripe dispute " + dispute.id}, 'open')
+      `;
+      if (bookingId) {
+        await sql`
+          UPDATE bookings SET status = 'disputed', updated_at = NOW()
+          WHERE id = ${bookingId}
+        `;
+      }
+      // Notify admin.
+      try {
+        await sendEmail(c.env.MAILERSEND_API_KEY, {
+          to: "support@sweep-r.com",
+          subject: "New Stripe dispute opened",
+          html: `<p>A dispute (${dispute.id}) was opened${
+            bookingId ? ` for booking ${bookingId}` : ""
+          }. Review it in the admin console.</p>`,
+        });
+      } catch {
+        // Non-fatal.
+      }
+      break;
+    }
+    case "charge.refunded": {
+      const charge = event.data.object;
+      const paymentIntent =
+        typeof charge.payment_intent === "string"
+          ? charge.payment_intent
+          : charge.payment_intent?.id ?? null;
+      if (paymentIntent) {
+        await sql`
+          UPDATE payments SET status = 'refunded'
+          WHERE stripe_payment_intent_id = ${paymentIntent}
         `;
       }
       break;

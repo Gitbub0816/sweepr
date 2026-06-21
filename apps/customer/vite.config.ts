@@ -10,4 +10,18 @@ export default defineConfig({
     },
   },
   server: { port: 5174 },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-react": ["react", "react-dom", "react-router-dom"],
+          "vendor-motion": ["framer-motion"],
+          "vendor-stripe": ["@stripe/stripe-js", "@stripe/react-stripe-js"],
+          "vendor-mapbox": ["mapbox-gl"],
+          "vendor-clerk": ["@clerk/clerk-react"],
+          "vendor-query": ["@tanstack/react-query"],
+        },
+      },
+    },
+  },
 });

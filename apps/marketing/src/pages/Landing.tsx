@@ -17,6 +17,7 @@ import {
 import { formatCurrency } from "@sweepr/utils";
 import { HeroScene } from "../components/HeroScene";
 import { QuoteCalculator } from "../components/QuoteCalculator";
+import { MarketingAuth } from "../components/MarketingAuth";
 
 const CUSTOMER_URL =
   import.meta.env.VITE_CUSTOMER_URL || "https://app.sweep-r.com";
@@ -97,7 +98,15 @@ export default function Landing() {
   return (
     <MarketingShell
       navLinks={navLinks}
-      cta={<Button onClick={() => (window.location.href = CUSTOMER_URL)}>Book a Cleaning</Button>}
+      cta={
+        <MarketingAuth
+          cta={
+            <Button onClick={() => (window.location.href = CUSTOMER_URL)}>
+              Book a Cleaning
+            </Button>
+          }
+        />
+      }
     >
       {/* Hero */}
       <div className="relative overflow-hidden">

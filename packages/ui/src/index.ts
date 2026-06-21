@@ -29,3 +29,7 @@ export * from "./cards/StatCard";
 
 // Components
 export * from "./components/SavedPaymentCard";
+export * from "./components/NotificationBell";
+
+// Hooks
+export * from "./hooks/useReducedMotion";

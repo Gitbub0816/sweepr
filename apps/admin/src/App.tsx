@@ -1,4 +1,5 @@
 import { Routes, Route } from "react-router-dom";
+import { SignIn } from "@clerk/clerk-react";
 import {
   LayoutDashboard,
   Briefcase,
@@ -17,10 +18,16 @@ import { JobDetailPage } from "./pages/JobDetailPage";
 import { CustomersPage } from "./pages/CustomersPage";
 import { CleanersPage } from "./pages/CleanersPage";
 import { ApplicationsPage } from "./pages/ApplicationsPage";
+import { ApplicationDetailPage } from "./pages/ApplicationDetailPage";
 import { PricingPage } from "./pages/PricingPage";
 import { DisputesPage } from "./pages/DisputesPage";
+import { DisputeDetailPage } from "./pages/DisputeDetailPage";
 import { PayoutsPage } from "./pages/PayoutsPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { AuthPage } from "./components/AuthPage";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import { AdminGuard } from "./components/AdminGuard";
+import { NavAuth } from "./components/NavAuth";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -36,25 +43,50 @@ const nav = [
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <AppShell brand="Admin" accent="Sweepr Ops" nav={nav}>
+    <AppShell brand="Admin" accent="Sweepr Ops" nav={nav} headerRight={<NavAuth />}>
       {children}
     </AppShell>
+  );
+}
+
+/** Auth + admin-role gated page. */
+function Guarded({ children }: { children: React.ReactNode }) {
+  return (
+    <ProtectedRoute>
+      <AdminGuard>
+        <Shell>{children}</Shell>
+      </AdminGuard>
+    </ProtectedRoute>
   );
 }
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Shell><DashboardPage /></Shell>} />
-      <Route path="/jobs" element={<Shell><JobsPage /></Shell>} />
-      <Route path="/jobs/:id" element={<Shell><JobDetailPage /></Shell>} />
-      <Route path="/customers" element={<Shell><CustomersPage /></Shell>} />
-      <Route path="/cleaners" element={<Shell><CleanersPage /></Shell>} />
-      <Route path="/applications" element={<Shell><ApplicationsPage /></Shell>} />
-      <Route path="/pricing" element={<Shell><PricingPage /></Shell>} />
-      <Route path="/disputes" element={<Shell><DisputesPage /></Shell>} />
-      <Route path="/payouts" element={<Shell><PayoutsPage /></Shell>} />
-      <Route path="/settings" element={<Shell><SettingsPage /></Shell>} />
+      <Route
+        path="/sign-in/*"
+        element={
+          <AuthPage title="Sweepr Ops" subtitle="Sign in to the admin console">
+            <SignIn routing="path" path="/sign-in" fallbackRedirectUrl="/" />
+          </AuthPage>
+        }
+      />
+
+      <Route path="/" element={<Guarded><DashboardPage /></Guarded>} />
+      <Route path="/jobs" element={<Guarded><JobsPage /></Guarded>} />
+      <Route path="/jobs/:id" element={<Guarded><JobDetailPage /></Guarded>} />
+      <Route path="/customers" element={<Guarded><CustomersPage /></Guarded>} />
+      <Route path="/cleaners" element={<Guarded><CleanersPage /></Guarded>} />
+      <Route path="/applications" element={<Guarded><ApplicationsPage /></Guarded>} />
+      <Route
+        path="/applications/:id"
+        element={<Guarded><ApplicationDetailPage /></Guarded>}
+      />
+      <Route path="/pricing" element={<Guarded><PricingPage /></Guarded>} />
+      <Route path="/disputes" element={<Guarded><DisputesPage /></Guarded>} />
+      <Route path="/disputes/:id" element={<Guarded><DisputeDetailPage /></Guarded>} />
+      <Route path="/payouts" element={<Guarded><PayoutsPage /></Guarded>} />
+      <Route path="/settings" element={<Guarded><SettingsPage /></Guarded>} />
     </Routes>
   );
 }

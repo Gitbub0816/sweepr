@@ -1,4 +1,5 @@
 import { Routes, Route } from "react-router-dom";
+import { SignIn, SignUp } from "@clerk/clerk-react";
 import {
   LayoutDashboard,
   Briefcase,
@@ -9,11 +10,16 @@ import {
 import { AppShell } from "@sweepr/ui";
 import { HomePage } from "./pages/HomePage";
 import { OnboardingPage } from "./pages/OnboardingPage";
+import { PendingReviewPage } from "./pages/PendingReviewPage";
 import { JobsPage } from "./pages/JobsPage";
 import { JobDetailPage } from "./pages/JobDetailPage";
 import { SchedulePage } from "./pages/SchedulePage";
 import { EarningsPage } from "./pages/EarningsPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { AuthPage } from "./components/AuthPage";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import { OnboardingGuard } from "./components/OnboardingGuard";
+import { NavAuth } from "./components/NavAuth";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -25,22 +31,69 @@ const nav = [
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <AppShell brand="Cleaner" accent="Sweepr Pro" nav={nav}>
+    <AppShell brand="Cleaner" accent="Sweepr Pro" nav={nav} headerRight={<NavAuth />}>
       {children}
     </AppShell>
+  );
+}
+
+/** Auth + onboarding-gated app page. */
+function Guarded({ children }: { children: React.ReactNode }) {
+  return (
+    <ProtectedRoute>
+      <OnboardingGuard>
+        <Shell>{children}</Shell>
+      </OnboardingGuard>
+    </ProtectedRoute>
   );
 }
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/onboarding" element={<OnboardingPage />} />
-      <Route path="/" element={<Shell><HomePage /></Shell>} />
-      <Route path="/jobs" element={<Shell><JobsPage /></Shell>} />
-      <Route path="/jobs/:id" element={<Shell><JobDetailPage /></Shell>} />
-      <Route path="/schedule" element={<Shell><SchedulePage /></Shell>} />
-      <Route path="/earnings" element={<Shell><EarningsPage /></Shell>} />
-      <Route path="/profile" element={<Shell><ProfilePage /></Shell>} />
+      {/* Auth (unprotected) */}
+      <Route
+        path="/sign-in/*"
+        element={
+          <AuthPage title="Welcome back" subtitle="Sign in to your Sweepr Pro account">
+            <SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" fallbackRedirectUrl="/" />
+          </AuthPage>
+        }
+      />
+      <Route
+        path="/sign-up/*"
+        element={
+          <AuthPage title="Become a Sweepr Pro" subtitle="Start earning on your schedule">
+            <SignUp routing="path" path="/sign-up" signInUrl="/sign-in" fallbackRedirectUrl="/onboarding" />
+          </AuthPage>
+        }
+      />
+
+      {/* Onboarding (protected, but not onboarding-gated) */}
+      <Route
+        path="/onboarding"
+        element={
+          <ProtectedRoute>
+            <OnboardingPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pending"
+        element={
+          <ProtectedRoute>
+            <PendingReviewPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* App (protected + onboarding-gated) */}
+      <Route path="/" element={<Guarded><HomePage /></Guarded>} />
+      <Route path="/jobs" element={<Guarded><JobsPage /></Guarded>} />
+      <Route path="/jobs/:id" element={<Guarded><JobDetailPage /></Guarded>} />
+      <Route path="/schedule" element={<Guarded><SchedulePage /></Guarded>} />
+      <Route path="/earnings" element={<Guarded><EarningsPage /></Guarded>} />
+      <Route path="/profile" element={<Guarded><ProfilePage /></Guarded>} />
     </Routes>
   );
 }

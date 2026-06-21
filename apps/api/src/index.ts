@@ -10,6 +10,7 @@ import { cleanersRouter } from "./routes/cleaners";
 import { reviewsRouter } from "./routes/reviews";
 import { adminRouter } from "./routes/admin";
 import { storageRouter } from "./routes/storage";
+import { notificationsRouter } from "./routes/notifications";
 import type { AppBindings } from "./types";
 
 const app = new Hono<AppBindings>();
@@ -30,6 +31,7 @@ app.route("/cleaners", cleanersRouter);
 app.route("/reviews", reviewsRouter);
 app.route("/admin", adminRouter);
 app.route("/storage", storageRouter);
+app.route("/notifications", notificationsRouter);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 app.onError((err, c) => {

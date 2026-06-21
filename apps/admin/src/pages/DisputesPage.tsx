@@ -1,15 +1,18 @@
-import { DashboardShell, Badge, Button, toast } from "@sweepr/ui";
+import { useNavigate } from "react-router-dom";
+import { DashboardShell, Badge, Button } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
 import { DataTable, type Column } from "../components/DataTable";
-import { adminDisputes, type AdminDispute } from "../data/mock";
+import { adminDisputeDetails, type AdminDisputeDetail } from "../data/mock";
 
 export function DisputesPage() {
-  const columns: Column<AdminDispute>[] = [
-    { header: "Dispute", cell: (r) => <span className="font-medium">{r.id}</span> },
-    { header: "Booking", cell: (r) => r.bookingId },
+  const navigate = useNavigate();
+  const rows = Object.values(adminDisputeDetails);
+
+  const columns: Column<AdminDisputeDetail>[] = [
+    { header: "Booking", cell: (r) => <span className="font-medium">{r.bookingId}</span> },
     { header: "Customer", cell: (r) => r.customer },
-    { header: "Reason", cell: (r) => r.reason },
-    { header: "Amount", align: "right", cell: (r) => formatCurrency(r.amount) },
+    { header: "Cleaner", cell: (r) => r.cleaner },
+    { header: "At stake", align: "right", cell: (r) => formatCurrency(r.amount) },
     {
       header: "Status",
       cell: (r) => (
@@ -21,16 +24,21 @@ export function DisputesPage() {
     {
       header: "",
       align: "right",
-      cell: () => (
-        <Button size="sm" onClick={() => toast.success("Dispute resolved")}>
-          Resolve
+      cell: (r) => (
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => navigate(`/disputes/${r.id}`)}
+        >
+          Review
         </Button>
       ),
     },
   ];
+
   return (
     <DashboardShell title="Disputes" description="Open and in-progress disputes.">
-      <DataTable columns={columns} rows={adminDisputes} />
+      <DataTable columns={columns} rows={rows} />
     </DashboardShell>
   );
 }

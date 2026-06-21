@@ -1,8 +1,10 @@
-import { DashboardShell, Badge, Button, toast } from "@sweepr/ui";
+import { useNavigate } from "react-router-dom";
+import { DashboardShell, Badge, Button } from "@sweepr/ui";
 import { DataTable, type Column } from "../components/DataTable";
 import { adminApplications, type AdminCleaner } from "../data/mock";
 
 export function ApplicationsPage() {
+  const navigate = useNavigate();
   const columns: Column<AdminCleaner>[] = [
     { header: "Name", cell: (r) => <span className="font-medium">{r.name}</span> },
     { header: "Email", cell: (r) => r.email },
@@ -15,15 +17,14 @@ export function ApplicationsPage() {
     {
       header: "",
       align: "right",
-      cell: () => (
-        <div className="flex justify-end gap-2">
-          <Button size="sm" variant="secondary" onClick={() => toast("Rejected")}>
-            Reject
-          </Button>
-          <Button size="sm" onClick={() => toast.success("Approved")}>
-            Approve
-          </Button>
-        </div>
+      cell: (r) => (
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => navigate(`/applications/${r.id}`)}
+        >
+          Review
+        </Button>
       ),
     },
   ];
