@@ -20,7 +20,7 @@
     "@sweepr/utils": "workspace:*",
     "@tanstack/react-query": "^5.62.11",
     "clsx": "^2.1.1",
-    "framer-motion": "^11.15.0",
+    "framer-motion": "^12.40.0",
     "lucide-react": "^0.469.0",
     "mapbox-gl": "^3.25.0",
     "posthog-js": "^1.391.2",
