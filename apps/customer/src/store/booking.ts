@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import type {
   Address,
   HomeDetails,
@@ -38,7 +39,9 @@ const defaultHome: HomeDetails = {
   pets: false,
 };
 
-export const useBookingStore = create<BookingState>((set, get) => ({
+export const useBookingStore = create<BookingState>()(
+  persist(
+    (set, get) => ({
   address: null,
   home: defaultHome,
   serviceType: null,
@@ -79,4 +82,19 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     const input: QuoteInput = { serviceType, home, addOnKeys };
     return calculateQuote(input);
   },
-}));
+    }),
+    {
+      name: "sweepr-booking",
+      // getQuote is derived; don't persist the function or transient flags.
+      partialize: (s) => ({
+        address: s.address,
+        home: s.home,
+        serviceType: s.serviceType,
+        addOnKeys: s.addOnKeys,
+        cadence: s.cadence,
+        scheduledFor: s.scheduledFor,
+        notes: s.notes,
+      }),
+    }
+  )
+);
