@@ -1,2 +1,2 @@
 // Marker entry for @sweepr/config. Real exports are TS/JSON files consumed by tooling.
-module.exports = {};
+export default {};
