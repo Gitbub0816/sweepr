@@ -4,7 +4,10 @@ import { getDb } from "../lib/db";
 import { sendEmail } from "../lib/mailer";
 import { logger } from "../lib/logger";
 import { audit } from "../lib/audit";
+import { initiateAssignment } from "../lib/assignment";
+import { nextOccurrenceDate } from "../lib/subscriptions";
 import type { AppBindings } from "../types";
+import type { BookingRow } from "@sweepr/db";
 
 export const stripeWebhookRouter = new Hono<AppBindings>();
 
@@ -52,6 +55,12 @@ stripeWebhookRouter.post("/", async (c) => {
           metadata: { intentId: intent.id, amount: intent.amount },
           timestamp: new Date().toISOString(),
         });
+        // Payment captured -> kick off silent auto-assignment.
+        try {
+          await initiateAssignment(sql, bookingId);
+        } catch (err) {
+          logger.error("assignment after payment failed", err, { bookingId });
+        }
       }
       // Send confirmation email to the receipt address, if Stripe captured one.
       const email = intent.receipt_email ?? undefined;
@@ -171,6 +180,88 @@ stripeWebhookRouter.post("/", async (c) => {
           UPDATE payments SET status = 'refunded'
           WHERE stripe_payment_intent_id = ${paymentIntent}
         `;
+      }
+      break;
+    }
+    case "invoice.payment_succeeded": {
+      // A subscription invoice was paid — generate the next booking instance
+      // from the subscription and run assignment.
+      const invoice = event.data.object as unknown as {
+        subscription?: string | null;
+      };
+      const stripeSubId =
+        typeof invoice.subscription === "string" ? invoice.subscription : null;
+      if (!stripeSubId) break;
+
+      const subs = (await sql`
+        SELECT * FROM subscriptions
+        WHERE stripe_subscription_id = ${stripeSubId} AND status = 'active'
+        LIMIT 1
+      `) as Array<{
+        id: string;
+        customer_id: string;
+        service_type: string;
+        address_id: string | null;
+        display_price: number;
+        internal_price: number;
+        cadence: "weekly" | "biweekly" | "monthly";
+        preferred_day_of_week: number | null;
+        home_details: {
+          bedrooms?: number;
+          bathrooms?: number;
+          sqft?: number;
+          homeType?: string;
+        } | null;
+        add_on_keys: string[] | null;
+      }>;
+      const sub = subs[0];
+      if (!sub) break;
+
+      // Skip if the very next instance was already marked skipped.
+      const pending = (await sql`
+        SELECT * FROM subscription_bookings
+        WHERE subscription_id = ${sub.id} AND status = 'skipped'
+          AND scheduled_for >= CURRENT_DATE
+        ORDER BY scheduled_for ASC LIMIT 1
+      `) as Array<{ id: string }>;
+      if (pending[0]) {
+        await sql`
+          UPDATE subscription_bookings SET status = 'booked' WHERE id = ${pending[0].id}
+        `;
+        break;
+      }
+
+      const scheduledFor = nextOccurrenceDate(
+        sub.cadence,
+        sub.preferred_day_of_week
+      );
+      const home = sub.home_details ?? {};
+      const bookingRows = (await sql`
+        INSERT INTO bookings (
+          customer_id, address_id, status, service_type, bedrooms, bathrooms,
+          sqft, home_type, scheduled_at, base_price, total_price
+        ) VALUES (
+          ${sub.customer_id}, ${sub.address_id}, 'booked', ${sub.service_type},
+          ${home.bedrooms ?? 1}, ${home.bathrooms ?? 1}, ${home.sqft ?? 800},
+          ${home.homeType ?? "apartment"}, ${scheduledFor.toISOString()},
+          ${sub.display_price}, ${sub.display_price}
+        ) RETURNING *
+      `) as BookingRow[];
+      const booking = bookingRows[0];
+      if (booking) {
+        await sql`
+          INSERT INTO subscription_bookings (subscription_id, booking_id, scheduled_for, status)
+          VALUES (${sub.id}, ${booking.id}, ${scheduledFor
+            .toISOString()
+            .slice(0, 10)}, 'booked')
+        `;
+        try {
+          await initiateAssignment(sql, booking.id);
+        } catch (err) {
+          logger.error("subscription assignment failed", err, {
+            bookingId: booking.id,
+          });
+        }
       }
       break;
     }

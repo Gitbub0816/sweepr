@@ -1,6 +1,115 @@
 import type { Sql, BookingRow, CleanerRow } from "@sweepr/db";
 import { haversineDistance } from "./haversine";
 
+interface ScheduleRow {
+  cleaner_id: string;
+  slot_type: "recurring" | "flexible" | "available_now";
+  day_of_week: number | null;
+  start_time: string | null; // "HH:MM:SS"
+  end_time: string | null;
+  specific_date: string | null; // "YYYY-MM-DD"
+}
+
+function timeToMinutes(t: string | null): number | null {
+  if (!t) return null;
+  const [h, m] = t.split(":").map(Number);
+  if (Number.isNaN(h)) return null;
+  return h * 60 + (m || 0);
+}
+
+/**
+ * Determine whether a cleaner is schedule-available for a booking time.
+ *
+ * A cleaner is "available" if:
+ *  1. They have a 'recurring' slot matching day_of_week with a time overlap, OR
+ *  2. They have a 'flexible' slot on the specific date with a time overlap, OR
+ *  3. They have 'available_now' AND the booking is within 2 hours of now.
+ */
+export function isScheduleAvailable(
+  slots: ScheduleRow[],
+  scheduledAt: Date,
+  now: Date = new Date()
+): boolean {
+  const dayOfWeek = scheduledAt.getUTCDay();
+  const minuteOfDay =
+    scheduledAt.getUTCHours() * 60 + scheduledAt.getUTCMinutes();
+  const dateStr = scheduledAt.toISOString().slice(0, 10);
+
+  for (const s of slots) {
+    if (s.slot_type === "available_now") {
+      const diffMs = scheduledAt.getTime() - now.getTime();
+      if (diffMs <= 2 * 60 * 60 * 1000) return true;
+      continue;
+    }
+
+    const start = timeToMinutes(s.start_time);
+    const end = timeToMinutes(s.end_time);
+    const overlaps =
+      start != null && end != null && minuteOfDay >= start && minuteOfDay <= end;
+
+    if (s.slot_type === "recurring" && s.day_of_week === dayOfWeek && overlaps) {
+      return true;
+    }
+    if (
+      s.slot_type === "flexible" &&
+      s.specific_date?.slice(0, 10) === dateStr &&
+      overlaps
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Return cleaners who are eligible for a booking: schedule-available AND with
+ * no accepted/in-progress booking within 3 hours of the requested time.
+ */
+export async function eligibleCleanersForBooking(
+  booking: BookingRow,
+  candidates: CleanerRow[],
+  db: Sql
+): Promise<CleanerRow[]> {
+  if (candidates.length === 0 || !booking.scheduled_at) return [];
+  const scheduledAt = new Date(booking.scheduled_at);
+  const cleanerIds = candidates.map((c) => c.id);
+
+  const [scheduleRaw, conflictRaw] = await Promise.all([
+    db`
+      SELECT cleaner_id, slot_type, day_of_week, start_time::text, end_time::text,
+             specific_date::text
+      FROM cleaner_schedule
+      WHERE cleaner_id = ANY(${cleanerIds}) AND is_active = true
+    `,
+    db`
+      SELECT DISTINCT cleaner_id
+      FROM bookings
+      WHERE cleaner_id = ANY(${cleanerIds})
+        AND status IN ('cleaner_accepted', 'confirmed', 'cleaner_on_the_way',
+                       'arrived', 'in_progress')
+        AND scheduled_at IS NOT NULL
+        AND ABS(EXTRACT(EPOCH FROM (scheduled_at - ${booking.scheduled_at}::timestamptz))) < 10800
+    `,
+  ]);
+
+  const scheduleRows = scheduleRaw as unknown as ScheduleRow[];
+  const conflicts = new Set(
+    (conflictRaw as unknown as { cleaner_id: string }[]).map((r) => r.cleaner_id)
+  );
+
+  const byCleaner = new Map<string, ScheduleRow[]>();
+  for (const r of scheduleRows) {
+    const list = byCleaner.get(r.cleaner_id) ?? [];
+    list.push(r);
+    byCleaner.set(r.cleaner_id, list);
+  }
+
+  return candidates.filter((c) => {
+    if (conflicts.has(c.id)) return false;
+    return isScheduleAvailable(byCleaner.get(c.id) ?? [], scheduledAt);
+  });
+}
+
 export interface MatchBreakdown {
   availability: number; // 0-25
   distance: number; // 0-25

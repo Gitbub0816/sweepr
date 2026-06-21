@@ -16,12 +16,23 @@ export interface BookingState {
   addOnKeys: string[];
   cadence: RecurringCadence;
   scheduledFor: string | null;
+  scheduledAt: string | null;
+  timeWindow: "morning" | "afternoon" | "evening" | null;
+  isSubscription: boolean;
+  subscriptionCadence: "weekly" | "biweekly" | "monthly" | null;
+  isEmergency: boolean;
   notes: string;
   paymentConfirmed: boolean;
   isRebook: boolean;
   rebookedFromDate: string | null;
 
   setAddress: (address: Address) => void;
+  setTimeWindow: (window: "morning" | "afternoon" | "evening" | null) => void;
+  setSubscription: (
+    isSubscription: boolean,
+    cadence?: "weekly" | "biweekly" | "monthly" | null
+  ) => void;
+  setEmergency: (isEmergency: boolean) => void;
   rebookFrom: (previousBooking: Booking) => void;
   setHome: (home: Partial<HomeDetails>) => void;
   setService: (service: ServiceType) => void;
@@ -52,12 +63,24 @@ export const useBookingStore = create<BookingState>()(
   addOnKeys: [],
   cadence: "none",
   scheduledFor: null,
+  scheduledAt: null,
+  timeWindow: null,
+  isSubscription: false,
+  subscriptionCadence: null,
+  isEmergency: false,
   notes: "",
   paymentConfirmed: false,
   isRebook: false,
   rebookedFromDate: null,
 
   setAddress: (address) => set({ address }),
+  setTimeWindow: (timeWindow) => set({ timeWindow }),
+  setSubscription: (isSubscription, cadence = null) =>
+    set({
+      isSubscription,
+      subscriptionCadence: isSubscription ? cadence ?? "weekly" : null,
+    }),
+  setEmergency: (isEmergency) => set({ isEmergency }),
   rebookFrom: (prev) =>
     set({
       address: prev.address,
@@ -80,7 +103,20 @@ export const useBookingStore = create<BookingState>()(
         : [...s.addOnKeys, key],
     })),
   setCadence: (cadence) => set({ cadence }),
-  setSchedule: (scheduledFor) => set({ scheduledFor }),
+  setSchedule: (scheduledFor) => {
+    // Emergency = same or next day booking.
+    const target = new Date(scheduledFor);
+    const now = new Date();
+    const days = Math.floor(
+      (target.setHours(0, 0, 0, 0) - new Date(now).setHours(0, 0, 0, 0)) /
+        86_400_000
+    );
+    set({
+      scheduledFor,
+      scheduledAt: scheduledFor,
+      isEmergency: days <= 1,
+    });
+  },
   setNotes: (notes) => set({ notes }),
   confirmPayment: () => set({ paymentConfirmed: true }),
   reset: () =>
@@ -91,6 +127,11 @@ export const useBookingStore = create<BookingState>()(
       addOnKeys: [],
       cadence: "none",
       scheduledFor: null,
+      scheduledAt: null,
+      timeWindow: null,
+      isSubscription: false,
+      subscriptionCadence: null,
+      isEmergency: false,
       notes: "",
       paymentConfirmed: false,
       isRebook: false,
@@ -114,6 +155,11 @@ export const useBookingStore = create<BookingState>()(
         addOnKeys: s.addOnKeys,
         cadence: s.cadence,
         scheduledFor: s.scheduledFor,
+        scheduledAt: s.scheduledAt,
+        timeWindow: s.timeWindow,
+        isSubscription: s.isSubscription,
+        subscriptionCadence: s.subscriptionCadence,
+        isEmergency: s.isEmergency,
         notes: s.notes,
       }),
     }

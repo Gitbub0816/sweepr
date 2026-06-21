@@ -19,6 +19,7 @@ import {
   AddOnGrid,
   ThemeToggle,
   useReducedMotion,
+  SMSOptIn,
   toast,
 } from "@sweepr/ui";
 import type { ServiceType, AddOn } from "@sweepr/types";
@@ -80,6 +81,7 @@ interface FormState {
   bgAddress: string;
   certifyAccurate: boolean;
   agreeIC: boolean;
+  smsOptIn: boolean;
 }
 
 const initialState: FormState = {
@@ -100,6 +102,7 @@ const initialState: FormState = {
   bgAddress: "",
   certifyAccurate: false,
   agreeIC: false,
+  smsOptIn: false,
 };
 
 type StatusFlow = "idle" | "submitting" | "submitted";
@@ -483,6 +486,11 @@ function StepWelcome({ form, set }: { form: FormState; set: SetFn }) {
         value={form.experience}
         onChange={(e) => set("experience", e.target.value)}
         placeholder="How long have you been cleaning? Any certifications?"
+      />
+      <SMSOptIn
+        value={form.smsOptIn}
+        onChange={(v) => set("smsOptIn", v)}
+        phone={form.phone}
       />
     </div>
   );

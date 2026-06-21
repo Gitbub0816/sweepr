@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getCleanerByUserId, getUserByClerkId } from "@sweepr/db";
 import { getDb } from "../lib/db";
 import { getStripe } from "../lib/stripe";
+import { handleOfferResponse } from "../lib/assignment";
 import { requireAuth } from "../middleware/auth";
 import type { AppBindings } from "../types";
 import type { Context } from "hono";
@@ -229,3 +230,36 @@ cleanersRouter.post("/apply", zValidator("json", applySchema), async (c) => {
 
   return c.json({ ok: true, status: "pending_review" });
 });
+
+// ---------------------------------------------------------------------------
+// Job offers (assignment queue)
+// ---------------------------------------------------------------------------
+
+const offerRespondSchema = z.object({
+  response: z.enum(["accepted", "declined"]),
+});
+
+cleanersRouter.post(
+  "/offers/:offerId/respond",
+  zValidator("json", offerRespondSchema),
+  async (c) => {
+    const { sql, cleaner } = await currentCleaner(c);
+    if (!cleaner) return c.json({ error: "Cleaner not found" }, 404);
+    const { response } = c.req.valid("json");
+    const offerId = c.req.param("offerId");
+
+    const offerRows = (await sql`
+      SELECT * FROM assignment_queue
+      WHERE id = ${offerId} AND cleaner_id = ${cleaner.id}
+      LIMIT 1
+    `) as { id: string; booking_id: string; status: string }[];
+    const offer = offerRows[0];
+    if (!offer) return c.json({ error: "Offer not found" }, 404);
+    if (offer.status !== "pending") {
+      return c.json({ error: "Offer is no longer active" }, 409);
+    }
+
+    await handleOfferResponse(sql, offer.booking_id, cleaner.id, response);
+    return c.json({ ok: true, response });
+  }
+);

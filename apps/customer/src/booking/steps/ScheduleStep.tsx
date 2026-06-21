@@ -1,104 +1,168 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Zap, Repeat } from "lucide-react";
+import { SweeprCalendar, type CalendarSlot } from "@sweepr/ui";
+import { cn } from "@sweepr/utils";
 import { useBookingStore } from "../../store/booking";
 import { StepShell } from "../StepShell";
-import { cn } from "@sweepr/utils";
 
-const TIME_SLOTS = ["08:00", "10:00", "12:00", "14:00", "16:00"];
+const WINDOW_HOURS: Record<string, number> = {
+  morning: 9,
+  afternoon: 13,
+  evening: 17,
+};
 
-function fmtSlot(t: string) {
-  const [h] = t.split(":").map(Number);
-  const ampm = h >= 12 ? "PM" : "AM";
-  const hr = h % 12 === 0 ? 12 : h % 12;
-  return `${hr}:00 ${ampm}`;
+// Mock availability: next 21 days have morning/afternoon/evening windows.
+function buildAvailability(): Record<string, CalendarSlot[]> {
+  const data: Record<string, CalendarSlot[]> = {};
+  for (let i = 1; i <= 21; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    d.setHours(0, 0, 0, 0);
+    const key = d.toISOString().slice(0, 10);
+    data[key] = [
+      { id: `${key}-m`, date: d, startTime: "08:00", endTime: "12:00", type: "flexible" },
+      { id: `${key}-a`, date: d, startTime: "12:00", endTime: "16:00", type: "flexible" },
+      { id: `${key}-e`, date: d, startTime: "16:00", endTime: "20:00", type: "flexible" },
+    ];
+  }
+  return data;
 }
+
+const CADENCES = [
+  { value: "weekly", label: "Weekly", discount: 10 },
+  { value: "biweekly", label: "Biweekly", discount: 8 },
+  { value: "monthly", label: "Monthly", discount: 5 },
+] as const;
 
 export function ScheduleStep() {
   const navigate = useNavigate();
-  const scheduledFor = useBookingStore((s) => s.scheduledFor);
-  const setSchedule = useBookingStore((s) => s.setSchedule);
+  const {
+    scheduledAt,
+    timeWindow,
+    isEmergency,
+    isSubscription,
+    subscriptionCadence,
+    setSchedule,
+    setTimeWindow,
+    setSubscription,
+    getQuote,
+  } = useBookingStore();
 
-  const days = useMemo(() => {
-    return Array.from({ length: 14 }).map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() + i + 1);
-      d.setHours(0, 0, 0, 0);
-      return d;
-    });
-  }, []);
-
-  const selected = scheduledFor ? new Date(scheduledFor) : null;
-  const [activeDay, setActiveDay] = useState<Date>(
-    selected ?? days[0]
+  const availability = useMemo(buildAvailability, []);
+  const [pickedDate, setPickedDate] = useState<Date | null>(
+    scheduledAt ? new Date(scheduledAt) : null
   );
 
-  const selectSlot = (time: string) => {
-    const [h, m] = time.split(":").map(Number);
-    const d = new Date(activeDay);
-    d.setHours(h, m, 0, 0);
+  const quote = getQuote();
+  const baseTotal = quote?.total ?? 0;
+
+  const onSelect = (slot: CalendarSlot) => {
+    const window =
+      slot.startTime === "08:00"
+        ? "morning"
+        : slot.startTime === "12:00"
+          ? "afternoon"
+          : "evening";
+    const d = new Date(slot.date);
+    d.setHours(WINDOW_HOURS[window], 0, 0, 0);
     setSchedule(d.toISOString());
+    setTimeWindow(window as "morning" | "afternoon" | "evening");
+    setPickedDate(d);
   };
 
   return (
     <StepShell
       title="Pick a date & time"
-      subtitle="Choose when you'd like your cleaner to arrive."
+      subtitle="Choose a day, then a time window that works for you."
       onBack={() => navigate("/book/service")}
       onNext={() => navigate("/book/review")}
-      nextDisabled={!scheduledFor}
+      nextDisabled={!scheduledAt || !timeWindow}
     >
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        {days.map((d) => {
-          const isActive =
-            d.toDateString() === activeDay.toDateString();
-          return (
-            <button
-              key={d.toISOString()}
-              onClick={() => setActiveDay(d)}
-              className={cn(
-                "flex min-w-[64px] flex-col items-center rounded-xl border px-3 py-2 text-sm transition-colors",
-                isActive
-                  ? "border-seafoam-400 bg-seafoam-50 text-seafoam-700 dark:bg-seafoam-900/20"
-                  : "border-slate-200 text-slate-500 hover:border-seafoam-300 dark:border-slate-700"
-              )}
-            >
-              <span className="text-xs">
-                {d.toLocaleDateString("en-US", { weekday: "short" })}
-              </span>
-              <span className="text-lg font-bold">{d.getDate()}</span>
-              <span className="text-[10px]">
-                {d.toLocaleDateString("en-US", { month: "short" })}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      <SweeprCalendar
+        mode="customer-booking"
+        availabilityData={availability}
+        selectedDate={pickedDate ?? undefined}
+        onDateChange={setPickedDate}
+        onSlotSelect={onSelect}
+      />
 
-      <h2 className="mb-3 mt-6 text-sm font-semibold text-charcoal dark:text-white">
-        Available times
-      </h2>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {TIME_SLOTS.map((t) => {
-          const slotDate = new Date(activeDay);
-          const [h] = t.split(":").map(Number);
-          slotDate.setHours(h, 0, 0, 0);
-          const isActive =
-            selected?.getTime() === slotDate.getTime();
-          return (
-            <button
-              key={t}
-              onClick={() => selectSlot(t)}
+      {scheduledAt && (
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+          <span className="rounded-full bg-seafoam-50 px-3 py-1 font-medium text-seafoam-700 dark:bg-slate-800">
+            {new Date(scheduledAt).toLocaleDateString("en-US", {
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+            })}
+            {timeWindow ? ` · ${timeWindow}` : ""}
+          </span>
+          {isEmergency && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+              <Zap className="h-3 w-3" /> Rush Fee Applied (+15%)
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Subscription section */}
+      <div className="mt-6 rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+        <button
+          onClick={() => setSubscription(!isSubscription)}
+          className="flex w-full items-center justify-between text-left"
+        >
+          <span className="flex items-center gap-2">
+            <Repeat className="h-4 w-4 text-seafoam-500" />
+            <span className="text-sm font-semibold text-charcoal dark:text-white">
+              Make this a subscription
+            </span>
+          </span>
+          <span
+            className={cn(
+              "relative h-6 w-11 rounded-full transition-colors",
+              isSubscription ? "bg-seafoam-500" : "bg-slate-300 dark:bg-slate-600"
+            )}
+          >
+            <span
               className={cn(
-                "rounded-xl border px-4 py-3 text-sm font-medium transition-colors",
-                isActive
-                  ? "border-seafoam-400 bg-seafoam-500 text-white"
-                  : "border-slate-200 text-charcoal hover:border-seafoam-300 dark:border-slate-700 dark:text-white"
+                "absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all",
+                isSubscription ? "left-5" : "left-0.5"
               )}
-            >
-              {fmtSlot(t)}
-            </button>
-          );
-        })}
+            />
+          </span>
+        </button>
+
+        {isSubscription && (
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {CADENCES.map((c) => {
+              const price = Math.round(baseTotal * (1 - c.discount / 100));
+              const savings = Math.round(baseTotal - price);
+              const active = subscriptionCadence === c.value;
+              return (
+                <button
+                  key={c.value}
+                  onClick={() => setSubscription(true, c.value)}
+                  className={cn(
+                    "rounded-xl border p-3 text-center transition-colors",
+                    active
+                      ? "border-seafoam-400 bg-seafoam-50 dark:bg-seafoam-900/20"
+                      : "border-slate-200 hover:border-seafoam-300 dark:border-slate-700"
+                  )}
+                >
+                  <p className="text-sm font-semibold text-charcoal dark:text-white">
+                    {c.label}
+                  </p>
+                  <p className="text-xs text-seafoam-600">${price}/visit</p>
+                  {savings > 0 && (
+                    <p className="mt-1 text-[10px] font-medium text-amber-600">
+                      Save ${savings}
+                    </p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </StepShell>
   );

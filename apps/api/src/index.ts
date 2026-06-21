@@ -12,6 +12,8 @@ import { reviewsRouter } from "./routes/reviews";
 import { adminRouter } from "./routes/admin";
 import { storageRouter } from "./routes/storage";
 import { notificationsRouter } from "./routes/notifications";
+import { scheduleRouter } from "./routes/schedule";
+import { subscriptionsRouter } from "./routes/subscriptions";
 import { AppError, toSafeError } from "./lib/errors";
 import { logger } from "./lib/logger";
 import type { AppBindings } from "./types";
@@ -46,6 +48,8 @@ app.route("/reviews", reviewsRouter);
 app.route("/admin", adminRouter);
 app.route("/storage", storageRouter);
 app.route("/notifications", notificationsRouter);
+app.route("/schedule", scheduleRouter);
+app.route("/subscriptions", subscriptionsRouter);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 

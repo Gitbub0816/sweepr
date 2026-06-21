@@ -11,6 +11,7 @@ import {
 import { getDb } from "../lib/db";
 import { requireAuth } from "../middleware/auth";
 import { rankCleanersForBooking } from "../lib/matching";
+import { initiateAssignment } from "../lib/assignment";
 import { sendNotification } from "../lib/notifications";
 import { rateLimit } from "../middleware/rateLimit";
 import { assertValidTransition } from "../lib/statusMachine";
@@ -96,6 +97,13 @@ bookingsRouter.post(
     userAgent: c.req.header("User-Agent"),
     timestamp: new Date().toISOString(),
   });
+
+  // Silent auto-assignment: rank cleaners and offer to the best match.
+  try {
+    await initiateAssignment(sql, created.id);
+  } catch (err) {
+    logger.error("initiateAssignment failed", err, { bookingId: created.id });
+  }
 
   return c.json({ booking: created }, 201);
 });

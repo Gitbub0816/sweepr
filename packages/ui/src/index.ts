@@ -32,6 +32,13 @@ export * from "./cards/StatCard";
 // Components
 export * from "./components/SavedPaymentCard";
 export * from "./components/NotificationBell";
+export * from "./components/SMSOptIn";
+
+// Calendar
+export { SweeprCalendar } from "./calendar/SweeprCalendar";
+export { AddSlotModal } from "./calendar/AddSlotModal";
+export { SlotChip } from "./calendar/SlotChip";
+export type { CalendarSlot, CalendarProps, SlotType } from "./calendar/types";
 
 // Hooks
 export * from "./hooks/useReducedMotion";

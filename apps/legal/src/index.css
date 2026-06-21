@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: Inter, system-ui, sans-serif;
+  color: #1a1a2e;
+  background: #ffffff;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+/* Print-friendly styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .legal-content {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  body {
+    font-size: 11pt;
+    color: #000;
+  }
+  a {
+    color: #000;
+    text-decoration: none;
+  }
+}

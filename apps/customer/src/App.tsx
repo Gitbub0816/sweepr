@@ -1,8 +1,27 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { SignIn, SignUp } from "@clerk/clerk-react";
-import { CalendarCheck, CreditCard, User, Home as HomeIcon } from "lucide-react";
-import { AppShell } from "@sweepr/ui";
+import {
+  CalendarCheck,
+  CreditCard,
+  User,
+  Home as HomeIcon,
+  Repeat,
+} from "lucide-react";
+import { useState } from "react";
+import { AppShell, SMSOptIn } from "@sweepr/ui";
 import { BookingLayout } from "./booking/BookingLayout";
+import { SubscriptionsPage } from "./pages/SubscriptionsPage";
+
+/** SMS consent shown alongside customer sign-up (TCPA — never pre-checked). */
+function SignUpWithSms({ children }: { children: React.ReactNode }) {
+  const [opted, setOpted] = useState(false);
+  return (
+    <div className="flex w-full max-w-sm flex-col items-center gap-4">
+      {children}
+      <SMSOptIn value={opted} onChange={setOpted} />
+    </div>
+  );
+}
 import { AddressStep } from "./booking/steps/AddressStep";
 import { HomeStep } from "./booking/steps/HomeStep";
 import { ServiceStep } from "./booking/steps/ServiceStep";
@@ -25,6 +44,7 @@ const nav = [
   { to: "/home", label: "Home", icon: HomeIcon, end: true },
   { to: "/book", label: "Book", icon: CalendarCheck },
   { to: "/bookings", label: "My Bookings", icon: CalendarCheck, end: true },
+  { to: "/subscriptions", label: "Subscriptions", icon: Repeat },
   { to: "/payment-methods", label: "Payment Methods", icon: CreditCard },
   { to: "/profile", label: "Profile", icon: User },
 ];
@@ -71,12 +91,14 @@ export default function App() {
               title="Create your account"
               subtitle="Book your first clean in minutes"
             >
-              <SignUp
-                routing="path"
-                path="/sign-up"
-                signInUrl="/sign-in"
-                fallbackRedirectUrl="/book"
-              />
+              <SignUpWithSms>
+                <SignUp
+                  routing="path"
+                  path="/sign-up"
+                  signInUrl="/sign-in"
+                  fallbackRedirectUrl="/book"
+                />
+              </SignUpWithSms>
             </AuthPage>
           }
         />
@@ -104,6 +126,10 @@ export default function App() {
         <Route
           path="/bookings/:id"
           element={<Protected><BookingDetailPage /></Protected>}
+        />
+        <Route
+          path="/subscriptions"
+          element={<Protected><SubscriptionsPage /></Protected>}
         />
         <Route path="/profile" element={<Protected><ProfilePage /></Protected>} />
         <Route

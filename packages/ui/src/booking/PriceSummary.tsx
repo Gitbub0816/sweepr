@@ -2,46 +2,58 @@ import type { Quote } from "@sweepr/types";
 import { formatCurrency } from "@sweepr/utils";
 import { Card } from "../primitives/Card";
 
+/**
+ * Customer-facing price summary. Per the locked pricing model, customers see
+ * ONLY the single all-inclusive price — no fee breakdowns, service fees, or tax
+ * line items. Subscription pricing is surfaced when provided.
+ */
 export function PriceSummary({
   quote,
   title = "Price Summary",
   footer,
+  subscriptionPrice,
+  cadence,
 }: {
   quote: Quote;
   title?: string;
   footer?: React.ReactNode;
+  /** Per-visit subscription price (dollars), if this is a subscription. */
+  subscriptionPrice?: number;
+  cadence?: "weekly" | "biweekly" | "monthly";
 }) {
+  const savings =
+    subscriptionPrice != null ? Math.round(quote.total - subscriptionPrice) : 0;
+
   return (
     <Card className="sticky top-20">
       <h3 className="text-sm font-semibold text-charcoal dark:text-white">
         {title}
       </h3>
-      <dl className="mt-4 space-y-2 text-sm">
-        {quote.lineItems.map((item, i) => (
-          <div key={i} className="flex justify-between text-slate-600 dark:text-slate-300">
-            <dt>{item.label}</dt>
-            <dd>{formatCurrency(item.amount)}</dd>
-          </div>
-        ))}
-        <div className="my-2 border-t border-slate-100 dark:border-slate-800" />
-        <div className="flex justify-between text-slate-600 dark:text-slate-300">
-          <dt>Subtotal</dt>
-          <dd>{formatCurrency(quote.subtotal)}</dd>
+
+      <div className="mt-4">
+        <p className="text-sm text-slate-500">Your clean</p>
+        <p className="text-3xl font-bold text-charcoal dark:text-white">
+          {formatCurrency(quote.total)}
+        </p>
+        <p className="mt-1 text-xs text-slate-400">
+          Includes everything — supplies, service, tax
+        </p>
+      </div>
+
+      {subscriptionPrice != null && (
+        <div className="mt-4 rounded-xl bg-seafoam-50 p-3 dark:bg-slate-800">
+          <p className="text-sm font-semibold text-seafoam-700 dark:text-seafoam-300">
+            Subscription price: {formatCurrency(subscriptionPrice)}/visit
+          </p>
+          {savings > 0 && (
+            <p className="text-xs text-amber-600">
+              You save {formatCurrency(savings)} per cleaning
+              {cadence ? ` (${cadence})` : ""}
+            </p>
+          )}
         </div>
-        <div className="flex justify-between text-slate-600 dark:text-slate-300">
-          <dt>Service fee</dt>
-          <dd>{formatCurrency(quote.serviceFee)}</dd>
-        </div>
-        <div className="flex justify-between text-slate-600 dark:text-slate-300">
-          <dt>Tax</dt>
-          <dd>{formatCurrency(quote.tax)}</dd>
-        </div>
-        <div className="my-2 border-t border-slate-100 dark:border-slate-800" />
-        <div className="flex justify-between text-base font-bold text-charcoal dark:text-white">
-          <dt>Total</dt>
-          <dd>{formatCurrency(quote.total)}</dd>
-        </div>
-      </dl>
+      )}
+
       {footer && <div className="mt-4">{footer}</div>}
     </Card>
   );
