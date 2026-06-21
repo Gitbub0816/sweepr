@@ -65,6 +65,12 @@ export function AppShell({
 
   return (
     <div className="min-h-screen bg-offwhite dark:bg-slate-950">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-seafoam-500 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white"
+      >
+        Skip to main content
+      </a>
       <aside className="fixed inset-y-0 left-0 hidden w-60 border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:block">
         {sidebar}
       </aside>
@@ -95,7 +101,9 @@ export function AppShell({
             {headerRight}
           </div>
         </header>
-        <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+        <main id="main" className="mx-auto max-w-6xl px-4 py-6">
+          {children}
+        </main>
       </div>
     </div>
   );

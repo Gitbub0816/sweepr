@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom";
-import { CalendarClock, ChevronRight } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { CalendarClock, ChevronRight, RotateCcw } from "lucide-react";
 import {
   DashboardShell,
   Card,
@@ -13,6 +13,7 @@ import {
   formatCurrency,
 } from "@sweepr/utils";
 import { mockBookings } from "../data/mock";
+import { useBookingStore } from "../store/booking";
 
 export function BookingsPage() {
   const upcoming = mockBookings.filter((b) =>
@@ -33,7 +34,7 @@ export function BookingsPage() {
       }
     >
       <Section title="Upcoming" bookings={upcoming} />
-      <Section title="Past" bookings={past} empty />
+      <Section title="Past" bookings={past} empty showRebook />
     </DashboardShell>
   );
 }
@@ -42,20 +43,47 @@ function Section({
   title,
   bookings,
   empty,
+  showRebook,
 }: {
   title: string;
   bookings: typeof mockBookings;
   empty?: boolean;
+  showRebook?: boolean;
 }) {
+  const navigate = useNavigate();
+  const rebookFrom = useBookingStore((s) => s.rebookFrom);
+
+  const broom = (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-12 w-12 text-seafoam-500"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M19.4 4.6 14 10" />
+      <path d="M11 9 4 16c-1.2 1.2-1.2 3 0 4.2 1.2 1.2 3 1.2 4.2 0L15 13" />
+      <path d="m9 19 6-6" />
+    </svg>
+  );
+
   return (
     <div className="space-y-3">
       <h2 className="text-sm font-semibold text-slate-500">{title}</h2>
       {bookings.length === 0 ? (
         empty ? null : (
           <EmptyState
-            icon={<CalendarClock className="h-10 w-10" />}
-            title="Nothing here yet"
+            icon={broom}
+            title="No bookings yet"
             description="Your upcoming cleanings will appear here."
+            action={
+              <Link to="/book/address">
+                <Button>Book your first clean</Button>
+              </Link>
+            }
           />
         )
       ) : (
@@ -79,7 +107,22 @@ function Section({
                   {formatCurrency(b.quote.total)}
                 </p>
               </div>
-              <ChevronRight className="h-4 w-4 text-slate-300" />
+              {showRebook ? (
+                <Button
+                  variant="secondary"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    rebookFrom(b);
+                    navigate("/book/schedule");
+                  }}
+                >
+                  <RotateCcw className="mr-1 h-4 w-4" />
+                  Rebook
+                </Button>
+              ) : (
+                <ChevronRight className="h-4 w-4 text-slate-300" />
+              )}
             </Card>
           </Link>
         ))

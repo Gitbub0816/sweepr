@@ -48,9 +48,10 @@ const toneToVariant: Record<StatusTone, BadgeVariant> = {
 };
 
 export function StatusBadge({ status }: { status: JobStatus }) {
+  const label = JOB_STATUS_LABELS[status];
   return (
-    <Badge variant={toneToVariant[JOB_STATUS_TONE[status]]}>
-      {JOB_STATUS_LABELS[status]}
-    </Badge>
+    <span role="status" aria-label={`Status: ${label}`}>
+      <Badge variant={toneToVariant[JOB_STATUS_TONE[status]]}>{label}</Badge>
+    </span>
   );
 }

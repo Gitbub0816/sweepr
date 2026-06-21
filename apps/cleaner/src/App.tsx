@@ -6,6 +6,7 @@ import {
   CalendarDays,
   Wallet,
   User,
+  BarChart3,
 } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
 import { HomePage } from "./pages/HomePage";
@@ -15,6 +16,7 @@ import { JobsPage } from "./pages/JobsPage";
 import { JobDetailPage } from "./pages/JobDetailPage";
 import { SchedulePage } from "./pages/SchedulePage";
 import { EarningsPage } from "./pages/EarningsPage";
+import { PerformancePage } from "./pages/PerformancePage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { AuthPage } from "./components/AuthPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -26,6 +28,7 @@ const nav = [
   { to: "/jobs", label: "Job Board", icon: Briefcase },
   { to: "/schedule", label: "Schedule", icon: CalendarDays },
   { to: "/earnings", label: "Earnings", icon: Wallet },
+  { to: "/performance", label: "Performance", icon: BarChart3 },
   { to: "/profile", label: "Profile", icon: User },
 ];
 
@@ -93,6 +96,7 @@ export default function App() {
       <Route path="/jobs/:id" element={<Guarded><JobDetailPage /></Guarded>} />
       <Route path="/schedule" element={<Guarded><SchedulePage /></Guarded>} />
       <Route path="/earnings" element={<Guarded><EarningsPage /></Guarded>} />
+      <Route path="/performance" element={<Guarded><PerformancePage /></Guarded>} />
       <Route path="/profile" element={<Guarded><ProfilePage /></Guarded>} />
     </Routes>
   );

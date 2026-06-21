@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { DashboardShell, Badge, Button } from "@sweepr/ui";
+import { ShieldCheck } from "lucide-react";
+import { DashboardShell, Badge, Button, EmptyState } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
 import { DataTable, type Column } from "../components/DataTable";
 import { adminDisputeDetails, type AdminDisputeDetail } from "../data/mock";
@@ -38,7 +39,15 @@ export function DisputesPage() {
 
   return (
     <DashboardShell title="Disputes" description="Open and in-progress disputes.">
-      <DataTable columns={columns} rows={rows} />
+      {rows.length === 0 ? (
+        <EmptyState
+          icon={<ShieldCheck className="h-10 w-10 text-seafoam-500" />}
+          title="No open disputes — great sign! 🎉"
+          description="When a customer or cleaner raises an issue, it'll show up here."
+        />
+      ) : (
+        <DataTable columns={columns} rows={rows} />
+      )}
     </DashboardShell>
   );
 }

@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Menu, X } from "lucide-react";
 import { cn } from "@sweepr/utils";
+import { ThemeToggle } from "./ThemeToggle";
 
 export interface MarketingNavLink {
   label: string;
@@ -38,14 +39,21 @@ export function MarketingShell({
               </a>
             ))}
           </nav>
-          <div className="hidden md:block">{cta}</div>
-          <button
-            className="md:hidden"
-            onClick={() => setOpen((o) => !o)}
-            aria-label="Toggle menu"
-          >
-            {open ? <X /> : <Menu />}
-          </button>
+          <div className="hidden items-center gap-2 md:flex">
+            <ThemeToggle />
+            {cta}
+          </div>
+          <div className="flex items-center gap-1 md:hidden">
+            <ThemeToggle />
+            <button
+              onClick={() => setOpen((o) => !o)}
+              aria-label="Toggle menu"
+              aria-expanded={open}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-seafoam-500 focus-visible:ring-offset-2"
+            >
+              {open ? <X /> : <Menu />}
+            </button>
+          </div>
         </div>
         {open && (
           <div className="border-t border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-950 md:hidden">

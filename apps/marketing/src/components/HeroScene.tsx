@@ -63,7 +63,7 @@ function FloatingShapes() {
 }
 
 const STATIC_FALLBACK =
-  "absolute inset-0 -z-10 bg-[radial-gradient(circle_at_70%_30%,#5eead4_0%,#ccfbf1_35%,#f0fdfa_70%)] opacity-60 dark:opacity-20";
+  "absolute inset-0 -z-10 bg-[radial-gradient(circle_at_70%_30%,#5eead4_0%,#ccfbf1_35%,#f0fdfa_70%)] opacity-60 dark:bg-[radial-gradient(circle_at_70%_30%,#0f766e_0%,#0b3b38_45%,#020617_80%)] dark:opacity-60";
 
 export function HeroScene() {
   const prefersReducedMotion = useReducedMotion();
@@ -73,32 +73,42 @@ export function HeroScene() {
   }
 
   return (
-    <Suspense
-      fallback={
-        <div className={STATIC_FALLBACK} aria-hidden="true" />
-      }
-    >
-      <Canvas
-        className="!absolute inset-0 -z-10"
-        style={{ pointerEvents: "none" }}
-        camera={{ position: [0, 0, 6], fov: 50 }}
-        dpr={[1, 1.5]}
-        aria-hidden="true"
-      >
-        <ambientLight intensity={0.6} color="#ccfbf1" />
-        <directionalLight position={[5, 5, 5]} intensity={1.1} color="#5eead4" />
-        <Orb />
-        <FloatingShapes />
-        <Sparkles
-          count={40}
-          scale={10}
-          size={2}
-          speed={0.3}
-          color="#5eead4"
-          opacity={0.6}
-        />
-      </Canvas>
-    </Suspense>
+    <>
+      {/* Mobile + small screens: static gradient, no 3D canvas. */}
+      <div className={`${STATIC_FALLBACK} md:hidden`} aria-hidden="true" />
+
+      {/* md+ : interactive 3D scene. */}
+      <div className="hidden md:block">
+        <Suspense
+          fallback={<div className={STATIC_FALLBACK} aria-hidden="true" />}
+        >
+          <Canvas
+            className="!absolute inset-0 -z-10"
+            style={{ pointerEvents: "none" }}
+            camera={{ position: [0, 0, 6], fov: 50 }}
+            dpr={[1, 1.5]}
+            aria-hidden="true"
+          >
+            <ambientLight intensity={0.6} color="#ccfbf1" />
+            <directionalLight
+              position={[5, 5, 5]}
+              intensity={1.1}
+              color="#5eead4"
+            />
+            <Orb />
+            <FloatingShapes />
+            <Sparkles
+              count={40}
+              scale={10}
+              size={2}
+              speed={0.3}
+              color="#5eead4"
+              opacity={0.6}
+            />
+          </Canvas>
+        </Suspense>
+      </div>
+    </>
   );
 }
 

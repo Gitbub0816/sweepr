@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { ClerkProvider } from "@clerk/clerk-react";
+import { ErrorBoundary, installGlobalErrorHandlers } from "@sweepr/ui";
 import App from "./App";
 import "./index.css";
 
@@ -21,8 +22,12 @@ function Root() {
   return <ClerkProvider publishableKey={PUBLISHABLE_KEY}>{tree}</ClerkProvider>;
 }
 
+installGlobalErrorHandlers();
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
+    <ErrorBoundary>
     <Root />
+      </ErrorBoundary>
   </React.StrictMode>
 );

@@ -16,6 +16,8 @@ export * from "./layout/AppShell";
 export * from "./layout/DashboardShell";
 export * from "./layout/MarketingShell";
 export * from "./layout/ThemeToggle";
+export * from "./layout/MobileNav";
+export * from "./layout/ErrorBoundary";
 
 // Booking
 export * from "./booking/PriceSummary";

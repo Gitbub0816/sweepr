@@ -8,6 +8,8 @@ export function BookingLayout() {
   const location = useLocation();
   const idx = stepIndex(location.pathname);
   const quote = useBookingStore((s) => s.getQuote());
+  const isRebook = useBookingStore((s) => s.isRebook);
+  const rebookedFromDate = useBookingStore((s) => s.rebookedFromDate);
 
   return (
     <div className="min-h-screen bg-offwhite dark:bg-slate-950">
@@ -36,6 +38,17 @@ export function BookingLayout() {
           <ThemeToggle />
         </div>
       </header>
+
+      {isRebook && (
+        <div className="mx-auto max-w-5xl px-4 pt-4">
+          <span className="inline-flex items-center rounded-full bg-seafoam-100 px-3 py-1 text-xs font-medium text-seafoam-700 dark:bg-seafoam-900/40 dark:text-seafoam-300">
+            Rebooked from{" "}
+            {rebookedFromDate
+              ? new Date(rebookedFromDate).toLocaleDateString()
+              : "a previous clean"}
+          </span>
+        </div>
+      )}
 
       <div className="mx-auto grid max-w-5xl gap-8 px-4 py-8 lg:grid-cols-[1fr_320px]">
         <div className="overflow-hidden">

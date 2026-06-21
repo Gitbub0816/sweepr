@@ -11,6 +11,9 @@ export default defineConfig({
   },
   server: { port: 5173 },
   build: {
+    target: "es2020",
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 2000,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -22,5 +25,8 @@ export default defineConfig({
         },
       },
     },
+  },
+  optimizeDeps: {
+    include: ["react", "react-dom", "framer-motion"],
   },
 });

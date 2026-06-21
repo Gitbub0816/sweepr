@@ -112,7 +112,7 @@ export async function rankCleanersForBooking(
   if (booking.address_id) {
     const addr = (await db`
       SELECT lat, lng FROM addresses WHERE id = ${booking.address_id}
-    `) as { lat: string | null; lng: string | null }[];
+    `) as unknown as { lat: string | null; lng: string | null }[];
     if (addr[0]?.lat && addr[0]?.lng) {
       bookingLat = Number(addr[0].lat);
       bookingLng = Number(addr[0].lng);
@@ -120,32 +120,36 @@ export async function rankCleanersForBooking(
   }
 
   // Batch lookups for all candidate cleaners.
-  const [availabilityRows, areaRows, offerRows, serviceRows] =
-    await Promise.all([
-      db`
-        SELECT cleaner_id, day_of_week, start_minute, end_minute
-        FROM cleaner_availability
-        WHERE cleaner_id = ANY(${cleanerIds})
-      ` as Promise<AvailabilityRow[]>,
-      db`
-        SELECT cleaner_id, center_lat, center_lng, radius_miles
-        FROM cleaner_service_areas
-        WHERE cleaner_id = ANY(${cleanerIds})
-      ` as Promise<ServiceAreaRow[]>,
-      db`
-        SELECT cleaner_id,
-               COUNT(*)::int AS offered,
-               COUNT(*) FILTER (WHERE status = 'accepted')::int AS accepted
-        FROM job_offers
-        WHERE cleaner_id = ANY(${cleanerIds})
-        GROUP BY cleaner_id
-      ` as Promise<OfferStatsRow[]>,
-      db`
-        SELECT cleaner_id, service_type
-        FROM cleaner_services
-        WHERE cleaner_id = ANY(${cleanerIds})
-      ` as Promise<CleanerServiceRow[]>,
-    ]);
+  const [availabilityRaw, areaRaw, offerRaw, serviceRaw] = await Promise.all([
+    db`
+      SELECT cleaner_id, day_of_week, start_minute, end_minute
+      FROM cleaner_availability
+      WHERE cleaner_id = ANY(${cleanerIds})
+    `,
+    db`
+      SELECT cleaner_id, center_lat, center_lng, radius_miles
+      FROM cleaner_service_areas
+      WHERE cleaner_id = ANY(${cleanerIds})
+    `,
+    db`
+      SELECT cleaner_id,
+             COUNT(*)::int AS offered,
+             COUNT(*) FILTER (WHERE status = 'accepted')::int AS accepted
+      FROM job_offers
+      WHERE cleaner_id = ANY(${cleanerIds})
+      GROUP BY cleaner_id
+    `,
+    db`
+      SELECT cleaner_id, service_type
+      FROM cleaner_services
+      WHERE cleaner_id = ANY(${cleanerIds})
+    `,
+  ]);
+
+  const availabilityRows = availabilityRaw as unknown as AvailabilityRow[];
+  const areaRows = areaRaw as unknown as ServiceAreaRow[];
+  const offerRows = offerRaw as unknown as OfferStatsRow[];
+  const serviceRows = serviceRaw as unknown as CleanerServiceRow[];
 
   const byCleaner = <T extends { cleaner_id: string }>(rows: T[]) => {
     const map = new Map<string, T[]>();

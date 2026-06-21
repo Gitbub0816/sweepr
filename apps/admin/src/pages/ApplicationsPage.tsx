@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { DashboardShell, Badge, Button } from "@sweepr/ui";
+import { Inbox } from "lucide-react";
+import { DashboardShell, Badge, Button, EmptyState } from "@sweepr/ui";
 import { DataTable, type Column } from "../components/DataTable";
 import { adminApplications, type AdminCleaner } from "../data/mock";
 
@@ -33,7 +34,15 @@ export function ApplicationsPage() {
       title="Applications"
       description="Pending cleaner applications awaiting review."
     >
-      <DataTable columns={columns} rows={adminApplications} />
+      {adminApplications.length === 0 ? (
+        <EmptyState
+          icon={<Inbox className="h-10 w-10 text-seafoam-500" />}
+          title="All caught up on applications"
+          description="New cleaner applications will appear here for review."
+        />
+      ) : (
+        <DataTable columns={columns} rows={adminApplications} />
+      )}
     </DashboardShell>
   );
 }

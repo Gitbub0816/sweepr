@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type {
   Address,
+  Booking,
   HomeDetails,
   RecurringCadence,
   ServiceType,
@@ -17,8 +18,11 @@ export interface BookingState {
   scheduledFor: string | null;
   notes: string;
   paymentConfirmed: boolean;
+  isRebook: boolean;
+  rebookedFromDate: string | null;
 
   setAddress: (address: Address) => void;
+  rebookFrom: (previousBooking: Booking) => void;
   setHome: (home: Partial<HomeDetails>) => void;
   setService: (service: ServiceType) => void;
   toggleAddOn: (key: string) => void;
@@ -50,8 +54,23 @@ export const useBookingStore = create<BookingState>()(
   scheduledFor: null,
   notes: "",
   paymentConfirmed: false,
+  isRebook: false,
+  rebookedFromDate: null,
 
   setAddress: (address) => set({ address }),
+  rebookFrom: (prev) =>
+    set({
+      address: prev.address,
+      home: prev.home,
+      serviceType: prev.serviceType,
+      addOnKeys: [...prev.addOnKeys],
+      cadence: prev.cadence,
+      scheduledFor: null,
+      notes: prev.notes ?? "",
+      paymentConfirmed: false,
+      isRebook: true,
+      rebookedFromDate: prev.scheduledFor,
+    }),
   setHome: (home) => set((s) => ({ home: { ...s.home, ...home } })),
   setService: (serviceType) => set({ serviceType }),
   toggleAddOn: (key) =>
@@ -74,6 +93,8 @@ export const useBookingStore = create<BookingState>()(
       scheduledFor: null,
       notes: "",
       paymentConfirmed: false,
+      isRebook: false,
+      rebookedFromDate: null,
     }),
 
   getQuote: () => {

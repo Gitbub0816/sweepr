@@ -6,6 +6,7 @@ import { getUserByClerkId } from "@sweepr/db";
 import { getStripe } from "../lib/stripe";
 import { getDb } from "../lib/db";
 import { sendEmail } from "../lib/mailer";
+import { sendNotification } from "../lib/notifications";
 import { requireAuth } from "../middleware/auth";
 import type { AppBindings } from "../types";
 import type { BookingRow, CleanerRow } from "@sweepr/db";
@@ -115,6 +116,14 @@ paymentsRouter.post(
       SET platform_fee = ${platformFee}, cleaner_payout = ${cleanerPayout}, updated_at = NOW()
       WHERE id = ${bookingId}
     `;
+
+    // Payout released -> notify cleaner.
+    await sendNotification(sql, cleaner.user_id, {
+      type: "payout_released",
+      title: "Payout on the way",
+      body: `Your payout of $${(cleanerPayout / 100).toFixed(2)} has been released.`,
+      data: { href: "/earnings", bookingId },
+    });
 
     return c.json({ ok: true, transferId: transfer.id, cleanerPayout, platformFee });
   }
