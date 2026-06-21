@@ -14,7 +14,7 @@
     "@hookform/resolvers": "^3.10.0",
     "@mapbox/search-js-react": "^1.5.1",
     "@react-three/drei": "^9.122.0",
-    "@react-three/fiber": "^8.18.0",
+    "@react-three/fiber": "^9.6.1",
     "@stripe/react-stripe-js": "^6.6.0",
     "@stripe/stripe-js": "^9.8.0",
     "@sweepr/types": "workspace:*",
