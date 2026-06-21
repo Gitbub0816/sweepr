@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { getStripe } from "../lib/stripe";
 import { getDb } from "../lib/db";
 import { sendEmail } from "../lib/mailer";
+import { logger } from "../lib/logger";
+import { audit } from "../lib/audit";
 import type { AppBindings } from "../types";
 
 export const stripeWebhookRouter = new Hono<AppBindings>();
@@ -11,6 +13,7 @@ stripeWebhookRouter.post("/", async (c) => {
   const signature = c.req.header("stripe-signature");
   if (!signature) return c.json({ error: "Missing signature" }, 400);
 
+  // Read the raw body BEFORE any parsing — signature verification requires it.
   const payload = await c.req.text();
   let event;
   try {
@@ -20,7 +23,12 @@ stripeWebhookRouter.post("/", async (c) => {
       c.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
-    return c.json({ error: `Webhook signature failed: ${String(err)}` }, 400);
+    // Log failures with IP + timestamp for monitoring; never echo details back.
+    logger.warn("Stripe webhook signature verification failed", {
+      ip: c.req.header("CF-Connecting-IP") ?? "unknown",
+      ts: new Date().toISOString(),
+    });
+    return c.json({ error: "Webhook signature verification failed" }, 400);
   }
 
   const sql = getDb(c.env.DATABASE_URL);
@@ -36,6 +44,14 @@ stripeWebhookRouter.post("/", async (c) => {
               updated_at = NOW()
           WHERE id = ${bookingId}
         `;
+        await audit(sql, {
+          action: "payment.captured",
+          actorClerkId: intent.metadata?.clerkId ?? "system:stripe",
+          targetType: "booking",
+          targetId: bookingId,
+          metadata: { intentId: intent.id, amount: intent.amount },
+          timestamp: new Date().toISOString(),
+        });
       }
       // Send confirmation email to the receipt address, if Stripe captured one.
       const email = intent.receipt_email ?? undefined;
@@ -122,6 +138,14 @@ stripeWebhookRouter.post("/", async (c) => {
           WHERE id = ${bookingId}
         `;
       }
+      await audit(sql, {
+        action: "dispute.opened",
+        actorClerkId: "system:stripe",
+        targetType: "booking",
+        targetId: bookingId ?? "unknown",
+        metadata: { stripeDisputeId: dispute.id, reason: dispute.reason ?? null },
+        timestamp: new Date().toISOString(),
+      });
       // Notify admin.
       try {
         await sendEmail(c.env.MAILERSEND_API_KEY, {

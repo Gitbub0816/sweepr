@@ -8,10 +8,12 @@ import { getDb } from "../lib/db";
 import { sendEmail } from "../lib/mailer";
 import { sendNotification } from "../lib/notifications";
 import { requireAuth } from "../middleware/auth";
+import { PLATFORM_FEE_PERCENT } from "../lib/constants";
+import { audit } from "../lib/audit";
 import type { AppBindings } from "../types";
 import type { BookingRow, CleanerRow } from "@sweepr/db";
 
-const PLATFORM_FEE_RATE = 0.2; // 20% platform fee → 80% cleaner payout
+const PLATFORM_FEE_RATE = PLATFORM_FEE_PERCENT; // 20% platform fee → 80% cleaner payout
 
 const requireAdmin = createMiddleware<AppBindings>(async (c, next) => {
   const sql = getDb(c.env.DATABASE_URL);
@@ -23,9 +25,9 @@ const requireAdmin = createMiddleware<AppBindings>(async (c, next) => {
 });
 
 const intentSchema = z.object({
-  amount: z.number().int().min(50), // cents
-  currency: z.string().default("usd"),
-  bookingId: z.string().optional(),
+  amount: z.number().int().positive().min(50), // cents
+  currency: z.literal("usd").default("usd"),
+  bookingId: z.string().uuid().optional(),
 });
 
 export const paymentsRouter = new Hono<AppBindings>();
@@ -57,7 +59,7 @@ paymentsRouter.post(
 // Admin: release payout to cleaner's Connect account
 // ---------------------------------------------------------------------------
 
-const releaseSchema = z.object({ bookingId: z.string() });
+const releaseSchema = z.object({ bookingId: z.string().uuid() });
 
 paymentsRouter.post(
   "/release-payout",
@@ -125,6 +127,17 @@ paymentsRouter.post(
       data: { href: "/earnings", bookingId },
     });
 
+    await audit(sql, {
+      action: "payout.released",
+      actorClerkId: c.get("user").clerkId,
+      targetType: "booking",
+      targetId: bookingId,
+      metadata: { cleanerPayout, platformFee, transferId: transfer.id },
+      ipAddress: c.req.header("CF-Connecting-IP"),
+      userAgent: c.req.header("User-Agent"),
+      timestamp: new Date().toISOString(),
+    });
+
     return c.json({ ok: true, transferId: transfer.id, cleanerPayout, platformFee });
   }
 );
@@ -134,8 +147,11 @@ paymentsRouter.post(
 // ---------------------------------------------------------------------------
 
 const refundSchema = z.object({
-  bookingId: z.string(),
+  bookingId: z.string().uuid(),
   amount: z.number().int().positive().optional(), // cents; omit for full refund
+  reason: z
+    .enum(["duplicate", "fraudulent", "requested_by_customer"])
+    .optional(),
   email: z.string().email().optional(),
 });
 
@@ -145,7 +161,7 @@ paymentsRouter.post(
   requireAdmin,
   zValidator("json", refundSchema),
   async (c) => {
-    const { bookingId, amount, email } = c.req.valid("json");
+    const { bookingId, amount, reason, email } = c.req.valid("json");
     const sql = getDb(c.env.DATABASE_URL);
     const stripe = getStripe(c.env.STRIPE_SECRET_KEY);
 
@@ -161,12 +177,24 @@ paymentsRouter.post(
     const refund = await stripe.refunds.create({
       payment_intent: booking.stripe_payment_intent_id,
       ...(amount ? { amount } : {}),
+      ...(reason ? { reason } : {}),
     });
 
     await sql`
       UPDATE bookings SET status = 'refunded', updated_at = NOW()
       WHERE id = ${bookingId}
     `;
+
+    await audit(sql, {
+      action: "payment.refunded",
+      actorClerkId: c.get("user").clerkId,
+      targetType: "booking",
+      targetId: bookingId,
+      metadata: { amount: amount ?? "full", reason: reason ?? null, refundId: refund.id },
+      ipAddress: c.req.header("CF-Connecting-IP"),
+      userAgent: c.req.header("User-Agent"),
+      timestamp: new Date().toISOString(),
+    });
 
     if (email) {
       try {

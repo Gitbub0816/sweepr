@@ -181,3 +181,59 @@ CREATE INDEX idx_bookings_customer ON bookings(customer_id);
 CREATE INDEX idx_bookings_cleaner ON bookings(cleaner_id);
 CREATE INDEX idx_bookings_status ON bookings(status);
 CREATE INDEX idx_users_clerk ON users(clerk_id);
+
+-- Immutable audit trail for security-relevant actions (SOC 2 CC7.1, CIS 8).
+CREATE TABLE IF NOT EXISTS admin_audit_log (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  action TEXT NOT NULL,
+  actor_clerk_id TEXT NOT NULL,
+  target_type TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  metadata JSONB,
+  ip_address TEXT,
+  user_agent TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ---------------------------------------------------------------------------
+-- Security hardening
+-- ---------------------------------------------------------------------------
+
+-- Row-level security (enable on sensitive tables)
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cleaners ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payouts ENABLE ROW LEVEL SECURITY;
+
+-- Create app role (used by the Worker connection)
+-- In production, the DATABASE_URL should use this role, not superuser
+DO $$ BEGIN
+  CREATE ROLE sweepr_app;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- Grant only needed permissions
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO sweepr_app;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO sweepr_app;
+
+-- Add soft-delete column (for GDPR right to erasure)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE cleaners ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
+-- Data retention: add created_at indexes for purge queries
+CREATE INDEX IF NOT EXISTS idx_bookings_created_at ON bookings(created_at);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON admin_audit_log(created_at);
+
+-- Add indexes for common lookups
+CREATE INDEX IF NOT EXISTS idx_bookings_customer_id ON bookings(customer_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_cleaner_id ON bookings(cleaner_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
+CREATE INDEX IF NOT EXISTS idx_job_offers_booking_id ON job_offers(booking_id);
+CREATE INDEX IF NOT EXISTS idx_job_offers_cleaner_id ON job_offers(cleaner_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_cleaner_id ON reviews(cleaner_id);
+CREATE INDEX IF NOT EXISTS idx_payments_booking_id ON payments(booking_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id, read);

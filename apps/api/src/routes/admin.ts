@@ -7,6 +7,7 @@ import { getUserByClerkId } from "@sweepr/db";
 import { getDb } from "../lib/db";
 import { sendEmail } from "../lib/mailer";
 import { requireAuth } from "../middleware/auth";
+import { audit } from "../lib/audit";
 import type { AppBindings } from "../types";
 import type { UserRow } from "@sweepr/db";
 
@@ -88,6 +89,18 @@ adminRouter.patch("/applications/:id/approve", async (c) => {
     }
   }
 
+  const sqlAudit = getDb(c.env.DATABASE_URL);
+  await audit(sqlAudit, {
+    action: "cleaner.approved",
+    actorClerkId: c.get("user").clerkId,
+    targetType: "cleaner",
+    targetId: id,
+    metadata: { userId: cleaner.user_id },
+    ipAddress: c.req.header("CF-Connecting-IP"),
+    userAgent: c.req.header("User-Agent"),
+    timestamp: new Date().toISOString(),
+  });
+
   return c.json({ ok: true, status: "approved" });
 });
 
@@ -133,6 +146,17 @@ adminRouter.patch(
         // Non-fatal.
       }
     }
+
+    await audit(sql, {
+      action: "cleaner.rejected",
+      actorClerkId: c.get("user").clerkId,
+      targetType: "cleaner",
+      targetId: id,
+      metadata: { reason: reason ?? null, userId: cleaner.user_id },
+      ipAddress: c.req.header("CF-Connecting-IP"),
+      userAgent: c.req.header("User-Agent"),
+      timestamp: new Date().toISOString(),
+    });
 
     return c.json({ ok: true, status: "rejected" });
   }

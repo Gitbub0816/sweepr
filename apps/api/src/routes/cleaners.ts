@@ -138,11 +138,11 @@ cleanersRouter.get("/stripe-connect/status", async (c) => {
 // ---------------------------------------------------------------------------
 
 const backgroundSchema = z.object({
-  legalName: z.string(),
-  dob: z.string(),
-  // SSN last-4 only; full SSN is never accepted or stored.
-  ssnLast4: z.string().length(4),
-  address: z.string(),
+  fullLegalName: z.string().min(2).max(200),
+  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  // SSN last-4 only; full SSN is never accepted, logged, or stored.
+  ssnLast4: z.string().regex(/^\d{4}$/),
+  address: z.string().max(500),
 });
 
 cleanersRouter.post(

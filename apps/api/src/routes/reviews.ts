@@ -8,10 +8,16 @@ import type { AppBindings } from "../types";
 export const reviewsRouter = new Hono<AppBindings>();
 
 const createSchema = z.object({
-  bookingId: z.string(),
-  cleanerId: z.string(),
+  bookingId: z.string().uuid(),
+  cleanerId: z.string().uuid(),
   rating: z.number().int().min(1).max(5),
-  comment: z.string().optional(),
+  comment: z.string().max(2000).optional(),
+  tags: z
+    .array(
+      z.enum(["on_time", "thorough", "communication", "spotless", "friendly"])
+    )
+    .max(5)
+    .default([]),
 });
 
 reviewsRouter.post(

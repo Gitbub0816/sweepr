@@ -8,7 +8,7 @@ const API_URL =
   "http://localhost:8787";
 
 const MAX_BYTES = 10 * 1024 * 1024;
-const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/heic"];
+const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 
 interface SignResponse {
   uploadUrl: string;
@@ -28,6 +28,7 @@ async function signAndUpload(
   file: File,
   scope: "booking" | "avatar",
   refId: string,
+  purpose: "booking_photo" | "cleaner_avatar",
   getToken: () => Promise<string | null>
 ): Promise<string> {
   validate(file);
@@ -44,7 +45,9 @@ async function signAndUpload(
       contentType: file.type,
       sizeBytes: file.size,
       scope,
+      purpose,
       refId,
+      ...(scope === "booking" ? { bookingId: refId } : { cleanerId: refId }),
     }),
   });
   if (!signRes.ok) throw new Error("Failed to get upload URL");
@@ -65,7 +68,7 @@ export function uploadBookingPhoto(
   bookingId: string,
   getToken: () => Promise<string | null> = async () => null
 ): Promise<string> {
-  return signAndUpload(file, "booking", bookingId, getToken);
+  return signAndUpload(file, "booking", bookingId, "booking_photo", getToken);
 }
 
 export function uploadCleanerAvatar(
@@ -73,5 +76,5 @@ export function uploadCleanerAvatar(
   cleanerId: string,
   getToken: () => Promise<string | null> = async () => null
 ): Promise<string> {
-  return signAndUpload(file, "avatar", cleanerId, getToken);
+  return signAndUpload(file, "avatar", cleanerId, "cleaner_avatar", getToken);
 }

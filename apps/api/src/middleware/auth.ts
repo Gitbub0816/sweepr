@@ -2,6 +2,10 @@ import { createMiddleware } from "hono/factory";
 import { verifyToken } from "@clerk/backend";
 import type { AppBindings } from "../types";
 
+// CSRF note: this API uses Authorization: Bearer tokens, not cookies.
+// CSRF attacks require cookie-based authentication to be effective.
+// Bearer token auth is immune to CSRF by design.
+
 /**
  * Verifies the Clerk session JWT from the Authorization header and attaches
  * the user to the request context. Returns 401 when missing/invalid.
