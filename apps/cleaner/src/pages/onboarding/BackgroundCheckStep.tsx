@@ -21,6 +21,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 interface Props {
   n: number;
   workState?: string;
+  getToken: () => Promise<string | null>;
   onComplete: () => void;
 }
 
@@ -32,7 +33,7 @@ type Phase =
   | { kind: "waiting"; status: CheckrStatus }
   | { kind: "error"; message: string };
 
-export function BackgroundCheckStep({ n, workState = "CA", onComplete }: Props) {
+export function BackgroundCheckStep({ n, workState = "CA", getToken, onComplete }: Props) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phase, setPhase] = useState<Phase>({ kind: "intro" });
@@ -41,10 +42,13 @@ export function BackgroundCheckStep({ n, workState = "CA", onComplete }: Props) 
     if (!firstName.trim() || !lastName.trim()) return;
     setPhase({ kind: "loading" });
     try {
+      const token = await getToken();
       const res = await fetch(`${API_URL}/checkr/invite`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), workState }),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -57,7 +61,10 @@ export function BackgroundCheckStep({ n, workState = "CA", onComplete }: Props) 
 
   async function pollStatus() {
     try {
-      const res = await fetch(`${API_URL}/checkr/status`, { credentials: "include" });
+      const token = await getToken();
+      const res = await fetch(`${API_URL}/checkr/status`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (!res.ok) return;
       const data = (await res.json()) as { status: CheckrStatus };
       if (data.status !== "not_started" && data.status !== "invited") {

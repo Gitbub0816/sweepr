@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUser } from "@clerk/clerk-react";
+import { useUser, useAuth } from "@clerk/clerk-react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -160,6 +160,7 @@ type StatusFlow = "idle" | "submitting" | "submitted" | "pending";
 export function OnboardingPage() {
   const navigate = useNavigate();
   const { user } = useUser();
+  const { getToken } = useAuth();
   const reduced = useReducedMotion();
   const [mode, setMode] = useState<OnboardingMode>("individual");
   const [step, setStep] = useState(0);
@@ -460,6 +461,7 @@ export function OnboardingPage() {
                   <BackgroundCheckStep
                     n={step + 1}
                     workState="CA"
+                    getToken={getToken}
                     onComplete={() => {
                       setCheckrStatus("pending");
                       goNext();
@@ -699,6 +701,25 @@ function StepBusinessInfo({ form, set }: { form: FormState; set: SetFn }) {
   );
 }
 
+const MAPBOX_TOKEN =
+  import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN ||
+  import.meta.env.VITE_MAPBOX_TOKEN ||
+  "";
+
+async function geocodeCity(query: string): Promise<[number, number] | null> {
+  if (!MAPBOX_TOKEN || !query.trim()) return null;
+  try {
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&types=place,region,locality&limit=1`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { features?: Array<{ center: [number, number] }> };
+    const coords = data.features?.[0]?.center;
+    return coords ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function StepArea({
   form,
   set,
@@ -708,13 +729,16 @@ function StepArea({
   set: SetFn;
   stepNumber: number;
 }) {
-  const nearby = [
-    "Hillcrest",
-    "North Park",
-    "La Jolla",
-    "Mission Valley",
-    "Pacific Beach",
-  ];
+  const [geocoding, setGeocoding] = useState(false);
+
+  async function handleBasedInBlur() {
+    if (!form.basedIn.trim()) return;
+    setGeocoding(true);
+    const coords = await geocodeCity(form.basedIn);
+    setGeocoding(false);
+    if (coords) set("center", coords);
+  }
+
   return (
     <div className="space-y-4">
       <StepTitle
@@ -737,26 +761,17 @@ function StepArea({
           className="w-full accent-seafoam-500"
         />
       </div>
-      <Input
-        label="Based in"
-        value={form.basedIn}
-        onChange={(e) => set("basedIn", e.target.value)}
-        placeholder="City, State"
-      />
-      <div>
-        <p className="mb-2 text-sm font-medium text-charcoal dark:text-slate-200">
-          Neighborhoods in range
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {nearby.map((n) => (
-            <span
-              key={n}
-              className="rounded-full bg-seafoam-50 px-3 py-1 text-xs font-medium text-seafoam-700 dark:bg-seafoam-900/30 dark:text-seafoam-300"
-            >
-              {n}
-            </span>
-          ))}
-        </div>
+      <div className="relative">
+        <Input
+          label="Based in"
+          value={form.basedIn}
+          onChange={(e) => set("basedIn", e.target.value)}
+          onBlur={handleBasedInBlur}
+          placeholder="City, State"
+        />
+        {geocoding && (
+          <span className="absolute right-3 top-9 text-xs text-slate-400">Locating…</span>
+        )}
       </div>
     </div>
   );
