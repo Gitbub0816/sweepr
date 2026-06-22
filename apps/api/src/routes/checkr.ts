@@ -16,7 +16,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { getUserByClerkId } from "@sweepr/db";
+import { getUserByClerkId, upsertUser } from "@sweepr/db";
 import { getDb } from "../lib/db";
 import { requireAuth } from "../middleware/auth";
 import { logger } from "../lib/logger";
@@ -54,7 +54,6 @@ checkrRouter.post("/invite", requireAuth, zValidator("json", inviteSchema), asyn
   if (!user) {
     // Auto-sync user into DB on first request (Clerk webhook may not have fired yet)
     try {
-      const { upsertUser } = await import("@sweepr/db");
       user = await upsertUser(sql, { clerkId: authUser.clerkId, email: authUser.email ?? `${authUser.clerkId}@unknown.sweepr`, role: "cleaner" });
     } catch (err) {
       logger.error("checkr/invite: failed to auto-create user", err);
