@@ -12,7 +12,7 @@ export function LegalShell({ children }: { children: ReactNode }) {
       <header className="no-print sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <Link to="/" className="flex items-baseline gap-2">
-            <LegalLogo size="sm" />
+            <LegalLogo size="md" />
             <span className="text-sm text-slate-400">Legal</span>
           </Link>
           <div className="flex items-center gap-4 text-sm">

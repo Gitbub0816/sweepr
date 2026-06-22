@@ -71,7 +71,7 @@ export function Home() {
             </p>
           </div>
           <Link
-            to="/book/service"
+            to="/book/address"
             className="rounded-2xl bg-seafoam-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-seafoam-600"
           >
             Rebook
@@ -87,7 +87,7 @@ export function Home() {
         {suggested.map((s) => (
           <Link
             key={s.type}
-            to="/book/service"
+            to="/book/address"
             className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-seafoam-300 dark:border-slate-700 dark:bg-slate-900"
             style={{ borderLeft: "6px solid #14b8a6" }}
           >
