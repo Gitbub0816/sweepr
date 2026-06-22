@@ -14,8 +14,8 @@ export class AppError extends Error {
 export function toSafeError(
   err: unknown,
   isDev: boolean
-): { error: string; code?: string } {
-  if (err instanceof AppError) return { error: err.message, code: err.code };
-  if (isDev && err instanceof Error) return { error: err.message };
-  return { error: "An unexpected error occurred" };
+): { error: string; detail?: string } {
+  if (err instanceof AppError) return { error: err.message };
+  if (err instanceof Error) return { error: "An unexpected error occurred", detail: err.message };
+  return { error: "An unexpected error occurred", detail: String(err) };
 }
