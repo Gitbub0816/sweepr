@@ -8,7 +8,9 @@ import {
   User,
   BarChart3,
 } from "lucide-react";
-import { AppShell } from "@sweepr/ui";
+import { AppShell, PrelaunchGate } from "@sweepr/ui";
+
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 import { HomePage } from "./pages/HomePage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { PendingReviewPage } from "./pages/PendingReviewPage";
@@ -55,21 +57,25 @@ function Guarded({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <Routes>
-      {/* Auth (unprotected) */}
+      {/* Auth (unprotected, but gated during prelaunch) */}
       <Route
         path="/sign-in/*"
         element={
-          <AuthPage title="Welcome back" subtitle="Sign in to your Sweepr Pro account">
-            <SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" fallbackRedirectUrl="/" />
-          </AuthPage>
+          <PrelaunchGate type="cleaner" apiUrl={API_URL}>
+            <AuthPage title="Welcome back" subtitle="Sign in to your Sweepr Pro account">
+              <SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" fallbackRedirectUrl="/" />
+            </AuthPage>
+          </PrelaunchGate>
         }
       />
       <Route
         path="/sign-up/*"
         element={
-          <AuthPage title="Become a Sweepr Pro" subtitle="Start earning on your schedule">
-            <SignUp routing="path" path="/sign-up" signInUrl="/sign-in" fallbackRedirectUrl="/onboarding" />
-          </AuthPage>
+          <PrelaunchGate type="cleaner" apiUrl={API_URL}>
+            <AuthPage title="Become a Sweepr Pro" subtitle="Start earning on your schedule">
+              <SignUp routing="path" path="/sign-up" signInUrl="/sign-in" fallbackRedirectUrl="/onboarding" />
+            </AuthPage>
+          </PrelaunchGate>
         }
       />
 

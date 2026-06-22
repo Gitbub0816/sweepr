@@ -8,7 +8,9 @@ import {
   Repeat,
 } from "lucide-react";
 import { useState } from "react";
-import { AppShell, SMSOptIn } from "@sweepr/ui";
+import { AppShell, SMSOptIn, PrelaunchGate } from "@sweepr/ui";
+
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 import { BookingLayout } from "./booking/BookingLayout";
 import { SubscriptionsPage } from "./pages/SubscriptionsPage";
 
@@ -74,32 +76,36 @@ export default function App() {
         <Route
           path="/sign-in/*"
           element={
-            <AuthPage title="Welcome back" subtitle="Sign in to manage your cleans">
-              <SignIn
-                routing="path"
-                path="/sign-in"
-                signUpUrl="/sign-up"
-                fallbackRedirectUrl="/book"
-              />
-            </AuthPage>
+            <PrelaunchGate type="customer" apiUrl={API_URL}>
+              <AuthPage title="Welcome back" subtitle="Sign in to manage your cleans">
+                <SignIn
+                  routing="path"
+                  path="/sign-in"
+                  signUpUrl="/sign-up"
+                  fallbackRedirectUrl="/book"
+                />
+              </AuthPage>
+            </PrelaunchGate>
           }
         />
         <Route
           path="/sign-up/*"
           element={
-            <AuthPage
-              title="Create your account"
-              subtitle="Book your first clean in minutes"
-            >
-              <SignUpWithSms>
-                <SignUp
-                  routing="path"
-                  path="/sign-up"
-                  signInUrl="/sign-in"
-                  fallbackRedirectUrl="/book"
-                />
-              </SignUpWithSms>
-            </AuthPage>
+            <PrelaunchGate type="customer" apiUrl={API_URL}>
+              <AuthPage
+                title="Create your account"
+                subtitle="Book your first clean in minutes"
+              >
+                <SignUpWithSms>
+                  <SignUp
+                    routing="path"
+                    path="/sign-up"
+                    signInUrl="/sign-in"
+                    fallbackRedirectUrl="/book"
+                  />
+                </SignUpWithSms>
+              </AuthPage>
+            </PrelaunchGate>
           }
         />
 

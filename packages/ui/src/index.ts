@@ -37,6 +37,9 @@ export * from "./components/SavedPaymentCard";
 export * from "./components/MapR3FOverlay";
 export * from "./components/NotificationBell";
 export * from "./components/SMSOptIn";
+export * from "./components/PrelaunchGate";
+export * from "./components/WaitlistForm";
+export * from "./components/NewsletterSubscribe";
 
 // Calendar
 export { SweeprCalendar } from "./calendar/SweeprCalendar";
