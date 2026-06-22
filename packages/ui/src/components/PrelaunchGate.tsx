@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SweeprLogo } from "../assets/SweeprLogo";
 import { WaitlistForm } from "./WaitlistForm";
 
 const BYPASS_KEY = "sweepr_prelaunch_bypass";
@@ -78,19 +79,28 @@ export function PrelaunchGate({ type, apiUrl, children }: PrelaunchGateProps) {
     return <>{children}</>;
   }
 
-  const label = type === "cleaner" ? "cleaners" : "customers";
+  const copy =
+    type === "cleaner"
+      ? {
+          headline: "We're still sweeping applicants under the rug… temporarily.",
+          body: "Cleaner applications haven't opened yet. Visit our status page or subscribe below, and we'll pull back the rug as soon as we're ready.",
+        }
+      : {
+          headline: "We're still rolling out the welcome mat.",
+          body: "Booking isn't open yet. Check our status page or subscribe below, and we'll let you know when it's time to kick off your shoes and let us handle the cleaning.",
+        };
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-white px-4">
       <div className="flex w-full max-w-md flex-col items-center gap-6 text-center">
-        <img src="/brand/sweepr-logo.png" className="h-14 w-auto" alt="Sweepr" />
+        <SweeprLogo size="lg" />
 
         <h1 className="text-2xl font-bold text-charcoal">
-          We're not accepting {label} yet
+          {copy.headline}
         </h1>
 
         <p className="text-slate-500">
-          Visit our status page or subscribe for updates when we launch.
+          {copy.body}
         </p>
 
         <div className="flex gap-3">
