@@ -1,5 +1,4 @@
 import { MarketingShell, Button, Accordion, SweeprLogo, type AccordionItemData } from "@sweepr/ui";
-import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   MapPin,
@@ -115,7 +114,7 @@ export default function Landing() {
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <motion.div initial="hidden" animate="show" variants={stagger}>
               <motion.div variants={fadeUp} className="mb-6">
-                <SweeprLogo size="xl" />
+                <SweeprLogo size="2xl" />
               </motion.div>
               <motion.h1
                 variants={fadeUp}
@@ -253,7 +252,7 @@ export default function Landing() {
           </div>
           <p className="mt-3 text-xs text-seafoam-100/50">
             Cleaners are independent contractors.{" "}
-            <Link to="/independent-contractor" className="underline">Learn more</Link>.
+            <a href="https://legal.getsweepr.com/contractor-agreement?ref=marketing" className="underline">Learn more</a>.
           </p>
         </Section>
       </div>
@@ -314,9 +313,9 @@ export default function Landing() {
           </div>
           <div className="flex flex-col items-center justify-between gap-4 border-t border-slate-100 pt-6 dark:border-slate-800 sm:flex-row">
             <nav className="flex flex-wrap items-center gap-6 text-xs text-slate-400">
-              <Link to="/privacy" className="hover:text-seafoam-600">Privacy Policy</Link>
-              <Link to="/terms" className="hover:text-seafoam-600">Terms of Service</Link>
-              <Link to="/independent-contractor" className="hover:text-seafoam-600">Contractor Disclosure</Link>
+              <a href="https://legal.getsweepr.com/privacy?ref=marketing" className="hover:text-seafoam-600">Privacy Policy</a>
+              <a href="https://legal.getsweepr.com/terms?ref=marketing" className="hover:text-seafoam-600">Terms of Service</a>
+              <a href="https://legal.getsweepr.com/contractor-agreement?ref=marketing" className="hover:text-seafoam-600">Contractor Disclosure</a>
               <button
                 onClick={() => {
                   try { localStorage.removeItem("sweepr_cookie_consent"); } catch { /* noop */ }

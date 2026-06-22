@@ -63,7 +63,7 @@ export function CookieConsent() {
         <p className="mt-1 text-sm text-slate-500">
           We use essential cookies to run Sweepr and, with your consent,
           analytics and marketing cookies. See our{" "}
-          <a href="/privacy" className="font-medium text-seafoam-600 underline">
+          <a href="https://legal.getsweepr.com/privacy?ref=marketing" target="_blank" rel="noreferrer" className="font-medium text-seafoam-600 underline">
             Privacy Policy
           </a>
           .

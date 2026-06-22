@@ -24,7 +24,7 @@ export function MarketingShell({
       <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/70 backdrop-blur dark:border-slate-800 dark:bg-slate-950/70">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
           <a href="/" className="flex items-center gap-2" aria-label="Sweepr home">
-            <SweeprLogo size="sm" />
+            <SweeprLogo size="md" />
           </a>
           <nav className="hidden items-center gap-8 md:flex">
             {navLinks.map((l) => (

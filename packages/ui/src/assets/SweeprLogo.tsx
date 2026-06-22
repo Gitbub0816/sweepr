@@ -2,7 +2,7 @@ import { cn } from '@sweepr/utils'
 
 interface SweeprLogoProps {
   className?: string
-  size?: 'sm' | 'md' | 'lg' | 'xl'
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl'
   /** @deprecated unused — image scales naturally */
   showText?: boolean
 }
@@ -12,6 +12,7 @@ const heights: Record<NonNullable<SweeprLogoProps['size']>, string> = {
   md: 'h-10',
   lg: 'h-14',
   xl: 'h-20',
+  '2xl': 'h-36',
 }
 
 export function SweeprLogo({ className, size = 'md' }: SweeprLogoProps) {

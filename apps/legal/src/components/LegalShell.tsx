@@ -1,10 +1,20 @@
 import type { ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { COMPANY_NAME, DOCS, LAST_UPDATED } from "../docs";
 import { LegalLogo } from "./LegalLogo";
 
+const REF_URLS: Record<string, { label: string; url: string }> = {
+  marketing: { label: "getsweepr.com", url: "https://getsweepr.com" },
+  customer:  { label: "Sweepr App", url: "https://app.getsweepr.com" },
+  cleaner:   { label: "Sweepr Pro", url: "https://clean.getsweepr.com" },
+  admin:     { label: "Admin", url: "https://admin.getsweepr.com" },
+};
+
 export function LegalShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
+  const [searchParams] = useSearchParams();
+  const ref = searchParams.get("ref") ?? "marketing";
+  const back = REF_URLS[ref] ?? REF_URLS.marketing;
 
   return (
     <div className="flex min-h-full flex-col bg-white">
@@ -20,10 +30,10 @@ export function LegalShell({ children }: { children: ReactNode }) {
               Legal Documents
             </span>
             <a
-              href="https://getsweepr.com"
+              href={back.url}
               className="font-medium text-seafoam-600 hover:text-seafoam-700"
             >
-              ← Back to getsweepr.com
+              ← Back to {back.label}
             </a>
           </div>
         </div>
