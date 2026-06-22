@@ -7,7 +7,6 @@ import {
   STATE_OF_INCORPORATION,
   REGISTERED_ADDRESS,
   LEGAL_URL,
-  LAST_UPDATED,
 } from "../docs";
 
 const toc = [
