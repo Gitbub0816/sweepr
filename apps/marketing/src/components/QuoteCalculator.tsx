@@ -4,7 +4,7 @@ import type { ServiceType, HomeType } from "@sweepr/types";
 import { ArrowRight } from "lucide-react";
 
 const CUSTOMER_URL =
-  import.meta.env.VITE_CUSTOMER_URL || "https://app.getsweepr.com";
+  (import.meta.env.VITE_CUSTOMER_URL || "https://app.getsweepr.com") + "/book";
 
 const SERVICES: ServiceType[] = ["standard", "deep", "move_in_out", "recurring"];
 

@@ -20,9 +20,9 @@ import { QuoteCalculator } from "../components/QuoteCalculator";
 import { MarketingAuth } from "../components/MarketingAuth";
 
 const CUSTOMER_URL =
-  import.meta.env.VITE_CUSTOMER_URL || "https://app.getsweepr.com";
+  (import.meta.env.VITE_CUSTOMER_URL || "https://app.getsweepr.com") + "/book";
 const CLEANER_URL =
-  import.meta.env.VITE_CLEANER_URL || "https://clean.getsweepr.com";
+  (import.meta.env.VITE_CLEANER_URL || "https://clean.getsweepr.com") + "/sign-up";
 
 const fadeUp = { hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0 } };
 const stagger = { show: { transition: { staggerChildren: 0.12 } } };

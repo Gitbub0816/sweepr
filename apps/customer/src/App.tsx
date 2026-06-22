@@ -104,7 +104,7 @@ export default function App() {
         />
 
         <Route path="/" element={<Navigate to="/home" replace />} />
-        <Route path="/home" element={<Shell><Home /></Shell>} />
+        <Route path="/home" element={<Protected><Home /></Protected>} />
 
         {/* Booking flow (no sidebar — focused funnel) — auth required */}
         <Route element={<ProtectedRoute><BookingLayout /></ProtectedRoute>}>
