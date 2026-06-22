@@ -38,13 +38,11 @@ jobs:
           node-version: '20'
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
-      - uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: apps/api
-          command: deploy
-          packageManager: pnpm
+      - name: Deploy Worker
+        run: pnpm --filter @sweepr/api exec wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   deploy-marketing:
     name: Deploy Marketing (getsweepr.com)
@@ -69,12 +67,11 @@ jobs:
           VITE_API_URL: https://api.getsweepr.com
           VITE_CUSTOMER_URL: https://app.getsweepr.com
           VITE_CLEANER_URL: https://clean.getsweepr.com
-      - uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/marketing/dist --project-name=sweepr-marketing --commit-dirty=true
-          packageManager: pnpm
+      - name: Deploy to Pages
+        run: npx wrangler pages deploy apps/marketing/dist --project-name=sweepr-marketing --commit-dirty=true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   deploy-customer:
     name: Deploy Customer App (app.getsweepr.com)
@@ -104,12 +101,11 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-      - uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/customer/dist --project-name=sweepr-customer --commit-dirty=true
-          packageManager: pnpm
+      - name: Deploy to Pages
+        run: npx wrangler pages deploy apps/customer/dist --project-name=sweepr-customer --commit-dirty=true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   deploy-cleaner:
     name: Deploy Cleaner App (clean.getsweepr.com)
@@ -138,12 +134,11 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-      - uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/cleaner/dist --project-name=sweepr-cleaner --commit-dirty=true
-          packageManager: pnpm
+      - name: Deploy to Pages
+        run: npx wrangler pages deploy apps/cleaner/dist --project-name=sweepr-cleaner --commit-dirty=true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   deploy-admin:
     name: Deploy Admin App (admin.getsweepr.com)
@@ -167,12 +162,11 @@ jobs:
           VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
           VITE_POSTHOG_DASHBOARD_URL: ${{ secrets.VITE_POSTHOG_DASHBOARD_URL }}
           VITE_API_URL: https://api.getsweepr.com
-      - uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/admin/dist --project-name=sweepr-admin --commit-dirty=true
-          packageManager: pnpm
+      - name: Deploy to Pages
+        run: npx wrangler pages deploy apps/admin/dist --project-name=sweepr-admin --commit-dirty=true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   deploy-legal:
     name: Deploy Legal Site (legal.getsweepr.com)
@@ -188,9 +182,8 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @sweepr/legal build
-      - uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/legal/dist --project-name=sweepr-legal --commit-dirty=true
-          packageManager: pnpm
+      - name: Deploy to Pages
+        run: npx wrangler pages deploy apps/legal/dist --project-name=sweepr-legal --commit-dirty=true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
