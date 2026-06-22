@@ -55,13 +55,13 @@ checkrRouter.post("/invite", requireAuth, zValidator("json", inviteSchema), asyn
   const invitation = await client.createInvitation(candidate.id, workState);
 
   await sql`
-    UPDATE cleaners
-    SET
-      checkr_candidate_id  = ${candidate.id},
-      checkr_invitation_id = ${invitation.id},
-      checkr_status        = 'invited',
-      checkr_invited_at    = NOW()
-    WHERE user_id = ${user.id}
+    INSERT INTO cleaners (user_id, checkr_candidate_id, checkr_invitation_id, checkr_status, checkr_invited_at)
+    VALUES (${user.id}, ${candidate.id}, ${invitation.id}, 'invited', NOW())
+    ON CONFLICT (user_id) DO UPDATE
+      SET checkr_candidate_id  = EXCLUDED.checkr_candidate_id,
+          checkr_invitation_id = EXCLUDED.checkr_invitation_id,
+          checkr_status        = 'invited',
+          checkr_invited_at    = NOW()
   `;
 
   serverTrack(c.env, user.id, "checkr_invite_sent", { workState });

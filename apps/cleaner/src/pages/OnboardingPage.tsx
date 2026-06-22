@@ -707,14 +707,24 @@ const MAPBOX_TOKEN =
   "";
 
 async function geocodeCity(query: string): Promise<[number, number] | null> {
-  if (!MAPBOX_TOKEN || !query.trim()) return null;
+  if (!query.trim()) return null;
   try {
-    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&types=place,region,locality&limit=1`;
-    const res = await fetch(url);
+    if (MAPBOX_TOKEN) {
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&types=place,region,locality&limit=1`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = (await res.json()) as { features?: Array<{ center: [number, number] }> };
+        const coords = data.features?.[0]?.center;
+        if (coords) return [coords[0], coords[1]];
+      }
+    }
+    // Fallback: OpenStreetMap Nominatim (no API key required)
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
+    const res = await fetch(url, { headers: { "Accept-Language": "en" } });
     if (!res.ok) return null;
-    const data = (await res.json()) as { features?: Array<{ center: [number, number] }> };
-    const coords = data.features?.[0]?.center;
-    return coords ?? null;
+    const data = (await res.json()) as Array<{ lon: string; lat: string }>;
+    if (data[0]) return [parseFloat(data[0].lon), parseFloat(data[0].lat)];
+    return null;
   } catch {
     return null;
   }
