@@ -30,8 +30,12 @@ export interface CleanerRow {
   avatar_url: string | null;
   status: string;
   stripe_connect_id: string | null;
+  account_type: string | null;
   checkr_candidate_id: string | null;
+  checkr_report_id: string | null;
+  checkr_status: string | null;
   didit_verification_id: string | null;
+  didit_status: string | null;
   tier: string;
   rating: string | null;
   total_jobs: number;

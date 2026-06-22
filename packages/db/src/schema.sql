@@ -30,7 +30,10 @@ CREATE TABLE cleaners (
   status TEXT DEFAULT 'pending', -- pending, approved, suspended
   stripe_connect_id TEXT,
   checkr_candidate_id TEXT,
+  checkr_report_id TEXT,
+  checkr_status TEXT DEFAULT 'not_started',
   didit_verification_id TEXT,
+  didit_status TEXT DEFAULT 'not_started',
   tier TEXT DEFAULT 'standard', -- standard, preferred, elite
   rating DECIMAL(3,2),
   total_jobs INT DEFAULT 0,

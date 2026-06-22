@@ -261,15 +261,26 @@ export function OnboardingPage() {
     setDiditStatus("submitting");
     try {
       if (API_URL) {
-        await fetch(`${API_URL}/cleaners/identity-verify`, {
+        const res = await fetch(`${API_URL}/cleaners/identity-verify`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ provider: "didit" }),
         });
+        const data = (await res.json().catch(() => ({}))) as {
+          url?: string;
+          stub?: boolean;
+        };
+        // Live Didit: redirect the applicant to the hosted verification page.
+        // All ID capture happens on Didit — no documents touch Sweepr.
+        if (data.url && !data.stub) {
+          window.location.href = data.url;
+          return;
+        }
       }
       await new Promise((r) => setTimeout(r, 900));
       setDiditStatus("submitted");
-      toast.success("Identity documents submitted to Didit.");
+      toast.success("Identity verification submitted for review.");
     } catch {
       setDiditStatus("idle");
       toast.error("Could not submit. Try again.");

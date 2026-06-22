@@ -150,15 +150,37 @@ cleanersRouter.post(
   "/identity-verify",
   zValidator("json", identitySchema),
   async (c) => {
-    const { sql, user } = await currentCleaner(c);
+    const { sql, user, cleaner } = await currentCleaner(c);
     if (!user) return c.json({ error: "User not found" }, 404);
-    const verificationId = `verif_${crypto.randomUUID()}`;
+
+    // Create a hosted Didit verification session. Document/biometric capture
+    // happens entirely on Didit — no ID images or PII reach Sweepr. When Didit
+    // is unconfigured this returns a stub session and falls back to manual
+    // admin review.
+    const { diditClient } = await import("../lib/didit");
+    const client = diditClient(c.env);
+    const workflow = cleaner?.account_type === "business" ? "business" : "personal";
+    const session = await client.createSession({
+      workflow,
+      vendorData: user.id,
+      callbackUrl: "https://api.sweep-r.com/webhooks/didit",
+    });
+
+    const status = session.stub ? "in_review" : "pending";
     await sql`
       UPDATE cleaners
-      SET didit_verification_id = ${verificationId}
+      SET didit_verification_id = ${session.session_id},
+          didit_status          = ${status}
       WHERE user_id = ${user.id}
     `;
-    return c.json({ didit_status: "submitted", verificationId });
+
+    // Only the hosted URL crosses the wire — never Didit credentials.
+    return c.json({
+      didit_status: status,
+      url: session.url,
+      sessionId: session.session_id,
+      stub: session.stub,
+    });
   }
 );
 

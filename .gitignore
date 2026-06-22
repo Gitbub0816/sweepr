@@ -7,3 +7,7 @@ dist
 .DS_Store
 .vite
 coverage
+
+# Local deploy secrets — never commit
+sweepr.env.local
+*.env.local

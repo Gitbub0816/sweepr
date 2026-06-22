@@ -4,28 +4,42 @@ compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
-ENVIRONMENT = "development"
+ENVIRONMENT = "production"
+
+# 5th "site": the API + webhooks live on their own subdomain (api.sweep-r.com),
+# NOT under a path on another site. This binds the Worker to the custom domain
+# on deploy, exposing:
+#   https://api.sweep-r.com/webhooks/stripe
+#   https://api.sweep-r.com/webhooks/didit
+#   https://api.sweep-r.com/webhooks/checkr/webhook
+# Requires the sweep-r.com zone to be in this Cloudflare account.
+routes = [
+  { pattern = "api.sweep-r.com", custom_domain = true }
+]
 
 [[kv_namespaces]]
 binding = "RATE_LIMIT_KV"
-id = "placeholder_replace_with_real_kv_id"
-preview_id = "placeholder_replace_with_real_preview_id"
+id = "ec932b508b6b43dd85d9cdeabaa850c3"
+preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
 
-# Secrets — set with: wrangler secret put SECRET_NAME
+# Secrets stored in Cloudflare (set via wrangler secret put or dashboard):
 # CLERK_SECRET_KEY
 # DATABASE_URL
 # STRIPE_SECRET_KEY
 # STRIPE_WEBHOOK_SECRET
 # MAILERSEND_API_KEY
-# CHECKR_API_KEY        (omit for mock mode while account is under review)
-# CHECKR_PACKAGE        e.g. tasker_standard
-# CHECKR_WEBHOOK_SECRET Checkr dashboard → Webhooks → signing secret
-# DIDIT_API_KEY
-# MAPBOX_SECRET_TOKEN
-# FIREBASE_PROJECT_ID
-# FIREBASE_CLIENT_EMAIL
-# FIREBASE_PRIVATE_KEY
-# FIREBASE_STORAGE_BUCKET
+# POSTHOG_KEY
+# DIDIT_API_KEY               (x-api-key for hosted session creation)
+# DIDIT_WORKFLOW_ID           (personal / individual KYC workflow)
+# DIDIT_WORKFLOW_ID_BUSINESS  (business / authorized-rep workflow)
+# DIDIT_WEBHOOK_SECRET        (HMAC-SHA256 webhook signature secret)
+# DIDIT_CLIENT_ID             (optional — not needed for hosted session flow)
+# DIDIT_CLIENT_SECRET         (optional — not needed for hosted session flow)
+# DIDIT_ORGANIZATION_ID       (optional)
+# FIREBASE_SERVICE_ACCOUNT  (base64 service account JSON — set when available)
+# CHECKR_API_KEY            (omit for mock mode — account under review)
+# CHECKR_PACKAGE
+# CHECKR_WEBHOOK_SECRET
 # ALLOWED_ORIGINS
 
 [env.production]

@@ -12,6 +12,9 @@ export interface Env {
   CHECKR_PACKAGE?: string;
   CHECKR_WEBHOOK_SECRET?: string;
   DIDIT_API_KEY?: string;
+  DIDIT_WORKFLOW_ID?: string;
+  DIDIT_WORKFLOW_ID_BUSINESS?: string;
+  DIDIT_WEBHOOK_SECRET?: string;
   ALLOWED_ORIGINS?: string;
   POSTHOG_KEY?: string;
   RATE_LIMIT_KV?: KVNamespace;
