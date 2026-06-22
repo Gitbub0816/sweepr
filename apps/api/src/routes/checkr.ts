@@ -43,8 +43,24 @@ checkrRouter.post("/invite", requireAuth, zValidator("json", inviteSchema), asyn
   const { firstName, lastName, workState } = c.req.valid("json");
   const sql = getDb(c.env.DATABASE_URL);
   const authUser = c.get("user");
-  const user = await getUserByClerkId(sql, authUser.clerkId);
-  if (!user) return c.json({ error: "User not found" }, 404);
+
+  let user;
+  try {
+    user = await getUserByClerkId(sql, authUser.clerkId);
+  } catch (err) {
+    logger.error("checkr/invite: DB error looking up user", err);
+    return c.json({ error: "Database error", detail: String(err) }, 500);
+  }
+  if (!user) {
+    // Auto-sync user into DB on first request (Clerk webhook may not have fired yet)
+    try {
+      const { upsertUser } = await import("@sweepr/db");
+      user = await upsertUser(sql, { clerkId: authUser.clerkId, email: authUser.email ?? `${authUser.clerkId}@unknown.sweepr`, role: "cleaner" });
+    } catch (err) {
+      logger.error("checkr/invite: failed to auto-create user", err);
+      return c.json({ error: "User not found and could not be created" }, 404);
+    }
+  }
 
   const client = checkrClient(c.env);
 
@@ -54,15 +70,20 @@ checkrRouter.post("/invite", requireAuth, zValidator("json", inviteSchema), asyn
   // Step 2 — create invitation; Checkr returns a hosted-apply URL.
   const invitation = await client.createInvitation(candidate.id, workState);
 
-  await sql`
-    INSERT INTO cleaners (user_id, checkr_candidate_id, checkr_invitation_id, checkr_status, checkr_invited_at)
-    VALUES (${user.id}, ${candidate.id}, ${invitation.id}, 'invited', NOW())
-    ON CONFLICT (user_id) DO UPDATE
-      SET checkr_candidate_id  = EXCLUDED.checkr_candidate_id,
-          checkr_invitation_id = EXCLUDED.checkr_invitation_id,
-          checkr_status        = 'invited',
-          checkr_invited_at    = NOW()
-  `;
+  try {
+    await sql`
+      INSERT INTO cleaners (user_id, checkr_candidate_id, checkr_invitation_id, checkr_status, checkr_invited_at)
+      VALUES (${user.id}, ${candidate.id}, ${invitation.id}, 'invited', NOW())
+      ON CONFLICT (user_id) DO UPDATE
+        SET checkr_candidate_id  = EXCLUDED.checkr_candidate_id,
+            checkr_invitation_id = EXCLUDED.checkr_invitation_id,
+            checkr_status        = 'invited',
+            checkr_invited_at    = NOW()
+    `;
+  } catch (err) {
+    logger.error("checkr/invite: failed to upsert cleaners row", err);
+    return c.json({ error: "Database error saving invitation", detail: String(err) }, 500);
+  }
 
   serverTrack(c.env, user.id, "checkr_invite_sent", { workState });
 
