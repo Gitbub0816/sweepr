@@ -28,6 +28,7 @@ import { PayoutsPage } from "./pages/PayoutsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ServiceAreasPage } from "./pages/ServiceAreasPage";
 import { EventsPage } from "./pages/EventsPage";
+import { StatusPage } from "./pages/StatusPage";
 import { AuthPage } from "./components/AuthPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminGuard } from "./components/AdminGuard";
@@ -44,6 +45,7 @@ const nav = [
   { to: "/payouts", label: "Payouts", icon: Wallet },
   { to: "/service-areas", label: "Service Areas", icon: Map },
   { to: "/events", label: "Events", icon: Activity },
+  { to: "/status", label: "Status", icon: Activity },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -94,6 +96,7 @@ export default function App() {
       <Route path="/payouts" element={<Guarded><PayoutsPage /></Guarded>} />
       <Route path="/service-areas" element={<Guarded><ServiceAreasPage /></Guarded>} />
       <Route path="/events" element={<Guarded><EventsPage /></Guarded>} />
+      <Route path="/status" element={<Guarded><StatusPage /></Guarded>} />
       <Route path="/settings" element={<Guarded><SettingsPage /></Guarded>} />
     </Routes>
   );

@@ -1,4 +1,4 @@
-import { MarketingShell, Button, Accordion, SweeprLogo, type AccordionItemData } from "@sweepr/ui";
+import { MarketingShell, Button, Accordion, SweeprLogo, NewsletterSubscribe, type AccordionItemData } from "@sweepr/ui";
 import { motion } from "framer-motion";
 import {
   MapPin,
@@ -311,6 +311,7 @@ export default function Landing() {
               <a href="#faq" className="hover:text-seafoam-600">FAQ</a>
             </nav>
           </div>
+          <NewsletterSubscribe apiUrl={import.meta.env.VITE_API_URL ?? ""} className="mt-4" />
           <div className="flex flex-col items-center justify-between gap-4 border-t border-slate-100 pt-6 dark:border-slate-800 sm:flex-row">
             <nav className="flex flex-wrap items-center gap-6 text-xs text-slate-400">
               <a href="https://legal.getsweepr.com/privacy?ref=marketing" className="hover:text-seafoam-600">Privacy Policy</a>

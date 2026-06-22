@@ -16,6 +16,8 @@ import { scheduleRouter } from "./routes/schedule";
 import { subscriptionsRouter } from "./routes/subscriptions";
 import { checkrRouter } from "./routes/checkr";
 import { diditRouter, diditWebhookRouter } from "./routes/didit";
+import { statusRouter } from "./routes/status";
+import { statusAdminRouter } from "./routes/admin/statusAdmin";
 import { AppError, toSafeError } from "./lib/errors";
 import { logger } from "./lib/logger";
 import type { AppBindings } from "./types";
@@ -58,6 +60,8 @@ app.route("/webhooks/checkr", checkrRouter);
 app.route("/didit", diditRouter);
 // Didit webhooks use a separate, unauthenticated path verified by HMAC signature.
 app.route("/webhooks/didit", diditWebhookRouter);
+app.route("/status", statusRouter);
+app.route("/admin/status", statusAdminRouter);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 
