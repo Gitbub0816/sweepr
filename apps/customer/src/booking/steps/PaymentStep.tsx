@@ -9,6 +9,7 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
+import { useAuth } from "@clerk/clerk-react";
 import { Button, Card, toast, SweeprLogo } from "@sweepr/ui";
 import { formatCurrency, recurringDisplayPrice, calculateQuote } from "@sweepr/utils";
 import { useBookingStore } from "../../store/booking";
@@ -21,24 +22,6 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8787";
 
 function isDarkMode() {
   return document.documentElement.classList.contains("dark");
-}
-
-async function createPaymentIntent(amountCents: number): Promise<string> {
-  try {
-    const res = await fetch(`${API_URL}/payments/create-intent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ amount: amountCents, currency: "usd" }),
-    });
-    if (res.ok) {
-      const data = (await res.json()) as { clientSecret?: string };
-      if (data.clientSecret) return data.clientSecret;
-    }
-  } catch {
-    /* fall through to mock */
-  }
-  return `pi_mock_secret_${Date.now()}`;
 }
 
 // ─── Order Summary ────────────────────────────────────────────────────────────
@@ -307,6 +290,7 @@ function DemoCheckout({ total }: { total: number }) {
 
 export function PaymentStep() {
   const navigate = useNavigate();
+  const { getToken } = useAuth();
   const serviceType = useBookingStore((s) => s.serviceType);
   const home = useBookingStore((s) => s.home);
   const addOnKeys = useBookingStore((s) => s.addOnKeys);
@@ -336,10 +320,23 @@ export function PaymentStep() {
   }, []);
 
   useEffect(() => {
-    if (amountCents > 0) {
-      createPaymentIntent(amountCents).then(setClientSecret);
-    }
-  }, [amountCents]);
+    if (amountCents <= 0) return;
+    getToken().then((token) => {
+      fetch(`${API_URL}/payments/create-intent`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ amount: amountCents, currency: "usd" }),
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data: { clientSecret?: string } | null) => {
+          if (data?.clientSecret) setClientSecret(data.clientSecret);
+        })
+        .catch(() => {/* demo mode: no clientSecret, DemoCheckout renders */});
+    });
+  }, [amountCents, getToken]);
 
   const options = useMemo(
     () =>
