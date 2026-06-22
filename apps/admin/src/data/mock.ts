@@ -209,7 +209,7 @@ export const adminDisputeDetails: Record<string, AdminDisputeDetail> = {
     evidence: ["https://example.com/evidence/1.jpg", "https://example.com/evidence/2.jpg"],
     audit: [
       { at: "2026-06-16 09:12", actor: "system", action: "Dispute opened by customer" },
-      { at: "2026-06-16 10:40", actor: "admin@sweep-r.com", action: "Assigned for review" },
+      { at: "2026-06-16 10:40", actor: "admin@getsweepr.com", action: "Assigned for review" },
     ],
   },
   dp_2: {
@@ -228,7 +228,7 @@ export const adminDisputeDetails: Record<string, AdminDisputeDetail> = {
     evidence: [],
     audit: [
       { at: "2026-06-12 14:02", actor: "system", action: "Dispute opened by customer" },
-      { at: "2026-06-13 08:30", actor: "admin@sweep-r.com", action: "Contacted cleaner" },
+      { at: "2026-06-13 08:30", actor: "admin@getsweepr.com", action: "Contacted cleaner" },
     ],
   },
 };

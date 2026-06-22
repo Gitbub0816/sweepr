@@ -20,10 +20,10 @@ export function LegalShell({ children }: { children: ReactNode }) {
               Legal Documents
             </span>
             <a
-              href="https://sweep-r.com"
+              href="https://getsweepr.com"
               className="font-medium text-seafoam-600 hover:text-seafoam-700"
             >
-              ← Back to sweep-r.com
+              ← Back to getsweepr.com
             </a>
           </div>
         </div>

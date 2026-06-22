@@ -170,7 +170,7 @@ stripeWebhookRouter.post("/", async (c) => {
       // Notify admin.
       try {
         await sendEmail(c.env.MAILERSEND_API_KEY, {
-          to: "support@sweep-r.com",
+          to: "support@getsweepr.com",
           subject: "New Stripe dispute opened",
           html: `<p>A dispute (${dispute.id}) was opened${
             bookingId ? ` for booking ${bookingId}` : ""

@@ -54,10 +54,10 @@ export function PendingReviewPage() {
           <p className="flex items-center justify-center gap-2 text-slate-500">
             <Mail className="h-4 w-4" />
             <a
-              href="mailto:support@sweep-r.com"
+              href="mailto:support@getsweepr.com"
               className="font-medium text-seafoam-600"
             >
-              support@sweep-r.com
+              support@getsweepr.com
             </a>
           </p>
           <p className="mt-2 text-xs text-slate-400">

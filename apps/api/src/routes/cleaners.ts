@@ -85,7 +85,7 @@ cleanersRouter.post("/stripe-connect/onboard", async (c) => {
     `;
   }
 
-  const base = c.env.CUSTOMER_URL ?? "https://app.sweep-r.com";
+  const base = c.env.CUSTOMER_URL ?? "https://app.getsweepr.com";
   const link = await stripe.accountLinks.create({
     account: connectId,
     refresh_url: `${base}/cleaner/stripe-refresh`,
@@ -104,7 +104,7 @@ cleanersRouter.post("/stripe-connect/refresh", async (c) => {
     return c.json({ error: "No connected account" }, 400);
   }
   const stripe = getStripe(c.env.STRIPE_SECRET_KEY);
-  const base = c.env.CUSTOMER_URL ?? "https://app.sweep-r.com";
+  const base = c.env.CUSTOMER_URL ?? "https://app.getsweepr.com";
   const link = await stripe.accountLinks.create({
     account: cleaner.stripe_connect_id,
     refresh_url: `${base}/cleaner/stripe-refresh`,
@@ -163,7 +163,7 @@ cleanersRouter.post(
     const session = await client.createSession({
       workflow,
       vendorData: user.id,
-      callbackUrl: "https://api.sweep-r.com/webhooks/didit",
+      callbackUrl: "https://api.getsweepr.com/webhooks/didit",
     });
 
     const status = session.stub ? "in_review" : "pending";

@@ -2,14 +2,14 @@ export const COMPANY_NAME = "ClearKey Solutions, LLC DBA Sweepr";
 export const COMPANY_SHORT = "Sweepr";
 export const STATE_OF_INCORPORATION = "California";
 export const REGISTERED_ADDRESS = "832 B St, Apt B, Hayward, California 94541";
-export const CONTACT_EMAIL = "contact@sweep-r.com";
-export const SUPPORT_EMAIL = "support@sweep-r.com";
-export const PRIVACY_EMAIL = "privacy@sweep-r.com";
-export const LEGAL_EMAIL = "legal@sweep-r.com";
-export const SECURITY_EMAIL = "security@sweep-r.com";
+export const CONTACT_EMAIL = "contact@getsweepr.com";
+export const SUPPORT_EMAIL = "support@getsweepr.com";
+export const PRIVACY_EMAIL = "privacy@getsweepr.com";
+export const LEGAL_EMAIL = "legal@getsweepr.com";
+export const SECURITY_EMAIL = "security@getsweepr.com";
 export const SMS_SHORT_CODE = "SWEEPR";
-export const LEGAL_URL = "https://legal.sweep-r.com";
-export const MAIN_URL = "https://sweep-r.com";
+export const LEGAL_URL = "https://legal.getsweepr.com";
+export const MAIN_URL = "https://getsweepr.com";
 export const LAST_UPDATED = "June 2025";
 
 export interface DocMeta {

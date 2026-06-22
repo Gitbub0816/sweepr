@@ -8,7 +8,7 @@ export function SettingsPage() {
           General
         </h2>
         <Input label="Platform name" defaultValue="Sweepr" />
-        <Input label="Support email" defaultValue="support@sweep-r.com" />
+        <Input label="Support email" defaultValue="support@getsweepr.com" />
         <Input label="Service fee (%)" type="number" defaultValue={10} />
         <Input label="Tax rate (%)" type="number" defaultValue={8.25} />
         <Button onClick={() => toast.success("Settings saved")}>

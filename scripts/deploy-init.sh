@@ -72,7 +72,7 @@ put_secret DIDIT_CLIENT_SECRET        "${DIDIT_CLIENT_SECRET:-}"
 if [[ -z "${DIDIT_API_KEY:-}" || -z "${DIDIT_WORKFLOW_ID:-}" ]]; then
   warn "DIDIT_API_KEY or DIDIT_WORKFLOW_ID missing — Didit runs in STUB mode (manual admin review)."
 fi
-put_secret ALLOWED_ORIGINS  "${ALLOWED_ORIGINS:-https://sweep-r.com,https://app.sweep-r.com,https://clean.sweep-r.com,https://admin.sweep-r.com,https://legal.sweep-r.com}"
+put_secret ALLOWED_ORIGINS  "${ALLOWED_ORIGINS:-https://getsweepr.com,https://app.getsweepr.com,https://clean.getsweepr.com,https://admin.getsweepr.com,https://legal.getsweepr.com}"
 
 # Checkr — omit until account is approved; mock mode activates automatically
 warn "CHECKR_API_KEY not set — Checkr will run in mock mode until your account is approved."
@@ -89,7 +89,7 @@ info "Deploying API Worker to Cloudflare Workers..."
 cd apps/api
 npx wrangler deploy --config wrangler.toml
 WORKER_URL="https://sweepr-api.$(echo $CLOUDFLARE_ACCOUNT_ID | cut -c1-8).workers.dev"
-info "Worker deployed → https://sweepr-api.workers.dev"
+info "Worker deployed → https://api.getsweepr.com"
 cd ../..
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -133,7 +133,7 @@ FB_PROJECT_ID="${VITE_FIREBASE_PROJECT_ID:-}"
 FB_STORAGE_BUCKET="${VITE_FIREBASE_STORAGE_BUCKET:-}"
 FB_SENDER_ID="${VITE_FIREBASE_MESSAGING_SENDER_ID:-}"
 FB_APP_ID="${VITE_FIREBASE_APP_ID:-}"
-API_PUBLIC_URL="${VITE_API_URL:-https://api.sweep-r.com}"
+API_PUBLIC_URL="${VITE_API_URL:-https://api.getsweepr.com}"
 
 if [[ -z "$STRIPE_PK" ]]; then
   warn "STRIPE_PK not set — Stripe Elements will run in demo mode."
@@ -149,8 +149,8 @@ VITE_MAPBOX_TOKEN="$MAPBOX_PK" \
 VITE_POSTHOG_KEY="$POSTHOG_PK" \
 VITE_POSTHOG_HOST="$POSTHOG_HOST" \
 VITE_API_URL="$API_PUBLIC_URL" \
-VITE_CUSTOMER_URL="https://app.sweep-r.com" \
-VITE_CLEANER_URL="https://clean.sweep-r.com" \
+VITE_CUSTOMER_URL="https://app.getsweepr.com" \
+VITE_CLEANER_URL="https://clean.getsweepr.com" \
   pnpm --filter @sweepr/marketing build
 npx wrangler pages deploy apps/marketing/dist --project-name=sweepr-marketing --branch=main
 
@@ -216,20 +216,20 @@ echo "    Customer   → https://sweepr-customer.pages.dev"
 echo "    Cleaner    → https://sweepr-cleaner.pages.dev"
 echo "    Admin      → https://sweepr-admin.pages.dev"
 echo "    Legal      → https://sweepr-legal.pages.dev"
-echo "    API        → https://sweepr-api.workers.dev"
+echo "    API        → https://api.getsweepr.com"
 echo ""
 echo "  Custom domains — add in Cloudflare Dashboard → Pages → each project:"
-echo "    sweepr-marketing  → sweep-r.com"
-echo "    sweepr-customer   → app.sweep-r.com"
-echo "    sweepr-cleaner    → clean.sweep-r.com"
-echo "    sweepr-admin      → admin.sweep-r.com"
-echo "    sweepr-legal      → legal.sweep-r.com"
-echo "    sweepr-api        → api.sweep-r.com  (Workers → Triggers → Custom Domains)"
+echo "    sweepr-marketing  → getsweepr.com"
+echo "    sweepr-customer   → app.getsweepr.com"
+echo "    sweepr-cleaner    → clean.getsweepr.com"
+echo "    sweepr-admin      → admin.getsweepr.com"
+echo "    sweepr-legal      → legal.getsweepr.com"
+echo "    sweepr-api        → api.getsweepr.com  (Workers → Triggers → Custom Domains)"
 echo ""
 echo "  Next steps:"
 echo "    1. Get Stripe pk_live_ key → Stripe Dashboard → API Keys"
 echo "    2. Get Mapbox pk. token    → mapbox.com → Tokens → Create (NOT sk.)"
 echo "    3. Run: bash scripts/setup-github-secrets.sh  (CI/CD)"
-echo "    4. Update Stripe webhook URL: https://api.sweep-r.com/webhooks/stripe"
-echo "    5. Update Didit webhook URL: https://api.sweep-r.com/webhooks/didit"
+echo "    4. Update Stripe webhook URL: https://api.getsweepr.com/webhooks/stripe"
+echo "    5. Update Didit webhook URL: https://api.getsweepr.com/webhooks/didit"
 echo "═══════════════════════════════════════════════════════════════"

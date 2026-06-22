@@ -48,7 +48,7 @@ diditRouter.post("/session", requireAuth, async (c) => {
   const session = await client.createSession({
     workflow,
     vendorData: user.id,
-    callbackUrl: "https://api.sweep-r.com/webhooks/didit",
+    callbackUrl: "https://api.getsweepr.com/webhooks/didit",
   });
 
   const status = session.stub ? "in_review" : "pending";
@@ -95,7 +95,7 @@ diditRouter.get("/status", requireAuth, async (c) => {
 
 // ─── POST /webhooks/didit ─────────────────────────────────────────────────────
 // Public route — authenticated by HMAC signature, not Clerk JWT.
-// Mounted at /webhooks/didit so the canonical URL is api.sweep-r.com/webhooks/didit.
+// Mounted at /webhooks/didit so the canonical URL is api.getsweepr.com/webhooks/didit.
 
 export const diditWebhookRouter = new Hono<AppBindings>();
 

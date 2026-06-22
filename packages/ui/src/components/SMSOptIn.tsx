@@ -11,7 +11,7 @@ export interface SMSOptInProps {
  * consent must be affirmatively given by the user.
  */
 export function SMSOptIn({ value, onChange, legalUrl }: SMSOptInProps) {
-  const base = legalUrl ?? "https://legal.sweep-r.com";
+  const base = legalUrl ?? "https://legal.getsweepr.com";
   return (
     <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 text-sm dark:border-slate-700">
       <input

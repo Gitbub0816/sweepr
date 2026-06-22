@@ -107,7 +107,7 @@ export function diditClient(env: DiditEnv) {
         const id = `stub_didit_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
         return {
           session_id: id,
-          url: `https://app.sweep-r.com/didit-simulate?session=${id}&workflow=${opts.workflow}`,
+          url: `https://app.getsweepr.com/didit-simulate?session=${id}&workflow=${opts.workflow}`,
           status: "pending",
           workflow: opts.workflow,
           stub: true,

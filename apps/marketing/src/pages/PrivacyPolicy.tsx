@@ -107,7 +107,7 @@ export default function PrivacyPolicy() {
 
         <Heading>9. Contact</Heading>
         <P>
-          To exercise any right or ask a question, contact privacy@sweep-r.com.
+          To exercise any right or ask a question, contact privacy@getsweepr.com.
           We respond to verifiable requests within the timeframes required by
           law.
         </P>

@@ -6,15 +6,15 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 ENVIRONMENT = "production"
 
-# 5th "site": the API + webhooks live on their own subdomain (api.sweep-r.com),
+# 5th "site": the API + webhooks live on their own subdomain (api.getsweepr.com),
 # NOT under a path on another site. This binds the Worker to the custom domain
 # on deploy, exposing:
-#   https://api.sweep-r.com/webhooks/stripe
-#   https://api.sweep-r.com/webhooks/didit
-#   https://api.sweep-r.com/webhooks/checkr/webhook
-# Requires the sweep-r.com zone to be in this Cloudflare account.
+#   https://api.getsweepr.com/webhooks/stripe
+#   https://api.getsweepr.com/webhooks/didit
+#   https://api.getsweepr.com/webhooks/checkr/webhook
+# Requires the getsweepr.com zone to be in this Cloudflare account.
 routes = [
-  { pattern = "api.sweep-r.com", custom_domain = true }
+  { pattern = "api.getsweepr.com", custom_domain = true }
 ]
 
 [[kv_namespaces]]

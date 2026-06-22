@@ -1,10 +1,10 @@
 import { cors } from "hono/cors";
 
 export const LOCALHOST_ORIGINS = [
-  "https://sweep-r.com",
-  "https://app.sweep-r.com",
-  "https://clean.sweep-r.com",
-  "https://admin.sweep-r.com",
+  "https://getsweepr.com",
+  "https://app.getsweepr.com",
+  "https://clean.getsweepr.com",
+  "https://admin.getsweepr.com",
   "http://localhost:5173",
   "http://localhost:5174",
   "http://localhost:5175",

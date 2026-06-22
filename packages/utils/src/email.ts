@@ -53,7 +53,7 @@ export function bookingConfirmedEmail(data: {
         <strong>Where:</strong> ${data.address}<br/>
         <strong>Total:</strong> ${formatCurrency(data.total)}</p>
         <p>Booking reference: <code>${data.bookingId}</code></p>`,
-      cta: { label: "View booking", href: `https://app.sweep-r.com/bookings/${data.bookingId}` },
+      cta: { label: "View booking", href: `https://app.getsweepr.com/bookings/${data.bookingId}` },
     }),
   };
 }
@@ -74,7 +74,7 @@ export function cleanerNewJobEmail(data: {
         <p><strong>When:</strong> ${formatDateTime(data.scheduledAt.toISOString())}<br/>
         <strong>Estimated pay:</strong> ${formatCurrency(data.pay)}</p>
         <p>Accept it before it's gone.</p>`,
-      cta: { label: "Review job", href: `https://clean.sweep-r.com/jobs/${data.bookingId}` },
+      cta: { label: "Review job", href: `https://clean.getsweepr.com/jobs/${data.bookingId}` },
     }),
   };
 }
@@ -90,7 +90,7 @@ export function bookingCancelledEmail(data: {
       body: `
         <p>Hi ${data.customerName}, your booking <code>${data.bookingId}</code> has been cancelled.</p>
         <p>If this was a mistake, you can rebook anytime — it only takes a minute.</p>`,
-      cta: { label: "Book again", href: "https://app.sweep-r.com/book" },
+      cta: { label: "Book again", href: "https://app.getsweepr.com/book" },
     }),
   };
 }
@@ -107,7 +107,7 @@ export function reviewRequestEmail(data: {
       body: `
         <p>${data.cleanerName} just finished your cleaning. We'd love your feedback!</p>
         <p>It takes 30 seconds and helps keep Sweepr's quality high.</p>`,
-      cta: { label: "Leave a review", href: `https://app.sweep-r.com/bookings/${data.bookingId}` },
+      cta: { label: "Leave a review", href: `https://app.getsweepr.com/bookings/${data.bookingId}` },
     }),
   };
 }

@@ -21,10 +21,10 @@ function Forbidden() {
       <p className="mt-2 max-w-md text-sm text-slate-500">
         If you believe this is a mistake, contact{" "}
         <a
-          href="mailto:support@sweep-r.com"
+          href="mailto:support@getsweepr.com"
           className="font-medium text-seafoam-600"
         >
-          support@sweep-r.com
+          support@getsweepr.com
         </a>
         .
       </p>
