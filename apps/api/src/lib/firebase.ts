@@ -12,7 +12,13 @@ export interface ServiceAccount {
   project_id: string;
 }
 
-export function parseServiceAccount(json: string): ServiceAccount {
+export function parseServiceAccount(raw: string): ServiceAccount {
+  // Accept either a base64-encoded JSON string (GitHub/Cloudflare secret) or
+  // a plain JSON string (local dev).
+  let json = raw.trim();
+  if (!json.startsWith("{")) {
+    json = atob(json);
+  }
   return JSON.parse(json) as ServiceAccount;
 }
 

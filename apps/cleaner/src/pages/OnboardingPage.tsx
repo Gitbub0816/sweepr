@@ -358,7 +358,7 @@ export function OnboardingPage() {
       <div className="mx-auto max-w-2xl px-4 py-8">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <SweeprLogo size="sm" />
+            <SweeprLogo size="md" />
             <span className="text-sm font-medium text-slate-400">Pro</span>
           </div>
           <ThemeToggle />
@@ -874,10 +874,6 @@ function StepIdentity({
   onSubmit: () => void;
   stepNumber: number;
 }) {
-  const [idFront, setIdFront] = useState("");
-  const [idBack, setIdBack] = useState("");
-  const [selfie, setSelfie] = useState("");
-  const ready = Boolean(idFront && idBack && selfie);
   return (
     <div className="space-y-4">
       <StepTitle
@@ -888,33 +884,23 @@ function StepIdentity({
       <div className="flex items-start gap-3 rounded-xl bg-seafoam-50 p-4 text-sm text-seafoam-800 dark:bg-seafoam-900/20 dark:text-seafoam-200">
         <IdCard className="mt-0.5 h-5 w-5 shrink-0" />
         <p>
-          Please upload a government-issued ID (driver's license or passport) and
-          take a quick selfie so we can confirm it's really you.
+          You'll be redirected to Didit's secure portal to verify your
+          government-issued ID. The process takes about 2 minutes. Sweepr never
+          sees or stores your ID images.
         </p>
       </div>
       {status === "submitted" ? (
         <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300">
-          <CheckCircle2 className="h-5 w-5" /> Documents submitted to Didit.
+          <CheckCircle2 className="h-5 w-5" /> Identity verification submitted.
         </div>
       ) : (
-        <>
-          <PhotoUpload value={idFront} onChange={setIdFront} label="Upload front of ID" />
-          <PhotoUpload value={idBack} onChange={setIdBack} label="Upload back of ID" />
-          <PhotoUpload
-            value={selfie}
-            onChange={setSelfie}
-            label="Take a selfie"
-            icon={<Camera className="h-5 w-5" />}
-          />
-          <Button
-            fullWidth
-            onClick={onSubmit}
-            loading={status === "submitting"}
-            disabled={!ready}
-          >
-            Submit to Didit
-          </Button>
-        </>
+        <Button
+          fullWidth
+          onClick={onSubmit}
+          loading={status === "submitting"}
+        >
+          Start identity verification →
+        </Button>
       )}
     </div>
   );

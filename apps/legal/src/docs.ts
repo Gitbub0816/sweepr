@@ -10,7 +10,7 @@ export const SECURITY_EMAIL = "security@getsweepr.com";
 export const SMS_SHORT_CODE = "SWEEPR";
 export const LEGAL_URL = "https://legal.getsweepr.com";
 export const MAIN_URL = "https://getsweepr.com";
-export const LAST_UPDATED = "June 2025";
+export const LAST_UPDATED = "June 2026";
 
 export interface DocMeta {
   slug: string;

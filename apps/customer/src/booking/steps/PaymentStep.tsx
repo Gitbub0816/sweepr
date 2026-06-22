@@ -74,7 +74,7 @@ function OrderSummary() {
     <Card className="space-y-4 border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <SweeprLogo size="sm" />
+        <SweeprLogo size="md" />
         <span className="rounded-full bg-seafoam-50 px-3 py-1 text-xs font-semibold text-seafoam-700 dark:bg-seafoam-900/30 dark:text-seafoam-300">
           Order summary
         </span>
