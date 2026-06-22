@@ -10,7 +10,7 @@ import {
   useElements,
 } from "@stripe/react-stripe-js";
 import { Button, Card, toast, SweeprLogo } from "@sweepr/ui";
-import { formatCurrency, recurringDisplayPrice } from "@sweepr/utils";
+import { formatCurrency, recurringDisplayPrice, calculateQuote } from "@sweepr/utils";
 import { useBookingStore } from "../../store/booking";
 import { StepShell } from "../StepShell";
 import { getStripeAppearance } from "../../lib/stripeAppearance";
@@ -44,12 +44,13 @@ async function createPaymentIntent(amountCents: number): Promise<string> {
 // ─── Order Summary ────────────────────────────────────────────────────────────
 
 function OrderSummary() {
-  const quote = useBookingStore((s) => s.getQuote());
+  const serviceType = useBookingStore((s) => s.serviceType);
+  const home = useBookingStore((s) => s.home);
+  const addOnKeys = useBookingStore((s) => s.addOnKeys);
   const isSubscription = useBookingStore((s) => s.isSubscription);
   const subscriptionCadence = useBookingStore((s) => s.subscriptionCadence);
   const cadence = useBookingStore((s) => s.cadence);
-  const serviceType = useBookingStore((s) => s.serviceType);
-  const addOnKeys = useBookingStore((s) => s.addOnKeys);
+  const quote = serviceType ? calculateQuote({ serviceType, home, addOnKeys }) : null;
 
   if (!quote) return null;
 
@@ -306,7 +307,10 @@ function DemoCheckout({ total }: { total: number }) {
 
 export function PaymentStep() {
   const navigate = useNavigate();
-  const quote = useBookingStore((s) => s.getQuote());
+  const serviceType = useBookingStore((s) => s.serviceType);
+  const home = useBookingStore((s) => s.home);
+  const addOnKeys = useBookingStore((s) => s.addOnKeys);
+  const quote = serviceType ? calculateQuote({ serviceType, home, addOnKeys }) : null;
   const isSubscription = useBookingStore((s) => s.isSubscription);
   const subscriptionCadence = useBookingStore((s) => s.subscriptionCadence);
   const [clientSecret, setClientSecret] = useState<string | null>(null);

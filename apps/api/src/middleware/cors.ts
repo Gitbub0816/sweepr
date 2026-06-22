@@ -20,9 +20,7 @@ export function buildCorsMiddleware(env: {
 }) {
   const origins = env.ALLOWED_ORIGINS
     ? env.ALLOWED_ORIGINS.split(",").map((s) => s.trim())
-    : env.ENVIRONMENT === "production"
-      ? [] // deny all if not configured in production
-      : LOCALHOST_ORIGINS;
+    : LOCALHOST_ORIGINS;
   return cors({
     origin: origins,
     allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
