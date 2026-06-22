@@ -70,15 +70,22 @@ checkrRouter.post("/invite", requireAuth, zValidator("json", inviteSchema), asyn
   const invitation = await client.createInvitation(candidate.id, workState);
 
   try {
-    await sql`
-      INSERT INTO cleaners (user_id, checkr_candidate_id, checkr_invitation_id, checkr_status, checkr_invited_at)
-      VALUES (${user.id}, ${candidate.id}, ${invitation.id}, 'invited', NOW())
-      ON CONFLICT (user_id) DO UPDATE
-        SET checkr_candidate_id  = EXCLUDED.checkr_candidate_id,
-            checkr_invitation_id = EXCLUDED.checkr_invitation_id,
+    const existing = await sql`SELECT id FROM cleaners WHERE user_id = ${user.id} LIMIT 1` as Array<{id: string}>;
+    if (existing[0]) {
+      await sql`
+        UPDATE cleaners
+        SET checkr_candidate_id  = ${candidate.id},
+            checkr_invitation_id = ${invitation.id},
             checkr_status        = 'invited',
             checkr_invited_at    = NOW()
-    `;
+        WHERE user_id = ${user.id}
+      `;
+    } else {
+      await sql`
+        INSERT INTO cleaners (user_id, checkr_candidate_id, checkr_invitation_id, checkr_status, checkr_invited_at)
+        VALUES (${user.id}, ${candidate.id}, ${invitation.id}, 'invited', NOW())
+      `;
+    }
   } catch (err) {
     logger.error("checkr/invite: failed to upsert cleaners row", err);
     return c.json({ error: "Database error saving invitation", detail: String(err) }, 500);
