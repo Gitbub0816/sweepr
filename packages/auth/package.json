@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@clerk/clerk-react": "^5.20.0",
+    "@clerk/clerk-react": "^5.61.6",
     "@sweepr/types": "workspace:*"
   },
   "peerDependencies": {

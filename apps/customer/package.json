@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@clerk/clerk-react": "^5.20.0",
+    "@clerk/clerk-react": "^5.61.6",
     "@hookform/resolvers": "^3.10.0",
     "@mapbox/search-js-react": "^1.5.1",
     "@react-three/drei": "^9.122.0",
