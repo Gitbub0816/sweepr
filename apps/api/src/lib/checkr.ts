@@ -94,7 +94,7 @@ function mockClient(packageSlug: string) {
       const id = `mock_inv_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
       const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
       // The invitation URL is your own simulate page; swap for real Checkr URL in prod.
-      const base = "https://app.getsweepr.com";
+      const base = "https://clean.getsweepr.com";
       return {
         id,
         status: "pending",

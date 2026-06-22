@@ -12,6 +12,7 @@ import { AppShell } from "@sweepr/ui";
 import { HomePage } from "./pages/HomePage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { PendingReviewPage } from "./pages/PendingReviewPage";
+import { CheckrSimulatePage } from "./pages/CheckrSimulatePage";
 import { JobsPage } from "./pages/JobsPage";
 import { JobDetailPage } from "./pages/JobDetailPage";
 import { SchedulePage } from "./pages/SchedulePage";
@@ -71,6 +72,9 @@ export default function App() {
           </AuthPage>
         }
       />
+
+      {/* Mock Checkr hosted form (no auth required — loaded in iframe) */}
+      <Route path="/checkr-simulate" element={<CheckrSimulatePage />} />
 
       {/* Onboarding (protected, but not onboarding-gated) */}
       <Route
