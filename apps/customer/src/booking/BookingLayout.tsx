@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ThemeToggle, PriceSummary, SweeprLogo, track, Events } from "@sweepr/ui";
 import { useBookingStore } from "../store/booking";
 import { BOOKING_STEPS, stepIndex } from "./steps";
+import { calculateQuote } from "@sweepr/utils";
 
 export function BookingLayout() {
   const location = useLocation();
@@ -24,7 +25,10 @@ export function BookingLayout() {
     }
     prevIdx.current = idx;
   }, [idx]);
-  const quote = useBookingStore((s) => s.getQuote());
+  const serviceType = useBookingStore((s) => s.serviceType);
+  const home = useBookingStore((s) => s.home);
+  const addOnKeys = useBookingStore((s) => s.addOnKeys);
+  const quote = serviceType ? calculateQuote({ serviceType, home, addOnKeys }) : null;
   const isRebook = useBookingStore((s) => s.isRebook);
   const rebookedFromDate = useBookingStore((s) => s.rebookedFromDate);
 
