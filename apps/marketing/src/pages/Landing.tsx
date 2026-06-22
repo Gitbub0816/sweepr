@@ -51,23 +51,23 @@ const navLinks = [
 ];
 
 const steps = [
-  { icon: MapPin, title: "Enter your address", body: "Tell us where you live and we'll show availability near you." },
-  { icon: CalendarClock, title: "Pick a service & time", body: "Choose Standard, Deep, Move-out or Recurring — then a time that works." },
-  { icon: Sparkles, title: "A trusted cleaner arrives", body: "Track them in real time and relax. Satisfaction guaranteed." },
+  { icon: MapPin, title: "Enter your address", body: "We show real availability from vetted cleaners in your area — no guessing." },
+  { icon: CalendarClock, title: "Choose a service and time", body: "Pick from Standard, Deep, Move-out or Recurring. Pick a date that works." },
+  { icon: ShieldCheck, title: "A verified cleaner shows up", body: "Background-checked, insured, and rated. You get a text when they're on the way." },
 ];
 
 const services = [
-  { icon: Home, name: "Standard Clean", price: 89, desc: "Routine top-to-bottom tidy to keep your home fresh." },
-  { icon: Sparkles, name: "Deep Clean", price: 149, desc: "Detailed, intensive reset for every corner." },
-  { icon: Truck, name: "Move-in / Move-out", price: 199, desc: "Empty-home spotless clean for handover day." },
-  { icon: Repeat, name: "Recurring Clean", price: 79, desc: "Weekly or biweekly visits, our lowest rate." },
+  { icon: Home, name: "Standard Clean", price: 89, desc: "All rooms, surfaces, floors, and fixtures. Good for regular upkeep." },
+  { icon: Sparkles, name: "Deep Clean", price: 149, desc: "Everything in a Standard, plus inside appliances, baseboards, and hard-to-reach areas." },
+  { icon: Truck, name: "Move-in / Move-out", price: 199, desc: "Full empty-home clean for handover, lease end, or new arrival." },
+  { icon: Repeat, name: "Recurring Plan", price: 79, desc: "Weekly or biweekly visits at a reduced rate. Same cleaner, consistent results." },
 ];
 
 const trust = [
-  { icon: ShieldCheck, title: "Background-checked", body: "Every cleaner is vetted before their first job." },
-  { icon: BadgeCheck, title: "Insured & verified", body: "Fully insured cleans for total peace of mind." },
-  { icon: MapPinned, title: "Track in real-time", body: "See your cleaner en route, just like delivery." },
-  { icon: HeartHandshake, title: "Satisfaction guarantee", body: "Not happy? We'll make it right, free." },
+  { icon: ShieldCheck, title: "Background-checked", body: "Every cleaner passes identity verification and a background check before their first job." },
+  { icon: BadgeCheck, title: "Insured", body: "Every booking is covered. If something goes wrong, it's on us." },
+  { icon: MapPinned, title: "Live status updates", body: "Know when your cleaner is on the way, has arrived, and when they're done." },
+  { icon: HeartHandshake, title: "Satisfaction guarantee", body: "If the job isn't right, report it within 48 hours and we'll fix it or refund it." },
 ];
 
 const liveJobs = [
@@ -85,13 +85,13 @@ const pricingRows = [
 ];
 
 const faqs: AccordionItemData[] = [
-  { question: "How does Sweepr pricing work?", answer: "Pricing is instant and transparent. We start with a base price for your service, then add for bedrooms, bathrooms, square footage and any add-ons you choose. No surprises at checkout." },
-  { question: "Are cleaners background-checked?", answer: "Yes. Every Sweepr cleaner passes an identity and background check, plus an onboarding review before they can accept jobs." },
-  { question: "Can I reschedule or cancel?", answer: "Absolutely. You can reschedule or cancel free of charge up to 24 hours before your appointment from your bookings page." },
-  { question: "What if I'm not satisfied?", answer: "Our satisfaction guarantee means if something isn't right, report it within 48 hours and we'll arrange a re-clean or refund." },
-  { question: "Do I need to provide supplies?", answer: "Cleaners bring their own professional supplies and equipment by default. You can leave a note if you'd prefer they use yours." },
-  { question: "How do I track my cleaner?", answer: "Once your cleaner is on the way you'll get live status updates — on the way, arrived, in progress and completed — right in the app." },
-  { question: "Is recurring cleaning cheaper?", answer: "Yes. Recurring plans start at just $79 per visit, our lowest per-visit rate, and you keep the same trusted cleaner." },
+  { question: "How is pricing calculated?", answer: "You get an exact price before you book. It's based on your service type, number of bedrooms and bathrooms, and any add-ons. There are no hidden fees or charges after the fact." },
+  { question: "How are cleaners vetted?", answer: "Every cleaner completes identity verification and a background check through a third-party provider before they can accept jobs on Sweepr. We also review their work history and ratings." },
+  { question: "Can I cancel or reschedule?", answer: "Yes. You can cancel or reschedule for free up to 24 hours before your appointment. Changes made inside 24 hours may incur a fee." },
+  { question: "What if the job isn't done right?", answer: "Report it within 48 hours and we'll send the cleaner back to fix it, or we'll refund the booking. No arguing about it." },
+  { question: "Do cleaners bring their own supplies?", answer: "Yes. Cleaners arrive with professional equipment and supplies. If you'd prefer they use yours, leave a note when you book." },
+  { question: "How do I know when my cleaner is arriving?", answer: "You get text and in-app updates when your cleaner is on the way and when they arrive. You can also see their location in real time." },
+  { question: "How does recurring pricing work?", answer: "Recurring bookings are billed per visit at a lower rate than one-time cleans. You'll be matched with the same cleaner each time and can pause or cancel anytime." },
 ];
 
 export default function Landing() {
@@ -117,20 +117,14 @@ export default function Landing() {
               <motion.div variants={fadeUp} className="mb-6">
                 <SweeprLogo size="xl" />
               </motion.div>
-              <motion.div variants={fadeUp}>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1 text-xs font-bold text-seafoam-700 shadow-sm backdrop-blur dark:bg-slate-800/70 dark:text-seafoam-300">
-                  <Sparkles className="h-3.5 w-3.5" /> Premium cleaning, on demand
-                </span>
-              </motion.div>
               <motion.h1
                 variants={fadeUp}
                 className="mt-6 max-w-2xl text-5xl font-black leading-[1.05] tracking-tight text-charcoal dark:text-white sm:text-6xl lg:text-7xl"
               >
-                Home cleaning, ordered like your favorite delivery.
+                Professional home cleaning, booked online.
               </motion.h1>
               <motion.p variants={fadeUp} className="mt-5 max-w-lg text-lg text-slate-600 dark:text-slate-300">
-                Book a vetted, insured cleaner in under a minute. Track them in
-                real time. Come home to spotless.
+                See your price, pick a time, and book a background-checked, insured cleaner — all in a few minutes. We handle the logistics; you get a clean home.
               </motion.p>
               <motion.div variants={fadeUp} className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button size="lg" onClick={() => (window.location.href = CUSTOMER_URL)}>
@@ -156,7 +150,7 @@ export default function Landing() {
 
       {/* How it works */}
       <Section id="how">
-        <SectionHeading eyebrow="How it works" title="Spotless in three taps" />
+        <SectionHeading eyebrow="How it works" title="Book in under two minutes" />
         <motion.div className="mt-12 grid gap-6 md:grid-cols-3" variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }}>
           {steps.map((s, i) => (
             <motion.div key={s.title} variants={fadeUp} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -174,7 +168,7 @@ export default function Landing() {
       {/* Services — DoorDash featured cards */}
       <div className="bg-white dark:bg-slate-900/40">
         <Section id="services">
-          <SectionHeading eyebrow="Services" title="A clean for every occasion" />
+          <SectionHeading eyebrow="Services" title="What we clean" />
           <motion.div className="mt-12 grid gap-6 sm:grid-cols-2" variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }}>
             {services.map((s) => (
               <motion.div
@@ -207,9 +201,9 @@ export default function Landing() {
       {/* Live jobs marketplace mockup */}
       <Section id="live">
         <SectionHeading
-          eyebrow="Happening now"
-          title="See what's getting cleaned near you"
-          subtitle="A live look at the Sweepr marketplace. Addresses are hidden for privacy."
+          eyebrow="Active bookings"
+          title="What's being cleaned right now"
+          subtitle="A sample of recent Sweepr bookings. Addresses are partially hidden."
         />
         <motion.div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }}>
           {liveJobs.map((j) => (
@@ -228,7 +222,7 @@ export default function Landing() {
 
       {/* Why Sweepr */}
       <Section id="why">
-        <SectionHeading eyebrow="Why Sweepr" title="Trusted from doorstep to done" />
+        <SectionHeading eyebrow="Why Sweepr" title="What we stand behind" />
         <motion.div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4" variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }}>
           {trust.map((t) => (
             <motion.div key={t.title} variants={fadeUp} className="text-center">
@@ -245,12 +239,12 @@ export default function Landing() {
       {/* Cleaner recruitment band */}
       <div className="bg-charcoal">
         <Section className="text-center">
-          <p className="text-sm font-bold uppercase tracking-wide text-seafoam-400">Earn with Sweepr</p>
+          <p className="text-sm font-bold uppercase tracking-wide text-seafoam-400">For cleaning professionals</p>
           <h2 className="mx-auto mt-3 max-w-2xl text-4xl font-black text-white sm:text-5xl">
-            Cleaners on Sweepr earn <span className="text-seafoam-400">$28–$45/hr</span> on average.
+            Earn <span className="text-seafoam-400">$28–$45/hr</span> on your own schedule.
           </h2>
           <p className="mx-auto mt-4 max-w-lg text-seafoam-100/80">
-            Set your own schedule, keep the same clients, and get paid fast. Bring your skills — we bring the bookings.
+            Sweepr handles booking, payment, and customer support. You focus on the work. Apply online and start accepting jobs once approved.
           </p>
           <div className="mt-8 flex justify-center">
             <Button size="lg" onClick={() => (window.location.href = CLEANER_URL)}>
@@ -267,7 +261,7 @@ export default function Landing() {
       {/* Pricing teaser */}
       <div className="bg-white dark:bg-slate-900/40">
         <Section id="pricing">
-          <SectionHeading eyebrow="Pricing" title="Get an instant quote" subtitle="Transparent, upfront pricing. Here's what others are paying." />
+          <SectionHeading eyebrow="Pricing" title="Upfront pricing, no surprises" subtitle="Your exact price is shown before you book. Here are some examples." />
           <div className="mx-auto mt-10 max-w-2xl overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
             <table className="w-full text-left text-sm">
               <thead className="bg-offwhite text-slate-500 dark:bg-slate-800">
@@ -290,7 +284,7 @@ export default function Landing() {
           </div>
           <div className="mt-8 text-center">
             <Button size="lg" onClick={() => (window.location.href = CUSTOMER_URL)}>
-              Get my instant quote <ArrowRight className="h-4 w-4" />
+              See your price <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         </Section>
@@ -298,7 +292,7 @@ export default function Landing() {
 
       {/* FAQ */}
       <Section id="faq">
-        <SectionHeading eyebrow="FAQ" title="Questions, answered" />
+        <SectionHeading eyebrow="FAQ" title="Common questions" />
         <div className="mx-auto mt-10 max-w-2xl">
           <Accordion items={faqs} />
         </div>
