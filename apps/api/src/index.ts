@@ -18,6 +18,7 @@ import { checkrRouter } from "./routes/checkr";
 import { diditRouter, diditWebhookRouter } from "./routes/didit";
 import { statusRouter } from "./routes/status";
 import { statusAdminRouter } from "./routes/admin/statusAdmin";
+import { adminInviteRouter } from "./routes/adminInvite";
 import { AppError, toSafeError } from "./lib/errors";
 import { logger } from "./lib/logger";
 import type { AppBindings } from "./types";
@@ -62,6 +63,7 @@ app.route("/didit", diditRouter);
 app.route("/webhooks/didit", diditWebhookRouter);
 app.route("/status", statusRouter);
 app.route("/admin/status", statusAdminRouter);
+app.route("/admin/invites", adminInviteRouter);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 

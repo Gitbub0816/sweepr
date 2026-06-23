@@ -16,6 +16,8 @@ export type AuditAction =
   | "user.created"
   | "user.role_changed"
   | "admin.action"
+  | "admin.invite_created"
+  | "admin.invite_accepted"
   | "data.export_requested"
   | "data.deleted"; // GDPR
 

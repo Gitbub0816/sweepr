@@ -33,6 +33,7 @@ import { AuthPage } from "./components/AuthPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminGuard } from "./components/AdminGuard";
 import { NavAuth } from "./components/NavAuth";
+import { AcceptInvitePage } from "./pages/AcceptInvitePage";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -79,6 +80,9 @@ export default function App() {
           </AuthPage>
         }
       />
+
+      {/* Public — no auth required, token in query string */}
+      <Route path="/accept-invite" element={<AcceptInvitePage />} />
 
       <Route path="/" element={<Guarded><DashboardPage /></Guarded>} />
       <Route path="/jobs" element={<Guarded><JobsPage /></Guarded>} />
