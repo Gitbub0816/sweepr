@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { getMapStyle, MapR3FOverlay } from "@sweepr/ui";
+import { getMapStyle } from "@sweepr/ui";
 
 function isDarkTheme() {
   if (typeof document !== "undefined" &&
@@ -44,10 +44,11 @@ export function AddressMapPreview({ lat, lng }: AddressMapPreviewProps) {
         center: [lng, lat],
         zoom: 14,
         pitch: 45,
-        interactive: false,
+        interactive: true,
         attributionControl: false,
       });
       mapRef.current = map;
+      map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
       map.on("style.load", () => {
         map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
       });
@@ -113,7 +114,6 @@ export function AddressMapPreview({ lat, lng }: AddressMapPreviewProps) {
         role="img"
         aria-label="Map showing selected address"
       />
-      <MapR3FOverlay />
     </div>
   );
 }

@@ -103,9 +103,9 @@ export default function App() {
         }
       />
 
-      {/* Training (protected + onboarding-gated) */}
-      <Route path="/training" element={<Guarded><TrainingPage /></Guarded>} />
-      <Route path="/training/:moduleId" element={<Guarded><TrainingPage /></Guarded>} />
+      {/* Training (protected only — accessible during onboarding) */}
+      <Route path="/training" element={<ProtectedRoute><TrainingPage /></ProtectedRoute>} />
+      <Route path="/training/:moduleId" element={<ProtectedRoute><TrainingPage /></ProtectedRoute>} />
 
       {/* App (protected + onboarding-gated) */}
       <Route path="/" element={<Guarded><HomePage /></Guarded>} />
