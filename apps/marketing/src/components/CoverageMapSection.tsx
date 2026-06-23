@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { getMapStyle } from "@sweepr/ui";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 const TOKEN = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN ?? import.meta.env.VITE_MAPBOX_TOKEN ?? "";
@@ -37,15 +38,20 @@ function CoverageMap({ areas, pins }: { areas: ServiceArea[]; pins: Array<{ lat:
     if (!containerRef.current || !TOKEN) return;
     mapboxgl.accessToken = TOKEN;
 
+    const dark = document.documentElement.classList.contains("dark");
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: "mapbox://styles/mapbox/light-v11",
+      style: getMapStyle(dark).style,
       center: [-122.15, 37.75],
       zoom: 8.2,
       interactive: true,
       attributionControl: false,
     });
     mapRef.current = map;
+
+    map.on("style.load", () => {
+      map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
+    });
 
     map.on("load", () => {
       // Draw each service area polygon with seafoam glow
