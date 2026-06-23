@@ -185,6 +185,30 @@ export function OnboardingPage() {
   const [checkrStatus, setCheckrStatus] = useState<StatusFlow>("idle");
   const [diditStatus, setDiditStatus] = useState<StatusFlow>("idle");
   const [submitting, setSubmitting] = useState(false);
+  const [trainingComplete, setTrainingComplete] = useState(false);
+
+  // Check training completion status when reaching the background check step
+  useEffect(() => {
+    if (stepName !== "Background Check") return;
+    if (!API_URL) return;
+    void (async () => {
+      try {
+        const token = await getToken();
+        const res = await fetch(`${API_URL}/training/progress`, {
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+        });
+        if (res.ok) {
+          const data = (await res.json()) as {
+            summary: { backgroundCheckUnlocked: boolean };
+          };
+          setTrainingComplete(data.summary.backgroundCheckUnlocked);
+        }
+      } catch {
+        // silently ignore — show locked state
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepName]);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -244,6 +268,8 @@ export function OnboardingPage() {
           form.authorizedRep.email.trim().length > 0
         );
       case "Background Check":
+        // Training must be complete before the background check can be started/continued
+        if (!trainingComplete) return false;
         // Allow continuing once Checkr invitation was sent (pending = check in progress)
         return checkrStatus === "submitted" || checkrStatus === "pending";
       case "Identity":
@@ -462,6 +488,7 @@ export function OnboardingPage() {
                     n={step + 1}
                     workState="CA"
                     getToken={getToken}
+                    trainingComplete={trainingComplete}
                     onComplete={() => {
                       setCheckrStatus("pending");
                       goNext();

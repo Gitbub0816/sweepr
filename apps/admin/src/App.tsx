@@ -12,6 +12,7 @@ import {
   Settings,
   Map,
   Activity,
+  GraduationCap,
 } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -29,6 +30,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { ServiceAreasPage } from "./pages/ServiceAreasPage";
 import { EventsPage } from "./pages/EventsPage";
 import { StatusPage } from "./pages/StatusPage";
+import { TrainingAdminPage } from "./pages/TrainingAdminPage";
 import { AuthPage } from "./components/AuthPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminGuard } from "./components/AdminGuard";
@@ -46,6 +48,7 @@ const nav = [
   { to: "/service-areas", label: "Service Areas", icon: Map },
   { to: "/events", label: "Events", icon: Activity },
   { to: "/status", label: "Status", icon: Activity },
+  { to: "/training", label: "Training", icon: GraduationCap },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -97,6 +100,7 @@ export default function App() {
       <Route path="/service-areas" element={<Guarded><ServiceAreasPage /></Guarded>} />
       <Route path="/events" element={<Guarded><EventsPage /></Guarded>} />
       <Route path="/status" element={<Guarded><StatusPage /></Guarded>} />
+      <Route path="/training" element={<Guarded><TrainingAdminPage /></Guarded>} />
       <Route path="/settings" element={<Guarded><SettingsPage /></Guarded>} />
     </Routes>
   );

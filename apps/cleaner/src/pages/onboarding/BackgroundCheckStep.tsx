@@ -14,6 +14,7 @@
 import { useState } from "react";
 import { ShieldCheck, ExternalLink, Clock, CheckCircle2, AlertCircle } from "lucide-react";
 import { Input, Button, Card } from "@sweepr/ui";
+import { TrainingGate } from "../TrainingPage";
 import type { CheckrStatus } from "../../types/checkr";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -23,6 +24,7 @@ interface Props {
   workState?: string;
   getToken: () => Promise<string | null>;
   onComplete: () => void;
+  trainingComplete?: boolean;
 }
 
 type Phase =
@@ -33,7 +35,7 @@ type Phase =
   | { kind: "waiting"; status: CheckrStatus }
   | { kind: "error"; message: string };
 
-export function BackgroundCheckStep({ n, workState = "CA", getToken, onComplete }: Props) {
+export function BackgroundCheckStep({ n, workState = "CA", getToken, onComplete, trainingComplete = false }: Props) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phase, setPhase] = useState<Phase>({ kind: "intro" });
@@ -76,6 +78,14 @@ export function BackgroundCheckStep({ n, workState = "CA", getToken, onComplete 
   }
 
   if (phase.kind === "intro") {
+    if (!trainingComplete) {
+      return (
+        <div className="space-y-5">
+          <StepHeader n={n} />
+          <TrainingGate unlocked={false} />
+        </div>
+      );
+    }
     return (
       <div className="space-y-5">
         <StepHeader n={n} />
