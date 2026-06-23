@@ -1,4 +1,5 @@
 import { Routes, Route } from "react-router-dom";
+import { AuthenticateWithRedirectCallback } from "@clerk/clerk-react";
 import {
   LayoutDashboard,
   Briefcase,
@@ -77,6 +78,9 @@ export default function App() {
           </PrelaunchGate>
         }
       />
+
+      {/* OAuth SSO callback — Clerk redirects here after Google/Apple */}
+      <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback />} />
 
       {/* Mock Checkr hosted form (no auth required — loaded in iframe) */}
       <Route path="/checkr-simulate" element={<CheckrSimulatePage />} />
