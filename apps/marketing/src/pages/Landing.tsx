@@ -21,6 +21,7 @@ import { formatCurrency } from "@sweepr/utils";
 import { HeroScene } from "../components/HeroScene";
 import { QuoteCalculator } from "../components/QuoteCalculator";
 import { MarketingAuth } from "../components/MarketingAuth";
+import { CoverageMapSection } from "../components/CoverageMapSection";
 
 const CUSTOMER_URL =
   (import.meta.env.VITE_CUSTOMER_URL || "https://app.getsweepr.com") + "/book";
@@ -416,6 +417,9 @@ export default function Landing() {
           </div>
         </Section>
       </div>
+
+      {/* Coverage map */}
+      <CoverageMapSection />
 
       {/* FAQ */}
       <Section id="faq">

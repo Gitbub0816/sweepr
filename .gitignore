@@ -12,3 +12,5 @@ coverage
 sweepr.env.local
 *.env.local
 .claude/
+*.tsbuildinfo
+apps/marketing/tsconfig.tsbuildinfo

@@ -12,6 +12,8 @@ import {
   Settings,
   Map,
   Activity,
+  Mail,
+  Send,
   GraduationCap,
 } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
@@ -35,6 +37,9 @@ import { AuthPage } from "./components/AuthPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminGuard } from "./components/AdminGuard";
 import { NavAuth } from "./components/NavAuth";
+import { AcceptInvitePage } from "./pages/AcceptInvitePage";
+import { NewsletterPage } from "./pages/NewsletterPage";
+import { BroadcastsPage } from "./pages/BroadcastsPage";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -49,6 +54,8 @@ const nav = [
   { to: "/events", label: "Events", icon: Activity },
   { to: "/status", label: "Status", icon: Activity },
   { to: "/training", label: "Training", icon: GraduationCap },
+  { to: "/newsletter", label: "Newsletter", icon: Mail },
+  { to: "/broadcasts", label: "Broadcasts", icon: Send },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -83,6 +90,9 @@ export default function App() {
         }
       />
 
+      {/* Public — no auth required, token in query string */}
+      <Route path="/accept-invite" element={<AcceptInvitePage />} />
+
       <Route path="/" element={<Guarded><DashboardPage /></Guarded>} />
       <Route path="/jobs" element={<Guarded><JobsPage /></Guarded>} />
       <Route path="/jobs/:id" element={<Guarded><JobDetailPage /></Guarded>} />
@@ -101,6 +111,8 @@ export default function App() {
       <Route path="/events" element={<Guarded><EventsPage /></Guarded>} />
       <Route path="/status" element={<Guarded><StatusPage /></Guarded>} />
       <Route path="/training" element={<Guarded><TrainingAdminPage /></Guarded>} />
+      <Route path="/newsletter" element={<Guarded><NewsletterPage /></Guarded>} />
+      <Route path="/broadcasts" element={<Guarded><BroadcastsPage /></Guarded>} />
       <Route path="/settings" element={<Guarded><SettingsPage /></Guarded>} />
     </Routes>
   );

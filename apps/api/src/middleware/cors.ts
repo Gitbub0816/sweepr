@@ -24,7 +24,8 @@ export function buildCorsMiddleware(env: {
   return cors({
     origin: origins,
     allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "Accept-Encoding", "X-App-Version", "X-Platform"],
+    exposeHeaders: ["X-RateLimit-Limit", "X-RateLimit-Remaining", "ETag"],
     credentials: true,
     maxAge: 86400,
   });
@@ -34,7 +35,8 @@ export function buildCorsMiddleware(env: {
 export const corsMiddleware = cors({
   origin: LOCALHOST_ORIGINS,
   allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-  allowHeaders: ["Content-Type", "Authorization"],
+  allowHeaders: ["Content-Type", "Authorization", "Accept-Encoding", "X-App-Version", "X-Platform"],
+  exposeHeaders: ["X-RateLimit-Limit", "X-RateLimit-Remaining", "ETag"],
   credentials: true,
   maxAge: 86400,
 });

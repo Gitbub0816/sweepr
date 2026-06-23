@@ -18,6 +18,10 @@ import { checkrRouter } from "./routes/checkr";
 import { diditRouter, diditWebhookRouter } from "./routes/didit";
 import { statusRouter } from "./routes/status";
 import { statusAdminRouter } from "./routes/admin/statusAdmin";
+import { adminInviteRouter } from "./routes/adminInvite";
+import { adminNewsletterRouter } from "./routes/adminNewsletter";
+import { adminServiceAreasRouter } from "./routes/adminServiceAreas";
+import { adminBroadcastsRouter } from "./routes/adminBroadcasts";
 import { trainingRouter } from "./routes/training";
 import { trainingAdminRouter } from "./routes/admin/trainingAdmin";
 import { AppError, toSafeError } from "./lib/errors";
@@ -64,6 +68,10 @@ app.route("/didit", diditRouter);
 app.route("/webhooks/didit", diditWebhookRouter);
 app.route("/status", statusRouter);
 app.route("/admin/status", statusAdminRouter);
+app.route("/admin/invites", adminInviteRouter);
+app.route("/admin/newsletter", adminNewsletterRouter);
+app.route("/admin/service-areas", adminServiceAreasRouter);
+app.route("/admin/broadcasts", adminBroadcastsRouter);
 app.use("/training/*", (c, next) => {
   // requireAuth is applied per-route inside trainingRouter
   return next();
