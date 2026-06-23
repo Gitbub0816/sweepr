@@ -157,18 +157,49 @@ const initialState: FormState = {
 
 type StatusFlow = "idle" | "submitting" | "submitted" | "pending";
 
+function loadDraft(userId: string) {
+  try {
+    const raw = localStorage.getItem(`sweepr_onboarding_${userId}`);
+    if (!raw) return null;
+    return JSON.parse(raw) as { mode: OnboardingMode; step: number; form: FormState };
+  } catch {
+    return null;
+  }
+}
+
+function saveDraft(userId: string, mode: OnboardingMode, step: number, form: FormState) {
+  try {
+    localStorage.setItem(`sweepr_onboarding_${userId}`, JSON.stringify({ mode, step, form }));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function clearDraft(userId: string) {
+  try {
+    localStorage.removeItem(`sweepr_onboarding_${userId}`);
+  } catch { /* ignore */ }
+}
+
 export function OnboardingPage() {
   const navigate = useNavigate();
   const { user } = useUser();
   const { getToken } = useAuth();
   const reduced = useReducedMotion();
-  const [mode, setMode] = useState<OnboardingMode>("individual");
-  const [step, setStep] = useState(0);
+
+  const savedDraft = user ? loadDraft(user.id) : null;
+  const [mode, setMode] = useState<OnboardingMode>(savedDraft?.mode ?? "individual");
+  const [step, setStep] = useState(savedDraft?.step ?? 0);
   const [direction, setDirection] = useState(1);
-  const [form, setForm] = useState<FormState>(initialState);
+  const [form, setForm] = useState<FormState>(savedDraft?.form ?? initialState);
 
   const STEPS = mode === "business" ? BUSINESS_STEPS : INDIVIDUAL_STEPS;
   const stepName = STEPS[step];
+
+  // Persist draft on every change
+  useEffect(() => {
+    if (user) saveDraft(user.id, mode, step, form);
+  }, [user, mode, step, form]);
 
   useEffect(() => {
     track(Events.CLEANER_ONBOARDING_STARTED, { mode });
@@ -359,6 +390,7 @@ export function OnboardingPage() {
       await user?.update({
         unsafeMetadata: { cleanerStatus: "pending_review" },
       });
+      if (user) clearDraft(user.id);
       toast.success("Application submitted!");
       navigate("/pending");
     } catch {
