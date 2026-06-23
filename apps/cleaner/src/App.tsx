@@ -7,6 +7,7 @@ import {
   Wallet,
   User,
   BarChart3,
+  GraduationCap,
 } from "lucide-react";
 import { AppShell, PrelaunchGate } from "@sweepr/ui";
 
@@ -21,6 +22,7 @@ import { SchedulePage } from "./pages/SchedulePage";
 import { EarningsPage } from "./pages/EarningsPage";
 import { PerformancePage } from "./pages/PerformancePage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { TrainingPage } from "./pages/TrainingPage";
 import { AuthPage } from "./components/AuthPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { OnboardingGuard } from "./components/OnboardingGuard";
@@ -28,6 +30,7 @@ import { NavAuth } from "./components/NavAuth";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/training", label: "Training", icon: GraduationCap },
   { to: "/jobs", label: "Job Board", icon: Briefcase },
   { to: "/schedule", label: "Schedule", icon: CalendarDays },
   { to: "/earnings", label: "Earnings", icon: Wallet },
@@ -99,6 +102,10 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+
+      {/* Training (protected + onboarding-gated) */}
+      <Route path="/training" element={<Guarded><TrainingPage /></Guarded>} />
+      <Route path="/training/:moduleId" element={<Guarded><TrainingPage /></Guarded>} />
 
       {/* App (protected + onboarding-gated) */}
       <Route path="/" element={<Guarded><HomePage /></Guarded>} />
