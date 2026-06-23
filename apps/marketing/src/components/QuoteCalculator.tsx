@@ -1,7 +1,10 @@
 import { useMemo, useState } from "react";
 import { calculateQuote, formatCurrency, SERVICE_LABELS } from "@sweepr/utils";
 import type { ServiceType, HomeType } from "@sweepr/types";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
+import { NewsletterSubscribe } from "@sweepr/ui";
+
+const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
 const CUSTOMER_URL =
   (import.meta.env.VITE_CUSTOMER_URL || "https://app.getsweepr.com") + "/book";
@@ -12,7 +15,7 @@ const SERVICES: ServiceType[] = ["standard", "deep", "move_in_out", "recurring"]
  * DoorDash-style "order now" mini widget: instant price as the user picks
  * bedrooms, bathrooms and a service type. Floats over the hero.
  */
-export function QuoteCalculator() {
+export function QuoteCalculator({ pricingGated = false }: { pricingGated?: boolean }) {
   const [bedrooms, setBedrooms] = useState(2);
   const [bathrooms, setBathrooms] = useState(1);
   const [serviceType, setServiceType] = useState<ServiceType>("standard");
@@ -32,6 +35,27 @@ export function QuoteCalculator() {
       }),
     [bedrooms, bathrooms, serviceType]
   );
+
+  if (pricingGated) {
+    return (
+      <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white/95 p-6 text-left shadow-2xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/95">
+        <div className="flex justify-center mb-4">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-seafoam-50 dark:bg-seafoam-900/30">
+            <Sparkles className="w-6 h-6 text-seafoam-500" />
+          </div>
+        </div>
+        <h3 className="text-lg font-black text-charcoal dark:text-white text-center">
+          Pricing coming soon
+        </h3>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400 text-center leading-relaxed">
+          Our calculator is getting a final deep clean. Join the newsletter and we'll let you know when it's ready.
+        </p>
+        <div className="mt-5">
+          <NewsletterSubscribe apiUrl={API} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white/95 p-6 text-left shadow-2xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/95">

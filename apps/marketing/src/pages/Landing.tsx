@@ -270,7 +270,7 @@ export default function Landing() {
               transition={{ delay: 0.2 }}
               className="flex justify-center lg:justify-end"
             >
-              <QuoteCalculator />
+              <QuoteCalculator pricingGated={pricingGated} />
             </motion.div>
           </div>
         </Section>
