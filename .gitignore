@@ -12,3 +12,4 @@ coverage
 sweepr.env.local
 *.env.local
 .claude/
+*.tsbuildinfo
