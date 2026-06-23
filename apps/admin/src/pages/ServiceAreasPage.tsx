@@ -54,11 +54,15 @@ function AreaMap({ areas, requests }: { areas: ServiceArea[]; requests: CityRequ
     mapboxgl.accessToken = TOKEN;
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: getMapStyle(dark) as unknown as string,
+      style: getMapStyle(dark).style,
       center: [-122.15, 37.75],
       zoom: 7.5,
     });
     mapRef.current = map;
+
+    map.on("style.load", () => {
+      map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
+    });
 
     map.on("load", () => {
       const allAreas = areas.length > 0 ? areas : [
