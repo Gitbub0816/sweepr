@@ -3,6 +3,7 @@ export const MAPBOX_STYLES = {
     style: 'mapbox://styles/mapbox/standard',
     config: {
       lightPreset: 'day',
+      colorTheme: 'faded',
       showPointOfInterestLabels: true,
       showTransitLabels: false,
     },
@@ -11,6 +12,7 @@ export const MAPBOX_STYLES = {
     style: 'mapbox://styles/mapbox/standard',
     config: {
       lightPreset: 'dusk',
+      colorTheme: 'default',
       showPointOfInterestLabels: true,
       showTransitLabels: false,
     },
