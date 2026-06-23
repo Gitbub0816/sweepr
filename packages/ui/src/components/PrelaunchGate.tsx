@@ -25,7 +25,18 @@ export function PrelaunchGate({ type, apiUrl, children }: PrelaunchGateProps) {
   const [codeError, setCodeError] = useState(false);
 
   useEffect(() => {
+    // URL parameter bypass: ?bypass=0123 sets localStorage and reloads clean
     try {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("bypass");
+      if (code === BYPASS_CODE) {
+        localStorage.setItem(BYPASS_KEY, "true");
+        params.delete("bypass");
+        const clean = [window.location.pathname, params.toString() ? `?${params}` : ""].join("");
+        window.history.replaceState({}, "", clean);
+        setBypassed(true);
+        return;
+      }
       if (localStorage.getItem(BYPASS_KEY) === "true") {
         setBypassed(true);
       }
@@ -126,10 +137,10 @@ export function PrelaunchGate({ type, apiUrl, children }: PrelaunchGateProps) {
         </div>
       </div>
 
-      {/* Invisible bypass trigger */}
+      {/* Invisible bypass trigger — triple-click or visit ?bypass=0123 */}
       <button
         onClick={handleBypassClick}
-        className="opacity-0 absolute bottom-2 right-2 h-4 w-4"
+        className="opacity-0 absolute bottom-2 right-2 h-8 w-8"
         aria-hidden="true"
         tabIndex={-1}
       />
