@@ -50,7 +50,7 @@ export function WaitlistForm({ type, apiUrl, onSuccess }: WaitlistFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 w-full max-w-sm">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 w-full max-w-sm mx-auto">
       <input
         type="text"
         placeholder="Your name (optional)"

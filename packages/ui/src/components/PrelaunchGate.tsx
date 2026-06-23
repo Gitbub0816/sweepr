@@ -93,7 +93,7 @@ export function PrelaunchGate({ type, apiUrl, children }: PrelaunchGateProps) {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-white px-4">
       <div className="flex w-full max-w-md flex-col items-center gap-6 text-center">
-        <SweeprLogo size="lg" />
+        <SweeprLogo size="xl" />
 
         <h1 className="text-2xl font-bold text-charcoal">
           {copy.headline}
@@ -118,7 +118,7 @@ export function PrelaunchGate({ type, apiUrl, children }: PrelaunchGateProps) {
           </a>
         </div>
 
-        <div className="w-full border-t border-slate-100 pt-6">
+        <div className="w-full border-t border-slate-100 pt-6 flex flex-col items-center">
           <p className="mb-4 text-sm font-semibold text-slate-700">
             Want to be first?
           </p>
