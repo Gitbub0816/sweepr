@@ -22,6 +22,8 @@ import { adminInviteRouter } from "./routes/adminInvite";
 import { adminNewsletterRouter } from "./routes/adminNewsletter";
 import { adminServiceAreasRouter } from "./routes/adminServiceAreas";
 import { adminBroadcastsRouter } from "./routes/adminBroadcasts";
+import { trainingRouter } from "./routes/training";
+import { trainingAdminRouter } from "./routes/admin/trainingAdmin";
 import { AppError, toSafeError } from "./lib/errors";
 import { logger } from "./lib/logger";
 import type { AppBindings } from "./types";
@@ -70,6 +72,12 @@ app.route("/admin/invites", adminInviteRouter);
 app.route("/admin/newsletter", adminNewsletterRouter);
 app.route("/admin/service-areas", adminServiceAreasRouter);
 app.route("/admin/broadcasts", adminBroadcastsRouter);
+app.use("/training/*", (c, next) => {
+  // requireAuth is applied per-route inside trainingRouter
+  return next();
+});
+app.route("/training", trainingRouter);
+app.route("/admin/training", trainingAdminRouter);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 

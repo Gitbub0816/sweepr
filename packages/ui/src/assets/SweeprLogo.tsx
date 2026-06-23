@@ -8,11 +8,11 @@ interface SweeprLogoProps {
 }
 
 const heights: Record<NonNullable<SweeprLogoProps['size']>, string> = {
-  sm: 'h-7',
-  md: 'h-10',
-  lg: 'h-14',
-  xl: 'h-20',
-  '2xl': 'h-36',
+  sm: 'h-10',
+  md: 'h-14',
+  lg: 'h-20',
+  xl: 'h-28',
+  '2xl': 'h-40',
 }
 
 export function SweeprLogo({ className, size = 'md' }: SweeprLogoProps) {

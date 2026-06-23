@@ -1,5 +1,5 @@
 import { Routes, Route } from "react-router-dom";
-import { SignIn, SignUp } from "@clerk/clerk-react";
+import { AuthenticateWithRedirectCallback } from "@clerk/clerk-react";
 import {
   LayoutDashboard,
   Briefcase,
@@ -7,6 +7,7 @@ import {
   Wallet,
   User,
   BarChart3,
+  GraduationCap,
 } from "lucide-react";
 import { AppShell, PrelaunchGate } from "@sweepr/ui";
 
@@ -21,13 +22,16 @@ import { SchedulePage } from "./pages/SchedulePage";
 import { EarningsPage } from "./pages/EarningsPage";
 import { PerformancePage } from "./pages/PerformancePage";
 import { ProfilePage } from "./pages/ProfilePage";
-import { AuthPage } from "./components/AuthPage";
+import { TrainingPage } from "./pages/TrainingPage";
+import { SignInPage } from "./components/SignInPage";
+import { SignUpPage } from "./components/SignUpPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { OnboardingGuard } from "./components/OnboardingGuard";
 import { NavAuth } from "./components/NavAuth";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/training", label: "Training", icon: GraduationCap },
   { to: "/jobs", label: "Job Board", icon: Briefcase },
   { to: "/schedule", label: "Schedule", icon: CalendarDays },
   { to: "/earnings", label: "Earnings", icon: Wallet },
@@ -59,25 +63,24 @@ export default function App() {
     <Routes>
       {/* Auth (unprotected, but gated during prelaunch) */}
       <Route
-        path="/sign-in/*"
+        path="/sign-in"
         element={
           <PrelaunchGate type="cleaner" apiUrl={API_URL}>
-            <AuthPage title="Welcome back" subtitle="Sign in to your Sweepr Pro account">
-              <SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" fallbackRedirectUrl="/" />
-            </AuthPage>
+            <SignInPage />
           </PrelaunchGate>
         }
       />
       <Route
-        path="/sign-up/*"
+        path="/sign-up"
         element={
           <PrelaunchGate type="cleaner" apiUrl={API_URL}>
-            <AuthPage title="Become a Sweepr Pro" subtitle="Start earning on your schedule">
-              <SignUp routing="path" path="/sign-up" signInUrl="/sign-in" fallbackRedirectUrl="/onboarding" />
-            </AuthPage>
+            <SignUpPage />
           </PrelaunchGate>
         }
       />
+
+      {/* OAuth SSO callback — Clerk redirects here after Google/Apple */}
+      <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback />} />
 
       {/* Mock Checkr hosted form (no auth required — loaded in iframe) */}
       <Route path="/checkr-simulate" element={<CheckrSimulatePage />} />
@@ -99,6 +102,10 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+
+      {/* Training (protected only — accessible during onboarding) */}
+      <Route path="/training" element={<ProtectedRoute><TrainingPage /></ProtectedRoute>} />
+      <Route path="/training/:moduleId" element={<ProtectedRoute><TrainingPage /></ProtectedRoute>} />
 
       {/* App (protected + onboarding-gated) */}
       <Route path="/" element={<Guarded><HomePage /></Guarded>} />

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { getMapStyle, MapR3FOverlay } from "@sweepr/ui";
+import { getMapStyle } from "@sweepr/ui";
 
 function isDarkTheme() {
   if (typeof document !== "undefined" &&
@@ -160,7 +160,6 @@ export function ServiceAreaMap({ center, radiusMi }: ServiceAreaMapProps) {
         role="img"
         aria-label="Map showing your service area"
       />
-      <MapR3FOverlay />
     </div>
   );
 }
