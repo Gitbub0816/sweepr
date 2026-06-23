@@ -34,8 +34,8 @@ export function PrelaunchGate({ type, apiUrl, children }: PrelaunchGateProps) {
     }
 
     fetch(`${apiUrl}/status`)
-      .then((r) => r.json() as Promise<{ settings: StatusSettings }>)
-      .then((data) => setSettings(data.settings))
+      .then((r) => r.json() as Promise<{ settings?: StatusSettings }>)
+      .then((data) => setSettings(data.settings ?? { prelaunch_cleaner: false, prelaunch_customer: false }))
       .catch(() => setSettings({ prelaunch_cleaner: false, prelaunch_customer: false }));
   }, [apiUrl]);
 

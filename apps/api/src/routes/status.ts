@@ -33,50 +33,59 @@ interface UpdateRow {
 }
 
 statusRouter.get("/", async (c) => {
-  const sql = getDb(c.env.DATABASE_URL);
-
-  const settingsRows = (await sql`
-    SELECT key, value FROM site_settings
-    WHERE key IN ('prelaunch_cleaner', 'prelaunch_customer')
-  `) as SettingRow[];
-
-  const settings = {
-    prelaunch_cleaner: false,
-    prelaunch_customer: false,
+  const defaultResponse = {
+    settings: { prelaunch_cleaner: false, prelaunch_customer: false },
+    incidents: [],
   };
-  for (const row of settingsRows) {
-    if (row.key === "prelaunch_cleaner") {
-      settings.prelaunch_cleaner = row.value === "true";
-    } else if (row.key === "prelaunch_customer") {
-      settings.prelaunch_customer = row.value === "true";
+
+  try {
+    const sql = getDb(c.env.DATABASE_URL);
+
+    const settingsRows = (await sql`
+      SELECT key, value FROM site_settings
+      WHERE key IN ('prelaunch_cleaner', 'prelaunch_customer')
+    `) as SettingRow[];
+
+    const settings = {
+      prelaunch_cleaner: false,
+      prelaunch_customer: false,
+    };
+    for (const row of settingsRows) {
+      if (row.key === "prelaunch_cleaner") {
+        settings.prelaunch_cleaner = row.value === "true";
+      } else if (row.key === "prelaunch_customer") {
+        settings.prelaunch_customer = row.value === "true";
+      }
     }
+
+    const incidents = (await sql`
+      SELECT id, title, summary, status, severity, affected_features,
+             is_prelaunch_update, created_at, updated_at, resolved_at
+      FROM status_incidents
+      WHERE status != 'resolved'
+      ORDER BY created_at DESC
+    `) as IncidentRow[];
+
+    const incidentIds = incidents.map((i) => i.id);
+    const updates: UpdateRow[] =
+      incidentIds.length > 0
+        ? (await sql`
+            SELECT id, incident_id, message, status, created_at
+            FROM status_updates
+            WHERE incident_id = ANY(${incidentIds})
+            ORDER BY created_at ASC
+          `) as UpdateRow[]
+        : [];
+
+    const incidentsWithUpdates = incidents.map((incident) => ({
+      ...incident,
+      updates: updates.filter((u) => u.incident_id === incident.id),
+    }));
+
+    return c.json({ settings, incidents: incidentsWithUpdates });
+  } catch {
+    return c.json(defaultResponse);
   }
-
-  const incidents = (await sql`
-    SELECT id, title, summary, status, severity, affected_features,
-           is_prelaunch_update, created_at, updated_at, resolved_at
-    FROM status_incidents
-    WHERE status != 'resolved'
-    ORDER BY created_at DESC
-  `) as IncidentRow[];
-
-  const incidentIds = incidents.map((i) => i.id);
-  const updates: UpdateRow[] =
-    incidentIds.length > 0
-      ? (await sql`
-          SELECT id, incident_id, message, status, created_at
-          FROM status_updates
-          WHERE incident_id = ANY(${incidentIds})
-          ORDER BY created_at ASC
-        `) as UpdateRow[]
-      : [];
-
-  const incidentsWithUpdates = incidents.map((incident) => ({
-    ...incident,
-    updates: updates.filter((u) => u.incident_id === incident.id),
-  }));
-
-  return c.json({ settings, incidents: incidentsWithUpdates });
 });
 
 statusRouter.post(
