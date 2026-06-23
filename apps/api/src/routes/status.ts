@@ -83,9 +83,22 @@ statusRouter.get("/", async (c) => {
       updates: updates.filter((u) => u.incident_id === incident.id),
     }));
 
-    return c.json({ settings, incidents: incidentsWithUpdates });
+    const serviceAreas = (await sql`
+      SELECT id, name, slug, status, polygon, center_lat, center_lng
+      FROM service_areas ORDER BY status DESC, name ASC
+    `) as Array<{
+      id: string; name: string; slug: string; status: string;
+      polygon: unknown; center_lat: number | null; center_lng: number | null;
+    }>;
+
+    const cityRequestPins = (await sql`
+      SELECT lat, lng FROM city_requests
+      WHERE lat IS NOT NULL AND lng IS NOT NULL
+    `) as Array<{ lat: number; lng: number }>;
+
+    return c.json({ settings, incidents: incidentsWithUpdates, serviceAreas, cityRequestPins });
   } catch {
-    return c.json(defaultResponse);
+    return c.json({ ...defaultResponse, serviceAreas: [], cityRequestPins: [] });
   }
 });
 
@@ -150,6 +163,62 @@ statusRouter.post(
         });
       } catch {
         // Non-fatal — subscriber is saved, email failure shouldn't fail the request
+      }
+    }
+
+    return c.json({ ok: true });
+  }
+);
+
+// ---------------------------------------------------------------------------
+// City request + optional city-updates subscribe
+// ---------------------------------------------------------------------------
+statusRouter.post(
+  "/city-request",
+  zValidator(
+    "json",
+    z.object({
+      input: z.string().min(1).max(200),
+      lat: z.number().optional(),
+      lng: z.number().optional(),
+      email: z.string().email().optional(),
+      subscribeUpdates: z.boolean().optional(),
+    })
+  ),
+  async (c) => {
+    const { input, lat, lng, email, subscribeUpdates } = c.req.valid("json");
+    const sql = getDb(c.env.DATABASE_URL);
+
+    await sql`
+      INSERT INTO city_requests (input, lat, lng)
+      VALUES (${input}, ${lat ?? null}, ${lng ?? null})
+    `;
+
+    if (email && subscribeUpdates) {
+      const rows = await sql`
+        INSERT INTO city_subscribers (email, area_slug, city_input)
+        VALUES (${email}, NULL, ${input})
+        ON CONFLICT (email, COALESCE(area_slug, '')) DO NOTHING
+        RETURNING id
+      ` as Array<{ id: string }>;
+
+      if (rows.length > 0) {
+        try {
+          await sendEmail(c.env.MAILERSEND_API_KEY, {
+            to: email,
+            subject: "We'll let you know when Sweepr comes to your area",
+            html: `
+              <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
+                <h2 style="color:#111;margin:0 0 12px">Request received!</h2>
+                <p style="color:#444;line-height:1.6;margin:0 0 16px">
+                  Thanks for requesting <strong>${input}</strong>. We'll reach out as
+                  soon as Sweepr is available in your area.
+                </p>
+                <p style="color:#888;font-size:13px">If you didn't request this, ignore this email.</p>
+              </div>
+            `,
+          });
+        } catch { /* non-fatal */ }
       }
     }
 

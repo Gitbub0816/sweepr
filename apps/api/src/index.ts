@@ -20,6 +20,8 @@ import { statusRouter } from "./routes/status";
 import { statusAdminRouter } from "./routes/admin/statusAdmin";
 import { adminInviteRouter } from "./routes/adminInvite";
 import { adminNewsletterRouter } from "./routes/adminNewsletter";
+import { adminServiceAreasRouter } from "./routes/adminServiceAreas";
+import { adminBroadcastsRouter } from "./routes/adminBroadcasts";
 import { AppError, toSafeError } from "./lib/errors";
 import { logger } from "./lib/logger";
 import type { AppBindings } from "./types";
@@ -66,6 +68,8 @@ app.route("/status", statusRouter);
 app.route("/admin/status", statusAdminRouter);
 app.route("/admin/invites", adminInviteRouter);
 app.route("/admin/newsletter", adminNewsletterRouter);
+app.route("/admin/service-areas", adminServiceAreasRouter);
+app.route("/admin/broadcasts", adminBroadcastsRouter);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 
