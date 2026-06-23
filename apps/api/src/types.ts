@@ -17,17 +17,6 @@ export interface Env {
   DIDIT_WEBHOOK_SECRET?: string;
   ALLOWED_ORIGINS?: string;
   POSTHOG_KEY?: string;
-  RATE_LIMIT_KV?: KVNamespace;
-}
-
-/** Minimal Cloudflare KV interface (avoids a hard dependency on @cloudflare/workers-types). */
-export interface KVNamespace {
-  get(key: string): Promise<string | null>;
-  put(
-    key: string,
-    value: string,
-    options?: { expirationTtl?: number }
-  ): Promise<void>;
 }
 
 export interface AuthUser {
