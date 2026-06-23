@@ -42,8 +42,8 @@ function CoverageMap({ areas, pins }: { areas: ServiceArea[]; pins: Array<{ lat:
     const map = new mapboxgl.Map({
       container: containerRef.current,
       style: getMapStyle(dark).style,
-      center: [-122.15, 37.75],
-      zoom: 8.2,
+      center: [-121.95, 37.5],
+      zoom: 7.8,
       interactive: true,
       attributionControl: false,
     });
@@ -78,7 +78,7 @@ function CoverageMap({ areas, pins }: { areas: ServiceArea[]; pins: Array<{ lat:
           source: sourceId,
           paint: {
             "fill-color": "#14b8a6",
-            "fill-opacity": area.status === "live" ? 0.13 : 0.07,
+            "fill-opacity": area.status === "live" ? 0.22 : 0.1,
           },
         });
 
@@ -89,8 +89,8 @@ function CoverageMap({ areas, pins }: { areas: ServiceArea[]; pins: Array<{ lat:
           source: sourceId,
           paint: {
             "line-color": "#14b8a6",
-            "line-width": 14,
-            "line-opacity": 0.08,
+            "line-width": 16,
+            "line-opacity": 0.12,
             "line-blur": 6,
           },
         });
@@ -103,7 +103,7 @@ function CoverageMap({ areas, pins }: { areas: ServiceArea[]; pins: Array<{ lat:
           paint: {
             "line-color": "#14b8a6",
             "line-width": 6,
-            "line-opacity": 0.2,
+            "line-opacity": 0.35,
             "line-blur": 2,
           },
         });

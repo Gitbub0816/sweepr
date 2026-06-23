@@ -35,7 +35,7 @@ interface UpdateRow {
 
 statusRouter.get("/", async (c) => {
   const defaultResponse = {
-    settings: { prelaunch_cleaner: false, prelaunch_customer: false },
+    settings: { prelaunch_cleaner: false, prelaunch_customer: false, prelaunch_pricing: false },
     incidents: [],
   };
 
@@ -44,18 +44,21 @@ statusRouter.get("/", async (c) => {
 
     const settingsRows = (await sql`
       SELECT key, value FROM site_settings
-      WHERE key IN ('prelaunch_cleaner', 'prelaunch_customer')
+      WHERE key IN ('prelaunch_cleaner', 'prelaunch_customer', 'prelaunch_pricing')
     `) as SettingRow[];
 
     const settings = {
       prelaunch_cleaner: false,
       prelaunch_customer: false,
+      prelaunch_pricing: false,
     };
     for (const row of settingsRows) {
       if (row.key === "prelaunch_cleaner") {
         settings.prelaunch_cleaner = row.value === "true";
       } else if (row.key === "prelaunch_customer") {
         settings.prelaunch_customer = row.value === "true";
+      } else if (row.key === "prelaunch_pricing") {
+        settings.prelaunch_pricing = row.value === "true";
       }
     }
 
@@ -98,7 +101,7 @@ statusRouter.get("/", async (c) => {
 
     return c.json({ settings, incidents: incidentsWithUpdates, serviceAreas, cityRequestPins });
   } catch {
-    return c.json({ ...defaultResponse, serviceAreas: [], cityRequestPins: [] });
+    return c.json({ ...defaultResponse, settings: { prelaunch_cleaner: false, prelaunch_customer: false, prelaunch_pricing: false }, serviceAreas: [], cityRequestPins: [] });
   }
 });
 

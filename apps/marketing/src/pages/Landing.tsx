@@ -1,4 +1,5 @@
 import { MarketingShell, Button, Accordion, SweeprLogo, NewsletterSubscribe, type AccordionItemData } from "@sweepr/ui";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   MapPin,
@@ -210,7 +211,18 @@ const faqs: AccordionItemData[] = [
   },
 ];
 
+const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
+
 export default function Landing() {
+  const [pricingGated, setPricingGated] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API}/status`)
+      .then((r) => r.json() as Promise<{ settings?: { prelaunch_pricing?: boolean } }>)
+      .then((d) => { if (d.settings?.prelaunch_pricing) setPricingGated(true); })
+      .catch(() => {});
+  }, []);
+
   return (
     <MarketingShell
       navLinks={navLinks}
@@ -385,36 +397,55 @@ export default function Landing() {
       {/* Pricing */}
       <div className="bg-white dark:bg-slate-900/40">
         <Section id="pricing">
-          <SectionHeading
-            eyebrow="Pricing"
-            title="Upfront pricing, no surprises"
-            subtitle="Your exact price is shown before you book. Here are some common examples — use the calculator to get your number."
-          />
-          <div className="mx-auto mt-10 max-w-2xl overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-offwhite text-slate-500 dark:bg-slate-800">
-                <tr>
-                  <th className="px-5 py-3 font-medium">Home</th>
-                  <th className="px-5 py-3 font-medium">Service</th>
-                  <th className="px-5 py-3 text-right font-medium">Est. price</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {pricingRows.map((r) => (
-                  <tr key={r.home} className="bg-white dark:bg-slate-900">
-                    <td className="px-5 py-3 text-charcoal dark:text-white">{r.home}</td>
-                    <td className="px-5 py-3 text-slate-500">{r.service}</td>
-                    <td className="px-5 py-3 text-right font-bold text-charcoal dark:text-white">{formatCurrency(r.price)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="mt-8 text-center">
-            <Button size="lg" onClick={() => (window.location.href = CUSTOMER_URL)}>
-              See your price <ArrowRight className="h-4 w-4" />
-            </Button>
-          </div>
+          {pricingGated ? (
+            <div className="mx-auto max-w-xl text-center py-6">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-seafoam-50 dark:bg-seafoam-900/30 mb-6">
+                <Sparkles className="w-7 h-7 text-seafoam-500" />
+              </div>
+              <h2 className="text-3xl font-black tracking-tight text-charcoal dark:text-white">
+                We're still polishing the price tags.
+              </h2>
+              <p className="mt-4 text-lg text-slate-500 dark:text-slate-400 leading-relaxed">
+                Our pricing calculator is getting a final deep clean. Join the newsletter and we'll let you know as soon as the numbers are finalized.
+              </p>
+              <div className="mt-8 max-w-sm mx-auto">
+                <NewsletterSubscribe apiUrl={API} />
+              </div>
+            </div>
+          ) : (
+            <>
+              <SectionHeading
+                eyebrow="Pricing"
+                title="Upfront pricing, no surprises"
+                subtitle="Your exact price is shown before you book. Here are some common examples — use the calculator to get your number."
+              />
+              <div className="mx-auto mt-10 max-w-2xl overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-offwhite text-slate-500 dark:bg-slate-800">
+                    <tr>
+                      <th className="px-5 py-3 font-medium">Home</th>
+                      <th className="px-5 py-3 font-medium">Service</th>
+                      <th className="px-5 py-3 text-right font-medium">Est. price</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {pricingRows.map((r) => (
+                      <tr key={r.home} className="bg-white dark:bg-slate-900">
+                        <td className="px-5 py-3 text-charcoal dark:text-white">{r.home}</td>
+                        <td className="px-5 py-3 text-slate-500">{r.service}</td>
+                        <td className="px-5 py-3 text-right font-bold text-charcoal dark:text-white">{formatCurrency(r.price)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-8 text-center">
+                <Button size="lg" onClick={() => (window.location.href = CUSTOMER_URL)}>
+                  See your price <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </>
+          )}
         </Section>
       </div>
 
