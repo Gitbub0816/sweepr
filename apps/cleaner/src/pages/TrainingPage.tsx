@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
 import {
@@ -13,6 +13,9 @@ import {
   RefreshCw,
   Trophy,
   Lock,
+  ArrowRight,
+  HelpCircle,
+  Sparkles,
 } from "lucide-react";
 import { Card, Button, Badge, DashboardShell, toast } from "@sweepr/ui";
 
@@ -99,7 +102,118 @@ function statusBadge(progress: ModuleProgress | null) {
   return <Badge variant="default">{progress.status}</Badge>;
 }
 
-// ─── Module List ───────────────────────────────────────────────────────────────
+function Confetti() {
+  const pieces = useMemo(() => {
+    const colors = ["#14b8a6", "#0d9488", "#f59e0b", "#fbbf24", "#38bdf8", "#a78bfa"];
+    return Array.from({ length: 60 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      delay: Math.random() * 0.6,
+      duration: 2.4 + Math.random() * 1.8,
+      color: colors[i % colors.length],
+    }));
+  }, []);
+  return (
+    <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
+      {pieces.map((p) => (
+        <span
+          key={p.id}
+          className="confetti-piece"
+          style={{
+            left: `${p.left}%`,
+            background: p.color,
+            animationDelay: `${p.delay}s`,
+            animationDuration: `${p.duration}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── Academy Dashboard ───────────────────────────────────────────────────────
+
+function ModuleCard({
+  module,
+  index,
+  locked,
+  onSelect,
+}: {
+  module: TrainingModule;
+  index: number;
+  locked: boolean;
+  onSelect: (m: TrainingModule) => void;
+}) {
+  const status = module.progress?.status ?? "not_started";
+  const passed = status === "passed";
+  const inProgress = status === "in_progress";
+
+  return (
+    <button
+      type="button"
+      disabled={locked}
+      onClick={() => !locked && onSelect(module)}
+      className={`group flex w-full flex-col gap-3 rounded-2xl border p-5 text-left transition-all ${
+        locked
+          ? "cursor-not-allowed border-slate-200 bg-slate-50 opacity-60 dark:border-slate-800 dark:bg-slate-900/40"
+          : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-seafoam-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-900 dark:hover:border-seafoam-600"
+      }`}
+    >
+      <div className="flex items-start gap-4">
+        <div
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold ${
+            passed
+              ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30"
+              : locked
+                ? "bg-slate-200 text-slate-400 dark:bg-slate-800"
+                : "bg-seafoam-100 text-seafoam-600 dark:bg-seafoam-900/30"
+          }`}
+        >
+          {passed ? (
+            <CheckCircle2 className="h-6 w-6" />
+          ) : locked ? (
+            <Lock className="h-5 w-5" />
+          ) : (
+            index
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-charcoal dark:text-white">{module.title}</p>
+          {module.description && (
+            <p className="mt-1 line-clamp-2 text-sm text-slate-500">{module.description}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {locked ? <Badge variant="default">Locked</Badge> : statusBadge(module.progress)}
+        {module.estimated_minutes ? (
+          <span className="flex items-center gap-1 text-xs text-slate-500">
+            <Clock className="h-3 w-3" /> {module.estimated_minutes} min
+          </span>
+        ) : null}
+        {module.requires_quiz && (
+          <span className="flex items-center gap-1 text-xs text-slate-500">
+            <HelpCircle className="h-3 w-3" /> Quiz
+          </span>
+        )}
+      </div>
+
+      {inProgress && (
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+          <div className="h-full w-1/2 rounded-full bg-seafoam-500" />
+        </div>
+      )}
+
+      {!locked && (
+        <span className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-seafoam-600 group-hover:gap-2">
+          {passed ? "Review" : inProgress ? "Continue" : "Start"}
+          <ChevronRight className="h-4 w-4 transition-all" />
+        </span>
+      )}
+    </button>
+  );
+}
 
 function ModuleList({
   modules,
@@ -110,132 +224,118 @@ function ModuleList({
   summary: ProgressSummary;
   onSelect: (m: TrainingModule) => void;
 }) {
-  const baseModules = modules.filter((m) => m.required_type === "base");
-  const serviceModules = modules.filter((m) => m.required_type === "service_specific");
-  const pct = summary.totalRequired > 0
-    ? Math.round((summary.totalPassed / summary.totalRequired) * 100)
-    : 0;
+  const baseModules = modules
+    .filter((m) => m.required_type === "base")
+    .sort((a, b) => a.sort_order - b.sort_order);
+  const serviceModules = modules
+    .filter((m) => m.required_type === "service_specific")
+    .sort((a, b) => a.sort_order - b.sort_order);
+
+  const pct =
+    summary.totalRequired > 0
+      ? Math.round((summary.totalPassed / summary.totalRequired) * 100)
+      : 0;
+
+  const minutesRemaining = baseModules
+    .filter((m) => m.progress?.status !== "passed")
+    .reduce((sum, m) => sum + (m.estimated_minutes ?? 0), 0);
+
+  // Required modules unlock sequentially.
+  let firstIncomplete = baseModules.findIndex((m) => m.progress?.status !== "passed");
+  if (firstIncomplete === -1) firstIncomplete = baseModules.length;
 
   return (
-    <DashboardShell
-      title="Training Academy"
-      description="Complete all required modules to unlock your background check."
-    >
-      {/* Progress bar */}
-      <Card>
-        <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-seafoam-100 dark:bg-seafoam-900/30">
-            <GraduationCap className="h-6 w-6 text-seafoam-600" />
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-charcoal dark:text-white">
-                Required modules complete
-              </span>
-              <span className="text-sm font-bold text-seafoam-600">
-                {summary.totalPassed}/{summary.totalRequired}
-              </span>
+    <div className="space-y-6">
+      {/* Hero */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-seafoam-500 via-seafoam-600 to-teal-700 p-6 text-white shadow-lg sm:p-8">
+        <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+        <div className="absolute -bottom-10 right-20 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
+        <div className="relative">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 backdrop-blur">
+              <GraduationCap className="h-7 w-7" />
             </div>
-            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+            <div>
+              <h1 className="text-2xl font-bold sm:text-3xl">Sweepr Cleaner Academy</h1>
+              <p className="text-sm text-seafoam-50">
+                Complete your training to activate your account and start earning.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 max-w-xl">
+            <div className="flex items-center justify-between text-sm font-medium">
+              <span>
+                {summary.totalPassed} of {summary.totalRequired} required modules complete
+              </span>
+              <span>{pct}%</span>
+            </div>
+            <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-white/25">
               <div
-                className="h-full rounded-full bg-seafoam-500 transition-all duration-500"
+                className="h-full rounded-full bg-white transition-all duration-700"
                 style={{ width: `${pct}%` }}
               />
             </div>
+            <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-seafoam-50">
+              {minutesRemaining > 0 ? (
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3.5 w-3.5" /> ~{minutesRemaining} min remaining
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 font-semibold">
+                  <Sparkles className="h-3.5 w-3.5" /> All required training complete
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-        {summary.allRequiredComplete && (
-          <div className="mt-4 flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-sm font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
-            <Trophy className="h-5 w-5 shrink-0" />
-            All required training complete! Your background check is now unlocked.
-          </div>
-        )}
-      </Card>
 
-      {/* Base modules */}
+          {summary.allRequiredComplete && (
+            <div className="mt-5 flex items-center gap-2 rounded-xl bg-white/15 px-4 py-3 text-sm font-medium backdrop-blur">
+              <Trophy className="h-5 w-5 shrink-0" />
+              Your background check is now unlocked. Great work!
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Required modules */}
       <div>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Required Modules ({baseModules.length})
+          Required Modules
         </h2>
-        <div className="space-y-2">
-          {baseModules.map((m) => (
-            <button
+        <div className="grid gap-3 sm:grid-cols-2">
+          {baseModules.map((m, i) => (
+            <ModuleCard
               key={m.id}
-              type="button"
-              onClick={() => onSelect(m)}
-              className="flex w-full items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 text-left transition-colors hover:border-seafoam-300 hover:bg-seafoam-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-seafoam-600 dark:hover:bg-seafoam-950/20"
-            >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-seafoam-100 dark:bg-seafoam-900/30">
-                {m.progress?.status === "passed" ? (
-                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                ) : m.progress?.status === "failed" ? (
-                  <XCircle className="h-5 w-5 text-red-500" />
-                ) : (
-                  <BookOpen className="h-5 w-5 text-seafoam-600" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="truncate text-sm font-semibold text-charcoal dark:text-white">
-                  {m.title}
-                </p>
-                <div className="mt-1 flex items-center gap-2">
-                  {statusBadge(m.progress)}
-                  {m.estimated_minutes && (
-                    <span className="flex items-center gap-1 text-xs text-slate-500">
-                      <Clock className="h-3 w-3" />
-                      {m.estimated_minutes} min
-                    </span>
-                  )}
-                </div>
-              </div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
-            </button>
+              module={m}
+              index={i + 1}
+              locked={i > firstIncomplete}
+              onSelect={onSelect}
+            />
           ))}
         </div>
       </div>
 
-      {/* Service-specific */}
+      {/* Service modules */}
       {serviceModules.length > 0 && (
         <div>
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Service-Specific Modules ({serviceModules.length})
+            Service Modules
           </h2>
-          <div className="space-y-2">
-            {serviceModules.map((m) => (
-              <button
+          <div className="grid gap-3 sm:grid-cols-2">
+            {serviceModules.map((m, i) => (
+              <ModuleCard
                 key={m.id}
-                type="button"
-                onClick={() => onSelect(m)}
-                className="flex w-full items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 text-left transition-colors hover:border-seafoam-300 hover:bg-seafoam-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-seafoam-600 dark:hover:bg-seafoam-950/20"
-              >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
-                  {m.progress?.status === "passed" ? (
-                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                  ) : (
-                    <BookOpen className="h-5 w-5 text-slate-500" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="truncate text-sm font-semibold text-charcoal dark:text-white">
-                    {m.title}
-                  </p>
-                  <div className="mt-1 flex items-center gap-2">
-                    {statusBadge(m.progress)}
-                    {m.estimated_minutes && (
-                      <span className="flex items-center gap-1 text-xs text-slate-500">
-                        <Clock className="h-3 w-3" />
-                        {m.estimated_minutes} min
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
-              </button>
+                module={m}
+                index={i + 1}
+                locked={!summary.allRequiredComplete}
+                onSelect={onSelect}
+              />
             ))}
           </div>
         </div>
       )}
-    </DashboardShell>
+    </div>
   );
 }
 
@@ -259,143 +359,220 @@ function LessonViewer({
   const [currentLesson, setCurrentLesson] = useState(0);
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
   const [marking, setMarking] = useState(false);
+  const [canComplete, setCanComplete] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const lesson = lessons[currentLesson];
   const allComplete = completedLessons.size >= lessons.length;
   const passed = progress?.status === "passed";
 
-  async function markLessonComplete(lessonId: string) {
-    if (!lesson || marking) return;
-    setMarking(true);
-    try {
-      const token = await getToken();
-      if (API_URL && token) {
-        await fetch(`${API_URL}/training/lessons/${lessonId}/complete`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ moduleId: module.id }),
-        });
-      }
-      setCompletedLessons((prev) => new Set([...prev, lessonId]));
-    } catch {
-      // Silently continue — lesson completion is tracked server-side
-    } finally {
-      setMarking(false);
-    }
-  }
+  // Enable "Mark Complete" after 30s or scroll to bottom.
+  useEffect(() => {
+    setCanComplete(false);
+    const timer = setTimeout(() => setCanComplete(true), 30000);
+    return () => clearTimeout(timer);
+  }, [currentLesson]);
 
-  function goNext() {
-    if (lesson) {
-      void markLessonComplete(lesson.id);
+  useEffect(() => {
+    function onScroll() {
+      const el = contentRef.current;
+      if (!el) return;
+      const reachedBottom =
+        window.innerHeight + window.scrollY >= el.offsetTop + el.offsetHeight - 120;
+      if (reachedBottom) setCanComplete(true);
     }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [currentLesson]);
+
+  const markLessonComplete = useCallback(
+    async (lessonId: string) => {
+      if (marking) return;
+      setMarking(true);
+      try {
+        const token = await getToken();
+        if (API_URL && token) {
+          await fetch(`${API_URL}/training/lessons/${lessonId}/complete`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ moduleId: module.id }),
+          });
+        }
+        setCompletedLessons((prev) => new Set([...prev, lessonId]));
+      } catch {
+        setCompletedLessons((prev) => new Set([...prev, lessonId]));
+      } finally {
+        setMarking(false);
+      }
+    },
+    [getToken, marking, module.id]
+  );
+
+  async function completeAndAdvance() {
+    if (!lesson) return;
+    await markLessonComplete(lesson.id);
     if (currentLesson < lessons.length - 1) {
       setCurrentLesson((i) => i + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }
 
   function goPrev() {
-    if (currentLesson > 0) setCurrentLesson((i) => i - 1);
+    if (currentLesson > 0) {
+      setCurrentLesson((i) => i - 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }
 
   if (!lesson) return null;
 
+  const lessonDone = completedLessons.has(lesson.id) || passed;
+  const showComplete = canComplete || lessonDone;
+
   return (
-    <DashboardShell
-      title={module.title}
-      description={`Lesson ${currentLesson + 1} of ${lessons.length}`}
-      actions={
-        <Button variant="ghost" onClick={onBack}>
-          <ChevronLeft className="h-4 w-4" /> Back
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <Button variant="ghost" size="sm" onClick={onBack}>
+          <ChevronLeft className="h-4 w-4" /> Academy
         </Button>
-      }
-    >
-      {/* Lesson list sidebar */}
-      <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
+        <span className="text-xs font-medium text-slate-500">
+          Lesson {currentLesson + 1} of {lessons.length}
+        </span>
+      </div>
+
+      {/* Module header */}
+      <div className="rounded-2xl border border-seafoam-100 bg-seafoam-50 p-5 dark:border-seafoam-900/40 dark:bg-seafoam-950/20">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-seafoam-500 text-white">
+            <BookOpen className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-charcoal dark:text-white">{module.title}</h1>
+            {module.estimated_minutes ? (
+              <p className="text-xs text-slate-500">{module.estimated_minutes} min total</p>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-[260px_1fr]">
+        {/* Lesson list sidebar */}
         <div className="space-y-1">
-          {lessons.map((l, idx) => (
-            <button
-              key={l.id}
-              type="button"
-              onClick={() => setCurrentLesson(idx)}
-              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                idx === currentLesson
-                  ? "bg-seafoam-100 font-semibold text-seafoam-700 dark:bg-seafoam-900/30 dark:text-seafoam-300"
-                  : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+          {lessons.map((l, idx) => {
+            const done = completedLessons.has(l.id) || passed;
+            const active = idx === currentLesson;
+            return (
+              <button
+                key={l.id}
+                type="button"
+                onClick={() => {
+                  setCurrentLesson(idx);
+                  window.scrollTo({ top: 0 });
+                }}
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
+                  active
+                    ? "bg-seafoam-100 font-semibold text-seafoam-700 dark:bg-seafoam-900/30 dark:text-seafoam-300"
+                    : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                }`}
+              >
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center">
+                  {done ? (
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                  ) : (
+                    <span
+                      className={`flex h-6 w-6 items-center justify-center rounded-full border-2 text-xs ${
+                        active ? "border-seafoam-500 text-seafoam-600" : "border-slate-300 text-slate-400"
+                      }`}
+                    >
+                      {idx + 1}
+                    </span>
+                  )}
+                </span>
+                <span className="min-w-0 flex-1 truncate">{l.title}</span>
+              </button>
+            );
+          })}
+
+          {module.requires_quiz && (
+            <div
+              className={`mt-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm ${
+                allComplete || passed
+                  ? "text-seafoam-700 dark:text-seafoam-300"
+                  : "text-slate-400"
               }`}
             >
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs">
-                {completedLessons.has(l.id) || (progress?.last_lesson_id && idx < currentLesson) ? (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                ) : (
-                  <span className={`h-4 w-4 rounded-full border-2 ${idx === currentLesson ? "border-seafoam-500" : "border-slate-300"}`} />
-                )}
-              </span>
-              <span className="truncate">{l.title}</span>
-            </button>
-          ))}
+              <HelpCircle className="h-5 w-5 shrink-0" />
+              <span>Module quiz</span>
+            </div>
+          )}
         </div>
 
-        <div className="space-y-4">
+        {/* Lesson content */}
+        <div className="space-y-5">
           <Card>
-            <h2 className="mb-4 text-lg font-bold text-charcoal dark:text-white">
-              {lesson.title}
-            </h2>
-            {lesson.estimated_minutes && (
+            <div ref={contentRef}>
+            <h1 className="mb-1 text-xl font-bold text-charcoal dark:text-white">{lesson.title}</h1>
+            {lesson.estimated_minutes ? (
               <p className="mb-4 flex items-center gap-1 text-xs text-slate-500">
                 <Clock className="h-3 w-3" /> {lesson.estimated_minutes} min read
               </p>
-            )}
-            <div className="prose prose-sm max-w-none dark:prose-invert">
-              {lesson.body.split("\n\n").map((para, i) => (
-                <p key={i} className="mb-4 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
-                  {para}
-                </p>
-              ))}
+            ) : null}
+            <div
+              className="lesson-content"
+              // Content is authored internally in the training seed; safe to render.
+              dangerouslySetInnerHTML={{ __html: lesson.body }}
+            />
             </div>
           </Card>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <Button variant="ghost" onClick={goPrev} disabled={currentLesson === 0}>
               <ChevronLeft className="h-4 w-4" /> Previous
             </Button>
 
-            {currentLesson < lessons.length - 1 ? (
-              <Button onClick={goNext} loading={marking}>
-                Next lesson <ChevronRight className="h-4 w-4" />
-              </Button>
-            ) : (
-              <div className="flex flex-col items-end gap-2">
-                {!allComplete && (
-                  <Button onClick={() => void markLessonComplete(lesson.id)} loading={marking}>
-                    Mark complete <CheckCircle2 className="h-4 w-4" />
-                  </Button>
-                )}
-                {(allComplete || passed) && module.requires_quiz && (
-                  <Button
-                    onClick={onStartQuiz}
-                    disabled={passed && progress?.status === "passed"}
-                  >
-                    {passed ? "Quiz passed ✓" : "Take the quiz →"}
-                  </Button>
-                )}
-                {passed && (
-                  <p className="text-xs text-emerald-600">
-                    You passed this module with {progress?.score}%.
-                  </p>
-                )}
-              </div>
-            )}
+            <div className="flex flex-col items-end gap-2">
+              {currentLesson < lessons.length - 1 ? (
+                <Button onClick={() => void completeAndAdvance()} loading={marking} disabled={!showComplete}>
+                  {showComplete ? "Next lesson" : "Keep reading…"}
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              ) : (
+                <>
+                  {!lessonDone && (
+                    <Button
+                      onClick={() => void markLessonComplete(lesson.id)}
+                      loading={marking}
+                      disabled={!showComplete}
+                    >
+                      {showComplete ? "Mark complete" : "Keep reading…"}
+                      <CheckCircle2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {(allComplete || passed) && module.requires_quiz && (
+                    <Button onClick={onStartQuiz} disabled={passed}>
+                      {passed ? "Quiz passed ✓" : "Take the quiz"}
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {passed && (
+                    <p className="text-xs text-emerald-600">
+                      You passed this module with {progress?.score}%.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </DashboardShell>
+    </div>
   );
 }
 
-// ─── Quiz ──────────────────────────────────────────────────────────────────────
+// ─── Quiz (one question at a time) ──────────────────────────────────────────────
 
 function Quiz({
   module,
@@ -417,10 +594,13 @@ function Quiz({
   getToken: () => Promise<string | null>;
 }) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [current, setCurrent] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
-  const answeredCount = Object.keys(answers).length;
-  const allAnswered = answeredCount === questions.length;
+  const question = questions[current];
+  const isLast = current === questions.length - 1;
+  const allAnswered = Object.keys(answers).length === questions.length;
+  const pct = Math.round(((current + 1) / questions.length) * 100);
 
   async function submitQuiz() {
     if (!allAnswered || submitting) return;
@@ -452,67 +632,95 @@ function Quiz({
     }
   }
 
-  return (
-    <DashboardShell
-      title={`Quiz: ${module.title}`}
-      description={`Answer all ${questions.length} questions. Passing score: ${passingScore}% · Attempt ${attemptCount + 1} of ${maxAttempts}`}
-      actions={
-        <Button variant="ghost" onClick={onBack}>
-          <ChevronLeft className="h-4 w-4" /> Back to lessons
-        </Button>
-      }
-    >
-      <div className="space-y-6">
-        {questions.map((q, idx) => (
-          <Card key={q.id}>
-            <p className="mb-4 font-semibold text-charcoal dark:text-white">
-              {idx + 1}. {q.question}
-            </p>
-            <div className="space-y-2">
-              {q.choices.map((choice) => {
-                const selected = answers[q.id] === choice;
-                return (
-                  <button
-                    key={choice}
-                    type="button"
-                    onClick={() => setAnswers((a) => ({ ...a, [q.id]: choice }))}
-                    className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm transition-all ${
-                      selected
-                        ? "border-seafoam-400 bg-seafoam-50 text-seafoam-700 ring-1 ring-seafoam-400 dark:bg-seafoam-900/20 dark:text-seafoam-300"
-                        : "border-slate-200 bg-white text-charcoal hover:border-seafoam-300 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                    }`}
-                  >
-                    <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${selected ? "border-seafoam-500 bg-seafoam-500" : "border-slate-300"}`}>
-                      {selected && <span className="h-2 w-2 rounded-full bg-white" />}
-                    </span>
-                    {choice}
-                  </button>
-                );
-              })}
-            </div>
-          </Card>
-        ))}
+  if (!question) return null;
 
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-slate-500">
-            {answeredCount}/{questions.length} answered
-          </p>
+  return (
+    <div className="mx-auto max-w-2xl space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <Button variant="ghost" size="sm" onClick={onBack}>
+          <ChevronLeft className="h-4 w-4" /> Lessons
+        </Button>
+        <span className="text-xs font-medium text-slate-500">
+          Pass: {passingScore}% · Attempt {attemptCount + 1} of {maxAttempts}
+        </span>
+      </div>
+
+      <div>
+        <div className="mb-2 flex items-center justify-between text-sm font-medium text-charcoal dark:text-white">
+          <span>
+            Question {current + 1} of {questions.length}
+          </span>
+          <span className="text-seafoam-600">{pct}%</span>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+          <div
+            className="h-full rounded-full bg-seafoam-500 transition-all duration-300"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </div>
+
+      <Card>
+        <p className="mb-5 text-lg font-semibold text-charcoal dark:text-white">{question.question}</p>
+        <div className="space-y-2.5">
+          {question.choices.map((choice, ci) => {
+            const selected = answers[question.id] === choice;
+            return (
+              <button
+                key={choice}
+                type="button"
+                onClick={() => setAnswers((a) => ({ ...a, [question.id]: choice }))}
+                className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3.5 text-left text-sm transition-all ${
+                  selected
+                    ? "border-seafoam-400 bg-seafoam-50 text-seafoam-700 ring-1 ring-seafoam-400 dark:bg-seafoam-900/20 dark:text-seafoam-300"
+                    : "border-slate-200 bg-white text-charcoal hover:border-seafoam-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                }`}
+              >
+                <span
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 text-xs font-semibold ${
+                    selected
+                      ? "border-seafoam-500 bg-seafoam-500 text-white"
+                      : "border-slate-300 text-slate-400"
+                  }`}
+                >
+                  {String.fromCharCode(65 + ci)}
+                </span>
+                {choice}
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+
+      <div className="flex items-center justify-between gap-3">
+        <Button
+          variant="ghost"
+          onClick={() => setCurrent((i) => Math.max(0, i - 1))}
+          disabled={current === 0}
+        >
+          <ChevronLeft className="h-4 w-4" /> Back
+        </Button>
+        {isLast ? (
           <Button
             onClick={() => void submitQuiz()}
             disabled={!allAnswered}
             loading={submitting}
           >
-            Submit quiz
+            Submit quiz <CheckCircle2 className="h-4 w-4" />
           </Button>
-        </div>
+        ) : (
+          <Button onClick={() => setCurrent((i) => i + 1)} disabled={!answers[question.id]}>
+            Next <ChevronRight className="h-4 w-4" />
+          </Button>
+        )}
       </div>
-    </DashboardShell>
+    </div>
   );
 }
 
 // ─── Quiz Result ───────────────────────────────────────────────────────────────
 
-function QuizResult({
+function QuizResultView({
   module,
   results,
   score,
@@ -521,6 +729,8 @@ function QuizResult({
   attemptsRemaining,
   onRetry,
   onBack,
+  onNext,
+  hasNext,
 }: {
   module: TrainingModule;
   results: QuizResult[];
@@ -530,60 +740,93 @@ function QuizResult({
   attemptsRemaining: number;
   onRetry: () => void;
   onBack: () => void;
+  onNext: () => void;
+  hasNext: boolean;
 }) {
   return (
-    <DashboardShell
-      title={passed ? "Quiz Passed!" : "Quiz Complete"}
-      description={`You scored ${score}% — passing score is ${passingScore}%`}
-    >
-      <Card>
-        <div className={`mb-6 flex items-center gap-4 rounded-xl p-4 ${passed ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-red-50 dark:bg-red-950/30"}`}>
-          {passed ? (
-            <Trophy className="h-8 w-8 shrink-0 text-emerald-600" />
-          ) : (
-            <AlertCircle className="h-8 w-8 shrink-0 text-red-500" />
-          )}
-          <div>
-            <p className={`text-lg font-bold ${passed ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"}`}>
-              {passed ? `Great job! You passed with ${score}%.` : `You scored ${score}%. You need ${passingScore}% to pass.`}
-            </p>
-            {!passed && attemptsRemaining > 0 && (
-              <p className="text-sm text-red-600 dark:text-red-400">
-                {attemptsRemaining} attempt{attemptsRemaining !== 1 ? "s" : ""} remaining.
-              </p>
+    <div className="mx-auto max-w-2xl space-y-5">
+      {passed && <Confetti />}
+
+      {/* Completion card */}
+      <div
+        className={`relative overflow-hidden rounded-2xl p-8 text-center text-white shadow-lg ${
+          passed
+            ? "bg-gradient-to-br from-seafoam-500 to-teal-700"
+            : "bg-gradient-to-br from-slate-600 to-slate-800"
+        }`}
+      >
+        <div className="relative flex flex-col items-center gap-3">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/20 backdrop-blur">
+            {passed ? <Trophy className="h-9 w-9" /> : <AlertCircle className="h-9 w-9" />}
+          </div>
+          <h1 className="text-2xl font-bold">{passed ? "Module Complete!" : "Not quite there"}</h1>
+          <p className="text-5xl font-black tabular-nums">{score}%</p>
+          <p className="text-sm text-white/80">
+            {passed
+              ? `You passed ${module.title}.`
+              : `You need ${passingScore}% to pass. ${
+                  attemptsRemaining > 0
+                    ? `${attemptsRemaining} attempt${attemptsRemaining !== 1 ? "s" : ""} remaining.`
+                    : "You have used all your attempts — please contact Sweepr support."
+                }`}
+          </p>
+
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
+            {passed && hasNext && (
+              <Button variant="secondary" onClick={onNext}>
+                Next module <ArrowRight className="h-4 w-4" />
+              </Button>
             )}
-            {!passed && attemptsRemaining === 0 && (
-              <p className="text-sm text-red-600 dark:text-red-400">
-                You have used all your attempts. Please contact Sweepr support.
-              </p>
+            {passed && !hasNext && (
+              <Button variant="secondary" onClick={onBack}>
+                Back to Academy <ArrowRight className="h-4 w-4" />
+              </Button>
+            )}
+            {!passed && attemptsRemaining > 0 && (
+              <Button variant="secondary" onClick={onRetry}>
+                <RefreshCw className="h-4 w-4" /> Retry quiz
+              </Button>
             )}
           </div>
         </div>
+      </div>
 
-        <h3 className="mb-4 font-semibold text-charcoal dark:text-white">Review your answers</h3>
-        <div className="space-y-4">
+      {/* Per-question review */}
+      <div>
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+          Review your answers
+        </h3>
+        <div className="space-y-3">
           {results.map((r, idx) => (
             <div
               key={r.questionId}
-              className={`rounded-xl border p-4 ${r.isCorrect ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/20" : "border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/20"}`}
+              className={`rounded-2xl border p-4 ${
+                r.isCorrect
+                  ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/20"
+                  : "border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/20"
+              }`}
             >
               <p className="mb-2 text-sm font-semibold text-charcoal dark:text-white">
                 {idx + 1}. {r.question}
               </p>
-              <div className="flex items-start gap-2">
+              <div className="flex items-start gap-2 text-sm">
                 {r.isCorrect ? (
                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
                 ) : (
                   <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
                 )}
-                <div className="text-sm">
-                  <p className={r.isCorrect ? "text-emerald-700 dark:text-emerald-300" : "text-red-600 dark:text-red-400"}>
+                <div>
+                  <p
+                    className={
+                      r.isCorrect
+                        ? "text-emerald-700 dark:text-emerald-300"
+                        : "text-red-600 dark:text-red-400"
+                    }
+                  >
                     Your answer: {r.submittedAnswer ?? "Not answered"}
                   </p>
                   {!r.isCorrect && (
-                    <p className="text-emerald-700 dark:text-emerald-300">
-                      Correct: {r.correctAnswer}
-                    </p>
+                    <p className="text-emerald-700 dark:text-emerald-300">Correct: {r.correctAnswer}</p>
                   )}
                   {r.explanation && (
                     <p className="mt-1 text-slate-600 dark:text-slate-400">{r.explanation}</p>
@@ -593,19 +836,14 @@ function QuizResult({
             </div>
           ))}
         </div>
+      </div>
 
-        <div className="mt-6 flex justify-end gap-3">
-          <Button variant="secondary" onClick={onBack}>
-            Back to modules
-          </Button>
-          {!passed && attemptsRemaining > 0 && (
-            <Button onClick={onRetry}>
-              <RefreshCw className="h-4 w-4" /> Retry quiz
-            </Button>
-          )}
-        </div>
-      </Card>
-    </DashboardShell>
+      <div className="flex justify-center">
+        <Button variant="secondary" onClick={onBack}>
+          Back to Academy
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -669,44 +907,46 @@ export function TrainingPage() {
     void loadModules();
   }, [loadModules]);
 
-  // Auto-open module if URL param present
+  const selectModule = useCallback(
+    async (m: TrainingModule) => {
+      setSelectedModule(m);
+      try {
+        const token = await authGetToken();
+        const res = await fetch(`${API_URL}/training/modules/${m.id}`, {
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+        });
+        if (res.ok) {
+          const data = (await res.json()) as {
+            lessons: Lesson[];
+            progress: ModuleProgress | null;
+          };
+          setLessons(data.lessons);
+          setModuleProgress(data.progress);
+        }
+        if (!m.progress || m.progress.status === "not_started") {
+          await fetch(`${API_URL}/training/modules/${m.id}/start`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token ?? ""}` },
+          });
+        }
+      } catch {
+        // silently handle
+      }
+      navigate(`/training/${m.id}`);
+      setView("lessons");
+      window.scrollTo({ top: 0 });
+    },
+    [authGetToken, navigate]
+  );
+
+  // Auto-open module if URL param present.
   useEffect(() => {
-    if (urlModuleId && modules.length > 0) {
+    if (urlModuleId && modules.length > 0 && selectedModule?.id !== urlModuleId) {
       const m = modules.find((mod) => mod.id === urlModuleId);
       if (m) void selectModule(m);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlModuleId, modules.length]);
-
-  async function selectModule(m: TrainingModule) {
-    setSelectedModule(m);
-    try {
-      const token = await authGetToken();
-      const res = await fetch(`${API_URL}/training/modules/${m.id}`, {
-        headers: { Authorization: `Bearer ${token ?? ""}` },
-      });
-      if (res.ok) {
-        const data = (await res.json()) as {
-          lessons: Lesson[];
-          progress: ModuleProgress | null;
-        };
-        setLessons(data.lessons);
-        setModuleProgress(data.progress);
-      }
-
-      // Start module progress if not started
-      if (!m.progress || m.progress.status === "not_started") {
-        await fetch(`${API_URL}/training/modules/${m.id}/start`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token ?? ""}` },
-        });
-      }
-    } catch {
-      // silently handle
-    }
-    navigate(`/training/${m.id}`);
-    setView("lessons");
-  }
 
   async function startQuiz() {
     if (!selectedModule) return;
@@ -736,6 +976,7 @@ export function TrainingPage() {
         attemptCount: data.attemptCount,
       });
       setView("quiz");
+      window.scrollTo({ top: 0 });
     } catch {
       toast.error("Failed to load quiz.");
     }
@@ -746,24 +987,31 @@ export function TrainingPage() {
     setQuizScore(score);
     setQuizPassed(passed);
     setView("quiz-result");
-    if (passed) {
-      void loadModules(); // Refresh module list to update completion counts
-    }
+    window.scrollTo({ top: 0 });
+    if (passed) void loadModules();
   }
 
   function handleBack() {
     navigate("/training");
     setView("list");
     setSelectedModule(null);
+    window.scrollTo({ top: 0 });
     void loadModules();
   }
 
+  const nextModule = useMemo(() => {
+    if (!selectedModule) return null;
+    const ordered = [...modules].sort((a, b) => a.sort_order - b.sort_order);
+    const idx = ordered.findIndex((m) => m.id === selectedModule.id);
+    return idx >= 0 ? ordered[idx + 1] ?? null : null;
+  }, [modules, selectedModule]);
+
   if (loading) {
     return (
-      <DashboardShell title="Training Academy" description="Loading your training modules...">
+      <DashboardShell title="Cleaner Academy" description="Loading your training…">
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
+            <div key={i} className="h-24 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />
           ))}
         </div>
       </DashboardShell>
@@ -801,7 +1049,7 @@ export function TrainingPage() {
   if (view === "quiz-result" && selectedModule) {
     const atts = quizMeta.maxAttempts - quizMeta.attemptCount - 1;
     return (
-      <QuizResult
+      <QuizResultView
         module={selectedModule}
         results={quizResults}
         score={quizScore}
@@ -810,6 +1058,11 @@ export function TrainingPage() {
         attemptsRemaining={Math.max(0, atts)}
         onRetry={() => void startQuiz()}
         onBack={handleBack}
+        onNext={() => {
+          if (nextModule) void selectModule(nextModule);
+          else handleBack();
+        }}
+        hasNext={Boolean(nextModule)}
       />
     );
   }
@@ -837,7 +1090,7 @@ export function TrainingGate({ unlocked }: { unlocked: boolean }) {
           className="mt-3"
           onClick={() => navigate("/training")}
         >
-          <GraduationCap className="h-4 w-4" /> Go to Training Academy
+          <GraduationCap className="h-4 w-4" /> Go to Cleaner Academy
         </Button>
       </div>
     </div>
