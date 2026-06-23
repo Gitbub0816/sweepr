@@ -359,7 +359,7 @@ export function OnboardingPage() {
       <div className="mx-auto max-w-2xl px-4 py-8">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <SweeprLogo size="md" />
+            <SweeprLogo size="lg" />
             <span className="text-sm font-medium text-slate-400">Pro</span>
           </div>
           <ThemeToggle />

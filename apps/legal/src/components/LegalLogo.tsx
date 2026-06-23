@@ -4,10 +4,10 @@ interface LegalLogoProps {
 }
 
 const heights: Record<NonNullable<LegalLogoProps["size"]>, string> = {
-  sm: "28px",
-  md: "40px",
-  lg: "56px",
-  xl: "80px",
+  sm: "40px",
+  md: "56px",
+  lg: "80px",
+  xl: "112px",
 };
 
 export function LegalLogo({ className, size = "sm" }: LegalLogoProps) {

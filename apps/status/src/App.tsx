@@ -261,7 +261,7 @@ export default function App() {
       {/* Header */}
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
-          <img src="/brand/sweepr-logo.png" className="h-8 w-auto" alt="Sweepr" />
+          <img src="/brand/sweepr-logo.png" className="h-14 w-auto" alt="Sweepr" />
           <a
             href="https://getsweepr.com"
             className="text-sm text-slate-500 hover:text-seafoam-600 transition-colors"
@@ -323,7 +323,7 @@ export default function App() {
 
       <footer className="mt-12 border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-6">
-          <img src="/brand/sweepr-logo.png" className="h-6 w-auto opacity-60" alt="Sweepr" />
+          <img src="/brand/sweepr-logo.png" className="h-10 w-auto opacity-60" alt="Sweepr" />
           <p className="text-xs text-slate-400">
             &copy; {new Date().getFullYear()} Sweepr, Inc.
           </p>

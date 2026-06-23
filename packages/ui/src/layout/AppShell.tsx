@@ -32,7 +32,7 @@ export function AppShell({
     <nav className="flex h-full flex-col gap-1 p-4">
       <div className="mb-6 flex items-center gap-2 px-2">
         <div className="leading-tight">
-          <SweeprLogo size="md" />
+          <SweeprLogo size="lg" />
           <p className="mt-0.5 text-[11px] text-slate-400">{brand}</p>
         </div>
       </div>
