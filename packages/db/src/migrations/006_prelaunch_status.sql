@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS site_settings (
 -- Seed defaults
 INSERT INTO site_settings (key, value) VALUES
   ('prelaunch_cleaner', 'true'),
-  ('prelaunch_customer', 'false')
+  ('prelaunch_customer', 'true')
 ON CONFLICT (key) DO NOTHING;
 
 -- Status incidents
