@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { getDb } from "../lib/db";
+import { sendEmail } from "../lib/mailer";
 import type { AppBindings } from "../types";
 
 export const statusRouter = new Hono<AppBindings>();
@@ -120,11 +121,38 @@ statusRouter.post(
   async (c) => {
     const { email } = c.req.valid("json");
     const sql = getDb(c.env.DATABASE_URL);
-    await sql`
+    const rows = await sql`
       INSERT INTO newsletter_subscribers (email)
       VALUES (${email})
       ON CONFLICT (email) DO NOTHING
-    `;
+      RETURNING id
+    ` as Array<{ id: string }>;
+
+    // Send confirmation only for new subscribers (not duplicate sign-ups)
+    if (rows.length > 0) {
+      try {
+        await sendEmail(c.env.MAILERSEND_API_KEY, {
+          to: email,
+          subject: "You're subscribed to Sweepr updates",
+          html: `
+            <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
+              <img src="https://getsweepr.com/logo.png" alt="Sweepr" style="height:36px;margin-bottom:24px" />
+              <h2 style="color:#111;margin:0 0 12px">You're on the list!</h2>
+              <p style="color:#444;line-height:1.6;margin:0 0 16px">
+                Thanks for subscribing. We'll send you launch updates, new features, and the
+                occasional tip — no spam, ever.
+              </p>
+              <p style="color:#888;font-size:13px">
+                If you didn't sign up for this, you can safely ignore this email.
+              </p>
+            </div>
+          `,
+        });
+      } catch {
+        // Non-fatal — subscriber is saved, email failure shouldn't fail the request
+      }
+    }
+
     return c.json({ ok: true });
   }
 );

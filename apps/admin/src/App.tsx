@@ -12,6 +12,7 @@ import {
   Settings,
   Map,
   Activity,
+  Mail,
 } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -34,6 +35,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminGuard } from "./components/AdminGuard";
 import { NavAuth } from "./components/NavAuth";
 import { AcceptInvitePage } from "./pages/AcceptInvitePage";
+import { NewsletterPage } from "./pages/NewsletterPage";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -47,6 +49,7 @@ const nav = [
   { to: "/service-areas", label: "Service Areas", icon: Map },
   { to: "/events", label: "Events", icon: Activity },
   { to: "/status", label: "Status", icon: Activity },
+  { to: "/newsletter", label: "Newsletter", icon: Mail },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -101,6 +104,7 @@ export default function App() {
       <Route path="/service-areas" element={<Guarded><ServiceAreasPage /></Guarded>} />
       <Route path="/events" element={<Guarded><EventsPage /></Guarded>} />
       <Route path="/status" element={<Guarded><StatusPage /></Guarded>} />
+      <Route path="/newsletter" element={<Guarded><NewsletterPage /></Guarded>} />
       <Route path="/settings" element={<Guarded><SettingsPage /></Guarded>} />
     </Routes>
   );
