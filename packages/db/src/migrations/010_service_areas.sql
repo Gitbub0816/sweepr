@@ -35,9 +35,11 @@ CREATE TABLE IF NOT EXISTS city_subscribers (
   email       TEXT        NOT NULL,
   area_slug   TEXT,
   city_input  TEXT,                   -- what they typed when subscribing
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE(email, COALESCE(area_slug, ''))
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+-- Expression-based unique index (inline UNIQUE with COALESCE is not valid PostgreSQL syntax)
+CREATE UNIQUE INDEX IF NOT EXISTS city_subscribers_email_slug_idx
+  ON city_subscribers(email, COALESCE(area_slug, ''));
 CREATE INDEX IF NOT EXISTS city_subscribers_slug_idx ON city_subscribers(area_slug);
 
 -- Broadcast history — one row per send (all list types)
