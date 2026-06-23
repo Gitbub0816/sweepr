@@ -70,6 +70,7 @@ export function ServiceAreaMap({ center, radiusMi }: ServiceAreaMapProps) {
       mapRef.current = map;
       map.on("style.load", () => {
         map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
+      map.setConfigProperty("basemap", "colorTheme", dark ? "default" : "faded");
       });
       map.on("load", () => {
         map.addSource("service-area", {
@@ -120,6 +121,7 @@ export function ServiceAreaMap({ center, radiusMi }: ServiceAreaMapProps) {
       if (!map) return;
       const dark = isDarkTheme();
       map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
+      map.setConfigProperty("basemap", "colorTheme", dark ? "default" : "faded");
     };
     const observer = new MutationObserver(apply);
     observer.observe(document.documentElement, {

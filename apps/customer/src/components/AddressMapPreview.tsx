@@ -51,6 +51,7 @@ export function AddressMapPreview({ lat, lng }: AddressMapPreviewProps) {
       map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
       map.on("style.load", () => {
         map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
+      map.setConfigProperty("basemap", "colorTheme", dark ? "default" : "faded");
       });
     } else {
       mapRef.current.setCenter([lng, lat]);
@@ -74,6 +75,7 @@ export function AddressMapPreview({ lat, lng }: AddressMapPreviewProps) {
       if (!map) return;
       const dark = isDarkTheme();
       map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
+      map.setConfigProperty("basemap", "colorTheme", dark ? "default" : "faded");
     };
     const observer = new MutationObserver(apply);
     observer.observe(document.documentElement, {

@@ -45,6 +45,7 @@ export function AdminMap({ center, label }: AdminMapProps) {
       mapRef.current = map;
       map.on("style.load", () => {
         map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
+      map.setConfigProperty("basemap", "colorTheme", dark ? "default" : "faded");
       });
       new mapboxgl.Marker({ color: "#14b8a6" })
         .setLngLat(center)

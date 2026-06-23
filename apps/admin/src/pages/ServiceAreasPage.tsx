@@ -62,6 +62,7 @@ function AreaMap({ areas, requests }: { areas: ServiceArea[]; requests: CityRequ
 
     map.on("style.load", () => {
       map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
+      map.setConfigProperty("basemap", "colorTheme", dark ? "default" : "faded");
     });
 
     map.on("load", () => {
