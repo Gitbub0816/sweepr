@@ -8,7 +8,7 @@
 -- This file is GENERATED. Do not edit by hand — edit the migrations in
 -- src/migrations/ and re-run: node packages/db/build-schema.mjs
 --
--- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql
+-- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -1102,3 +1102,25 @@ CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
 CREATE INDEX IF NOT EXISTS idx_payments_created_at ON payments(created_at);
 CREATE INDEX IF NOT EXISTS idx_cleaners_status ON cleaners(status);
 CREATE INDEX IF NOT EXISTS idx_disputes_status ON disputes(status);
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 015_course_block_types.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 015_course_block_types.sql
+-- Widen the slide_blocks.block_type CHECK to support the richer, PowerPoint-style
+-- course editor (headings, shapes, dividers, callouts, spacers).
+-- Idempotent.
+
+ALTER TABLE slide_blocks DROP CONSTRAINT IF EXISTS slide_blocks_block_type_check;
+
+DO $$ BEGIN
+  ALTER TABLE slide_blocks ADD CONSTRAINT slide_blocks_block_type_check CHECK (block_type IN (
+    -- content
+    'text', 'heading', 'image', 'video', 'embed',
+    -- layout / decoration
+    'shape', 'divider', 'spacer', 'callout',
+    -- interactive / course-specific
+    'quiz', 'button', 'checklist', 'acknowledgment'
+  ));
+EXCEPTION WHEN duplicate_object THEN NULL; WHEN duplicate_table THEN NULL;
+END $$;
