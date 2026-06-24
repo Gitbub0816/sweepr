@@ -26,13 +26,125 @@ adminRouter.use("*", requireAuth, requireAdmin);
 
 adminRouter.get("/stats", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
-  const rows = (await sql`
-    SELECT
-      (SELECT COUNT(*) FROM bookings) AS total_bookings,
-      (SELECT COUNT(*) FROM cleaners WHERE status = 'pending') AS pending_cleaners,
-      (SELECT COUNT(*) FROM disputes WHERE status = 'open') AS open_disputes
-  `) as Array<Record<string, unknown>>;
-  return c.json({ stats: rows[0] });
+  const [statsRow, bookingsByStatus, recentBookings, recentAudit, waitlistCount, newsletterCount, cityRequestCount] = await Promise.all([
+    sql`
+      SELECT
+        (SELECT COUNT(*)::int FROM bookings) AS total_bookings,
+        (SELECT COUNT(*)::int FROM bookings WHERE scheduled_for::date = CURRENT_DATE) AS bookings_today,
+        (SELECT COUNT(*)::int FROM cleaners WHERE status = 'pending') AS pending_cleaners,
+        (SELECT COUNT(*)::int FROM cleaners WHERE status = 'approved') AS active_cleaners,
+        (SELECT COUNT(*)::int FROM cleaners) AS total_cleaners,
+        (SELECT COUNT(*)::int FROM disputes WHERE status = 'open') AS open_disputes,
+        (SELECT COUNT(*)::int FROM disputes) AS total_disputes,
+        (SELECT COUNT(*)::int FROM users WHERE role = 'customer') AS total_customers,
+        (SELECT COALESCE(SUM(amount_cents), 0)::bigint FROM payments WHERE status = 'captured') AS total_revenue_cents,
+        (SELECT COALESCE(SUM(amount_cents), 0)::bigint FROM payments WHERE status = 'captured' AND created_at::date = CURRENT_DATE) AS revenue_today_cents
+    `,
+    sql`
+      SELECT status, COUNT(*)::int AS count FROM bookings GROUP BY status ORDER BY count DESC
+    `,
+    sql`
+      SELECT b.id, b.status, b.service_type, b.scheduled_for, b.created_at,
+             u.email AS customer_email, c.first_name AS cleaner_name
+      FROM bookings b
+      LEFT JOIN users u ON u.id = b.customer_id
+      LEFT JOIN cleaners c ON c.id = b.cleaner_id
+      ORDER BY b.created_at DESC LIMIT 10
+    `,
+    sql`
+      SELECT action, actor_clerk_id, target_type, target_id, created_at
+      FROM admin_audit_log ORDER BY created_at DESC LIMIT 20
+    `,
+    sql`SELECT COUNT(*)::int AS count FROM waitlist`,
+    sql`SELECT COUNT(*)::int AS count FROM newsletter_subscribers`,
+    sql`SELECT COUNT(*)::int AS count FROM city_requests`,
+  ]);
+
+  return c.json({
+    stats: (statsRow as Array<Record<string, unknown>>)[0],
+    bookingsByStatus,
+    recentBookings,
+    recentAudit,
+    waitlistCount: (waitlistCount as Array<{ count: number }>)[0]?.count ?? 0,
+    newsletterCount: (newsletterCount as Array<{ count: number }>)[0]?.count ?? 0,
+    cityRequestCount: (cityRequestCount as Array<{ count: number }>)[0]?.count ?? 0,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cleaners list (all statuses)
+// ---------------------------------------------------------------------------
+
+adminRouter.get("/cleaners", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const status = c.req.query("status");
+  const cleaners = (await sql`
+    SELECT c.id, c.first_name, c.last_name, c.status,
+           u.email, c.city, c.state, c.created_at,
+           c.stripe_connect_status,
+           (SELECT COUNT(*)::int FROM bookings b WHERE b.cleaner_id = c.id AND b.status = 'completed') AS completed_jobs,
+           (SELECT ROUND(AVG(r.rating), 1) FROM reviews r WHERE r.cleaner_id = c.id) AS avg_rating
+    FROM cleaners c
+    LEFT JOIN users u ON u.id = c.user_id
+    WHERE ${status ? sql`c.status = ${status}` : sql`true`}
+    ORDER BY c.created_at DESC
+    LIMIT 200
+  `) as unknown[];
+  return c.json({ cleaners });
+});
+
+// ---------------------------------------------------------------------------
+// Customers list
+// ---------------------------------------------------------------------------
+
+adminRouter.get("/customers", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const customers = (await sql`
+    SELECT u.id, u.email, u.first_name, u.last_name, u.created_at,
+           COUNT(b.id)::int AS booking_count,
+           COALESCE(SUM(p.amount_cents), 0)::bigint AS lifetime_cents
+    FROM users u
+    LEFT JOIN bookings b ON b.customer_id = u.id
+    LEFT JOIN payments p ON p.booking_id = b.id AND p.status = 'captured'
+    WHERE u.role = 'customer' OR u.role IS NULL
+    GROUP BY u.id
+    ORDER BY u.created_at DESC
+    LIMIT 200
+  `) as unknown[];
+  return c.json({ customers });
+});
+
+// ---------------------------------------------------------------------------
+// Jobs / bookings list
+// ---------------------------------------------------------------------------
+
+adminRouter.get("/jobs", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const status = c.req.query("status");
+  const limit = Math.min(Number(c.req.query("limit") ?? 100) || 100, 500);
+  const offset = Math.max(Number(c.req.query("offset") ?? 0) || 0, 0);
+
+  const jobs = (await sql`
+    SELECT b.id, b.status, b.service_type, b.scheduled_for, b.created_at,
+           b.address_line1, b.address_city, b.address_state,
+           u.email AS customer_email,
+           c.first_name AS cleaner_first, c.last_name AS cleaner_last,
+           p.amount_cents
+    FROM bookings b
+    LEFT JOIN users u ON u.id = b.customer_id
+    LEFT JOIN cleaners c ON c.id = b.cleaner_id
+    LEFT JOIN payments p ON p.booking_id = b.id AND p.status = 'captured'
+    WHERE ${status ? sql`b.status = ${status}` : sql`true`}
+    ORDER BY b.created_at DESC
+    LIMIT ${limit} OFFSET ${offset}
+  `) as unknown[];
+
+  const totalRows = (await sql`
+    SELECT COUNT(*)::int AS total FROM bookings
+    WHERE ${status ? sql`status = ${status}` : sql`true`}
+  `) as Array<{ total: number }>;
+
+  return c.json({ jobs, total: totalRows[0]?.total ?? 0 });
 });
 
 // ---------------------------------------------------------------------------
