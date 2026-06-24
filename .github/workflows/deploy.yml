@@ -155,6 +155,19 @@ jobs:
           VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
           VITE_POSTHOG_DASHBOARD_URL: ${{ secrets.VITE_POSTHOG_DASHBOARD_URL }}
           VITE_API_URL: https://api.getsweepr.com
+      - name: Diagnose admin posthog key (safe — no values printed)
+        env:
+          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+        run: |
+          echo "secret length: ${#VITE_POSTHOG_KEY}"
+          case "$VITE_POSTHOG_KEY" in
+            phc_*) echo "secret prefix: phc_";;
+            "")    echo "secret prefix: EMPTY";;
+            *)     echo "secret prefix: NOT phc_";;
+          esac
+          echo "built bundle: $(ls apps/admin/dist/assets/index-*.js)"
+          grep -rl "fake_token" apps/admin/dist/assets >/dev/null 2>&1 && echo "BAKED: fake_token IS in bundle" || echo "BAKED: no fake_token"
+          grep -rl "phc_" apps/admin/dist/assets >/dev/null 2>&1 && echo "BAKED: a phc_ string IS in bundle" || echo "BAKED: no phc_ in bundle"
       - run: pnpm exec wrangler pages deploy apps/admin/dist --project-name=sweepr-admin --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
