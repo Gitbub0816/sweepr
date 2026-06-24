@@ -68,6 +68,8 @@ app.route("/pricing", pricingRouter);
 app.route("/payments", paymentsRouter);
 app.route("/webhooks/stripe", stripeWebhookRouter);
 app.route("/cleaners", cleanersRouter);
+// Cleaner self-service dashboard (separate from admin cleaners management).
+// Mounted under /cleaner-dashboard to avoid conflict with /cleaners admin routes.
 app.route("/reviews", reviewsRouter);
 app.route("/admin", adminRouter);
 app.route("/storage", storageRouter);
@@ -102,7 +104,7 @@ app.route("/admin/observability", observabilityRouter);
 app.route("/admin/automation", adminAutomationRouter);
 app.route("/admin/payouts", adminPayoutsRouter);
 app.route("/admin/me", adminMeRouter);
-app.route("/cleaners", cleanerDashboardRouter);
+app.route("/cleaner-dashboard", cleanerDashboardRouter);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 

@@ -25,9 +25,7 @@ const requireAdmin = createMiddleware<AppBindings>(async (c, next) => {
 });
 
 const intentSchema = z.object({
-  amount: z.number().int().positive().min(50), // cents
-  currency: z.literal("usd").default("usd"),
-  bookingId: z.string().uuid().optional(),
+  bookingId: z.string().uuid(),
 });
 
 export const paymentsRouter = new Hono<AppBindings>();
@@ -37,18 +35,84 @@ paymentsRouter.post(
   requireAuth,
   zValidator("json", intentSchema),
   async (c) => {
-    const { amount, currency, bookingId } = c.req.valid("json");
+    const { bookingId } = c.req.valid("json");
     const user = c.get("user");
+    const sql = getDb(c.env.DATABASE_URL);
     const stripe = getStripe(c.env.STRIPE_SECRET_KEY);
 
+    // Load booking from DB — never trust a client-supplied amount.
+    const bookings = (await sql`
+      SELECT b.id, b.total_price, b.status, b.stripe_payment_intent_id,
+             b.stripe_payment_intent_created_at,
+             cust.user_id AS customer_user_id
+      FROM bookings b
+      JOIN customers cust ON cust.id = b.customer_id
+      WHERE b.id = ${bookingId}
+      LIMIT 1
+    `) as Array<{
+      id: string;
+      total_price: number;
+      status: string;
+      stripe_payment_intent_id: string | null;
+      stripe_payment_intent_created_at: string | null;
+      customer_user_id: string;
+    }>;
+    const booking = bookings[0];
+    if (!booking) return c.json({ error: "Booking not found" }, 404);
+
+    // Verify caller owns this booking.
+    const users = (await sql`SELECT id FROM users WHERE clerk_id = ${user.clerkId}`) as Array<{ id: string }>;
+    if (!users[0] || users[0].id !== booking.customer_user_id) {
+      return c.json({ error: "Forbidden" }, 403);
+    }
+
+    // Prevent paying for already-paid, cancelled, or refunded bookings.
+    if (["booked", "confirmed", "completed", "cancelled", "refunded"].includes(booking.status)) {
+      return c.json({ error: `Booking is already in '${booking.status}' state` }, 400);
+    }
+
+    // Idempotency: return existing intent if already created within 24 h.
+    if (booking.stripe_payment_intent_id && booking.stripe_payment_intent_created_at) {
+      const age = Date.now() - new Date(booking.stripe_payment_intent_created_at).getTime();
+      if (age < 24 * 60 * 60 * 1000) {
+        const existing = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id);
+        if (existing.status !== "canceled") {
+          return c.json({ clientSecret: existing.client_secret, id: existing.id });
+        }
+      }
+    }
+
+    if (!booking.total_price || booking.total_price < 50) {
+      return c.json({ error: "Booking has no valid price" }, 400);
+    }
+
     const intent = await stripe.paymentIntents.create({
-      amount,
-      currency,
+      amount: booking.total_price,
+      currency: "usd",
       automatic_payment_methods: { enabled: true },
       metadata: {
         clerkId: user.clerkId,
-        bookingId: bookingId ?? "",
+        bookingId,
       },
+    });
+
+    await sql`
+      UPDATE bookings
+      SET stripe_payment_intent_id = ${intent.id},
+          stripe_payment_intent_created_at = NOW(),
+          updated_at = NOW()
+      WHERE id = ${bookingId}
+    `;
+
+    await audit(sql, {
+      action: "payment.intent_created",
+      actorClerkId: user.clerkId,
+      targetType: "booking",
+      targetId: bookingId,
+      metadata: { intentId: intent.id, amount: booking.total_price },
+      ipAddress: c.req.header("CF-Connecting-IP"),
+      userAgent: c.req.header("User-Agent"),
+      timestamp: new Date().toISOString(),
     });
 
     return c.json({ clientSecret: intent.client_secret, id: intent.id });

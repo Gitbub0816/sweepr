@@ -58,6 +58,8 @@ stripeWebhookRouter.post("/", async (c) => {
     metadata: { type: event.type },
   });
 
+  let processingError: Error | null = null;
+  try {
   switch (event.type) {
     case "payment_intent.succeeded": {
       const intent = event.data.object;
@@ -393,6 +395,31 @@ stripeWebhookRouter.post("/", async (c) => {
     }
     default:
       break;
+  }
+  } catch (err) {
+    processingError = err instanceof Error ? err : new Error(String(err));
+    logger.error("stripe webhook processing failed", err, { eventId: event.id, type: event.type });
+  }
+
+  if (processingError) {
+    // Insert to dead-letter queue for admin review and replay.
+    try {
+      await sql`
+        INSERT INTO failed_webhook_events (stripe_event_id, event_type, payload, error_message)
+        VALUES (${event.id}, ${event.type}, ${JSON.stringify(event)}, ${processingError.message})
+        ON CONFLICT DO NOTHING
+      `;
+      await sql`
+        UPDATE stripe_events
+        SET retry_count = retry_count + 1,
+            last_error = ${processingError.message}
+        WHERE stripe_event_id = ${event.id}
+      `;
+    } catch (dlqErr) {
+      logger.error("failed to write to DLQ", dlqErr, { eventId: event.id });
+    }
+    // Return 200 to prevent Stripe from retrying (DLQ handles retries instead).
+    return c.json({ received: true, queued: true });
   }
 
   // Mark event as processed.

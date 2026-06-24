@@ -294,3 +294,81 @@ observabilityRouter.get("/integration-health", async (c) => {
   `, [] as unknown[]);
   return c.json({ latest, history });
 });
+
+// ─── Failed Webhooks (DLQ) ───────────────────────────────────────────────────
+
+// GET /admin/observability/failed-webhooks
+observabilityRouter.get("/failed-webhooks", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const limit = Math.min(parseInt(c.req.query("limit") ?? "50", 10), 200);
+  const offset = parseInt(c.req.query("offset") ?? "0", 10);
+  const includeResolved = c.req.query("resolved") === "true";
+
+  const rows = await settle(sql`
+    SELECT id, stripe_event_id, event_type, error_message,
+           retry_count, last_retry_at, created_at, resolved_at
+    FROM failed_webhook_events
+    ${includeResolved ? sql`` : sql`WHERE resolved_at IS NULL`}
+    ORDER BY created_at DESC
+    LIMIT ${limit} OFFSET ${offset}
+  `, [] as unknown[]);
+
+  const counts = await settle(sql`
+    SELECT
+      COUNT(*) FILTER (WHERE resolved_at IS NULL) AS unresolved,
+      COUNT(*) FILTER (WHERE resolved_at IS NOT NULL) AS resolved
+    FROM failed_webhook_events
+  `, [{ unresolved: 0, resolved: 0 }] as unknown[]);
+
+  return c.json({ events: rows, counts: (counts as Array<{ unresolved: number; resolved: number }>)[0] });
+});
+
+// POST /admin/observability/failed-webhooks/:id/replay
+// Re-inserts the event payload back into stripe_events for reprocessing on next webhook fire.
+observabilityRouter.post("/failed-webhooks/:id/replay", async (c) => {
+  const { id } = c.req.param();
+  const sql = getDb(c.env.DATABASE_URL);
+  const clerkId = c.get("user").clerkId;
+
+  const rows = await sql`
+    SELECT * FROM failed_webhook_events WHERE id = ${id} LIMIT 1
+  ` as Array<{ id: string; stripe_event_id: string; event_type: string; payload: unknown; resolved_at: string | null }>;
+
+  const event = rows[0];
+  if (!event) return c.json({ error: "Not found" }, 404);
+  if (event.resolved_at) return c.json({ error: "Already resolved" }, 400);
+
+  // Reset the stripe_events processed_at so the next webhook delivery will re-process it.
+  await sql`
+    UPDATE stripe_events
+    SET processed_at = NULL, retry_count = retry_count + 1, last_error = NULL
+    WHERE stripe_event_id = ${event.stripe_event_id}
+  `;
+
+  // Mark the DLQ entry as retried.
+  await sql`
+    UPDATE failed_webhook_events
+    SET retry_count = retry_count + 1, last_retry_at = NOW()
+    WHERE id = ${id}
+  `;
+
+  return c.json({ ok: true, message: "Event queued for replay on next webhook delivery" });
+});
+
+// POST /admin/observability/failed-webhooks/:id/resolve
+observabilityRouter.post("/failed-webhooks/:id/resolve", async (c) => {
+  const { id } = c.req.param();
+  const sql = getDb(c.env.DATABASE_URL);
+  const clerkId = c.get("user").clerkId;
+
+  const users = await sql`SELECT id FROM users WHERE clerk_id = ${clerkId}` as Array<{ id: string }>;
+  if (!users[0]) return c.json({ error: "Forbidden" }, 403);
+
+  await sql`
+    UPDATE failed_webhook_events
+    SET resolved_at = NOW(), resolved_by = ${users[0].id}
+    WHERE id = ${id} AND resolved_at IS NULL
+  `;
+
+  return c.json({ ok: true });
+});

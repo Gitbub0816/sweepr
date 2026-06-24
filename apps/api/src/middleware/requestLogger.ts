@@ -10,12 +10,18 @@ import type { AppBindings } from "../types";
 export function requestLogger() {
   return createMiddleware<AppBindings>(async (c, next) => {
     const start = Date.now();
+    // Generate or propagate a request ID for end-to-end tracing.
+    const requestId = c.req.header("X-Request-ID") ?? crypto.randomUUID();
+    c.res.headers.set("X-Request-ID", requestId);
+
     let statusCode = 200;
     let errorMessage: string | null = null;
 
     try {
       await next();
       statusCode = c.res.status;
+      // Re-set after next() in case response was replaced.
+      c.res.headers.set("X-Request-ID", requestId);
     } catch (err) {
       statusCode = 500;
       errorMessage = err instanceof Error ? err.message : "Unknown error";
@@ -37,7 +43,7 @@ export function requestLogger() {
             ${path},
             ${statusCode},
             ${durationMs},
-            ${c.req.header("X-Request-ID") ?? crypto.randomUUID()},
+            ${requestId},
             ${errorMessage},
             ${c.req.header("CF-Ray") ?? null},
             ${c.req.header("CF-IPCountry") ?? null},

@@ -10,6 +10,8 @@ export type AuditAction =
   | "booking.completed"
   | "payment.captured"
   | "payment.refunded"
+  | "payment.intent_created"
+  | "access_code.revealed"
   | "cleaner.approved"
   | "cleaner.rejected"
   | "cleaner.suspended"

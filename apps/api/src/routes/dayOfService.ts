@@ -18,6 +18,8 @@ import { z } from "zod";
 import { getDb } from "../lib/db";
 import { requireAuth } from "../middleware/auth";
 import { audit } from "../lib/audit";
+import { encryptSecret, decryptSecret } from "../lib/crypto";
+import { canUploadPhotos, getBookingAuthCtx } from "../lib/bookingAuthorization";
 import type { AppBindings } from "../types";
 
 export const dayOfServiceRouter = new Hono<AppBindings>();
@@ -89,6 +91,32 @@ dayOfServiceRouter.post(
     const cleaner = (await sql`SELECT id FROM cleaners WHERE user_id = ${users[0]?.id}`) as Array<{ id: string }>;
     if (!cleaner[0] || cleaner[0].id !== booking.cleaner_id) {
       return c.json({ error: "Forbidden" }, 403);
+    }
+
+    // P1-5: Enforce configurable address reveal timing window.
+    const revealSettings = (await sql`
+      SELECT reveal_hours_before, allow_same_day_only FROM address_reveal_settings WHERE active = TRUE LIMIT 1
+    `) as Array<{ reveal_hours_before: number; allow_same_day_only: boolean }>;
+    const settings = revealSettings[0] ?? { reveal_hours_before: 4, allow_same_day_only: true };
+
+    const scheduledRows = (await sql`SELECT scheduled_at FROM bookings WHERE id = ${bookingId}`) as Array<{ scheduled_at: string | null }>;
+    const scheduledAt = scheduledRows[0]?.scheduled_at ? new Date(scheduledRows[0].scheduled_at) : null;
+
+    if (scheduledAt) {
+      const now = new Date();
+      const revealWindowStart = new Date(scheduledAt.getTime() - settings.reveal_hours_before * 60 * 60 * 1000);
+
+      if (settings.allow_same_day_only) {
+        const sameDay = now.toDateString() === scheduledAt.toDateString();
+        if (!sameDay) {
+          return c.json({ error: "Address is not yet available — must be same day as scheduled clean" }, 403);
+        }
+      }
+
+      if (now < revealWindowStart) {
+        const hoursUntil = Math.ceil((revealWindowStart.getTime() - now.getTime()) / (60 * 60 * 1000));
+        return c.json({ error: `Address is not yet available — available ${hoursUntil}h before scheduled start` }, 403);
+      }
     }
 
     await sql`
@@ -211,10 +239,35 @@ dayOfServiceRouter.post(
       WHERE id = ${bookingId}
     `;
 
-    // Fetch access code now that arrival is confirmed
-    const codes = (await sql`
-      SELECT code_type, code_value, notes FROM booking_access_codes WHERE booking_id = ${bookingId}
-    `) as Array<{ code_type: string; code_value: string; notes: string | null }>;
+    // Fetch and decrypt access codes — only revealed after GPS arrival confirmed.
+    const rawCodes = (await sql`
+      SELECT code_type, code_value, code_value_encrypted, notes
+      FROM booking_access_codes WHERE booking_id = ${bookingId}
+    `) as Array<{ code_type: string; code_value: string | null; code_value_encrypted: string | null; notes: string | null }>;
+
+    const accessSecret = c.env.ACCESS_CODE_SECRET;
+    const codes = await Promise.all(rawCodes.map(async (code) => {
+      let decryptedValue: string | null = null;
+      if (code.code_value_encrypted && accessSecret) {
+        try {
+          decryptedValue = await decryptSecret(code.code_value_encrypted, accessSecret);
+        } catch {
+          decryptedValue = null;
+        }
+      } else {
+        decryptedValue = code.code_value;
+      }
+      return { code_type: code.code_type, code_value: decryptedValue, notes: code.notes };
+    }));
+
+    await audit(sql, {
+      action: "access_code.revealed",
+      actorClerkId: clerkId,
+      targetType: "booking",
+      targetId: bookingId,
+      metadata: { code_count: codes.length },
+      timestamp: new Date().toISOString(),
+    });
 
     await audit(sql, {
       action: "booking.start_clean",
@@ -287,6 +340,13 @@ dayOfServiceRouter.post(
     const cleaner = (await sql`SELECT id FROM cleaners WHERE user_id = ${users[0]?.id}`) as Array<{ id: string }>;
     if (!cleaner[0] || cleaner[0].id !== booking.cleaner_id) return c.json({ error: "Forbidden" }, 403);
 
+    // P0-4: Load configurable photo requirements from DB.
+    const reqRows = (await sql`
+      SELECT minimum_before_photos, minimum_after_photos, require_checkout_photo
+      FROM job_completion_requirements WHERE active = TRUE LIMIT 1
+    `) as Array<{ minimum_before_photos: number; minimum_after_photos: number; require_checkout_photo: boolean }>;
+    const req = reqRows[0] ?? { minimum_before_photos: 3, minimum_after_photos: 3, require_checkout_photo: true };
+
     const now = new Date();
 
     await sql`
@@ -300,6 +360,14 @@ dayOfServiceRouter.post(
     const afterCount = (await sql`
       SELECT COUNT(*)::int AS c FROM booking_photos WHERE booking_id = ${bookingId} AND photo_type = 'after'
     `) as Array<{ c: number }>;
+
+    // Enforce minimums.
+    if ((beforeCount[0]?.c ?? 0) < req.minimum_before_photos) {
+      return c.json({ error: `At least ${req.minimum_before_photos} before photos are required (have ${beforeCount[0]?.c ?? 0})` }, 400);
+    }
+    if ((afterCount[0]?.c ?? 0) < req.minimum_after_photos) {
+      return c.json({ error: `At least ${req.minimum_after_photos} after photos are required (have ${afterCount[0]?.c ?? 0})` }, 400);
+    }
 
     const durationMins = booking.started_at
       ? Math.round((now.getTime() - new Date(booking.started_at).getTime()) / 60000)
@@ -352,10 +420,11 @@ dayOfServiceRouter.post(
     const clerkId = c.get("user").clerkId;
     const sql = getDb(c.env.DATABASE_URL);
 
-    const rows = (await sql`
-      SELECT id, cleaner_id, customer_id FROM bookings WHERE id = ${bookingId}
-    `) as Array<{ id: string; cleaner_id: string; customer_id: string }>;
-    if (!rows[0]) return c.json({ error: "Not found" }, 404);
+    const ctx = await getBookingAuthCtx(sql, bookingId, clerkId);
+    if (!ctx) return c.json({ error: "Not found" }, 404);
+    if (!canUploadPhotos(ctx)) {
+      return c.json({ error: "Forbidden — photos can only be uploaded during an active job" }, 403);
+    }
 
     await sql`
       INSERT INTO booking_photos (booking_id, photo_type, storage_key, room_label, uploaded_by)
@@ -459,12 +528,24 @@ dayOfServiceRouter.post(
     `) as Array<{ id: string }>;
     if (!rows[0]) return c.json({ error: "Forbidden" }, 403);
 
+    // P0-2: Encrypt access code at rest; store plaintext as NULL.
+    const accessSecret = c.env.ACCESS_CODE_SECRET;
+    let encryptedValue: string | null = null;
+    let plaintextValue: string | null = code_value;
+
+    if (accessSecret) {
+      encryptedValue = await encryptSecret(code_value, accessSecret);
+      plaintextValue = null;
+    }
+
     await sql`
-      INSERT INTO booking_access_codes (booking_id, code_type, code_value, notes, created_by)
-      VALUES (${bookingId}, ${code_type}, ${code_value}, ${notes ?? null}, ${clerkId})
+      INSERT INTO booking_access_codes (booking_id, code_type, code_value, code_value_encrypted, encryption_version, notes, created_by)
+      VALUES (${bookingId}, ${code_type}, ${plaintextValue}, ${encryptedValue}, ${accessSecret ? 'v1' : null}, ${notes ?? null}, ${clerkId})
       ON CONFLICT (booking_id) DO UPDATE SET
         code_type = EXCLUDED.code_type,
         code_value = EXCLUDED.code_value,
+        code_value_encrypted = EXCLUDED.code_value_encrypted,
+        encryption_version = EXCLUDED.encryption_version,
         notes = EXCLUDED.notes,
         updated_at = NOW()
     `;
