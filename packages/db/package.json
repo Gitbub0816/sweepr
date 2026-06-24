@@ -11,7 +11,9 @@
   },
   "scripts": {
     "build": "tsc --noEmit",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:schema": "node build-schema.mjs",
+    "verify:schema": "node verify-schema.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4"

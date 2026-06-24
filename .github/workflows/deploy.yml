@@ -24,6 +24,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm security
+      - name: Verify schema is up to date
+        run: |
+          node packages/db/build-schema.mjs
+          node packages/db/verify-schema.mjs
+          git diff --exit-code packages/db/schema.sql || (echo "ERROR: schema.sql is stale. Run 'node packages/db/build-schema.mjs' and commit the result." && exit 1)
 
   deploy-api:
     name: Deploy API Worker (api.getsweepr.com)

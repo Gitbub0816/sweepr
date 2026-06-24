@@ -8,7 +8,7 @@
 -- This file is GENERATED. Do not edit by hand — edit the migrations in
 -- src/migrations/ and re-run: node packages/db/build-schema.mjs
 --
--- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql
+-- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -741,26 +741,14 @@ CREATE INDEX IF NOT EXISTS city_subscribers_slug_idx ON city_subscribers(area_sl
 
 -- Broadcast history — one row per send (all list types)
 CREATE TABLE IF NOT EXISTS broadcast_sends (
-  id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  audience       TEXT        NOT NULL,   -- 'newsletter'|'waitlist_customer'|'waitlist_cleaner'|'city'|'all'
-  broadcast_type TEXT        NOT NULL DEFAULT 'announcement', -- 'announcement'|'launch'|'feature'|'area'|'offer'|'operational'
-  area_slug      TEXT,                   -- set when audience='city'
-  subject        TEXT        NOT NULL,
-  html           TEXT        NOT NULL,
-  sent_count     INTEGER     NOT NULL DEFAULT 0,
-  sent_by        TEXT        NOT NULL,   -- clerk_id
-  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- ─────────────────────────────────────────────────────────────────────────
--- 017_dos_test_sessions.sql
--- ─────────────────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS dos_test_sessions (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  day_status  TEXT        NOT NULL DEFAULT 'confirmed',
-  photo_count INT         NOT NULL DEFAULT 0,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  audience    TEXT        NOT NULL,   -- 'newsletter'|'waitlist_customer'|'waitlist_cleaner'|'city'|'all'
+  area_slug   TEXT,                   -- set when audience='city'
+  subject     TEXT        NOT NULL,
+  html        TEXT        NOT NULL,
+  sent_count  INTEGER     NOT NULL DEFAULT 0,
+  sent_by     TEXT        NOT NULL,   -- clerk_id
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ─────────────────────────────────────────────────────────────────────────
@@ -1136,3 +1124,492 @@ DO $$ BEGIN
   ));
 EXCEPTION WHEN duplicate_object THEN NULL; WHEN duplicate_table THEN NULL;
 END $$;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 016_broadcast_type.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Add broadcast_type to broadcast_sends for categorising outgoing messages.
+ALTER TABLE broadcast_sends
+  ADD COLUMN IF NOT EXISTS broadcast_type TEXT NOT NULL DEFAULT 'announcement';
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 017_dos_test_sessions.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Demo sessions table for day-of-service flow testing.
+-- Controlled by SEED_BOOL API env var — never used in production.
+CREATE TABLE IF NOT EXISTS dos_test_sessions (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  day_status  TEXT        NOT NULL DEFAULT 'confirmed',
+  photo_count INT         NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 018_observability.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Observability tables (Phase 1)
+
+CREATE TABLE IF NOT EXISTS analytics_events (
+  id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_name    TEXT        NOT NULL,
+  session_id    TEXT,
+  user_id       UUID        REFERENCES users(id) ON DELETE SET NULL,
+  user_role     TEXT,
+  path          TEXT,
+  referrer      TEXT,
+  device_type   TEXT,
+  country_code  TEXT,
+  properties    JSONB       NOT NULL DEFAULT '{}',
+  occurred_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_name       ON analytics_events(event_name);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_occurred   ON analytics_events(occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_user       ON analytics_events(user_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_session    ON analytics_events(session_id);
+
+CREATE TABLE IF NOT EXISTS api_request_logs (
+  id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  method          TEXT        NOT NULL,
+  path            TEXT        NOT NULL,
+  status_code     INT         NOT NULL,
+  duration_ms     INT,
+  request_id      TEXT,
+  user_id         UUID        REFERENCES users(id) ON DELETE SET NULL,
+  user_role       TEXT,
+  error_message   TEXT,
+  cf_ray          TEXT,
+  country_code    TEXT,
+  logged_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_api_logs_path       ON api_request_logs(path);
+CREATE INDEX IF NOT EXISTS idx_api_logs_status     ON api_request_logs(status_code);
+CREATE INDEX IF NOT EXISTS idx_api_logs_logged     ON api_request_logs(logged_at DESC);
+CREATE INDEX IF NOT EXISTS idx_api_logs_user       ON api_request_logs(user_id);
+
+CREATE TABLE IF NOT EXISTS payment_observability_events (
+  id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_type        TEXT        NOT NULL,
+  booking_id        UUID        REFERENCES bookings(id) ON DELETE SET NULL,
+  amount_cents      BIGINT,
+  currency          TEXT        NOT NULL DEFAULT 'usd',
+  provider          TEXT        NOT NULL DEFAULT 'stripe',
+  provider_event_id TEXT,
+  success           BOOLEAN     NOT NULL,
+  error_code        TEXT,
+  error_message     TEXT,
+  metadata          JSONB       NOT NULL DEFAULT '{}',
+  occurred_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_pay_obs_type      ON payment_observability_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_pay_obs_success   ON payment_observability_events(success);
+CREATE INDEX IF NOT EXISTS idx_pay_obs_occurred  ON payment_observability_events(occurred_at DESC);
+
+CREATE TABLE IF NOT EXISTS session_replay_refs (
+  id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id      TEXT        NOT NULL,
+  user_id         UUID        REFERENCES users(id) ON DELETE SET NULL,
+  user_role       TEXT,
+  provider        TEXT        NOT NULL DEFAULT 'posthog',
+  provider_ref    TEXT        NOT NULL,
+  duration_secs   INT,
+  rage_clicks     INT         NOT NULL DEFAULT 0,
+  errors          INT         NOT NULL DEFAULT 0,
+  path_start      TEXT,
+  started_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_replay_user      ON session_replay_refs(user_id);
+CREATE INDEX IF NOT EXISTS idx_replay_started   ON session_replay_refs(started_at DESC);
+
+CREATE TABLE IF NOT EXISTS integration_health_events (
+  id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  integration   TEXT        NOT NULL,
+  status        TEXT        NOT NULL,
+  latency_ms    INT,
+  error_message TEXT,
+  metadata      JSONB       NOT NULL DEFAULT '{}',
+  checked_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_integration_health_integration ON integration_health_events(integration);
+CREATE INDEX IF NOT EXISTS idx_integration_health_checked     ON integration_health_events(checked_at DESC);
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 019_admin_roles_automation.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Admin sub-roles: granular permissions within the admin interface.
+-- 'admin_role' is only set for users whose 'role' is 'admin' or 'super_admin'.
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS admin_role TEXT
+    CHECK (admin_role IN ('super_admin','admin','ops','finance','trainer','support'));
+
+-- Carry the role on invites so the right access is granted on accept.
+ALTER TABLE admin_invites
+  ADD COLUMN IF NOT EXISTS admin_role TEXT NOT NULL DEFAULT 'admin'
+    CHECK (admin_role IN ('super_admin','admin','ops','finance','trainer','support'));
+
+-- Automation execution log — one row per run, cron or admin-triggered.
+CREATE TABLE IF NOT EXISTS automation_runs (
+  id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  job_type      TEXT        NOT NULL,
+  triggered_by  TEXT        NOT NULL DEFAULT 'cron',
+  started_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  finished_at   TIMESTAMPTZ,
+  status        TEXT        NOT NULL DEFAULT 'running'
+    CHECK (status IN ('running','completed','failed')),
+  result        JSONB       NOT NULL DEFAULT '{}',
+  error_message TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_auto_runs_type    ON automation_runs(job_type);
+CREATE INDEX IF NOT EXISTS idx_auto_runs_started ON automation_runs(started_at DESC);
+
+-- Payment capture queue — tracks which completed bookings need PI capture.
+CREATE TABLE IF NOT EXISTS payment_capture_queue (
+  id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id    UUID        NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+  payment_intent_id TEXT    NOT NULL,
+  amount_cents  BIGINT      NOT NULL,
+  status        TEXT        NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending','captured','failed','skipped')),
+  attempts      INT         NOT NULL DEFAULT 0,
+  last_error    TEXT,
+  queued_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  resolved_at   TIMESTAMPTZ,
+  UNIQUE(booking_id)
+);
+CREATE INDEX IF NOT EXISTS idx_cap_queue_status  ON payment_capture_queue(status);
+CREATE INDEX IF NOT EXISTS idx_cap_queue_queued  ON payment_capture_queue(queued_at DESC);
+
+-- Reminder log — prevents double-sending.
+CREATE TABLE IF NOT EXISTS booking_reminders (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id  UUID        NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+  reminder_type TEXT      NOT NULL,  -- '24h_customer','24h_cleaner','1h_customer'
+  sent_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(booking_id, reminder_type)
+);
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 020_stripe_marketplace.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Migration 020: Stripe Connect Marketplace & Payout Administration
+
+-- ─── Stripe Connected Accounts ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS stripe_connected_accounts (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  cleaner_id            UUID NOT NULL REFERENCES cleaners(id) ON DELETE CASCADE,
+  stripe_account_id     TEXT NOT NULL UNIQUE,
+  account_type          TEXT NOT NULL DEFAULT 'express' CHECK (account_type IN ('express', 'standard', 'custom')),
+  status                TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'enabled', 'restricted', 'rejected', 'deauthorized')),
+  charges_enabled       BOOLEAN NOT NULL DEFAULT FALSE,
+  payouts_enabled       BOOLEAN NOT NULL DEFAULT FALSE,
+  details_submitted     BOOLEAN NOT NULL DEFAULT FALSE,
+  capabilities          JSONB,
+  requirements          JSONB,
+  onboarding_url        TEXT,
+  country               TEXT NOT NULL DEFAULT 'US',
+  currency              TEXT NOT NULL DEFAULT 'usd',
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_stripe_connected_accounts_cleaner ON stripe_connected_accounts(cleaner_id);
+CREATE INDEX IF NOT EXISTS idx_stripe_connected_accounts_status ON stripe_connected_accounts(status);
+
+-- ─── Platform Fee Settings ────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS platform_fee_settings (
+  id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  fee_type                 TEXT NOT NULL DEFAULT 'percentage' CHECK (fee_type IN ('percentage', 'flat', 'hybrid')),
+  fee_value                NUMERIC(8,4) NOT NULL DEFAULT 20.0000,  -- percent or cents
+  minimum_platform_fee     INTEGER NOT NULL DEFAULT 200,           -- cents
+  maximum_platform_fee     INTEGER,                                -- cents; NULL = uncapped
+  processing_fee_strategy  TEXT NOT NULL DEFAULT 'absorb' CHECK (processing_fee_strategy IN ('absorb', 'pass_through', 'split')),
+  processing_fee_split_pct NUMERIC(5,2) NOT NULL DEFAULT 0.00,    -- % passed to customer when strategy=split
+  reserve_percentage       NUMERIC(5,2) NOT NULL DEFAULT 0.00,    -- % held in reserve
+  payout_delay_days        INTEGER NOT NULL DEFAULT 2,
+  active                   BOOLEAN NOT NULL DEFAULT TRUE,
+  effective_from           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by               UUID REFERENCES users(id),
+  notes                    TEXT,
+  created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Seed default row
+INSERT INTO platform_fee_settings (
+  fee_type, fee_value, minimum_platform_fee, processing_fee_strategy, payout_delay_days, notes
+) VALUES (
+  'percentage', 20.0000, 200, 'absorb', 2, 'Default platform fee — 20% with 2-day payout delay'
+) ON CONFLICT DO NOTHING;
+
+-- ─── Payout Settings Audit ───────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS payout_settings_audit (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  actor_id      UUID NOT NULL REFERENCES users(id),
+  setting_name  TEXT NOT NULL,
+  old_value     TEXT,
+  new_value     TEXT,
+  reason        TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_payout_settings_audit_actor ON payout_settings_audit(actor_id);
+CREATE INDEX IF NOT EXISTS idx_payout_settings_audit_created ON payout_settings_audit(created_at DESC);
+
+-- ─── Cleaner Tier Multipliers ─────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS cleaner_tier_multipliers (
+  tier          TEXT PRIMARY KEY CHECK (tier IN ('standard', 'preferred', 'elite')),
+  multiplier    NUMERIC(4,3) NOT NULL,
+  label         TEXT NOT NULL,
+  description   TEXT,
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO cleaner_tier_multipliers (tier, multiplier, label, description) VALUES
+  ('standard',  1.000, 'Standard',  'Base payout rate'),
+  ('preferred', 1.050, 'Preferred', '5% bonus for preferred cleaners'),
+  ('elite',     1.100, 'Elite',     '10% bonus for elite cleaners')
+ON CONFLICT (tier) DO NOTHING;
+
+-- ─── Expand payouts.status ────────────────────────────────────────────────────
+ALTER TABLE payouts
+  DROP CONSTRAINT IF EXISTS payouts_status_check;
+
+DO $$ BEGIN
+  ALTER TABLE payouts ADD CONSTRAINT payouts_status_check CHECK (
+    status IN ('pending','scheduled','transferred','paid','failed','canceled','held','disputed','refunded')
+  );
+EXCEPTION WHEN duplicate_object THEN NULL; WHEN duplicate_table THEN NULL;
+END $$;
+
+-- Add missing columns to payouts
+ALTER TABLE payouts
+  ADD COLUMN IF NOT EXISTS platform_fee        INTEGER,
+  ADD COLUMN IF NOT EXISTS gross_amount        INTEGER,
+  ADD COLUMN IF NOT EXISTS net_amount          INTEGER,
+  ADD COLUMN IF NOT EXISTS fee_rate            NUMERIC(8,4),
+  ADD COLUMN IF NOT EXISTS tier_multiplier     NUMERIC(4,3) DEFAULT 1.000,
+  ADD COLUMN IF NOT EXISTS stripe_payout_id    TEXT,
+  ADD COLUMN IF NOT EXISTS scheduled_for       TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS held_reason         TEXT,
+  ADD COLUMN IF NOT EXISTS dispute_id          TEXT,
+  ADD COLUMN IF NOT EXISTS notes               TEXT,
+  ADD COLUMN IF NOT EXISTS created_at          TIMESTAMPTZ DEFAULT NOW();
+
+CREATE INDEX IF NOT EXISTS idx_payouts_status ON payouts(status);
+CREATE INDEX IF NOT EXISTS idx_payouts_scheduled_for ON payouts(scheduled_for) WHERE scheduled_for IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_payouts_cleaner_id ON payouts(cleaner_id);
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 021_payout_ledger.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Migration 021: Payout ledger + stripe event idempotency
+
+CREATE TABLE IF NOT EXISTS payout_ledger (
+  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id              UUID REFERENCES bookings(id),
+  cleaner_id              UUID REFERENCES cleaners(id),
+  gross_amount_cents      INTEGER NOT NULL,
+  platform_fee_cents      INTEGER NOT NULL,
+  reserve_amount_cents    INTEGER NOT NULL DEFAULT 0,
+  cleaner_payout_cents    INTEGER NOT NULL,
+  fee_rate                NUMERIC(8,4),
+  tier_multiplier         NUMERIC(4,3) DEFAULT 1.000,
+  status                  TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending','held','eligible','transfer_created','transferred','paid','failed','canceled','refunded','disputed')),
+  stripe_payment_intent_id TEXT,
+  stripe_charge_id        TEXT,
+  stripe_transfer_id      TEXT,
+  stripe_payout_id        TEXT,
+  eligible_at             TIMESTAMPTZ,
+  transferred_at          TIMESTAMPTZ,
+  paid_at                 TIMESTAMPTZ,
+  failed_at               TIMESTAMPTZ,
+  failure_code            TEXT,
+  failure_message         TEXT,
+  dispute_id              TEXT,
+  held_reason             TEXT,
+  notes                   TEXT,
+  created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_payout_ledger_booking_unique ON payout_ledger(booking_id);
+CREATE INDEX IF NOT EXISTS idx_payout_ledger_cleaner ON payout_ledger(cleaner_id);
+CREATE INDEX IF NOT EXISTS idx_payout_ledger_status ON payout_ledger(status);
+CREATE INDEX IF NOT EXISTS idx_payout_ledger_eligible_at ON payout_ledger(eligible_at) WHERE eligible_at IS NOT NULL;
+
+-- Stripe event idempotency table
+CREATE TABLE IF NOT EXISTS stripe_events (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  stripe_event_id  TEXT UNIQUE NOT NULL,
+  event_type       TEXT NOT NULL,
+  payload          JSONB NOT NULL,
+  received_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  processed_at     TIMESTAMPTZ,
+  processing_error TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_stripe_events_type ON stripe_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_stripe_events_received ON stripe_events(received_at DESC);
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 022_access_code_encryption.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Migration 022: Access code encryption + address reveal audit
+
+ALTER TABLE booking_access_codes
+  ADD COLUMN IF NOT EXISTS code_value_encrypted TEXT,
+  ADD COLUMN IF NOT EXISTS encryption_version    TEXT DEFAULT 'v1',
+  ADD COLUMN IF NOT EXISTS revealed_at           TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS revealed_to           UUID REFERENCES users(id);
+
+CREATE INDEX IF NOT EXISTS idx_booking_access_codes_booking ON booking_access_codes(booking_id);
+
+-- Address reveal audit columns on bookings
+ALTER TABLE bookings
+  ADD COLUMN IF NOT EXISTS address_revealed_at     TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS address_revealed_to     UUID REFERENCES users(id);
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 023_booking_auth_indexes.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Migration 023: Booking auth performance indexes
+
+CREATE INDEX IF NOT EXISTS idx_bookings_customer_id ON bookings(customer_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_cleaner_id  ON bookings(cleaner_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_status      ON bookings(status);
+CREATE INDEX IF NOT EXISTS idx_bookings_scheduled_at ON bookings(scheduled_at);
+
+-- Customer / cleaner user_id lookup indexes
+CREATE INDEX IF NOT EXISTS idx_customers_user_id ON customers(user_id);
+CREATE INDEX IF NOT EXISTS idx_cleaners_user_id  ON cleaners(user_id);
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 024_observability_retention.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Migration 024: Observability retention (cleanup driven by cron)
+-- Adds logged_at column aliases so the retention cron can use a uniform column name.
+
+ALTER TABLE api_request_logs
+  ADD COLUMN IF NOT EXISTS logged_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+ALTER TABLE analytics_events
+  ADD COLUMN IF NOT EXISTS occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+-- Payment observability: add missing columns if not present
+ALTER TABLE payment_observability_events
+  ADD COLUMN IF NOT EXISTS provider_event_id TEXT,
+  ADD COLUMN IF NOT EXISTS booking_id        UUID REFERENCES bookings(id),
+  ADD COLUMN IF NOT EXISTS amount_cents      INTEGER,
+  ADD COLUMN IF NOT EXISTS success           BOOLEAN,
+  ADD COLUMN IF NOT EXISTS error_code        TEXT,
+  ADD COLUMN IF NOT EXISTS error_message     TEXT,
+  ADD COLUMN IF NOT EXISTS metadata          JSONB;
+
+CREATE INDEX IF NOT EXISTS idx_payment_obs_type ON payment_observability_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_payment_obs_booking ON payment_observability_events(booking_id) WHERE booking_id IS NOT NULL;
+
+-- Cleaner availability table
+CREATE TABLE IF NOT EXISTS cleaner_availability (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  cleaner_id   UUID NOT NULL REFERENCES cleaners(id) ON DELETE CASCADE,
+  day_of_week  INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6), -- 0=Sun
+  start_time   TIME NOT NULL,
+  end_time     TIME NOT NULL,
+  active       BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (cleaner_id, day_of_week)
+);
+
+-- Cleaner blocked dates
+CREATE TABLE IF NOT EXISTS cleaner_blocked_dates (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  cleaner_id   UUID NOT NULL REFERENCES cleaners(id) ON DELETE CASCADE,
+  blocked_date DATE NOT NULL,
+  reason       TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (cleaner_id, blocked_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cleaner_availability_cleaner ON cleaner_availability(cleaner_id);
+CREATE INDEX IF NOT EXISTS idx_cleaner_blocked_dates_cleaner ON cleaner_blocked_dates(cleaner_id);
+CREATE INDEX IF NOT EXISTS idx_cleaner_blocked_dates_date ON cleaner_blocked_dates(blocked_date);
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 025_production_hardening.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Migration 025: Production hardening — completion requirements, webhook DLQ,
+--                address reveal config, booking auth indexes
+
+-- ─── Job Completion Requirements ────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS job_completion_requirements (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  minimum_before_photos INTEGER NOT NULL DEFAULT 3,
+  minimum_after_photos  INTEGER NOT NULL DEFAULT 3,
+  require_checkout_photo BOOLEAN NOT NULL DEFAULT TRUE,
+  active                BOOLEAN NOT NULL DEFAULT TRUE,
+  updated_by            UUID REFERENCES users(id),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO job_completion_requirements
+  (minimum_before_photos, minimum_after_photos, require_checkout_photo, active)
+VALUES (3, 3, TRUE, TRUE)
+ON CONFLICT DO NOTHING;
+
+-- ─── Address Reveal Configuration ────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS address_reveal_settings (
+  id                         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  reveal_hours_before        INTEGER NOT NULL DEFAULT 4,   -- how many hours before scheduled start
+  allow_same_day_only        BOOLEAN NOT NULL DEFAULT TRUE,
+  active                     BOOLEAN NOT NULL DEFAULT TRUE,
+  updated_by                 UUID REFERENCES users(id),
+  updated_at                 TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO address_reveal_settings (reveal_hours_before, allow_same_day_only, active)
+VALUES (4, TRUE, TRUE)
+ON CONFLICT DO NOTHING;
+
+-- ─── Failed Webhook Dead-Letter Queue ────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS failed_webhook_events (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  stripe_event_id TEXT NOT NULL,
+  event_type      TEXT NOT NULL,
+  payload         JSONB NOT NULL,
+  error_message   TEXT NOT NULL,
+  retry_count     INTEGER NOT NULL DEFAULT 0,
+  last_retry_at   TIMESTAMPTZ,
+  resolved_at     TIMESTAMPTZ,
+  resolved_by     UUID REFERENCES users(id),
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_failed_webhook_events_unresolved
+  ON failed_webhook_events(created_at DESC)
+  WHERE resolved_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_failed_webhook_events_stripe_id
+  ON failed_webhook_events(stripe_event_id);
+
+-- ─── Add columns to stripe_events for DLQ tracking ───────────────────────────
+ALTER TABLE stripe_events
+  ADD COLUMN IF NOT EXISTS retry_count     INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS last_error      TEXT;
+
+-- ─── Payment intent idempotency — track created intents ──────────────────────
+-- Prevents the same bookingId from getting two PaymentIntents
+ALTER TABLE bookings
+  ADD COLUMN IF NOT EXISTS stripe_payment_intent_created_at TIMESTAMPTZ;
+
+-- ─── Access code — ensure encrypted column exists ────────────────────────────
+ALTER TABLE booking_access_codes
+  ADD COLUMN IF NOT EXISTS code_value_encrypted TEXT,
+  ADD COLUMN IF NOT EXISTS encryption_version   TEXT DEFAULT 'v1',
+  ADD COLUMN IF NOT EXISTS revealed_at          TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS revealed_to          UUID REFERENCES users(id);
+
+-- Make code_value nullable (will be NULL once encryption is live)
+ALTER TABLE booking_access_codes
+  ALTER COLUMN code_value DROP NOT NULL;

@@ -1,195 +1,231 @@
 # Sweepr Production Readiness Report
 
 **Generated:** 2026-06-24  
-**Scope:** Full API + Admin + Cleaner apps  
-**Total lines of code:** 141,008 (TypeScript + SQL)
+**Schema:** Migrations 001–025 (24 structural migrations; 008* content seeds excluded from schema.sql)  
+**Total codebase:** ~150,000 lines (TypeScript + SQL + config)
 
 ---
 
-## Summary
+## Status: Application-Layer Complete — Awaiting Deployment Verification
 
-All P0 (critical) and P1 (high-priority) production hardening items have been implemented. The application is production-ready from a security and operational standpoint.
+All P0 and P1 code-level fixes are implemented and TypeScript-verified.  
+The following deployment steps remain the operator's responsibility before going live.
 
 ---
 
-## P0 — Critical Security Fixes
+## P0 — Critical Security Fixes ✅
 
-### P0-1: Payment Amount Tampering — FIXED ✅
+### P0-1: Payment Amount Tampering — FIXED
 
-**Problem:** `POST /payments/create-intent` accepted a client-supplied `amount` field, allowing any authenticated user to create a PaymentIntent for $0.01 instead of the actual booking price.
+`POST /payments/create-intent` no longer accepts a client-supplied `amount`. The endpoint:
 
-**Fix:** Removed `amount` and `currency` from the request schema entirely. The endpoint now:
 1. Accepts only `{ bookingId: string }`
-2. Loads `total_price` from the bookings table in the DB
-3. Verifies the caller owns the booking (customer_user_id check)
-4. Rejects already-paid/cancelled/refunded bookings
+2. Loads `total_price` from the bookings table
+3. Verifies caller owns the booking (`customer_user_id` check)
+4. Rejects already-paid, cancelled, or refunded bookings
 5. Returns an existing intent if one was created within 24h (idempotency via `stripe_payment_intent_created_at`)
-6. Audits every intent creation
+6. Audits every intent creation as `payment.intent_created`
 
-**Files:** `apps/api/src/routes/payments.ts`
-
----
-
-### P0-2: Access Code Stored in Plaintext — FIXED ✅
-
-**Problem:** `booking_access_codes.code_value` stored lockbox codes and key instructions as plaintext. Any DB leak would expose all active access codes.
-
-**Fix:** 
-- `POST /jobs/bookings/:id/access-code` now encrypts `code_value` with AES-GCM using the `ACCESS_CODE_SECRET` env var, stores the result in `code_value_encrypted`, and sets `code_value = NULL`
-- `POST /jobs/bookings/:id/start-clean` decrypts the code only after GPS arrival is verified and job is `in_progress`
-- Decryption failures are handled gracefully (returns null rather than crashing)
-- Audits every access code reveal as `access_code.revealed`
-
-**Files:** `apps/api/src/routes/dayOfService.ts`, `apps/api/src/lib/crypto.ts`  
-**Infrastructure:** Set `ACCESS_CODE_SECRET` as a Cloudflare Worker secret (32+ char random string)
+**File:** `apps/api/src/routes/payments.ts`
 
 ---
 
-### P0-3: Photo Upload Authorization — FIXED ✅
+### P0-2: Access Code Stored in Plaintext — FIXED
 
-**Problem:** `POST /jobs/bookings/:id/photos` checked that the booking existed but did not verify the caller was the assigned cleaner or customer, nor that the job was in an active state.
+Access codes are now encrypted at rest using AES-256-GCM with SHA-256 key derivation.
 
-**Fix:** Created `apps/api/src/lib/bookingAuthorization.ts` with:
-- `getBookingAuthCtx()` — resolves caller role (admin/cleaner/customer) for a given booking
-- `canViewBooking()` — admin, cleaner, or customer
-- `canModifyBooking()` — admin, cleaner, or customer
-- `canUploadPhotos()` — admin always; cleaner/customer only during `en_route`, `arrived`, `in_progress`, `awaiting_checkout`
+- `POST /jobs/bookings/:id/access-code` — encrypts with `ACCESS_CODE_ENCRYPTION_KEY`, stores in `code_value_encrypted`, sets `code_value = NULL`
+- `POST /jobs/bookings/:id/start-clean` — decrypts only after GPS arrival verified and job is `in_progress`
+- **Production enforcement:** missing `ACCESS_CODE_ENCRYPTION_KEY` throws a hard error at request time — no silent plaintext fallback
+- **Development only:** missing key emits a loud warning and stores plaintext (opt-in dev mode)
+- Decryption failures return `null` for the code value — never expose raw encrypted bytes
+- Every reveal audited as `access_code.revealed` with booking_id, arrival_verified_at, IP, user-agent — never includes raw code value
+
+**Files:** `apps/api/src/routes/dayOfService.ts`, `apps/api/src/lib/crypto.ts`
+
+**Required action:** Set `ACCESS_CODE_ENCRYPTION_KEY` as a Cloudflare Worker secret:
+```
+wrangler secret put ACCESS_CODE_ENCRYPTION_KEY
+# Enter: $(openssl rand -hex 32)
+```
+
+---
+
+### P0-3: Photo Upload Authorization — FIXED
+
+`POST /jobs/bookings/:id/photos` now uses `bookingAuthorization.ts`:
+
+- `canUploadPhotos()` — allows admin always; cleaner/customer only during `en_route`, `arrived`, `in_progress`, `awaiting_checkout`
 - `canViewAccessCodes()` — admin always; cleaner only after GPS arrival + `in_progress`; customer always
+- Storage key must start with `bookings/{bookingId}/` — guards cross-booking key injection
 
-Photo upload endpoint now calls `canUploadPhotos()` and returns 403 if not authorized.
-
-**Files:** `apps/api/src/lib/bookingAuthorization.ts`, `apps/api/src/routes/dayOfService.ts`
-
----
-
-### P0-4: Before/After Photo Minimums Not Enforced — FIXED ✅
-
-**Problem:** A job could be completed with zero before/after photos.
-
-**Fix:**
-- Added `job_completion_requirements` table (migration 025) with configurable `minimum_before_photos`, `minimum_after_photos`, `require_checkout_photo`
-- Default row: 3 before, 3 after, checkout required
-- `POST /jobs/bookings/:id/complete` now loads requirements from DB, counts before/after photos, and returns 400 with a descriptive error if minimums aren't met
-- Admin can update requirements via the DB (no UI endpoint required per spec)
-
-**Files:** `apps/api/src/routes/dayOfService.ts`, `packages/db/src/migrations/025_production_hardening.sql`
+**File:** `apps/api/src/lib/bookingAuthorization.ts`
 
 ---
 
-## P1 — High-Priority Operational Fixes
+### P0-4: Photo Minimums Not Enforced — FIXED
 
-### P1-5: Address Reveal Has No Timing Window — FIXED ✅
+- `job_completion_requirements` table (migration 025) stores configurable minimums (default: 3 before, 3 after, checkout required)
+- `POST /jobs/bookings/:id/complete` validates photo counts **before** inserting checkout photo, preventing orphaned rows on retry
+- Checkout photo uses idempotent upsert — safe to retry
+- Storage key validated to scope `bookings/{bookingId}/`
 
-**Problem:** Full address was revealed the moment a cleaner tapped "Start Route," with no restriction on timing (could be 3 days before the job).
-
-**Fix:**
-- Added `address_reveal_settings` table (migration 025) with `reveal_hours_before` (default 4) and `allow_same_day_only` (default true)
-- `POST /jobs/bookings/:id/start-route` now loads settings from DB and enforces:
-  - If `allow_same_day_only`: rejects reveal on any day other than the scheduled date
-  - If `now < scheduled_at - reveal_hours_before`: returns 403 with hours-until message
-
-**Files:** `apps/api/src/routes/dayOfService.ts`, `packages/db/src/migrations/025_production_hardening.sql`
+**File:** `apps/api/src/routes/dayOfService.ts`
 
 ---
 
-### P1-6: Payout System Schema Reconciliation — DONE ✅
+## P1 — High-Priority Operational Fixes ✅
 
-All payout tables verified across migrations 020–025:
-- `stripe_connected_accounts` — cleaner Connect account capabilities
-- `platform_fee_settings` — DB-driven fee config (replaces hardcoded 20%)
-- `payout_ledger` — per-booking payment tracking from capture to transfer
-- `payouts` — individual payout records with full breakdown (gross, net, fee_rate, tier_multiplier)
-- `cleaner_tier_multipliers` — tier-based payout multipliers
-- `failed_webhook_events` — DLQ for failed Stripe event processing
+### P1-5: Address Reveal Has No Timing Window — FIXED
 
----
+`address_reveal_settings` table (migration 025) stores configurable reveal window (default: 4h before, same-day only).
 
-### P1-7: Stripe Webhook Has No Dead-Letter Queue — FIXED ✅
+`POST /jobs/bookings/:id/start-route` enforces:
+- Same-day check (when `allow_same_day_only = true`)
+- Hours-before window check
 
-**Problem:** If the webhook handler threw an exception, the event was silently lost.
-
-**Fix:**
-- Entire event processing `switch` block wrapped in try/catch
-- On failure: inserts to `failed_webhook_events` with payload, error message, retry count
-- Returns 200 (not 5xx) to prevent Stripe from retrying — our DLQ handles retries
-- Admin endpoints added to `GET /admin/observability/failed-webhooks` (list with resolved/unresolved filter)
-- `POST /admin/observability/failed-webhooks/:id/replay` — resets `processed_at` for replay on next webhook delivery
-- `POST /admin/observability/failed-webhooks/:id/resolve` — marks manually resolved
-
-**Files:** `apps/api/src/routes/stripe-webhook.ts`, `apps/api/src/routes/adminObservability.ts`
+**File:** `apps/api/src/routes/dayOfService.ts`
 
 ---
 
-### P1-8: No Request Tracing ID — FIXED ✅
+### P1-6: Payout Schema Reconciliation — DONE
 
-**Problem:** No way to correlate a request across logs, errors, and Cloudflare analytics.
-
-**Fix:** `requestLogger` middleware now:
-1. Generates `crypto.randomUUID()` (or reads `X-Request-ID` if caller provides one)
-2. Sets `X-Request-ID` response header on every request
-3. Stores the request ID in `api_request_logs`
-
-Clients and frontend error monitors can correlate their errors to specific API request logs.
-
-**Files:** `apps/api/src/middleware/requestLogger.ts`
+All payout tables verified across migrations 020–025 and present in `schema.sql`:
+`stripe_connected_accounts`, `platform_fee_settings`, `cleaner_tier_multipliers`, `payout_settings_audit`, `payout_ledger`, `payouts`, `failed_webhook_events`
 
 ---
 
-### P1-9: Security Test Suite — COMPLETE ✅
+### P1-7: Webhook Dead-Letter Queue — FIXED
 
-Created `apps/api/tests/security/` with 6 test files:
+- Event processing wrapped in try/catch
+- On failure: inserts to `failed_webhook_events` (payload, error, retry count)
+- Returns HTTP 200 to suppress Stripe retries; DLQ admin handles replay
+- Admin endpoints: `GET /admin/observability/failed-webhooks`, `POST .../replay`, `POST .../resolve`
 
-| File | Coverage |
-|------|----------|
-| `payment-tampering.test.ts` | Amount isolation, ownership check, double-intent prevention, rejected statuses |
-| `access-code-encryption.test.ts` | AES-GCM round-trip, random IV, wrong-key rejection, null-plaintext enforcement |
-| `photo-authorization.test.ts` | `canUploadPhotos()` for all roles and day_status states |
-| `photo-enforcement.test.ts` | Minimum photo count enforcement, configurable requirements |
-| `address-reveal-timing.test.ts` | Same-day check, hours-before window, edge cases |
-| `webhook-idempotency.test.ts` | Duplicate detection, DLQ insert, replay logic, 200-on-failure rationale |
+**File:** `apps/api/src/routes/stripe-webhook.ts`, `apps/api/src/routes/adminObservability.ts`
 
 ---
 
-## Additional Completed Work (This Session)
+### P1-8: No Request Tracing ID — FIXED
 
-| Feature | Status |
-|---------|--------|
-| Stripe Connect Marketplace (migration 020) | ✅ |
-| Payout Engine (`payoutEngine.ts`) | ✅ |
-| Admin Payouts (14 endpoints) | ✅ |
-| PayoutsPage.tsx (7-tab UI) | ✅ |
-| Migrations 021–025 | ✅ |
-| Booking access enforcement (`bookingAccess.ts`) | ✅ |
-| Server-side pricing (`pricingEngine.ts`) | ✅ |
-| AES-GCM crypto (`crypto.ts`) | ✅ |
-| Payment observability (`paymentObservability.ts`) | ✅ |
-| Request logging middleware | ✅ |
-| Admin role DB source of truth (`adminMe.ts`) | ✅ |
-| Webhook idempotency | ✅ |
-| Cleaner Dashboard (6 tabs, 12 endpoints) | ✅ |
-| Complete schema file (migrations 001–025) | ✅ |
-| `/cleaners` route conflict resolved | ✅ (moved to `/cleaner-dashboard`) |
+`X-Request-ID` set on every response (generated or propagated from caller). Stored in `api_request_logs`.
+
+**File:** `apps/api/src/middleware/requestLogger.ts`
 
 ---
 
-## Infrastructure Checklist (User Actions Required)
+### P1-9: Security Test Suite — COMPLETE
 
-- [ ] Set `ACCESS_CODE_SECRET` as Cloudflare Worker secret (32-byte random string)
-- [ ] Run `packages/db/schema_complete.sql` against Neon (or run migrations 001–025 in sequence)
-- [ ] Set `CLEANER_APP_URL` and `ADMIN_URL` Worker env vars
-- [ ] Set `POSTHOG_KEY` for server-side event tracking
-- [ ] Configure Cloudflare Pages projects for each app
-- [ ] Verify Stripe webhook endpoint points to `api.getsweepr.com/webhooks/stripe`
-- [ ] Set up Stripe Connect webhook for `account.updated` events
+`apps/api/tests/security/` (6 spec files):
+
+| File | What It Tests |
+|------|--------------|
+| `payment-tampering.test.ts` | Amount isolation, ownership, double-intent, rejected statuses |
+| `access-code-encryption.test.ts` | AES-GCM round-trip, random IV, wrong-key rejection, null-plaintext |
+| `photo-authorization.test.ts` | `canUploadPhotos()` for all roles + states |
+| `photo-enforcement.test.ts` | Minimum counts, configurable requirements, validation order |
+| `address-reveal-timing.test.ts` | Same-day, hours-before window, edge cases |
+| `webhook-idempotency.test.ts` | Duplicate detection, DLQ insert, replay, 200-on-failure |
+
+---
+
+## Schema Consolidation ✅
+
+| Item | Status |
+|------|--------|
+| `packages/db/schema.sql` regenerated from migrations 001–025 | ✅ |
+| `schema_complete.sql` removed (was stale/redundant) | ✅ |
+| `build-schema.mjs` dynamically includes all migrations, skips 008* seeds | ✅ |
+| `verify-schema.mjs` verifies 58 tables, 22 columns, 11 migration sections | ✅ |
+| CI (`deploy.yml`) runs `build:schema` + `verify:schema` + `git diff --exit-code` | ✅ |
+
+---
+
+## Encryption Hardening ✅
+
+| Item | Status |
+|------|--------|
+| Env var unified to `ACCESS_CODE_ENCRYPTION_KEY` everywhere | ✅ |
+| Key derivation upgraded to SHA-256 (no more pad/truncate) | ✅ |
+| Production: missing key = hard throw | ✅ |
+| Development: missing key = loud warning, plaintext fallback | ✅ |
+| Audit never includes raw/encrypted code value | ✅ |
+
+---
+
+## Deployment Checklist (Operator Actions Required)
+
+### Cloudflare Worker Secrets
+```bash
+wrangler secret put ACCESS_CODE_ENCRYPTION_KEY   # openssl rand -hex 32
+wrangler secret put DATABASE_URL
+wrangler secret put CLERK_SECRET_KEY
+wrangler secret put STRIPE_SECRET_KEY
+wrangler secret put STRIPE_WEBHOOK_SECRET
+wrangler secret put MAILERSEND_API_KEY
+wrangler secret put R2_ACCESS_KEY_ID
+wrangler secret put R2_SECRET_ACCESS_KEY
+```
+
+### wrangler.toml `[vars]` (non-secret runtime config)
+```toml
+ENVIRONMENT = "production"
+ADMIN_URL = "https://admin.getsweepr.com"
+CLEANER_APP_URL = "https://clean.getsweepr.com"
+CUSTOMER_URL = "https://app.getsweepr.com"
+```
+
+### Database
+```bash
+# Run schema.sql against your Neon database (idempotent — safe to re-run):
+psql $DATABASE_URL < packages/db/schema.sql
+```
+
+### Stripe
+- Verify webhook endpoint: `https://api.getsweepr.com/webhooks/stripe`
+- Enable events: `payment_intent.succeeded`, `payment_intent.payment_failed`, `account.updated`, `charge.dispute.*`, `transfer.*`, `payout.*`, `invoice.payment_succeeded`
+
+### GitHub Secrets (for CI/CD deploy)
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+- `VITE_CLERK_PUBLISHABLE_KEY`
+- `VITE_STRIPE_PUBLISHABLE_KEY`
+- `VITE_MAPBOX_PUBLIC_TOKEN`
+- `VITE_POSTHOG_KEY`
+- `VITE_POSTHOG_HOST`
 
 ---
 
 ## Security Constraints (Permanent)
 
-- Sweepr never receives, processes, or stores ID images, selfies, or biometric data
-- API uses Authorization: Bearer tokens — CSRF immune by design (no cookies)
-- VITE_* vars baked at build time from GitHub Secrets; runtime secrets live in Cloudflare Worker secrets
+- Sweepr **never** receives, processes, or stores ID images, selfies, or biometric data
+- API uses `Authorization: Bearer` tokens — CSRF immune by design (no cookies)
+- `VITE_*` vars are baked at build time from GitHub Secrets; runtime secrets live in Cloudflare Worker secrets only
 - Didit credentials never exposed to frontend — client receives hosted URL only
-- Never log: passwords, CVV, full card/account numbers, raw access codes, raw key instructions, SSNs, background check sensitive data, identity verification documents
+- **Never log:** passwords, CVV, full card/account numbers, raw access codes, raw key instructions, SSNs, background check data, identity verification documents
 - Do not store raw IP — prefer hashed IP or Cloudflare aggregate analytics
-- Session replay must mask: all text inputs, addresses, access instructions, lockbox/key codes, payment fields, private messages, phone numbers, emails
+- **Session replay must mask:** all text inputs, addresses, access instructions, lockbox/key codes, payment fields, private messages, phone numbers, emails
+
+---
+
+## Files Changed This Session
+
+| File | Change |
+|------|--------|
+| `packages/db/schema.sql` | Regenerated — migrations 001–025 (1,615 lines) |
+| `packages/db/schema_complete.sql` | **Removed** (stale, superseded) |
+| `packages/db/build-schema.mjs` | Already dynamic; re-run to regenerate |
+| `packages/db/verify-schema.mjs` | **Created** — CI schema verification |
+| `packages/db/package.json` | Added `build:schema` + `verify:schema` scripts |
+| `apps/api/src/lib/crypto.ts` | SHA-256 key derivation; `requireEncryptionKey()` |
+| `apps/api/src/types.ts` | `ACCESS_CODE_SECRET` → `ACCESS_CODE_ENCRYPTION_KEY` |
+| `apps/api/src/routes/dayOfService.ts` | Encryption key rename; production enforcement; photo validation order fix; storage key scope check; improved audit |
+| `apps/api/src/routes/payments.ts` | Amount from DB only; ownership check; idempotency |
+| `apps/api/src/routes/stripe-webhook.ts` | DLQ try/catch |
+| `apps/api/src/routes/adminObservability.ts` | Failed webhooks list/replay/resolve endpoints |
+| `apps/api/src/lib/bookingAuthorization.ts` | Created — central auth helpers |
+| `apps/api/src/middleware/requestLogger.ts` | X-Request-ID on all responses |
+| `.env.example` | All Worker secrets documented |
+| `.github/workflows/deploy.yml` | Schema build + verify + diff check in CI |
+| `apps/api/tests/security/*.test.ts` | 6 security test files |
+| `PRODUCTION_READINESS_REPORT.md` | This file |

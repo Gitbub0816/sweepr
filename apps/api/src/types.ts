@@ -25,7 +25,7 @@ export interface Env {
   RATE_LIMIT_KV: KVNamespace;
   CLEANER_APP_URL?: string;
   ADMIN_URL?: string;
-  ACCESS_CODE_SECRET?: string;
+  ACCESS_CODE_ENCRYPTION_KEY?: string;
 }
 
 export interface AuthUser {

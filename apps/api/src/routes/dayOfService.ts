@@ -18,7 +18,7 @@ import { z } from "zod";
 import { getDb } from "../lib/db";
 import { requireAuth } from "../middleware/auth";
 import { audit } from "../lib/audit";
-import { encryptSecret, decryptSecret } from "../lib/crypto";
+import { encryptSecret, decryptSecret, requireEncryptionKey } from "../lib/crypto";
 import { canUploadPhotos, getBookingAuthCtx } from "../lib/bookingAuthorization";
 import type { AppBindings } from "../types";
 
@@ -245,27 +245,36 @@ dayOfServiceRouter.post(
       FROM booking_access_codes WHERE booking_id = ${bookingId}
     `) as Array<{ code_type: string; code_value: string | null; code_value_encrypted: string | null; notes: string | null }>;
 
-    const accessSecret = c.env.ACCESS_CODE_SECRET;
+    const encryptionKey = requireEncryptionKey(c.env.ACCESS_CODE_ENCRYPTION_KEY, c.env.ENVIRONMENT);
     const codes = await Promise.all(rawCodes.map(async (code) => {
       let decryptedValue: string | null = null;
-      if (code.code_value_encrypted && accessSecret) {
+      if (code.code_value_encrypted && encryptionKey) {
         try {
-          decryptedValue = await decryptSecret(code.code_value_encrypted, accessSecret);
+          decryptedValue = await decryptSecret(code.code_value_encrypted, encryptionKey);
         } catch {
+          // Decryption failed — do not expose raw bytes; treat as unavailable.
           decryptedValue = null;
         }
-      } else {
+      } else if (!code.code_value_encrypted) {
+        // Legacy plaintext row (pre-encryption migration); return as-is.
         decryptedValue = code.code_value;
       }
+      // Never include encrypted payload in response — only decrypted value or null.
       return { code_type: code.code_type, code_value: decryptedValue, notes: code.notes };
     }));
 
+    // Audit includes booking/cleaner context and IP but never the raw code value.
     await audit(sql, {
       action: "access_code.revealed",
       actorClerkId: clerkId,
       targetType: "booking",
       targetId: bookingId,
-      metadata: { code_count: codes.length },
+      metadata: {
+        code_count: codes.length,
+        arrival_verified_at: booking.arrival_verified_at,
+      },
+      ipAddress: c.req.header("CF-Connecting-IP"),
+      userAgent: c.req.header("User-Agent"),
       timestamp: new Date().toISOString(),
     });
 
@@ -349,11 +358,7 @@ dayOfServiceRouter.post(
 
     const now = new Date();
 
-    await sql`
-      INSERT INTO booking_photos (booking_id, photo_type, storage_key, uploaded_by)
-      VALUES (${bookingId}, 'checkout', ${checkout_photo_key}, ${clerkId})
-    `;
-
+    // Validate photo minimums BEFORE inserting checkout photo (avoids orphaned rows on retry).
     const beforeCount = (await sql`
       SELECT COUNT(*)::int AS c FROM booking_photos WHERE booking_id = ${bookingId} AND photo_type = 'before'
     `) as Array<{ c: number }>;
@@ -361,13 +366,26 @@ dayOfServiceRouter.post(
       SELECT COUNT(*)::int AS c FROM booking_photos WHERE booking_id = ${bookingId} AND photo_type = 'after'
     `) as Array<{ c: number }>;
 
-    // Enforce minimums.
     if ((beforeCount[0]?.c ?? 0) < req.minimum_before_photos) {
       return c.json({ error: `At least ${req.minimum_before_photos} before photos are required (have ${beforeCount[0]?.c ?? 0})` }, 400);
     }
     if ((afterCount[0]?.c ?? 0) < req.minimum_after_photos) {
       return c.json({ error: `At least ${req.minimum_after_photos} after photos are required (have ${afterCount[0]?.c ?? 0})` }, 400);
     }
+
+    // Validate storage key is scoped to this booking (guards against key-injection across bookings).
+    if (!checkout_photo_key.startsWith(`bookings/${bookingId}/`)) {
+      return c.json({ error: "Invalid storage key for booking" }, 400);
+    }
+
+    // Idempotent upsert — safe if cleaner retries completion.
+    await sql`
+      INSERT INTO booking_photos (booking_id, photo_type, storage_key, uploaded_by)
+      VALUES (${bookingId}, 'checkout', ${checkout_photo_key}, ${clerkId})
+      ON CONFLICT (booking_id, photo_type) DO UPDATE SET
+        storage_key = EXCLUDED.storage_key,
+        uploaded_by = EXCLUDED.uploaded_by
+    `;
 
     const durationMins = booking.started_at
       ? Math.round((now.getTime() - new Date(booking.started_at).getTime()) / 60000)
@@ -424,6 +442,11 @@ dayOfServiceRouter.post(
     if (!ctx) return c.json({ error: "Not found" }, 404);
     if (!canUploadPhotos(ctx)) {
       return c.json({ error: "Forbidden — photos can only be uploaded during an active job" }, 403);
+    }
+
+    // Guard against cross-booking storage key injection.
+    if (!storage_key.startsWith(`bookings/${bookingId}/`)) {
+      return c.json({ error: "Invalid storage key for booking" }, 400);
     }
 
     await sql`
@@ -528,26 +551,30 @@ dayOfServiceRouter.post(
     `) as Array<{ id: string }>;
     if (!rows[0]) return c.json({ error: "Forbidden" }, 403);
 
-    // P0-2: Encrypt access code at rest; store plaintext as NULL.
-    const accessSecret = c.env.ACCESS_CODE_SECRET;
+    // Production: reject if encryption key is missing. Dev: warn and fall back to plaintext.
+    const encryptionKey = requireEncryptionKey(c.env.ACCESS_CODE_ENCRYPTION_KEY, c.env.ENVIRONMENT);
+
     let encryptedValue: string | null = null;
     let plaintextValue: string | null = code_value;
 
-    if (accessSecret) {
-      encryptedValue = await encryptSecret(code_value, accessSecret);
+    if (encryptionKey) {
+      encryptedValue = await encryptSecret(code_value, encryptionKey);
       plaintextValue = null;
     }
 
     await sql`
-      INSERT INTO booking_access_codes (booking_id, code_type, code_value, code_value_encrypted, encryption_version, notes, created_by)
-      VALUES (${bookingId}, ${code_type}, ${plaintextValue}, ${encryptedValue}, ${accessSecret ? 'v1' : null}, ${notes ?? null}, ${clerkId})
+      INSERT INTO booking_access_codes
+        (booking_id, code_type, code_value, code_value_encrypted, encryption_version, notes, created_by)
+      VALUES
+        (${bookingId}, ${code_type}, ${plaintextValue}, ${encryptedValue},
+         ${encryptionKey ? "v1" : null}, ${notes ?? null}, ${clerkId})
       ON CONFLICT (booking_id) DO UPDATE SET
-        code_type = EXCLUDED.code_type,
-        code_value = EXCLUDED.code_value,
+        code_type            = EXCLUDED.code_type,
+        code_value           = EXCLUDED.code_value,
         code_value_encrypted = EXCLUDED.code_value_encrypted,
-        encryption_version = EXCLUDED.encryption_version,
-        notes = EXCLUDED.notes,
-        updated_at = NOW()
+        encryption_version   = EXCLUDED.encryption_version,
+        notes                = EXCLUDED.notes,
+        updated_at           = NOW()
     `;
 
     return c.json({ ok: true });
