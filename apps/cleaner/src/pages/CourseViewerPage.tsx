@@ -145,7 +145,7 @@ function CoursePlayer({ courseId }: { courseId: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-md">
+    <div className="mx-auto max-w-4xl">
       <div className="mb-3 flex items-center justify-between">
         <button onClick={() => navigate("/courses")} className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
           <ChevronLeft className="h-4 w-4" /> Exit
@@ -158,9 +158,9 @@ function CoursePlayer({ courseId }: { courseId: string }) {
         <div className="h-full bg-seafoam-500 transition-all" style={{ width: `${((index + 1) / slides.length) * 100}%` }} />
       </div>
 
-      {/* Slide canvas (mobile portrait) */}
+      {/* Slide canvas (landscape 16:9) */}
       <div
-        className="relative mx-auto aspect-[9/16] w-full overflow-hidden rounded-2xl bg-white shadow-lg"
+        className="relative mx-auto aspect-video w-full overflow-hidden rounded-2xl bg-white shadow-lg"
         style={{ background: (slide.background?.color as string) ?? "#ffffff" }}
       >
         {slide.blocks.map((b) => (
@@ -187,16 +187,55 @@ function CoursePlayer({ courseId }: { courseId: string }) {
   );
 }
 
+const CALLOUT_STYLES: Record<string, { bg: string; border: string; text: string }> = {
+  info: { bg: "#eff6ff", border: "#bfdbfe", text: "#1e40af" },
+  warning: { bg: "#fffbeb", border: "#fde68a", text: "#92400e" },
+  success: { bg: "#ecfdf5", border: "#a7f3d0", text: "#065f46" },
+  tip: { bg: "#f5f3ff", border: "#ddd6fe", text: "#5b21b6" },
+};
+
 function LearnerBlock({ block }: { block: Block }) {
   const p = block.props;
   switch (block.block_type) {
+    case "heading":
     case "text":
       return (
-        <div className="h-full w-full overflow-hidden" style={{
-          fontSize: `${(p.size as number) ?? 18}px`, fontWeight: (p.weight as number) ?? 600,
+        <div className="h-full w-full overflow-hidden whitespace-pre-wrap" style={{
+          fontSize: `${(p.size as number) ?? 18}px`, fontWeight: (p.weight as number) ?? (block.block_type === "heading" ? 700 : 400),
           color: (p.color as string) ?? "#0f172a", textAlign: (p.align as "left") ?? "left",
+          fontFamily: (p.font as string) ?? "Inter",
+          fontStyle: p.italic ? "italic" : "normal",
+          textDecoration: p.underline ? "underline" : "none",
+          lineHeight: (p.lineHeight as number) ?? 1.3,
         }}>{(p.content as string) ?? ""}</div>
       );
+    case "shape": {
+      const isEllipse = p.shape === "ellipse";
+      if (p.shape === "line") return <div className="w-full" style={{ height: 0, borderTop: `${(p.border as number) || 3}px solid ${(p.fill as string) ?? "#2DD4BF"}`, marginTop: "50%" }} />;
+      return <div className="h-full w-full" style={{
+        background: (p.fill as string) ?? "#2DD4BF",
+        borderRadius: isEllipse ? "50%" : `${(p.radius as number) ?? 12}px`,
+        border: (p.border as number) ? `${p.border}px solid ${(p.borderColor as string) ?? "#0f766e"}` : undefined,
+        opacity: (p.opacity as number) ?? 1,
+      }} />;
+    }
+    case "divider":
+      return <div className="w-full" style={{ borderTop: `${(p.thickness as number) ?? 2}px solid ${(p.color as string) ?? "#cbd5e1"}`, marginTop: "50%" }} />;
+    case "spacer":
+      return null;
+    case "callout": {
+      const st = CALLOUT_STYLES[(p.variant as string) ?? "info"] ?? CALLOUT_STYLES.info;
+      return (
+        <div className="h-full w-full overflow-auto rounded-lg p-3" style={{ background: st.bg, border: `1px solid ${st.border}`, color: st.text }}>
+          <div className="text-sm font-semibold">{(p.title as string) ?? "Note"}</div>
+          <div className="mt-0.5 text-xs">{(p.body as string) ?? ""}</div>
+        </div>
+      );
+    }
+    case "embed":
+      return (p.url as string) ? (
+        <iframe title="embed" src={p.url as string} className="h-full w-full rounded-lg" allowFullScreen />
+      ) : null;
     case "image":
       return (p.url as string) ? (
         <img src={p.url as string} alt={(p.caption as string) ?? ""} className="h-full w-full rounded-lg"
@@ -216,7 +255,7 @@ function LearnerBlock({ block }: { block: Block }) {
       );
     case "button":
       return (
-        <div className="grid h-full w-full place-items-center rounded-lg bg-seafoam-500 text-sm font-semibold text-white">
+        <div className="grid h-full w-full place-items-center rounded-lg text-sm font-semibold text-white" style={{ background: (p.color as string) ?? "#14b8a6" }}>
           {(p.label as string) ?? "Button"}
         </div>
       );

@@ -1,28 +1,8 @@
 import { createMiddleware } from "hono/factory";
 import type { AppBindings } from "../types";
-import { firestoreGet, firestoreSet, fsInt, fsTimestamp, readInt, readTimestamp } from "../lib/firestore";
 
-// Per-isolate in-memory state. Firestore is only written when a window resets
-// (1 write per IP per window instead of 1 write per request).
-const memory = new Map<string, { count: number; resetAt: number; synced: boolean }>();
-
-const COLLECTION = "rate_limit_buckets";
-
-function inMemoryCheck(
-  key: string,
-  now: number,
-  windowMs: number,
-  limit: number
-): { count: number; remaining: number; blocked: boolean } {
-  const entry = memory.get(key);
-  if (!entry || entry.resetAt < now) {
-    memory.set(key, { count: 1, resetAt: now + windowMs, synced: false });
-    return { count: 1, remaining: limit - 1, blocked: false };
-  }
-  entry.count += 1;
-  const blocked = entry.count > limit;
-  return { count: entry.count, remaining: Math.max(0, limit - entry.count), blocked };
-}
+// Per-isolate in-memory state. KV is only read/written when a window resets.
+const memory = new Map<string, { count: number; resetAt: number }>();
 
 export function rateLimit(opts: { limit: number; windowMs: number; keyPrefix?: string }) {
   return createMiddleware<AppBindings>(async (c, next) => {
@@ -33,48 +13,42 @@ export function rateLimit(opts: { limit: number; windowMs: number; keyPrefix?: s
     const route = new URL(c.req.url).pathname;
     const key = `rl:${opts.keyPrefix ?? route}:${ip}`;
     const now = Date.now();
+    const kv = c.env.RATE_LIMIT_KV;
 
-    const saJson = c.env.FIREBASE_SERVICE_ACCOUNT ?? "";
-    let remaining = opts.limit - 1;
     let blocked = false;
+    let remaining = opts.limit - 1;
 
-    if (saJson) {
-      try {
-        const project = (JSON.parse(saJson) as { project_id: string }).project_id;
-        const local = memory.get(key);
+    try {
+      const local = memory.get(key);
 
-        if (!local || local.resetAt < now) {
-          // Window expired or first request — check Firestore for cross-isolate state
-          const doc = await firestoreGet(saJson, project, COLLECTION, key);
-          const fsResetAt = doc ? readTimestamp(doc, "resetAt") : 0;
-          const fsCount = doc ? readInt(doc, "count") : 0;
+      if (!local || local.resetAt < now) {
+        // Window expired — sync with KV for cross-isolate consistency
+        const raw = kv ? await kv.get(key, "text") : null;
+        const stored = raw ? (JSON.parse(raw) as { count: number; resetAt: number }) : null;
 
-          if (!doc || fsResetAt < now) {
-            // Start fresh window — write once
-            const resetAt = now + opts.windowMs;
-            await firestoreSet(saJson, project, COLLECTION, key, {
-              count: fsInt(1),
-              resetAt: fsTimestamp(resetAt),
+        if (!stored || stored.resetAt < now) {
+          const resetAt = now + opts.windowMs;
+          const entry = { count: 1, resetAt };
+          memory.set(key, entry);
+          if (kv) {
+            await kv.put(key, JSON.stringify(entry), {
+              expirationTtl: Math.ceil(opts.windowMs / 1000) + 60,
             });
-            memory.set(key, { count: 1, resetAt, synced: true });
-            remaining = opts.limit - 1;
-          } else {
-            // Another isolate already started this window — adopt its state
-            memory.set(key, { count: fsCount + 1, resetAt: fsResetAt, synced: true });
-            blocked = fsCount + 1 > opts.limit;
-            remaining = Math.max(0, opts.limit - (fsCount + 1));
           }
+          remaining = opts.limit - 1;
         } else {
-          // Within window — count locally, no Firestore write
-          local.count += 1;
-          blocked = local.count > opts.limit;
-          remaining = Math.max(0, opts.limit - local.count);
+          const count = stored.count + 1;
+          memory.set(key, { count, resetAt: stored.resetAt });
+          blocked = count > opts.limit;
+          remaining = Math.max(0, opts.limit - count);
         }
-      } catch {
-        ({ remaining, blocked } = inMemoryCheck(key, now, opts.windowMs, opts.limit));
+      } else {
+        local.count += 1;
+        blocked = local.count > opts.limit;
+        remaining = Math.max(0, opts.limit - local.count);
       }
-    } else {
-      ({ remaining, blocked } = inMemoryCheck(key, now, opts.windowMs, opts.limit));
+    } catch {
+      // On any error fall through — don't block legitimate traffic
     }
 
     c.header("X-RateLimit-Limit", String(opts.limit));

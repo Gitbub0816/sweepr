@@ -32,7 +32,9 @@ adminCoursesRouter.use("*", async (c, next) => {
 const blockSchema = z.object({
   id: z.string().uuid().optional(),
   block_type: z.enum([
-    "text", "image", "video", "quiz", "button", "checklist", "acknowledgment",
+    "text", "heading", "image", "video", "embed",
+    "shape", "divider", "spacer", "callout",
+    "quiz", "button", "checklist", "acknowledgment",
   ]),
   x: z.number(),
   y: z.number(),
