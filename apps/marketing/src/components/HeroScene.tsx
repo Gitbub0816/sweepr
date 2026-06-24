@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Float, Sparkles, Icosahedron, Dodecahedron } from "@react-three/drei";
 import { useReducedMotion } from "framer-motion";
@@ -67,8 +67,9 @@ const STATIC_FALLBACK =
 
 export function HeroScene() {
   const prefersReducedMotion = useReducedMotion();
+  const [contextLost, setContextLost] = useState(false);
 
-  if (prefersReducedMotion) {
+  if (prefersReducedMotion || contextLost) {
     return <div className={STATIC_FALLBACK} aria-hidden="true" />;
   }
 
@@ -88,6 +89,12 @@ export function HeroScene() {
             camera={{ position: [0, 0, 6], fov: 50 }}
             dpr={[1, 1.5]}
             aria-hidden="true"
+            onCreated={({ gl }) => {
+              gl.domElement.addEventListener("webglcontextlost", (e) => {
+                e.preventDefault();
+                setContextLost(true);
+              });
+            }}
           >
             <ambientLight intensity={0.6} color="#ccfbf1" />
             <directionalLight
