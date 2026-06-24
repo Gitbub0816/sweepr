@@ -372,3 +372,41 @@ observabilityRouter.post("/failed-webhooks/:id/resolve", async (c) => {
 
   return c.json({ ok: true });
 });
+
+// GET /admin/observability/clerk-stats
+// Returns total registered users from our DB as a lightweight Clerk proxy.
+// (Full MAU requires Clerk Dashboard API which has no public REST endpoint —
+//  we proxy our own users table instead.)
+observabilityRouter.get("/clerk-stats", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const [totals] = await sql`
+    SELECT
+      COUNT(*)::int                                                     AS total_users,
+      COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '30 days')::int AS new_30d,
+      COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days')::int  AS new_7d
+    FROM users
+  ` as Array<{ total_users: number; new_30d: number; new_7d: number }>;
+  return c.json({ mau: totals.new_30d, total_users: totals.total_users, new_7d: totals.new_7d });
+});
+
+// GET /admin/observability/posthog-summary
+// Proxies PostHog's query API so the browser never needs the PostHog secret key.
+observabilityRouter.get("/posthog-summary", async (c) => {
+  const posthogKey = c.env.POSTHOG_KEY;
+  if (!posthogKey) return c.json({ events_7d: null, sessions_7d: null, error: "POSTHOG_KEY not set" }, 200);
+
+  const host = "https://us.i.posthog.com";
+  const [eventsRes, sessionsRes] = await Promise.all([
+    fetch(`${host}/api/event/?format=json&limit=0`, {
+      headers: { Authorization: `Bearer ${posthogKey}` },
+    }).catch(() => null),
+    fetch(`${host}/api/session_recording/?format=json&limit=0`, {
+      headers: { Authorization: `Bearer ${posthogKey}` },
+    }).catch(() => null),
+  ]);
+
+  const events_7d = eventsRes?.ok ? ((await eventsRes.json()) as { count?: number }).count ?? null : null;
+  const sessions_7d = sessionsRes?.ok ? ((await sessionsRes.json()) as { count?: number }).count ?? null : null;
+
+  return c.json({ events_7d, sessions_7d });
+});

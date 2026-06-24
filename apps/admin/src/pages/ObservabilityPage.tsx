@@ -741,6 +741,221 @@ function AuditTrailTab() {
   );
 }
 
+// ─── External integrations panel ──────────────────────────────────────────────
+// Fetches live data from: Cloudflare Analytics, Sentry, PostHog, Stripe webhooks, Clerk
+// Keys are baked at build time (VITE_*) or read from the admin observability API.
+
+const CF_ANALYTICS_TOKEN = import.meta.env.VITE_CF_ANALYTICS_TOKEN as string | undefined;
+const CF_ZONE_ID = import.meta.env.VITE_CF_ZONE_ID as string | undefined;
+const SENTRY_AUTH_TOKEN = import.meta.env.VITE_SENTRY_AUTH_TOKEN as string | undefined;
+const SENTRY_ORG = import.meta.env.VITE_SENTRY_ORG as string | undefined;
+const SENTRY_PROJECT = import.meta.env.VITE_SENTRY_PROJECT as string | undefined;
+
+interface IntegrationTile {
+  id: string;
+  label: string;
+  value: string | null;
+  sub?: string;
+  status: "ok" | "warn" | "error" | "loading" | "unconfigured";
+  href?: string;
+}
+
+function IntegrationCard({ tile }: { tile: IntegrationTile }) {
+  const color = {
+    ok: "border-emerald-200 bg-emerald-50",
+    warn: "border-amber-200 bg-amber-50",
+    error: "border-red-200 bg-red-50",
+    loading: "border-slate-200 bg-white",
+    unconfigured: "border-slate-200 bg-slate-50",
+  }[tile.status];
+  const dot = {
+    ok: "bg-emerald-500",
+    warn: "bg-amber-400",
+    error: "bg-red-500",
+    loading: "bg-slate-300 animate-pulse",
+    unconfigured: "bg-slate-300",
+  }[tile.status];
+
+  return (
+    <div className={`rounded-xl border px-4 py-4 flex items-start justify-between gap-3 ${color}`}>
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <span className={`h-2 w-2 rounded-full shrink-0 ${dot}`} />
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{tile.label}</p>
+        </div>
+        <p className="text-lg font-bold text-charcoal truncate">
+          {tile.status === "loading" ? <span className="text-slate-300">—</span> : tile.value ?? "—"}
+        </p>
+        {tile.sub && <p className="text-xs text-slate-400 mt-0.5">{tile.sub}</p>}
+        {tile.status === "unconfigured" && (
+          <p className="text-xs text-slate-400 mt-0.5 italic">Key not configured</p>
+        )}
+      </div>
+      {tile.href && (
+        <a href={tile.href} target="_blank" rel="noopener noreferrer"
+          className="shrink-0 text-xs text-seafoam-600 hover:underline mt-1">
+          Open ↗
+        </a>
+      )}
+    </div>
+  );
+}
+
+function ExternalIntegrationsPanel() {
+  const { getToken } = useAuth();
+  const [tiles, setTiles] = useState<IntegrationTile[]>([
+    { id: "cf-requests",    label: "CF Requests (24h)",  value: null, status: "loading" },
+    { id: "cf-errors",      label: "CF Error Rate",      value: null, status: "loading" },
+    { id: "sentry-errors",  label: "Sentry Errors (24h)",value: null, status: "loading" },
+    { id: "stripe-webhooks",label: "Stripe Webhooks",    value: null, status: "loading" },
+    { id: "clerk-mau",      label: "Clerk Active Users", value: null, status: "loading" },
+    { id: "posthog-events", label: "PostHog Events (7d)",value: null, status: "loading" },
+  ]);
+
+  const setTile = (id: string, patch: Partial<IntegrationTile>) =>
+    setTiles(prev => prev.map(t => t.id === id ? { ...t, ...patch } : t));
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAll() {
+      const token = await getToken();
+
+      // ── 1. Cloudflare Analytics (GraphQL API) ─────────────────────────────
+      if (!CF_ANALYTICS_TOKEN || !CF_ZONE_ID) {
+        setTile("cf-requests", { status: "unconfigured", value: null });
+        setTile("cf-errors",   { status: "unconfigured", value: null });
+      } else {
+        try {
+          const since = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+          const until = new Date().toISOString().slice(0, 10);
+          const gql = `{
+            viewer { zones(filter:{zoneTag:"${CF_ZONE_ID}"}) {
+              httpRequests1dGroups(limit:1, filter:{date_geq:"${since}", date_leq:"${until}"}) {
+                sum { requests cachedRequests responseStatusMap { edgeResponseStatus requests } }
+              }
+            }}
+          }`;
+          const res = await fetch("https://api.cloudflare.com/client/v4/graphql", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${CF_ANALYTICS_TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ query: gql }),
+          });
+          if (!cancelled && res.ok) {
+            const d = await res.json() as { data?: { viewer?: { zones?: Array<{ httpRequests1dGroups: Array<{ sum: { requests: number; responseStatusMap: Array<{ edgeResponseStatus: number; requests: number }> } }> }> } } };
+            const group = d.data?.viewer?.zones?.[0]?.httpRequests1dGroups?.[0]?.sum;
+            if (group) {
+              const total = group.requests;
+              const errors = group.responseStatusMap.filter(s => s.edgeResponseStatus >= 500).reduce((a, s) => a + s.requests, 0);
+              const errPct = total > 0 ? ((errors / total) * 100).toFixed(2) : "0.00";
+              setTile("cf-requests", { value: total.toLocaleString(), status: "ok", sub: "Total requests past 24h", href: "https://dash.cloudflare.com" });
+              setTile("cf-errors",   { value: `${errPct}%`, status: parseFloat(errPct) > 1 ? "warn" : "ok", sub: `${errors.toLocaleString()} 5xx errors`, href: "https://dash.cloudflare.com" });
+            }
+          }
+        } catch {
+          if (!cancelled) { setTile("cf-requests", { status: "error", value: "Fetch failed" }); setTile("cf-errors", { status: "error", value: "Fetch failed" }); }
+        }
+      }
+
+      // ── 2. Sentry — issue count via REST API ─────────────────────────────
+      if (!SENTRY_AUTH_TOKEN || !SENTRY_ORG || !SENTRY_PROJECT) {
+        setTile("sentry-errors", { status: "unconfigured", value: null });
+      } else {
+        try {
+          const res = await fetch(
+            `https://sentry.io/api/0/projects/${SENTRY_ORG}/${SENTRY_PROJECT}/issues/?limit=1&statsPeriod=24h&query=is:unresolved`,
+            { headers: { Authorization: `Bearer ${SENTRY_AUTH_TOKEN}` } }
+          );
+          if (!cancelled && res.ok) {
+            const issues = await res.json() as unknown[];
+            const total = parseInt(res.headers.get("X-Hits") ?? String(issues.length), 10);
+            setTile("sentry-errors", {
+              value: total.toLocaleString(),
+              status: total === 0 ? "ok" : total < 10 ? "warn" : "error",
+              sub: "Unresolved issues (24h)",
+              href: `https://sentry.io/organizations/${SENTRY_ORG}/issues/`,
+            });
+          }
+        } catch {
+          if (!cancelled) setTile("sentry-errors", { status: "error", value: "Fetch failed" });
+        }
+      }
+
+      // ── 3. Stripe webhook health — from our own API ────────────────────────
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com"}/admin/observability/failed-webhooks?resolved=false`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!cancelled && res.ok) {
+          const d = await res.json() as { events?: unknown[] };
+          const count = d.events?.length ?? 0;
+          setTile("stripe-webhooks", {
+            value: count === 0 ? "All healthy" : `${count} failed`,
+            status: count === 0 ? "ok" : count < 5 ? "warn" : "error",
+            sub: count === 0 ? "No unresolved failures" : "Unresolved webhook failures",
+          });
+        }
+      } catch {
+        if (!cancelled) setTile("stripe-webhooks", { status: "error", value: "Fetch failed" });
+      }
+
+      // ── 4. Clerk MAU — from our own observability endpoint ────────────────
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com"}/admin/observability/clerk-stats`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!cancelled && res.ok) {
+          const d = await res.json() as { mau?: number; total_users?: number };
+          setTile("clerk-mau", {
+            value: (d.mau ?? d.total_users ?? 0).toLocaleString(),
+            status: "ok",
+            sub: d.mau != null ? "Monthly active users" : "Total registered users",
+          });
+        } else {
+          if (!cancelled) setTile("clerk-mau", { status: "unconfigured", value: null, sub: "Add /admin/observability/clerk-stats endpoint" });
+        }
+      } catch {
+        if (!cancelled) setTile("clerk-mau", { status: "error", value: "Fetch failed" });
+      }
+
+      // ── 5. PostHog — events via our observability endpoint ────────────────
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com"}/admin/observability/posthog-summary`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!cancelled && res.ok) {
+          const d = await res.json() as { events_7d?: number; sessions_7d?: number };
+          setTile("posthog-events", {
+            value: (d.events_7d ?? 0).toLocaleString(),
+            status: "ok",
+            sub: d.sessions_7d != null ? `${d.sessions_7d.toLocaleString()} sessions` : "Past 7 days",
+            href: import.meta.env.VITE_POSTHOG_DASHBOARD_URL || undefined,
+          });
+        } else {
+          if (!cancelled) setTile("posthog-events", { status: "unconfigured", value: null, sub: "Add /admin/observability/posthog-summary endpoint" });
+        }
+      } catch {
+        if (!cancelled) setTile("posthog-events", { status: "error", value: "Fetch failed" });
+      }
+    }
+
+    loadAll();
+    return () => { cancelled = true; };
+  }, [getToken]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-charcoal">External Integrations</h3>
+        <span className="text-xs text-slate-400">Live data</span>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {tiles.map(t => <IntegrationCard key={t.id} tile={t} />)}
+      </div>
+    </div>
+  );
+}
+
 function IntegrationsTab() {
   interface IntegrationsData {
     latest: Array<{ integration: string; status: string; latency_ms: number; error_message: string; checked_at: string }>;
@@ -792,9 +1007,8 @@ function IntegrationsTab() {
         </div>
       )}
 
-      <div className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-xs text-amber-700">
-        Phase 2: Cloudflare Analytics, Sentry error rates, PostHog funnel data, Stripe webhook health, and Clerk auth metrics will be shown here once external API integrations are wired up.
-      </div>
+      {/* ── External Observability Integrations ── */}
+      <ExternalIntegrationsPanel />
     </div>
   );
 }

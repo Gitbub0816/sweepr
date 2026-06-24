@@ -4,8 +4,24 @@ import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ClerkProvider } from "@clerk/clerk-react";
 import { ToastProvider, ErrorBoundary, installGlobalErrorHandlers, initAnalytics } from "@sweepr/ui";
+import * as Sentry from "@sentry/react";
 import App from "./App";
 import "./index.css";
+
+const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN as string | undefined;
+if (SENTRY_DSN) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    environment: import.meta.env.MODE,
+    integrations: [Sentry.browserTracingIntegration()],
+    tracesSampleRate: 0.2,
+    // Never capture PII
+    beforeSend(event) {
+      if (event.request?.cookies) delete event.request.cookies;
+      return event;
+    },
+  });
+}
 
 initAnalytics();
 
