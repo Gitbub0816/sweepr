@@ -9,6 +9,7 @@ import {
   BarChart3,
   GraduationCap,
   BookOpen,
+  ShieldCheck,
 } from "lucide-react";
 import { AppShell, PrelaunchGate } from "@sweepr/ui";
 
@@ -25,6 +26,7 @@ import { PerformancePage } from "./pages/PerformancePage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { TrainingPage } from "./pages/TrainingPage";
 import { CourseViewerPage } from "./pages/CourseViewerPage";
+import { InsurancePage } from "./pages/InsurancePage";
 import { SignInPage } from "./components/SignInPage";
 import { SignUpPage } from "./components/SignUpPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -39,6 +41,7 @@ const nav = [
   { to: "/schedule", label: "Schedule", icon: CalendarDays },
   { to: "/earnings", label: "Earnings", icon: Wallet },
   { to: "/performance", label: "Performance", icon: BarChart3 },
+  { to: "/insurance", label: "Insurance", icon: ShieldCheck },
   { to: "/profile", label: "Profile", icon: User },
 ];
 
@@ -121,6 +124,7 @@ export default function App() {
       <Route path="/schedule" element={<Guarded><SchedulePage /></Guarded>} />
       <Route path="/earnings" element={<Guarded><EarningsPage /></Guarded>} />
       <Route path="/performance" element={<Guarded><PerformancePage /></Guarded>} />
+      <Route path="/insurance" element={<Guarded><InsurancePage /></Guarded>} />
       <Route path="/profile" element={<Guarded><ProfilePage /></Guarded>} />
     </Routes>
   );

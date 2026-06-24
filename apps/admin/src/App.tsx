@@ -16,6 +16,7 @@ import {
   Send,
   GraduationCap,
   MonitorPlay,
+  ShieldCheck,
 } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -43,6 +44,7 @@ import { NewsletterPage } from "./pages/NewsletterPage";
 import { BroadcastsPage } from "./pages/BroadcastsPage";
 import { CourseBuilderPage } from "./pages/CourseBuilderPage";
 import { CourseEditorPage } from "./pages/CourseEditorPage";
+import { InsurancePage } from "./pages/InsurancePage";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -51,6 +53,7 @@ const nav = [
   { to: "/cleaners", label: "Cleaners", icon: Sparkles },
   { to: "/applications", label: "Applications", icon: FileText },
   { to: "/pricing", label: "Pricing", icon: DollarSign },
+  { to: "/insurance", label: "Insurance", icon: ShieldCheck },
   { to: "/disputes", label: "Disputes", icon: AlertTriangle },
   { to: "/payouts", label: "Payouts", icon: Wallet },
   { to: "/service-areas", label: "Service Areas", icon: Map },
@@ -110,6 +113,7 @@ export default function App() {
       <Route path="/pricing" element={<Guarded><PricingPage /></Guarded>} />
       <Route path="/disputes" element={<Guarded><DisputesPage /></Guarded>} />
       <Route path="/disputes/:id" element={<Guarded><DisputeDetailPage /></Guarded>} />
+      <Route path="/insurance" element={<Guarded><InsurancePage /></Guarded>} />
       <Route path="/payouts" element={<Guarded><PayoutsPage /></Guarded>} />
       <Route path="/service-areas" element={<Guarded><ServiceAreasPage /></Guarded>} />
       <Route path="/events" element={<Guarded><EventsPage /></Guarded>} />
