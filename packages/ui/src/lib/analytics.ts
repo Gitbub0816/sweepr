@@ -16,7 +16,10 @@ function env(): Record<string, string | undefined> {
 export async function initAnalytics() {
   if (typeof window === 'undefined') return
   const key = env().VITE_POSTHOG_KEY
-  if (!key) return
+  // Skip when unset or left at the placeholder value. A real PostHog project
+  // key always starts with "phc_"; anything else (e.g. "fake_token") would
+  // only spew 404/401s from the array/config and flags endpoints.
+  if (!key || !key.startsWith('phc_')) return
   const { default: posthog } = await import('posthog-js')
   posthog.init(key, {
     api_host: env().VITE_POSTHOG_HOST ?? 'https://app.posthog.com',

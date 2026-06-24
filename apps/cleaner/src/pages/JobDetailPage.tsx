@@ -7,6 +7,7 @@ import {
 import { useAuth } from "@clerk/clerk-react";
 import { DashboardShell, Card, Button, ErrorState, toast } from "@sweepr/ui";
 import { SERVICE_LABELS, formatCurrency } from "@sweepr/utils";
+import { NavigationMap } from "../components/NavigationMap";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 
@@ -67,6 +68,7 @@ export function JobDetailPage() {
   const watchRef = useRef<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [photoType, setPhotoType] = useState<"before" | "after" | "checkout">("before");
+  const [currentPos, setCurrentPos] = useState<{ lat: number; lng: number } | null>(null);
 
   const authFetch = useCallback(
     async (path: string, opts: RequestInit = {}) => {
@@ -113,6 +115,7 @@ export function JobDetailPage() {
 
     watchRef.current = navigator.geolocation.watchPosition(
       async (pos) => {
+        setCurrentPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         const token = await getToken();
         const body = JSON.stringify({
           lat: pos.coords.latitude,
@@ -309,7 +312,18 @@ export function JobDetailPage() {
             </Button>
           )}
 
-          {dayStatus === "en_route" && (
+          {dayStatus === "en_route" && job.address && (
+            <NavigationMap
+              destination={{
+                lat: 0,
+                lng: 0,
+                label: `${job.address.street}, ${job.address.city}, ${job.address.state} ${job.address.zip}`,
+              }}
+              currentLat={currentPos?.lat ?? null}
+              currentLng={currentPos?.lng ?? null}
+            />
+          )}
+          {dayStatus === "en_route" && !job.address && (
             <div className="rounded-lg bg-seafoam-50 border border-seafoam-200 px-4 py-3 text-sm text-seafoam-700 flex items-center gap-2">
               <Navigation className="h-4 w-4 animate-pulse" />
               GPS tracking active — auto-arrival within 150m
