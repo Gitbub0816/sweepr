@@ -30,7 +30,7 @@ adminRouter.get("/stats", async (c) => {
     sql`
       SELECT
         (SELECT COUNT(*)::int FROM bookings) AS total_bookings,
-        (SELECT COUNT(*)::int FROM bookings WHERE scheduled_for::date = CURRENT_DATE) AS bookings_today,
+        (SELECT COUNT(*)::int FROM bookings WHERE scheduled_at::date = CURRENT_DATE) AS bookings_today,
         (SELECT COUNT(*)::int FROM cleaners WHERE status = 'pending') AS pending_cleaners,
         (SELECT COUNT(*)::int FROM cleaners WHERE status = 'approved') AS active_cleaners,
         (SELECT COUNT(*)::int FROM cleaners) AS total_cleaners,
@@ -44,10 +44,11 @@ adminRouter.get("/stats", async (c) => {
       SELECT status, COUNT(*)::int AS count FROM bookings GROUP BY status ORDER BY count DESC
     `,
     sql`
-      SELECT b.id, b.status, b.service_type, b.scheduled_for, b.created_at,
+      SELECT b.id, b.status, b.service_type, b.scheduled_at AS scheduled_for, b.created_at,
              u.email AS customer_email, c.first_name AS cleaner_name
       FROM bookings b
-      LEFT JOIN users u ON u.id = b.customer_id
+      LEFT JOIN customers cust ON cust.id = b.customer_id
+      LEFT JOIN users u ON u.id = cust.user_id
       LEFT JOIN cleaners c ON c.id = b.cleaner_id
       ORDER BY b.created_at DESC LIMIT 10
     `,
@@ -125,13 +126,15 @@ adminRouter.get("/jobs", async (c) => {
   const offset = Math.max(Number(c.req.query("offset") ?? 0) || 0, 0);
 
   const jobs = (await sql`
-    SELECT b.id, b.status, b.service_type, b.scheduled_for, b.created_at,
-           b.address_line1, b.address_city, b.address_state,
+    SELECT b.id, b.status, b.service_type, b.scheduled_at AS scheduled_for, b.created_at,
+           a.street AS address_line1, a.city AS address_city, a.state AS address_state,
            u.email AS customer_email,
            c.first_name AS cleaner_first, c.last_name AS cleaner_last,
            p.amount_cents
     FROM bookings b
-    LEFT JOIN users u ON u.id = b.customer_id
+    LEFT JOIN addresses a ON a.id = b.address_id
+    LEFT JOIN customers cust ON cust.id = b.customer_id
+    LEFT JOIN users u ON u.id = cust.user_id
     LEFT JOIN cleaners c ON c.id = b.cleaner_id
     LEFT JOIN payments p ON p.booking_id = b.id AND p.status = 'captured'
     WHERE ${status ? sql`b.status = ${status}` : sql`true`}
