@@ -19,7 +19,11 @@ import {
   TRACKING_STEPS,
   JOB_STATUS_LABELS,
 } from "@sweepr/utils";
+import { useAuth } from "@clerk/clerk-react";
 import { mockBookings } from "../data/mock";
+import { CleanerTracker } from "../components/CleanerTracker";
+
+const API = import.meta.env.VITE_API_URL ?? "";
 
 const REVIEW_TAGS = [
   "Arrived on time",
@@ -148,10 +152,17 @@ function ReviewModal({
 
 export function BookingDetailPage() {
   const { id } = useParams();
+  const { getToken } = useAuth();
   const booking = mockBookings.find((b) => b.id === id);
   const [reviewOpen, setReviewOpen] = useState(
     booking?.status === "completed_pending_review"
   );
+  const [authToken, setAuthToken] = useState<string | null>(null);
+
+  // Lazily resolve the Clerk token so CleanerTracker can use it
+  useState(() => {
+    getToken().then((t) => setAuthToken(t ?? null)).catch(() => {});
+  });
 
   if (!booking) {
     return (
@@ -209,6 +220,17 @@ export function BookingDetailPage() {
     >
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-6">
+          {authToken && id && (booking.status === "cleaner_on_the_way" || booking.status === "arrived" || booking.status === "in_progress") && (
+            <CleanerTracker
+              bookingId={id}
+              token={authToken}
+              apiUrl={API}
+              dayStatus={booking.status === "cleaner_on_the_way" ? "en_route" : booking.status}
+              destLat={32.7157}
+              destLng={-117.1611}
+            />
+          )}
+
           {booking.status === "in_progress" && (
             <Card>
               <h2 className="text-sm font-semibold text-charcoal dark:text-white">
