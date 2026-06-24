@@ -199,7 +199,7 @@ statusRouter.post(
             to: email,
             subject: "We'll let you know when Sweepr comes to your area",
             templateId: TEMPLATES.SUBSCRIBED_UPDATES,
-            variables: { city: input },
+            variables: { subscriber_email: email },
           });
         } catch { /* non-fatal */ }
       }
@@ -235,7 +235,11 @@ statusRouter.post(
         toName: name,
         subject: "You're on the Sweepr waitlist!",
         templateId: TEMPLATES.WAITLIST,
-        variables: { name: name ?? "", type },
+        variables: {
+          waitlist_status: "Pending",
+          subscriber_email: email,
+          service_area: zipCode ?? "Your area",
+        },
       });
     } catch { /* non-fatal */ }
 
