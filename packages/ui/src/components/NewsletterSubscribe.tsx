@@ -32,33 +32,33 @@ export function NewsletterSubscribe({ apiUrl, className }: NewsletterSubscribePr
 
   if (submitted) {
     return (
-      <p className={`text-sm text-seafoam-600 font-medium ${className ?? ""}`}>
-        You're subscribed!
-      </p>
+      <div className={`rounded-lg bg-seafoam-50 border border-seafoam-200 px-4 py-3 text-center ${className ?? ""}`}>
+        <p className="text-sm font-semibold text-seafoam-700">You're on the list! 🎉</p>
+        <p className="text-xs text-seafoam-600 mt-0.5">We'll be in touch as soon as it's ready.</p>
+      </div>
     );
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className={`flex items-center gap-2 ${className ?? ""}`}
-    >
-      <input
-        type="email"
-        placeholder="Your email"
-        required
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400"
-      />
-      <button
-        type="submit"
-        disabled={loading}
-        className="rounded-lg bg-seafoam-500 px-4 py-2 text-sm font-semibold text-white hover:bg-seafoam-600 disabled:opacity-50 transition-colors whitespace-nowrap"
-      >
-        {loading ? "…" : "Subscribe"}
-      </button>
-      {error && <p className="text-sm text-red-500 ml-2">{error}</p>}
-    </form>
+    <div className={className}>
+      <form onSubmit={handleSubmit} className="flex items-center gap-2">
+        <input
+          type="email"
+          placeholder="Your email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400"
+        />
+        <button
+          type="submit"
+          disabled={loading}
+          className="rounded-lg bg-seafoam-500 px-4 py-2 text-sm font-semibold text-white hover:bg-seafoam-600 disabled:opacity-50 transition-colors whitespace-nowrap"
+        >
+          {loading ? "…" : "Subscribe"}
+        </button>
+      </form>
+      {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
+    </div>
   );
 }

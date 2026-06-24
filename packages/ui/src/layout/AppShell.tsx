@@ -29,32 +29,34 @@ export function AppShell({
   const [open, setOpen] = useState(false);
 
   const sidebar = (
-    <nav className="flex h-full flex-col gap-1 p-4">
-      <div className="mb-6 flex items-center gap-2 px-2">
+    <nav className="flex h-full flex-col p-4 overflow-y-auto">
+      <div className="mb-6 flex-shrink-0 flex items-center gap-2 px-2">
         <div className="leading-tight">
           <SweeprLogo size="lg" />
           <p className="mt-0.5 text-[11px] text-slate-400">{brand}</p>
         </div>
       </div>
-      {nav.map((item) => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          end={item.end}
-          onClick={() => setOpen(false)}
-          className={({ isActive }) =>
-            cn(
-              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-              isActive
-                ? "bg-seafoam-50 text-seafoam-700 dark:bg-seafoam-900/30 dark:text-seafoam-300"
-                : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-            )
-          }
-        >
-          <item.icon className="h-4 w-4" />
-          {item.label}
-        </NavLink>
-      ))}
+      <div className="flex flex-col gap-1">
+        {nav.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.end}
+            onClick={() => setOpen(false)}
+            className={({ isActive }) =>
+              cn(
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-seafoam-50 text-seafoam-700 dark:bg-seafoam-900/30 dark:text-seafoam-300"
+                  : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+              )
+            }
+          >
+            <item.icon className="h-4 w-4 flex-shrink-0" />
+            {item.label}
+          </NavLink>
+        ))}
+      </div>
     </nav>
   );
 

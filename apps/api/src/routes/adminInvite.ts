@@ -220,3 +220,28 @@ adminInviteRouter.post(
     return c.json({ ok: true });
   }
 );
+
+/**
+ * Sync the caller's DB role to Clerk publicMetadata.
+ * Used when a user was manually promoted via SQL and needs their Clerk
+ * session to reflect the role without going through the invite flow.
+ */
+adminInviteRouter.post("/sync-role", requireAuth, async (c) => {
+  const clerkId = c.get("user").clerkId;
+  const sql = getDb(c.env.DATABASE_URL);
+  const rows = await sql`
+    SELECT role FROM users WHERE clerk_id = ${clerkId} LIMIT 1
+  ` as Array<{ role: string }>;
+
+  const role = rows[0]?.role;
+  if (!role || (role !== "admin" && role !== "super_admin")) {
+    return c.json({ error: "No admin role found in database" }, 403);
+  }
+
+  const clerk = createClerkClient({ secretKey: c.env.CLERK_SECRET_KEY });
+  await clerk.users.updateUserMetadata(clerkId, {
+    publicMetadata: { role },
+  });
+
+  return c.json({ ok: true, role });
+});
