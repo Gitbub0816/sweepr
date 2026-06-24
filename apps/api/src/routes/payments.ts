@@ -8,13 +8,12 @@ import { getDb } from "../lib/db";
 import { sendEmail } from "../lib/mailer";
 import { sendNotification } from "../lib/notifications";
 import { requireAuth } from "../middleware/auth";
-import { PLATFORM_FEE_PERCENT } from "../lib/constants";
+import { loadFeeSettings, calculatePayout, getTierMultiplier } from "../lib/payoutEngine";
 import { audit } from "../lib/audit";
 import { serverTrack } from "../lib/posthog";
 import type { AppBindings } from "../types";
 import type { BookingRow, CleanerRow } from "@sweepr/db";
 
-const PLATFORM_FEE_RATE = PLATFORM_FEE_PERCENT; // 20% platform fee → 80% cleaner payout
 
 const requireAdmin = createMiddleware<AppBindings>(async (c, next) => {
   const sql = getDb(c.env.DATABASE_URL);
@@ -88,11 +87,13 @@ paymentsRouter.post(
       return c.json({ error: "Cleaner has no payout account" }, 400);
     }
 
-    const platformFee = Math.round(booking.total_price * PLATFORM_FEE_RATE);
-    const cleanerPayout = booking.total_price - platformFee;
+    const feeSettings = await loadFeeSettings(sql);
+    const cleanerTier = (cleaner as unknown as Record<string, unknown>).tier as string ?? "standard";
+    const tierMultiplier = await getTierMultiplier(sql, cleanerTier);
+    const breakdown = calculatePayout(booking.total_price, feeSettings, tierMultiplier);
 
     const transfer = await stripe.transfers.create({
-      amount: cleanerPayout, // cents
+      amount: breakdown.cleanerPayout,
       currency: "usd",
       destination: cleaner.stripe_connect_id,
       transfer_group: `booking_${bookingId}`,
@@ -105,20 +106,30 @@ paymentsRouter.post(
       await sql`
         UPDATE payouts
         SET status = 'paid', stripe_transfer_id = ${transfer.id},
-            amount = ${cleanerPayout}, paid_at = NOW()
+            amount = ${breakdown.cleanerPayout}, platform_fee = ${breakdown.platformFee},
+            gross_amount = ${breakdown.grossAmount}, net_amount = ${breakdown.cleanerPayout},
+            fee_rate = ${breakdown.feeRate}, tier_multiplier = ${tierMultiplier},
+            paid_at = NOW()
         WHERE booking_id = ${bookingId}
       `;
     } else {
       await sql`
-        INSERT INTO payouts (booking_id, cleaner_id, amount, status, stripe_transfer_id, paid_at)
-        VALUES (${bookingId}, ${booking.cleaner_id}, ${cleanerPayout}, 'paid', ${transfer.id}, NOW())
+        INSERT INTO payouts (
+          booking_id, cleaner_id, amount, status, stripe_transfer_id, paid_at,
+          platform_fee, gross_amount, net_amount, fee_rate, tier_multiplier
+        ) VALUES (
+          ${bookingId}, ${booking.cleaner_id}, ${breakdown.cleanerPayout}, 'paid',
+          ${transfer.id}, NOW(), ${breakdown.platformFee}, ${breakdown.grossAmount},
+          ${breakdown.cleanerPayout}, ${breakdown.feeRate}, ${tierMultiplier}
+        )
       `;
     }
     await sql`
       UPDATE bookings
-      SET platform_fee = ${platformFee}, cleaner_payout = ${cleanerPayout}, updated_at = NOW()
+      SET platform_fee = ${breakdown.platformFee}, cleaner_payout = ${breakdown.cleanerPayout}, updated_at = NOW()
       WHERE id = ${bookingId}
     `;
+    const { platformFee, cleanerPayout } = { platformFee: breakdown.platformFee, cleanerPayout: breakdown.cleanerPayout };
 
     // Payout released -> notify cleaner.
     await sendNotification(sql, cleaner.user_id, {
