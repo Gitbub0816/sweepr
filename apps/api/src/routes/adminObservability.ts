@@ -1,0 +1,296 @@
+import { Hono } from "hono";
+import { createMiddleware } from "hono/factory";
+import { getUserByClerkId } from "@sweepr/db";
+import { getDb } from "../lib/db";
+import { requireAuth } from "../middleware/auth";
+import type { AppBindings } from "../types";
+
+export const observabilityRouter = new Hono<AppBindings>();
+
+const requireAdmin = createMiddleware<AppBindings>(async (c, next) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const user = await getUserByClerkId(sql, c.get("user").clerkId);
+  if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
+    return c.json({ error: "Forbidden" }, 403);
+  }
+  await next();
+});
+
+observabilityRouter.use("*", requireAuth, requireAdmin);
+
+const settle = async <T>(p: Promise<T>, fallback: T): Promise<T> => {
+  try { return await p; } catch { return fallback; }
+};
+
+// GET /admin/observability/overview
+observabilityRouter.get("/overview", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const [apiHealth, paymentHealth, recentErrors, eventCounts] = await Promise.all([
+    settle(sql`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE status_code >= 500)::int AS errors_5xx,
+        COUNT(*) FILTER (WHERE status_code >= 400 AND status_code < 500)::int AS errors_4xx,
+        ROUND(AVG(duration_ms))::int AS avg_latency_ms,
+        ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms))::int AS p95_latency_ms
+      FROM api_request_logs
+      WHERE logged_at > NOW() - INTERVAL '24 hours'
+    `, [{}] as Array<Record<string, unknown>>),
+    settle(sql`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE success = true)::int AS success,
+        COUNT(*) FILTER (WHERE success = false)::int AS failed
+      FROM payment_observability_events
+      WHERE occurred_at > NOW() - INTERVAL '24 hours'
+    `, [{}] as Array<Record<string, unknown>>),
+    settle(sql`
+      SELECT path, status_code, error_message, logged_at
+      FROM api_request_logs
+      WHERE status_code >= 500
+      ORDER BY logged_at DESC
+      LIMIT 10
+    `, [] as unknown[]),
+    settle(sql`
+      SELECT event_name, COUNT(*)::int AS count
+      FROM analytics_events
+      WHERE occurred_at > NOW() - INTERVAL '24 hours'
+      GROUP BY event_name
+      ORDER BY count DESC
+      LIMIT 20
+    `, [] as unknown[]),
+  ]);
+  return c.json({ apiHealth: apiHealth[0], paymentHealth: paymentHealth[0], recentErrors, eventCounts });
+});
+
+// GET /admin/observability/api-health
+observabilityRouter.get("/api-health", async (c) => {
+  const range = c.req.query("range") ?? "24h";
+  const interval = range === "7d" ? "7 days" : range === "1h" ? "1 hour" : "24 hours";
+  const sql = getDb(c.env.DATABASE_URL);
+  const [summary, byPath, byStatus, latencyBuckets, recentErrors] = await Promise.all([
+    settle(sql`
+      SELECT
+        COUNT(*)::int AS total_requests,
+        COUNT(*) FILTER (WHERE status_code >= 500)::int AS errors_5xx,
+        COUNT(*) FILTER (WHERE status_code >= 400 AND status_code < 500)::int AS errors_4xx,
+        COUNT(*) FILTER (WHERE status_code >= 200 AND status_code < 300)::int AS success_2xx,
+        ROUND(AVG(duration_ms))::int AS avg_latency_ms,
+        ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY duration_ms))::int AS p50_latency_ms,
+        ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms))::int AS p95_latency_ms,
+        ROUND(PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY duration_ms))::int AS p99_latency_ms
+      FROM api_request_logs
+      WHERE logged_at > NOW() - INTERVAL ${interval}
+    `, [{}] as Array<Record<string, unknown>>),
+    settle(sql`
+      SELECT
+        path,
+        COUNT(*)::int AS count,
+        COUNT(*) FILTER (WHERE status_code >= 500)::int AS errors,
+        ROUND(AVG(duration_ms))::int AS avg_ms
+      FROM api_request_logs
+      WHERE logged_at > NOW() - INTERVAL ${interval}
+      GROUP BY path
+      ORDER BY count DESC
+      LIMIT 20
+    `, [] as unknown[]),
+    settle(sql`
+      SELECT status_code, COUNT(*)::int AS count
+      FROM api_request_logs
+      WHERE logged_at > NOW() - INTERVAL ${interval}
+      GROUP BY status_code
+      ORDER BY status_code
+    `, [] as unknown[]),
+    settle(sql`
+      SELECT
+        CASE
+          WHEN duration_ms < 100 THEN '<100ms'
+          WHEN duration_ms < 500 THEN '100-500ms'
+          WHEN duration_ms < 1000 THEN '500ms-1s'
+          ELSE '>1s'
+        END AS bucket,
+        COUNT(*)::int AS count
+      FROM api_request_logs
+      WHERE logged_at > NOW() - INTERVAL ${interval}
+      GROUP BY bucket
+      ORDER BY MIN(duration_ms)
+    `, [] as unknown[]),
+    settle(sql`
+      SELECT method, path, status_code, duration_ms, error_message, user_role, country_code, logged_at
+      FROM api_request_logs
+      WHERE status_code >= 400 AND logged_at > NOW() - INTERVAL ${interval}
+      ORDER BY logged_at DESC
+      LIMIT 50
+    `, [] as unknown[]),
+  ]);
+  return c.json({ summary: summary[0], byPath, byStatus, latencyBuckets, recentErrors });
+});
+
+// GET /admin/observability/payments
+observabilityRouter.get("/payments", async (c) => {
+  const range = c.req.query("range") ?? "24h";
+  const interval = range === "7d" ? "7 days" : range === "1h" ? "1 hour" : "24 hours";
+  const sql = getDb(c.env.DATABASE_URL);
+  const [summary, byType, failures, recentEvents] = await Promise.all([
+    settle(sql`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE success = true)::int AS success,
+        COUNT(*) FILTER (WHERE success = false)::int AS failed,
+        COALESCE(SUM(amount_cents) FILTER (WHERE success = true), 0)::bigint AS total_volume_cents
+      FROM payment_observability_events
+      WHERE occurred_at > NOW() - INTERVAL ${interval}
+    `, [{}] as Array<Record<string, unknown>>),
+    settle(sql`
+      SELECT event_type, COUNT(*)::int AS total,
+             COUNT(*) FILTER (WHERE success = true)::int AS success,
+             COUNT(*) FILTER (WHERE success = false)::int AS failed
+      FROM payment_observability_events
+      WHERE occurred_at > NOW() - INTERVAL ${interval}
+      GROUP BY event_type
+      ORDER BY total DESC
+    `, [] as unknown[]),
+    settle(sql`
+      SELECT event_type, error_code, error_message, amount_cents, occurred_at
+      FROM payment_observability_events
+      WHERE success = false AND occurred_at > NOW() - INTERVAL ${interval}
+      ORDER BY occurred_at DESC
+      LIMIT 30
+    `, [] as unknown[]),
+    settle(sql`
+      SELECT event_type, success, amount_cents, currency, provider_event_id, error_code, occurred_at
+      FROM payment_observability_events
+      WHERE occurred_at > NOW() - INTERVAL ${interval}
+      ORDER BY occurred_at DESC
+      LIMIT 50
+    `, [] as unknown[]),
+  ]);
+  return c.json({ summary: summary[0], byType, failures, recentEvents });
+});
+
+// GET /admin/observability/booking-funnel
+observabilityRouter.get("/booking-funnel", async (c) => {
+  const range = c.req.query("range") ?? "7d";
+  const interval = range === "30d" ? "30 days" : range === "24h" ? "24 hours" : "7 days";
+  const sql = getDb(c.env.DATABASE_URL);
+  const [funnelSteps, bookingsByStatus, conversionByDevice, dropoffEvents] = await Promise.all([
+    settle(sql`
+      SELECT event_name, COUNT(*)::int AS count,
+             COUNT(DISTINCT session_id) AS sessions
+      FROM analytics_events
+      WHERE event_name IN (
+        'booking_flow_started','address_entered','service_selected',
+        'cleaner_selected','payment_started','booking_confirmed'
+      )
+      AND occurred_at > NOW() - INTERVAL ${interval}
+      GROUP BY event_name
+    `, [] as unknown[]),
+    settle(sql`
+      SELECT status, COUNT(*)::int AS count
+      FROM bookings
+      WHERE created_at > NOW() - INTERVAL ${interval}
+      GROUP BY status
+    `, [] as unknown[]),
+    settle(sql`
+      SELECT device_type, COUNT(*)::int AS count
+      FROM analytics_events
+      WHERE event_name = 'booking_confirmed'
+        AND occurred_at > NOW() - INTERVAL ${interval}
+      GROUP BY device_type
+    `, [] as unknown[]),
+    settle(sql`
+      SELECT event_name, COUNT(*)::int AS count, device_type
+      FROM analytics_events
+      WHERE event_name LIKE 'booking_%abandoned%'
+        AND occurred_at > NOW() - INTERVAL ${interval}
+      GROUP BY event_name, device_type
+      ORDER BY count DESC
+    `, [] as unknown[]),
+  ]);
+  return c.json({ funnelSteps, bookingsByStatus, conversionByDevice, dropoffEvents });
+});
+
+// GET /admin/observability/cleaner-ops
+observabilityRouter.get("/cleaner-ops", async (c) => {
+  const range = c.req.query("range") ?? "7d";
+  const interval = range === "30d" ? "30 days" : range === "24h" ? "24 hours" : "7 days";
+  const sql = getDb(c.env.DATABASE_URL);
+  const [dosStats, cleanerActivity, lateArrivals, checkoutTimes] = await Promise.all([
+    settle(sql`
+      SELECT
+        COUNT(*)::int AS total_jobs,
+        COUNT(*) FILTER (WHERE status = 'completed')::int AS completed,
+        COUNT(*) FILTER (WHERE status = 'in_progress')::int AS in_progress,
+        COUNT(*) FILTER (WHERE status = 'cancelled')::int AS cancelled
+      FROM bookings
+      WHERE scheduled_at > NOW() - INTERVAL ${interval}
+    `, [{}] as Array<Record<string, unknown>>),
+    settle(sql`
+      SELECT event_name, COUNT(*)::int AS count
+      FROM analytics_events
+      WHERE event_name IN (
+        'cleaner_start_route','cleaner_arrived','cleaner_start_clean',
+        'cleaner_finish_clean','cleaner_checkout','cleaner_photo_added'
+      )
+      AND occurred_at > NOW() - INTERVAL ${interval}
+      GROUP BY event_name
+      ORDER BY event_name
+    `, [] as unknown[]),
+    settle(sql`
+      SELECT COUNT(*)::int AS count
+      FROM analytics_events
+      WHERE event_name = 'cleaner_late_arrival'
+        AND occurred_at > NOW() - INTERVAL ${interval}
+    `, [{ count: 0 }] as Array<Record<string, unknown>>),
+    settle(sql`
+      SELECT
+        ROUND(AVG((properties->>'duration_secs')::numeric / 60))::int AS avg_checkout_mins
+      FROM analytics_events
+      WHERE event_name = 'cleaner_checkout'
+        AND properties->>'duration_secs' IS NOT NULL
+        AND occurred_at > NOW() - INTERVAL ${interval}
+    `, [{}] as Array<Record<string, unknown>>),
+  ]);
+  return c.json({ dosStats: dosStats[0], cleanerActivity, lateArrivals: lateArrivals[0], checkoutTimes: checkoutTimes[0] });
+});
+
+// GET /admin/observability/audit-trail
+observabilityRouter.get("/audit-trail", async (c) => {
+  const limit = Math.min(parseInt(c.req.query("limit") ?? "100"), 500);
+  const offset = parseInt(c.req.query("offset") ?? "0");
+  const actor = c.req.query("actor");
+  const action = c.req.query("action");
+  const sql = getDb(c.env.DATABASE_URL);
+
+  const rows = await settle(sql`
+    SELECT a.id, a.action, a.table_name, a.record_id, a.diff, a.created_at,
+           u.email AS actor_email, u.role AS actor_role
+    FROM admin_audit_log a
+    LEFT JOIN users u ON u.id = a.actor_id
+    WHERE (${actor ?? null}::text IS NULL OR u.email ILIKE ${'%' + (actor ?? '') + '%'})
+      AND (${action ?? null}::text IS NULL OR a.action ILIKE ${'%' + (action ?? '') + '%'})
+    ORDER BY a.created_at DESC
+    LIMIT ${limit} OFFSET ${offset}
+  `, [] as unknown[]);
+
+  return c.json({ rows, limit, offset });
+});
+
+// GET /admin/observability/integration-health
+observabilityRouter.get("/integration-health", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const latest = await settle(sql`
+    SELECT DISTINCT ON (integration)
+      integration, status, latency_ms, error_message, checked_at
+    FROM integration_health_events
+    ORDER BY integration, checked_at DESC
+  `, [] as unknown[]);
+  const history = await settle(sql`
+    SELECT integration, status, latency_ms, checked_at
+    FROM integration_health_events
+    WHERE checked_at > NOW() - INTERVAL '24 hours'
+    ORDER BY checked_at DESC
+    LIMIT 200
+  `, [] as unknown[]);
+  return c.json({ latest, history });
+});

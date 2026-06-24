@@ -17,6 +17,7 @@ import {
   GraduationCap,
   MonitorPlay,
   ShieldCheck,
+  Telescope,
 } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -45,6 +46,7 @@ import { BroadcastsPage } from "./pages/BroadcastsPage";
 import { CourseBuilderPage } from "./pages/CourseBuilderPage";
 import { CourseEditorPage } from "./pages/CourseEditorPage";
 import { InsurancePage } from "./pages/InsurancePage";
+import { ObservabilityPage } from "./pages/ObservabilityPage";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -63,6 +65,7 @@ const nav = [
   { to: "/courses", label: "Course Builder", icon: MonitorPlay },
   { to: "/newsletter", label: "Newsletter", icon: Mail },
   { to: "/broadcasts", label: "Broadcasts", icon: Send },
+  { to: "/observability", label: "Observability", icon: Telescope },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -133,6 +136,7 @@ export default function App() {
       />
       <Route path="/newsletter" element={<Guarded><NewsletterPage /></Guarded>} />
       <Route path="/broadcasts" element={<Guarded><BroadcastsPage /></Guarded>} />
+      <Route path="/observability" element={<Guarded><ObservabilityPage /></Guarded>} />
       <Route path="/settings" element={<Guarded><SettingsPage /></Guarded>} />
     </Routes>
   );

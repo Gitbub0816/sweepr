@@ -29,6 +29,7 @@ import { adminCoursesRouter } from "./routes/admin/courses";
 import { dayOfServiceRouter } from "./routes/dayOfService";
 import { insuranceRouter, insuranceAdminRouter } from "./routes/insurance";
 import { serviceDemoRouter } from "./routes/serviceDemo";
+import { observabilityRouter } from "./routes/adminObservability";
 import { AppError, toSafeError } from "./lib/errors";
 import { logger } from "./lib/logger";
 import type { AppBindings } from "./types";
@@ -89,6 +90,7 @@ app.route("/jobs", dayOfServiceRouter);
 app.route("/insurance", insuranceRouter);
 app.route("/admin/insurance", insuranceAdminRouter);
 app.route("/service", serviceDemoRouter);
+app.route("/admin/observability", observabilityRouter);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 
