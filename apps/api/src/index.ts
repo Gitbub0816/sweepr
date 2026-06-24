@@ -24,6 +24,8 @@ import { adminServiceAreasRouter } from "./routes/adminServiceAreas";
 import { adminBroadcastsRouter } from "./routes/adminBroadcasts";
 import { trainingRouter } from "./routes/training";
 import { trainingAdminRouter } from "./routes/admin/trainingAdmin";
+import { coursesRouter } from "./routes/courses";
+import { adminCoursesRouter } from "./routes/admin/courses";
 import { AppError, toSafeError } from "./lib/errors";
 import { logger } from "./lib/logger";
 import type { AppBindings } from "./types";
@@ -78,6 +80,8 @@ app.use("/training/*", (c, next) => {
 });
 app.route("/training", trainingRouter);
 app.route("/admin/training", trainingAdminRouter);
+app.route("/courses", coursesRouter);
+app.route("/admin/courses", adminCoursesRouter);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 

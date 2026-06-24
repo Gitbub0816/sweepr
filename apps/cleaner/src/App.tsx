@@ -8,6 +8,7 @@ import {
   User,
   BarChart3,
   GraduationCap,
+  BookOpen,
 } from "lucide-react";
 import { AppShell, PrelaunchGate } from "@sweepr/ui";
 
@@ -23,6 +24,7 @@ import { EarningsPage } from "./pages/EarningsPage";
 import { PerformancePage } from "./pages/PerformancePage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { TrainingPage } from "./pages/TrainingPage";
+import { CourseViewerPage } from "./pages/CourseViewerPage";
 import { SignInPage } from "./components/SignInPage";
 import { SignUpPage } from "./components/SignUpPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -32,6 +34,7 @@ import { NavAuth } from "./components/NavAuth";
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/training", label: "Training", icon: GraduationCap },
+  { to: "/courses", label: "Courses", icon: BookOpen },
   { to: "/jobs", label: "Job Board", icon: Briefcase },
   { to: "/schedule", label: "Schedule", icon: CalendarDays },
   { to: "/earnings", label: "Earnings", icon: Wallet },
@@ -106,6 +109,10 @@ export default function App() {
       {/* Training (protected only — accessible during onboarding) */}
       <Route path="/training" element={<ProtectedRoute><TrainingPage /></ProtectedRoute>} />
       <Route path="/training/:moduleId" element={<ProtectedRoute><TrainingPage /></ProtectedRoute>} />
+
+      {/* Courses (protected + onboarding-gated) */}
+      <Route path="/courses" element={<Guarded><CourseViewerPage /></Guarded>} />
+      <Route path="/courses/:id" element={<Guarded><CourseViewerPage /></Guarded>} />
 
       {/* App (protected + onboarding-gated) */}
       <Route path="/" element={<Guarded><HomePage /></Guarded>} />

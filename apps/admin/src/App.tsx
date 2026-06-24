@@ -15,6 +15,7 @@ import {
   Mail,
   Send,
   GraduationCap,
+  MonitorPlay,
 } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -40,6 +41,8 @@ import { NavAuth } from "./components/NavAuth";
 import { AcceptInvitePage } from "./pages/AcceptInvitePage";
 import { NewsletterPage } from "./pages/NewsletterPage";
 import { BroadcastsPage } from "./pages/BroadcastsPage";
+import { CourseBuilderPage } from "./pages/CourseBuilderPage";
+import { CourseEditorPage } from "./pages/CourseEditorPage";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -54,6 +57,7 @@ const nav = [
   { to: "/events", label: "Events", icon: Activity },
   { to: "/status", label: "Status", icon: Activity },
   { to: "/training", label: "Training", icon: GraduationCap },
+  { to: "/courses", label: "Course Builder", icon: MonitorPlay },
   { to: "/newsletter", label: "Newsletter", icon: Mail },
   { to: "/broadcasts", label: "Broadcasts", icon: Send },
   { to: "/settings", label: "Settings", icon: Settings },
@@ -111,6 +115,18 @@ export default function App() {
       <Route path="/events" element={<Guarded><EventsPage /></Guarded>} />
       <Route path="/status" element={<Guarded><StatusPage /></Guarded>} />
       <Route path="/training" element={<Guarded><TrainingAdminPage /></Guarded>} />
+      <Route path="/courses" element={<Guarded><CourseBuilderPage /></Guarded>} />
+      {/* Editor is a full-screen takeover — auth + admin gated, but outside the AppShell. */}
+      <Route
+        path="/courses/:id"
+        element={
+          <ProtectedRoute>
+            <AdminGuard>
+              <CourseEditorPage />
+            </AdminGuard>
+          </ProtectedRoute>
+        }
+      />
       <Route path="/newsletter" element={<Guarded><NewsletterPage /></Guarded>} />
       <Route path="/broadcasts" element={<Guarded><BroadcastsPage /></Guarded>} />
       <Route path="/settings" element={<Guarded><SettingsPage /></Guarded>} />
