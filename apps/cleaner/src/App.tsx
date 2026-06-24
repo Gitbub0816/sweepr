@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Outlet } from "react-router-dom";
 import { AuthenticateWithRedirectCallback } from "@clerk/clerk-react";
 import {
   LayoutDashboard,
@@ -64,32 +64,26 @@ function Guarded({ children }: { children: React.ReactNode }) {
   );
 }
 
+function GateLayout() {
+  return (
+    <PrelaunchGate type="cleaner" apiUrl={API_URL}>
+      <Outlet />
+    </PrelaunchGate>
+  );
+}
+
 export default function App() {
   return (
     <Routes>
-      {/* Auth (unprotected, but gated during prelaunch) */}
-      <Route
-        path="/sign-in"
-        element={
-          <PrelaunchGate type="cleaner" apiUrl={API_URL}>
-            <SignInPage />
-          </PrelaunchGate>
-        }
-      />
-      <Route
-        path="/sign-up"
-        element={
-          <PrelaunchGate type="cleaner" apiUrl={API_URL}>
-            <SignUpPage />
-          </PrelaunchGate>
-        }
-      />
-
-      {/* OAuth SSO callback — Clerk redirects here after Google/Apple */}
+      {/* OAuth SSO callback and mock Checkr form bypass the prelaunch gate */}
       <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback />} />
-
-      {/* Mock Checkr hosted form (no auth required — loaded in iframe) */}
       <Route path="/checkr-simulate" element={<CheckrSimulatePage />} />
+
+      {/* Everything else is gated during prelaunch */}
+      <Route element={<GateLayout />}>
+      {/* Auth */}
+      <Route path="/sign-in" element={<SignInPage />} />
+      <Route path="/sign-up" element={<SignUpPage />} />
 
       {/* Onboarding (protected, but not onboarding-gated) */}
       <Route
@@ -126,6 +120,7 @@ export default function App() {
       <Route path="/performance" element={<Guarded><PerformancePage /></Guarded>} />
       <Route path="/insurance" element={<Guarded><InsurancePage /></Guarded>} />
       <Route path="/profile" element={<Guarded><ProfilePage /></Guarded>} />
+      </Route>{/* end GateLayout */}
     </Routes>
   );
 }

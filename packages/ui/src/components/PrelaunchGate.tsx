@@ -35,6 +35,7 @@ export function PrelaunchGate({ type, apiUrl, children }: PrelaunchGateProps) {
         const clean = [window.location.pathname, params.toString() ? `?${params}` : ""].join("");
         window.history.replaceState({}, "", clean);
         setBypassed(true);
+        setSettings({ prelaunch_cleaner: false, prelaunch_customer: false });
         return;
       }
       if (localStorage.getItem(BYPASS_KEY) === "true") {

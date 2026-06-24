@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { SignIn, SignUp } from "@clerk/clerk-react";
 import {
   CalendarCheck,
@@ -67,45 +67,50 @@ function Protected({ children }: { children: React.ReactNode }) {
   );
 }
 
+function GateLayout() {
+  return (
+    <PrelaunchGate type="customer" apiUrl={API_URL}>
+      <Outlet />
+    </PrelaunchGate>
+  );
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
       <OfflineIndicator />
       <Routes>
+        <Route element={<GateLayout />}>
         {/* Auth */}
         <Route
           path="/sign-in/*"
           element={
-            <PrelaunchGate type="customer" apiUrl={API_URL}>
-              <AuthPage title="Welcome back" subtitle="Sign in to manage your cleans">
-                <SignIn
-                  routing="path"
-                  path="/sign-in"
-                  signUpUrl="/sign-up"
-                  fallbackRedirectUrl="/book"
-                />
-              </AuthPage>
-            </PrelaunchGate>
+            <AuthPage title="Welcome back" subtitle="Sign in to manage your cleans">
+              <SignIn
+                routing="path"
+                path="/sign-in"
+                signUpUrl="/sign-up"
+                fallbackRedirectUrl="/book"
+              />
+            </AuthPage>
           }
         />
         <Route
           path="/sign-up/*"
           element={
-            <PrelaunchGate type="customer" apiUrl={API_URL}>
-              <AuthPage
-                title="Create your account"
-                subtitle="Book your first clean in minutes"
-              >
-                <SignUpWithSms>
-                  <SignUp
-                    routing="path"
-                    path="/sign-up"
-                    signInUrl="/sign-in"
-                    fallbackRedirectUrl="/book"
-                  />
-                </SignUpWithSms>
-              </AuthPage>
-            </PrelaunchGate>
+            <AuthPage
+              title="Create your account"
+              subtitle="Book your first clean in minutes"
+            >
+              <SignUpWithSms>
+                <SignUp
+                  routing="path"
+                  path="/sign-up"
+                  signInUrl="/sign-in"
+                  fallbackRedirectUrl="/book"
+                />
+              </SignUpWithSms>
+            </AuthPage>
           }
         />
 
@@ -142,6 +147,7 @@ export default function App() {
           path="/payment-methods"
           element={<Protected><PaymentMethodsPage /></Protected>}
         />
+        </Route>{/* end GateLayout */}
       </Routes>
     </ErrorBoundary>
   );
