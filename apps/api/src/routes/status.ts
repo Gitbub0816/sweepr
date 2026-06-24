@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { getDb } from "../lib/db";
-import { sendEmail } from "../lib/mailer";
+import { sendEmail, TEMPLATES } from "../lib/mailer";
 import type { AppBindings } from "../types";
 
 export const statusRouter = new Hono<AppBindings>();
@@ -150,19 +150,7 @@ statusRouter.post(
         await sendEmail(c.env.MAILERSEND_API_KEY, {
           to: email,
           subject: "You're subscribed to Sweepr updates",
-          html: `
-            <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
-              <img src="https://getsweepr.com/logo.png" alt="Sweepr" style="height:36px;margin-bottom:24px" />
-              <h2 style="color:#111;margin:0 0 12px">You're on the list!</h2>
-              <p style="color:#444;line-height:1.6;margin:0 0 16px">
-                Thanks for subscribing. We'll send you launch updates, new features, and the
-                occasional tip — no spam, ever.
-              </p>
-              <p style="color:#888;font-size:13px">
-                If you didn't sign up for this, you can safely ignore this email.
-              </p>
-            </div>
-          `,
+          templateId: TEMPLATES.NEWSLETTER_CONFIRM,
         });
       } catch {
         // Non-fatal — subscriber is saved, email failure shouldn't fail the request
@@ -210,16 +198,8 @@ statusRouter.post(
           await sendEmail(c.env.MAILERSEND_API_KEY, {
             to: email,
             subject: "We'll let you know when Sweepr comes to your area",
-            html: `
-              <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
-                <h2 style="color:#111;margin:0 0 12px">Request received!</h2>
-                <p style="color:#444;line-height:1.6;margin:0 0 16px">
-                  Thanks for requesting <strong>${input}</strong>. We'll reach out as
-                  soon as Sweepr is available in your area.
-                </p>
-                <p style="color:#888;font-size:13px">If you didn't request this, ignore this email.</p>
-              </div>
-            `,
+            templateId: TEMPLATES.SUBSCRIBED_UPDATES,
+            variables: { city: input },
           });
         } catch { /* non-fatal */ }
       }
@@ -248,6 +228,17 @@ statusRouter.post(
       INSERT INTO waitlist (email, name, phone, zip_code, type)
       VALUES (${email}, ${name ?? null}, ${phone ?? null}, ${zipCode ?? null}, ${type})
     `;
+
+    try {
+      await sendEmail(c.env.MAILERSEND_API_KEY, {
+        to: email,
+        toName: name,
+        subject: "You're on the Sweepr waitlist!",
+        templateId: TEMPLATES.WAITLIST,
+        variables: { name: name ?? "", type },
+      });
+    } catch { /* non-fatal */ }
+
     return c.json({ ok: true });
   }
 );

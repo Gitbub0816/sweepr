@@ -1,34 +1,60 @@
 /**
- * Thin MailerSend client. Email HTML is built in @sweepr/utils; this just sends.
+ * Thin MailerSend client.
+ * Supports both raw HTML sends and template-based sends via template_id.
  */
+
+export const TEMPLATES = {
+  NEWSLETTER_CONFIRM: "x2p034732j9gzdrn",
+  SUBSCRIBED_UPDATES: "jpzkmgq5v0ng059v",
+  WAITLIST: "3z0vklo5wo747qrx",
+  STATUS_UPDATE: "yzkq3403wrx4d796",
+} as const;
+
 export interface SendEmailInput {
   to: string;
   toName?: string;
   subject: string;
-  html: string;
+  html?: string;
+  templateId?: string;
+  variables?: Record<string, string>;
 }
 
 export async function sendEmail(
   apiKey: string,
   input: SendEmailInput
 ): Promise<void> {
+  const body: Record<string, unknown> = {
+    from: { email: "hello@getsweepr.com", name: "Sweepr" },
+    to: [{ email: input.to, name: input.toName ?? input.to }],
+    subject: input.subject,
+  };
+
+  if (input.templateId) {
+    body.template_id = input.templateId;
+    if (input.variables) {
+      body.personalization = [
+        {
+          email: input.to,
+          data: input.variables,
+        },
+      ];
+    }
+  } else {
+    body.html = input.html ?? "";
+  }
+
   const res = await fetch("https://api.mailersend.com/v1/email", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      from: { email: "hello@getsweepr.com", name: "Sweepr" },
-      to: [{ email: input.to, name: input.toName ?? input.to }],
-      subject: input.subject,
-      html: input.html,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`MailerSend failed (${res.status}): ${body}`);
+    const text = await res.text();
+    throw new Error(`MailerSend failed (${res.status}): ${text}`);
   }
 }
 
@@ -65,8 +91,8 @@ export async function sendBulkEmail(
     });
 
     if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`MailerSend bulk failed (${res.status}): ${body}`);
+      const text = await res.text();
+      throw new Error(`MailerSend bulk failed (${res.status}): ${text}`);
     }
     sent += chunk.length;
   }
