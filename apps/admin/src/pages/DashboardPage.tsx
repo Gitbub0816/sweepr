@@ -82,12 +82,20 @@ function actionVariant(action: string): "error" | "success" | "info" | "warning"
 }
 
 const POSTHOG_DASHBOARD_URL = import.meta.env.VITE_POSTHOG_DASHBOARD_URL as string | undefined;
+// Only treat the embed URL as usable if it looks like a PostHog shared/embedded
+// dashboard. A stale or revoked share link makes PostHog's own iframe code fall
+// back to a placeholder token ("fake_token") and spam 404/401s, so we never
+// auto-load it — the operator clicks to load it explicitly.
+const DASHBOARD_URL_VALID =
+  !!POSTHOG_DASHBOARD_URL &&
+  /^https:\/\/(us|eu|app)\.posthog\.com\/(shared|embedded)\//.test(POSTHOG_DASHBOARD_URL);
 
 export function DashboardPage() {
   const { getToken } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   const load = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
@@ -284,18 +292,37 @@ export function DashboardPage() {
             )}
           </Card>
 
-          {/* PostHog embed */}
-          {POSTHOG_DASHBOARD_URL && (
+          {/* PostHog embed — loaded only on demand so a stale share link can't
+              auto-spam PostHog's fake_token/401 errors on every page view. */}
+          {DASHBOARD_URL_VALID && (
             <Card>
-              <h2 className="mb-4 font-semibold text-charcoal dark:text-white">Analytics</h2>
-              <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
-                <iframe
-                  title="PostHog dashboard"
-                  src={POSTHOG_DASHBOARD_URL}
-                  className="h-[480px] w-full"
-                  allowFullScreen
-                />
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="font-semibold text-charcoal dark:text-white">Analytics</h2>
+                {!showAnalytics && (
+                  <button
+                    onClick={() => setShowAnalytics(true)}
+                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300"
+                  >
+                    Load dashboard
+                  </button>
+                )}
               </div>
+              {showAnalytics ? (
+                <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
+                  <iframe
+                    title="PostHog dashboard"
+                    src={POSTHOG_DASHBOARD_URL}
+                    className="h-[480px] w-full"
+                    allowFullScreen
+                  />
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">
+                  Embedded PostHog dashboard. Click “Load dashboard” to display it. If it
+                  fails to load, the share link has likely expired — regenerate it in
+                  PostHog and update the <code>VITE_POSTHOG_DASHBOARD_URL</code> secret.
+                </p>
+              )}
             </Card>
           )}
         </>
