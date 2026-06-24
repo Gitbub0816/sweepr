@@ -5,6 +5,7 @@ export const LOCALHOST_ORIGINS = [
   "https://app.getsweepr.com",
   "https://clean.getsweepr.com",
   "https://admin.getsweepr.com",
+  "https://status.getsweepr.com",
   "http://localhost:5173",
   "http://localhost:5174",
   "http://localhost:5175",
