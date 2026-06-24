@@ -43,7 +43,11 @@ preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
 # DIDIT_CLIENT_ID             (optional — not needed for hosted session flow)
 # DIDIT_CLIENT_SECRET         (optional — not needed for hosted session flow)
 # DIDIT_ORGANIZATION_ID       (optional)
-# FIREBASE_SERVICE_ACCOUNT  (base64 service account JSON — set when available)
+# R2_ACCOUNT_ID             (Cloudflare account ID)
+# R2_ACCESS_KEY_ID          (R2 token access key ID)
+# R2_SECRET_ACCESS_KEY      (R2 token secret access key)
+# R2_BUCKET                 (R2 bucket name, e.g. sweepr-media)
+# R2_PUBLIC_URL             (public base URL, e.g. https://media.getsweepr.com)
 # CHECKR_API_KEY            (omit for mock mode — account under review)
 # CHECKR_PACKAGE
 # CHECKR_WEBHOOK_SECRET

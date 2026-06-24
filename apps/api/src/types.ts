@@ -6,7 +6,11 @@ export interface Env {
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
   MAILERSEND_API_KEY: string;
-  FIREBASE_SERVICE_ACCOUNT: string;
+  R2_ACCOUNT_ID: string;
+  R2_ACCESS_KEY_ID: string;
+  R2_SECRET_ACCESS_KEY: string;
+  R2_BUCKET: string;
+  R2_PUBLIC_URL: string;
   CUSTOMER_URL?: string;
   CHECKR_API_KEY?: string;
   CHECKR_PACKAGE?: string;
@@ -17,6 +21,7 @@ export interface Env {
   DIDIT_WEBHOOK_SECRET?: string;
   ALLOWED_ORIGINS?: string;
   POSTHOG_KEY?: string;
+  RATE_LIMIT_KV: KVNamespace;
 }
 
 export interface AuthUser {
