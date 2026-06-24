@@ -22,16 +22,6 @@ jobs:
           node-version: '22'
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
-      - name: Diagnose VITE_POSTHOG_KEY secret (safe — never prints the value)
-        env:
-          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
-        run: |
-          echo "VITE_POSTHOG_KEY length: ${#VITE_POSTHOG_KEY}"
-          case "$VITE_POSTHOG_KEY" in
-            phc_*) echo "VITE_POSTHOG_KEY prefix: phc_ (looks like a real PostHog key)";;
-            "")    echo "VITE_POSTHOG_KEY prefix: EMPTY (secret is not set)";;
-            *)     echo "VITE_POSTHOG_KEY prefix: NOT phc_ (placeholder or wrong value)";;
-          esac
       - run: pnpm build
       - run: pnpm security
 
