@@ -66,7 +66,7 @@ jobs:
           VITE_API_URL: https://api.getsweepr.com
           VITE_CUSTOMER_URL: https://app.getsweepr.com
           VITE_CLEANER_URL: https://clean.getsweepr.com
-      - run: pnpm exec wrangler pages deploy apps/marketing/dist --project-name=sweepr-marketing --commit-dirty=true
+      - run: pnpm exec wrangler pages deploy apps/marketing/dist --project-name=sweepr-marketing --branch=production --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -98,7 +98,7 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-      - run: pnpm exec wrangler pages deploy apps/customer/dist --project-name=sweepr-customer --commit-dirty=true
+      - run: pnpm exec wrangler pages deploy apps/customer/dist --project-name=sweepr-customer --branch=production --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -129,7 +129,7 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-      - run: pnpm exec wrangler pages deploy apps/cleaner/dist --project-name=sweepr-cleaner --commit-dirty=true
+      - run: pnpm exec wrangler pages deploy apps/cleaner/dist --project-name=sweepr-cleaner --branch=production --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -155,20 +155,7 @@ jobs:
           VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
           VITE_POSTHOG_DASHBOARD_URL: ${{ secrets.VITE_POSTHOG_DASHBOARD_URL }}
           VITE_API_URL: https://api.getsweepr.com
-      - name: Diagnose admin posthog key (safe — no values printed)
-        env:
-          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
-        run: |
-          echo "secret length: ${#VITE_POSTHOG_KEY}"
-          case "$VITE_POSTHOG_KEY" in
-            phc_*) echo "secret prefix: phc_";;
-            "")    echo "secret prefix: EMPTY";;
-            *)     echo "secret prefix: NOT phc_";;
-          esac
-          echo "built bundle: $(ls apps/admin/dist/assets/index-*.js)"
-          grep -rl "fake_token" apps/admin/dist/assets >/dev/null 2>&1 && echo "BAKED: fake_token IS in bundle" || echo "BAKED: no fake_token"
-          grep -rl "phc_" apps/admin/dist/assets >/dev/null 2>&1 && echo "BAKED: a phc_ string IS in bundle" || echo "BAKED: no phc_ in bundle"
-      - run: pnpm exec wrangler pages deploy apps/admin/dist --project-name=sweepr-admin --commit-dirty=true
+      - run: pnpm exec wrangler pages deploy apps/admin/dist --project-name=sweepr-admin --branch=production --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -187,7 +174,7 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @sweepr/legal build
-      - run: pnpm exec wrangler pages deploy apps/legal/dist --project-name=sweepr-legal --commit-dirty=true
+      - run: pnpm exec wrangler pages deploy apps/legal/dist --project-name=sweepr-legal --branch=production --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -209,7 +196,7 @@ jobs:
       - run: pnpm --filter @sweepr/status build
         env:
           VITE_API_URL: https://api.getsweepr.com
-      - run: pnpm exec wrangler pages deploy apps/status/dist --project-name=sweepr-status --commit-dirty=true
+      - run: pnpm exec wrangler pages deploy apps/status/dist --project-name=sweepr-status --branch=production --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
