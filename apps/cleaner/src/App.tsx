@@ -15,6 +15,7 @@ import { AppShell, PrelaunchGate } from "@sweepr/ui";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 import { HomePage } from "./pages/HomePage";
+import { DashboardPage } from "./pages/DashboardPage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { PendingReviewPage } from "./pages/PendingReviewPage";
 import { CheckrSimulatePage } from "./pages/CheckrSimulatePage";
@@ -112,7 +113,8 @@ export default function App() {
       <Route path="/courses/:id" element={<Guarded><CourseViewerPage /></Guarded>} />
 
       {/* App (protected + onboarding-gated) */}
-      <Route path="/" element={<Guarded><HomePage /></Guarded>} />
+      <Route path="/" element={<Guarded><DashboardPage /></Guarded>} />
+      <Route path="/home" element={<Guarded><HomePage /></Guarded>} />
       <Route path="/jobs" element={<Guarded><JobsPage /></Guarded>} />
       <Route path="/jobs/:id" element={<Guarded><JobDetailPage /></Guarded>} />
       <Route path="/schedule" element={<Guarded><SchedulePage /></Guarded>} />

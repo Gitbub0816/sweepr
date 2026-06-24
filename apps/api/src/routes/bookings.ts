@@ -18,6 +18,8 @@ import { assertValidTransition } from "../lib/statusMachine";
 import { audit } from "../lib/audit";
 import { serverTrack } from "../lib/posthog";
 import { logger } from "../lib/logger";
+import { assertBookingAccess } from "../lib/bookingAccess";
+import { calculateBookingPrice, getAddOnCatalogue } from "../lib/pricingEngine";
 import type { AppBindings } from "../types";
 import type { BookingRow, CleanerRow } from "@sweepr/db";
 
@@ -37,12 +39,8 @@ const createSchema = z.object({
   addOnKeys: z.array(z.string().max(50)).max(20).default([]),
   scheduledAt: z.string().datetime(),
   addressId: z.string().uuid().optional(),
-  basePrice: z.number().int(),
-  addonsTotal: z.number().int().default(0),
-  serviceFee: z.number().int().default(0),
-  tax: z.number().int().default(0),
-  totalPrice: z.number().int(),
   notes: z.string().max(2000).optional(),
+  // Client must NOT submit prices — server always calculates.
 });
 
 // Customers may only cancel via the status endpoint.
@@ -64,6 +62,9 @@ bookingsRouter.post(
   const customer = await getCustomerByUserId(sql, user.id);
   if (!customer) return c.json({ error: "Customer not found" }, 404);
 
+  // Server-side price calculation — client values are never trusted.
+  const price = calculateBookingPrice(input);
+
   const rows = (await sql`
     INSERT INTO bookings (
       customer_id, address_id, status, service_type, bedrooms, bathrooms,
@@ -72,8 +73,8 @@ bookingsRouter.post(
     ) VALUES (
       ${customer.id}, ${input.addressId ?? null}, 'booked', ${input.serviceType},
       ${input.bedrooms}, ${input.bathrooms}, ${input.sqft}, ${input.homeType},
-      ${input.scheduledAt}, ${input.basePrice}, ${input.addonsTotal},
-      ${input.serviceFee}, ${input.tax}, ${input.totalPrice}, ${input.notes ?? null}
+      ${input.scheduledAt}, ${price.basePrice}, ${price.addonsTotal},
+      ${price.serviceFee}, ${price.tax}, ${price.totalPrice}, ${input.notes ?? null}
     ) RETURNING *
   `) as BookingRow[];
 
@@ -93,7 +94,7 @@ bookingsRouter.post(
     actorClerkId: c.get("user").clerkId,
     targetType: "booking",
     targetId: created.id,
-    metadata: { serviceType: input.serviceType, totalPrice: input.totalPrice },
+    metadata: { serviceType: input.serviceType, totalPrice: price.totalPrice },
     ipAddress: c.req.header("CF-Connecting-IP"),
     userAgent: c.req.header("User-Agent"),
     timestamp: new Date().toISOString(),
@@ -102,7 +103,7 @@ bookingsRouter.post(
   await serverTrack(c.env, "booking_confirmed", c.get("user").clerkId, {
     bookingId: created.id,
     serviceType: input.serviceType,
-    totalPrice: input.totalPrice,
+    totalPrice: price.totalPrice,
   });
 
   // Silent auto-assignment: rank cleaners and offer to the best match.
@@ -125,9 +126,20 @@ bookingsRouter.get("/", async (c) => {
   return c.json({ bookings });
 });
 
+/** Quote endpoint — returns server-calculated price without creating a booking. */
+bookingsRouter.post("/quote", zValidator("json", createSchema), async (c) => {
+  const input = c.req.valid("json");
+  const price = calculateBookingPrice(input);
+  const catalogue = getAddOnCatalogue();
+  return c.json({ price, catalogue });
+});
+
 bookingsRouter.get("/:id", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
-  const booking = await getBooking(sql, c.req.param("id"));
+  const bookingId = c.req.param("id");
+  const access = await assertBookingAccess(sql, bookingId, c.get("user").clerkId);
+  if (!access.allowed) return c.json({ error: "Forbidden" }, 403);
+  const booking = await getBooking(sql, bookingId);
   if (!booking) return c.json({ error: "Not found" }, 404);
   return c.json({ booking });
 });
@@ -139,6 +151,9 @@ bookingsRouter.patch(
     const sql = getDb(c.env.DATABASE_URL);
     const id = c.req.param("id");
     const { status } = c.req.valid("json");
+
+    const access = await assertBookingAccess(sql, id, c.get("user").clerkId);
+    if (!access.allowed) return c.json({ error: "Forbidden" }, 403);
 
     const booking = await getBooking(sql, id);
     if (!booking) return c.json({ error: "Not found" }, 404);

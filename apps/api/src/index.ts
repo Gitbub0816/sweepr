@@ -32,6 +32,9 @@ import { serviceDemoRouter } from "./routes/serviceDemo";
 import { observabilityRouter } from "./routes/adminObservability";
 import { adminAutomationRouter } from "./routes/adminAutomation";
 import { adminPayoutsRouter } from "./routes/adminPayouts";
+import { adminMeRouter } from "./routes/adminMe";
+import { cleanerDashboardRouter } from "./routes/cleanerDashboard";
+import { requestLogger } from "./middleware/requestLogger";
 import { AppError, toSafeError } from "./lib/errors";
 import { logger } from "./lib/logger";
 import type { AppBindings } from "./types";
@@ -40,6 +43,9 @@ const app = new Hono<AppBindings>();
 
 // Security headers run first so they apply to every response.
 app.use("*", securityHeaders);
+
+// Request logging (non-fatal, never blocks).
+app.use("*", requestLogger());
 
 // CORS is built per-request so it can read ALLOWED_ORIGINS from env.
 app.use("*", (c, next) => buildCorsMiddleware(c.env)(c, next));
@@ -95,6 +101,8 @@ app.route("/service", serviceDemoRouter);
 app.route("/admin/observability", observabilityRouter);
 app.route("/admin/automation", adminAutomationRouter);
 app.route("/admin/payouts", adminPayoutsRouter);
+app.route("/admin/me", adminMeRouter);
+app.route("/cleaners", cleanerDashboardRouter);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 
@@ -156,6 +164,27 @@ export default {
           logger.error("cron.capture failed", err, { bookingId: row.id });
         }
       }
+
+      // Observability retention cleanup (safe to run every cron fire — idempotent).
+      await sql`DELETE FROM api_request_logs WHERE logged_at < NOW() - INTERVAL '90 days'`;
+      await sql`DELETE FROM analytics_events  WHERE occurred_at < NOW() - INTERVAL '180 days'`;
+      await sql`DELETE FROM session_replay_refs WHERE started_at < NOW() - INTERVAL '90 days'`;
+      await sql`DELETE FROM cleaner_location_pings WHERE created_at < NOW() - INTERVAL '72 hours'`;
+
+      // Payout automation: promote eligible payout_ledger rows to 'eligible' after delay window.
+      await sql`
+        UPDATE payout_ledger pl
+        SET status = 'eligible', eligible_at = NOW(), updated_at = NOW()
+        FROM bookings b
+        JOIN platform_fee_settings pfs ON pfs.active = TRUE
+        WHERE pl.booking_id = b.id
+          AND pl.status = 'pending'
+          AND b.status = 'completed'
+          AND b.completed_at + (pfs.payout_delay_days || ' days')::INTERVAL <= NOW()
+          AND NOT EXISTS (
+            SELECT 1 FROM disputes d WHERE d.booking_id = b.id AND d.status = 'open'
+          )
+      `;
 
       logger.info("cron.completed", { cron: event.cron, captures: pendingCaptures.length });
     } catch (err) {

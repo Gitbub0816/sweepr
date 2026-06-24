@@ -7,6 +7,7 @@ import { audit } from "../lib/audit";
 import { serverTrack } from "../lib/posthog";
 import { initiateAssignment } from "../lib/assignment";
 import { nextOccurrenceDate } from "../lib/subscriptions";
+import { recordPaymentEvent } from "../lib/paymentObservability";
 import type { AppBindings } from "../types";
 import type { BookingRow } from "@sweepr/db";
 
@@ -37,16 +38,53 @@ stripeWebhookRouter.post("/", async (c) => {
 
   const sql = getDb(c.env.DATABASE_URL);
 
+  // Idempotency: ignore already-processed events.
+  const existing = await sql`
+    SELECT id FROM stripe_events WHERE stripe_event_id = ${event.id} LIMIT 1
+  ` as Array<{ id: string }>;
+  if (existing[0]) {
+    return c.json({ received: true, duplicate: true });
+  }
+  await sql`
+    INSERT INTO stripe_events (stripe_event_id, event_type, payload)
+    VALUES (${event.id}, ${event.type}, ${JSON.stringify(event)})
+    ON CONFLICT (stripe_event_id) DO NOTHING
+  `;
+
+  await recordPaymentEvent(sql, {
+    eventType: "webhook_received",
+    providerEventId: event.id,
+    success: true,
+    metadata: { type: event.type },
+  });
+
   switch (event.type) {
     case "payment_intent.succeeded": {
       const intent = event.data.object;
       const bookingId = intent.metadata?.bookingId;
+      await recordPaymentEvent(sql, {
+        eventType: "payment_intent_succeeded",
+        bookingId: bookingId ?? null,
+        amountCents: intent.amount,
+        providerEventId: intent.id,
+        success: true,
+      });
       if (bookingId) {
         await sql`
           UPDATE bookings
           SET status = 'booked', stripe_payment_intent_id = ${intent.id},
               updated_at = NOW()
           WHERE id = ${bookingId}
+        `;
+        // Create payout_ledger row so automated payout engine can track it.
+        await sql`
+          INSERT INTO payout_ledger (
+            booking_id, gross_amount_cents, platform_fee_cents,
+            cleaner_payout_cents, stripe_payment_intent_id, status
+          )
+          SELECT b.id, b.total_price, 0, 0, ${intent.id}, 'pending'
+          FROM bookings b WHERE b.id = ${bookingId}
+          ON CONFLICT (booking_id) DO NOTHING
         `;
         await audit(sql, {
           action: "payment.captured",
@@ -87,6 +125,15 @@ stripeWebhookRouter.post("/", async (c) => {
     case "payment_intent.payment_failed": {
       const intent = event.data.object;
       const bookingId = intent.metadata?.bookingId;
+      await recordPaymentEvent(sql, {
+        eventType: "payment_intent_failed",
+        bookingId: bookingId ?? null,
+        amountCents: intent.amount,
+        providerEventId: intent.id,
+        success: false,
+        errorCode: intent.last_payment_error?.code ?? null,
+        errorMessage: intent.last_payment_error?.message ?? null,
+      });
       if (bookingId) {
         await sql`
           UPDATE bookings SET status = 'payment_pending', updated_at = NOW()
@@ -108,14 +155,81 @@ stripeWebhookRouter.post("/", async (c) => {
       break;
     }
     case "account.updated": {
-      // Stripe Connect — touch the cleaner row so payout-readiness changes are
-      // reflected. Detailed capability flags are read on demand via the status
-      // endpoint; here we just mark the record as seen.
       const account = event.data.object;
+      // Sync stripe_connected_accounts with latest capability flags.
+      await sql`
+        UPDATE stripe_connected_accounts
+        SET charges_enabled  = ${account.charges_enabled},
+            payouts_enabled  = ${account.payouts_enabled},
+            details_submitted = ${account.details_submitted},
+            capabilities     = ${JSON.stringify(account.capabilities ?? {})},
+            requirements     = ${JSON.stringify(account.requirements ?? {})},
+            status = CASE
+              WHEN ${account.charges_enabled} AND ${account.payouts_enabled} THEN 'enabled'
+              WHEN NOT ${account.details_submitted} THEN 'pending'
+              ELSE 'restricted'
+            END,
+            updated_at = NOW()
+        WHERE stripe_account_id = ${account.id}
+      `;
       await sql`
         UPDATE cleaners SET updated_at = NOW()
         WHERE stripe_connect_id = ${account.id}
       `;
+      break;
+    }
+    case "charge.dispute.closed": {
+      const dispute = event.data.object;
+      const paymentIntent = typeof dispute.payment_intent === "string"
+        ? dispute.payment_intent : dispute.payment_intent?.id ?? null;
+      if (paymentIntent) {
+        await sql`
+          UPDATE payout_ledger SET status = 'eligible', dispute_id = NULL, updated_at = NOW()
+          WHERE stripe_payment_intent_id = ${paymentIntent}
+            AND status = 'held'
+        `;
+      }
+      break;
+    }
+    case "transfer.failed" as string: {
+      const transfer = (event as unknown as { data: { object: { id: string; transfer_group?: string; destination?: unknown } } }).data.object;
+      const bookingId = transfer.transfer_group?.replace("booking_", "");
+      await recordPaymentEvent(sql, {
+        eventType: "transfer_failed",
+        bookingId: bookingId ?? null,
+        providerEventId: transfer.id,
+        success: false,
+        metadata: { destination: transfer.destination },
+      });
+      if (bookingId) {
+        await sql`
+          UPDATE payout_ledger SET status = 'failed', failed_at = NOW(),
+            failure_message = 'Stripe transfer failed', updated_at = NOW()
+          WHERE booking_id = ${bookingId}
+        `;
+      }
+      break;
+    }
+    case "payout.paid": {
+      const payout = event.data.object;
+      await recordPaymentEvent(sql, {
+        eventType: "payout_paid",
+        amountCents: payout.amount,
+        providerEventId: payout.id,
+        success: true,
+      });
+      break;
+    }
+    case "payout.failed": {
+      const payout = event.data.object;
+      await recordPaymentEvent(sql, {
+        eventType: "payout_failed",
+        amountCents: payout.amount,
+        providerEventId: payout.id,
+        success: false,
+        errorCode: payout.failure_code ?? null,
+        errorMessage: payout.failure_message ?? null,
+      });
       break;
     }
     case "transfer.created": {
@@ -280,6 +394,12 @@ stripeWebhookRouter.post("/", async (c) => {
     default:
       break;
   }
+
+  // Mark event as processed.
+  await sql`
+    UPDATE stripe_events SET processed_at = NOW()
+    WHERE stripe_event_id = ${event.id}
+  `;
 
   return c.json({ received: true });
 });

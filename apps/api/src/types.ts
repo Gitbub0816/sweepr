@@ -23,6 +23,9 @@ export interface Env {
   POSTHOG_KEY?: string;
   SEED_BOOL?: string;
   RATE_LIMIT_KV: KVNamespace;
+  CLEANER_APP_URL?: string;
+  ADMIN_URL?: string;
+  ACCESS_CODE_SECRET?: string;
 }
 
 export interface AuthUser {
