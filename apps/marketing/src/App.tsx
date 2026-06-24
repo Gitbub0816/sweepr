@@ -1,5 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import Landing from "./pages/Landing";
+import StatusPage from "./pages/StatusPage";
 import { CookieConsent } from "./components/CookieConsent";
 
 function LegalRedirect({ slug }: { slug: string }) {
@@ -12,6 +13,7 @@ export default function App() {
     <>
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/status" element={<StatusPage />} />
         <Route path="/privacy" element={<LegalRedirect slug="privacy" />} />
         <Route path="/terms" element={<LegalRedirect slug="terms" />} />
         <Route path="/independent-contractor" element={<LegalRedirect slug="contractor-agreement" />} />

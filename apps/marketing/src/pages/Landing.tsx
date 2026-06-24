@@ -58,24 +58,24 @@ const navLinks = [
 
 const steps = [
   {
+    icon: ShieldCheck,
+    title: "Every Sweepr is vetted — before they can work",
+    body: "Identity verification, third-party background check, and platform training are required before any Sweepr can accept a single booking.",
+  },
+  {
     icon: MapPin,
-    title: "Choose your service",
-    body: "Standard clean, deep clean, move-in, move-out, recurring — pick what your home actually needs right now.",
+    title: "Book exactly what you need",
+    body: "Standard clean, deep clean, move-in, move-out, recurring — with upfront pricing shown before you commit to anything.",
   },
   {
     icon: CalendarClock,
-    title: "Pick a time",
-    body: "See real availability in your area and book a slot that fits your week, not the other way around.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Get matched with a qualified Sweepr",
-    body: "Every Sweepr in our marketplace has completed identity verification, training, and background screening. You get a text when they're on the way.",
+    title: "Track your Sweepr in real time",
+    body: "You'll know when they're on the way and when they arrive. Your address is only shared once they're confirmed and en route.",
   },
   {
     icon: Star,
-    title: "Enjoy a cleaner home",
-    body: "Come back to something that feels genuinely different. If it's not right, we'll make it right — no back-and-forth required.",
+    title: "A home that's actually clean",
+    body: "Every booking is covered by liability insurance. If anything's not right, report it within 48 hours — we'll send someone back or refund you.",
   },
 ];
 
@@ -141,23 +141,23 @@ const services = [
 const trust = [
   {
     icon: ShieldCheck,
-    title: "Verified before they ever arrive",
-    body: "Every active Sweepr completes identity verification, training, and background screening before they enter the marketplace. Not once — at onboarding and on an ongoing basis.",
+    title: "Screened before they step inside",
+    body: "Identity verification, government ID checks, and a third-party background screen — completed before any Sweepr can accept their first job. We re-screen on an ongoing basis.",
   },
   {
     icon: BadgeCheck,
-    title: "Every booking is insured",
-    body: "Something going wrong is rare. Knowing it's covered shouldn't be. Every Sweepr booking carries liability coverage so you don't have to think about it.",
+    title: "Liability coverage on every booking",
+    body: "Every Sweepr booking includes liability coverage. If something gets damaged, you're not on your own. Accidents are rare — being covered shouldn't be.",
   },
   {
     icon: Clock,
-    title: "Live status updates",
-    body: "You'll know when your Sweepr is on the way, when they arrive, and when your home is done. No wondering, no waiting by the door.",
+    title: "Real-time tracking, not guesswork",
+    body: "Know exactly when your Sweepr is en route, when they arrive, and when the job is done. Your address is only shared once they're confirmed.",
   },
   {
     icon: HeartHandshake,
-    title: "Satisfaction guarantee",
-    body: "If the job isn't right, report it within 48 hours. We'll send someone back to fix it or refund the booking. No negotiating required.",
+    title: "We stand behind the work",
+    body: "Not satisfied? Report it within 48 hours. We send your Sweepr back to fix it, or we refund the booking. No negotiating, no forms, no runaround.",
   },
 ];
 
@@ -249,10 +249,10 @@ export default function Landing() {
                 variants={fadeUp}
                 className="mt-6 max-w-2xl text-5xl font-black leading-[1.05] tracking-tight text-charcoal dark:text-white sm:text-6xl lg:text-7xl"
               >
-                A cleaner home without rearranging your life.
+                Home cleaning you can actually trust.
               </motion.h1>
               <motion.p variants={fadeUp} className="mt-5 max-w-lg text-lg text-slate-600 dark:text-slate-300">
-                Book trusted home cleaning in minutes. One-time cleans, recurring service, deep cleans, move-outs, and more — all with upfront pricing and a satisfaction guarantee.
+                Every Sweepr is background-screened, identity-verified, and trained before they ever enter your home. Upfront pricing, liability coverage on every booking, and a satisfaction guarantee — so you never have to wonder.
               </motion.p>
               <motion.div variants={fadeUp} className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button size="lg" onClick={() => (window.location.href = CUSTOMER_URL)}>
@@ -280,8 +280,8 @@ export default function Landing() {
       <Section id="how">
         <SectionHeading
           eyebrow="How it works"
-          title="From booking to clean home in four steps"
-          subtitle="The whole process takes a few minutes. The result lasts all week."
+          title="Book with confidence. Come home to clean."
+          subtitle="From background checks to real-time tracking — here's what happens when you book with Sweepr."
         />
         <motion.div
           className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4"
@@ -312,8 +312,8 @@ export default function Landing() {
         <Section id="services">
           <SectionHeading
             eyebrow="Services"
-            title="The right clean for the right moment"
-            subtitle="Every home is different. Every week is different. Pick the service that fits."
+            title="Every service. Every standard."
+            subtitle="From a regular maintenance clean to a full move-out deep clean — all performed by screened, insured professionals."
           />
           <motion.div
             className="mt-12 grid gap-6 sm:grid-cols-2"
@@ -336,11 +336,6 @@ export default function Landing() {
                   <div className="flex-1">
                     <div className="flex items-center justify-between gap-3">
                       <h3 className="text-lg font-black text-charcoal dark:text-white">{s.name}</h3>
-                      {s.price > 0 && (
-                        <span className="rounded-full bg-seafoam-500 px-3 py-1 text-xs font-bold text-white whitespace-nowrap">
-                          from {formatCurrency(s.price)}
-                        </span>
-                      )}
                     </div>
                     <p className="mt-0.5 text-sm font-semibold text-seafoam-700 dark:text-seafoam-400">{s.tagline}</p>
                   </div>
@@ -367,9 +362,9 @@ export default function Landing() {
       {/* Trust */}
       <Section id="trust">
         <SectionHeading
-          eyebrow="Why Sweepr"
-          title="Letting someone into your home takes trust. We take that seriously."
-          subtitle="The people who clean through Sweepr aren't just available — they're qualified."
+          eyebrow="Safety & Trust"
+          title="The cleaners in your home have been thoroughly screened. That's not optional."
+          subtitle="Background checks, identity verification, insurance, and training — required for every Sweepr, before their first job."
         />
         <motion.div
           className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4"
@@ -471,6 +466,7 @@ export default function Landing() {
               <a href="#services" className="hover:text-seafoam-600">Services</a>
               <a href="#pricing" className="hover:text-seafoam-600">Pricing</a>
               <a href="#faq" className="hover:text-seafoam-600">FAQ</a>
+              <a href="/status" className="hover:text-seafoam-600">Status</a>
             </nav>
           </div>
 
