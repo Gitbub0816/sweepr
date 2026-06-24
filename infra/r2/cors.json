@@ -1,0 +1,47 @@
+[
+  {
+    "AllowedOrigins": [
+      "https://app.getsweepr.com",
+      "https://clean.getsweepr.com"
+    ],
+    "AllowedMethods": ["PUT", "GET", "HEAD"],
+    "AllowedHeaders": [
+      "Content-Type",
+      "Content-Length",
+      "x-amz-date",
+      "x-amz-content-sha256",
+      "Authorization"
+    ],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  },
+  {
+    "AllowedOrigins": [
+      "https://admin.getsweepr.com"
+    ],
+    "AllowedMethods": ["PUT", "GET", "HEAD"],
+    "AllowedHeaders": [
+      "Content-Type",
+      "Content-Length",
+      "x-amz-date",
+      "x-amz-content-sha256",
+      "Authorization"
+    ],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  },
+  {
+    "AllowedOrigins": [
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "http://localhost:3002",
+      "http://localhost:3003",
+      "http://localhost:5173",
+      "http://localhost:8787"
+    ],
+    "AllowedMethods": ["PUT", "GET", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 300
+  }
+]
