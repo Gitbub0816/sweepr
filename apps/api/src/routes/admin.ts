@@ -26,8 +26,13 @@ adminRouter.use("*", requireAuth, requireAdmin);
 
 adminRouter.get("/stats", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
+  // Run independently so one missing table/column can't blank the whole
+  // dashboard. Each settled result falls back to a safe empty default.
+  const settle = async <T>(p: Promise<T>, fallback: T): Promise<T> => {
+    try { return await p; } catch { return fallback; }
+  };
   const [statsRow, bookingsByStatus, recentBookings, recentAudit, waitlistCount, newsletterCount, cityRequestCount] = await Promise.all([
-    sql`
+    settle(sql`
       SELECT
         (SELECT COUNT(*)::int FROM bookings) AS total_bookings,
         (SELECT COUNT(*)::int FROM bookings WHERE scheduled_at::date = CURRENT_DATE) AS bookings_today,
@@ -37,13 +42,13 @@ adminRouter.get("/stats", async (c) => {
         (SELECT COUNT(*)::int FROM disputes WHERE status = 'open') AS open_disputes,
         (SELECT COUNT(*)::int FROM disputes) AS total_disputes,
         (SELECT COUNT(*)::int FROM users WHERE role = 'customer') AS total_customers,
-        (SELECT COALESCE(SUM(amount_cents), 0)::bigint FROM payments WHERE status = 'captured') AS total_revenue_cents,
-        (SELECT COALESCE(SUM(amount_cents), 0)::bigint FROM payments WHERE status = 'captured' AND created_at::date = CURRENT_DATE) AS revenue_today_cents
-    `,
-    sql`
+        (SELECT COALESCE(SUM(amount), 0)::bigint FROM payments WHERE status = 'captured') AS total_revenue_cents,
+        (SELECT COALESCE(SUM(amount), 0)::bigint FROM payments WHERE status = 'captured' AND created_at::date = CURRENT_DATE) AS revenue_today_cents
+    `, [{}] as Array<Record<string, unknown>>),
+    settle(sql`
       SELECT status, COUNT(*)::int AS count FROM bookings GROUP BY status ORDER BY count DESC
-    `,
-    sql`
+    `, [] as unknown[]),
+    settle(sql`
       SELECT b.id, b.status, b.service_type, b.scheduled_at AS scheduled_for, b.created_at,
              u.email AS customer_email, c.first_name AS cleaner_name
       FROM bookings b
@@ -51,14 +56,14 @@ adminRouter.get("/stats", async (c) => {
       LEFT JOIN users u ON u.id = cust.user_id
       LEFT JOIN cleaners c ON c.id = b.cleaner_id
       ORDER BY b.created_at DESC LIMIT 10
-    `,
-    sql`
+    `, [] as unknown[]),
+    settle(sql`
       SELECT action, actor_clerk_id, target_type, target_id, created_at
       FROM admin_audit_log ORDER BY created_at DESC LIMIT 20
-    `,
-    sql`SELECT COUNT(*)::int AS count FROM waitlist`,
-    sql`SELECT COUNT(*)::int AS count FROM newsletter_subscribers`,
-    sql`SELECT COUNT(*)::int AS count FROM city_requests`,
+    `, [] as unknown[]),
+    settle(sql`SELECT COUNT(*)::int AS count FROM waitlist`, [{ count: 0 }]),
+    settle(sql`SELECT COUNT(*)::int AS count FROM newsletter_subscribers`, [{ count: 0 }]),
+    settle(sql`SELECT COUNT(*)::int AS count FROM city_requests`, [{ count: 0 }]),
   ]);
 
   return c.json({
@@ -101,14 +106,15 @@ adminRouter.get("/cleaners", async (c) => {
 adminRouter.get("/customers", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const customers = (await sql`
-    SELECT u.id, u.email, u.first_name, u.last_name, u.created_at,
-           COUNT(b.id)::int AS booking_count,
-           COALESCE(SUM(p.amount_cents), 0)::bigint AS lifetime_cents
+    SELECT u.id, u.email, cust.first_name, cust.last_name, u.created_at,
+           COUNT(DISTINCT b.id)::int AS booking_count,
+           COALESCE(SUM(p.amount), 0)::bigint AS lifetime_cents
     FROM users u
-    LEFT JOIN bookings b ON b.customer_id = u.id
+    JOIN customers cust ON cust.user_id = u.id
+    LEFT JOIN bookings b ON b.customer_id = cust.id
     LEFT JOIN payments p ON p.booking_id = b.id AND p.status = 'captured'
     WHERE u.role = 'customer' OR u.role IS NULL
-    GROUP BY u.id
+    GROUP BY u.id, cust.first_name, cust.last_name
     ORDER BY u.created_at DESC
     LIMIT 200
   `) as unknown[];
@@ -130,7 +136,7 @@ adminRouter.get("/jobs", async (c) => {
            a.street AS address_line1, a.city AS address_city, a.state AS address_state,
            u.email AS customer_email,
            c.first_name AS cleaner_first, c.last_name AS cleaner_last,
-           p.amount_cents
+           p.amount AS amount_cents
     FROM bookings b
     LEFT JOIN addresses a ON a.id = b.address_id
     LEFT JOIN customers cust ON cust.id = b.customer_id
