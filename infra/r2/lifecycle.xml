@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  R2 Lifecycle Configuration — sweepr-media bucket
+  ==================================================
+  Apply via S3-compatible API (see apply-r2-config.sh):
+    aws s3api put-bucket-lifecycle-configuration \
+      --bucket sweepr-media \
+      --lifecycle-configuration file://lifecycle.xml
+
+  Prefix retention policy:
+  ┌─────────────────────┬────────────────┬──────────────────────────────────────┐
+  │ Prefix              │ Retention      │ Reason                               │
+  ├─────────────────────┼────────────────┼──────────────────────────────────────┤
+  │ bookings/           │ 2 years        │ Dispute evidence + chargeback window │
+  │ avatars/            │ No expiry      │ User-controlled profile photo        │
+  │ training/           │ No expiry      │ Course content is permanent          │
+  │ certificates/       │ 7 years        │ Professional cert compliance         │
+  │ insurance/          │ 7 years        │ Insurance doc legal requirement      │
+  └─────────────────────┴────────────────┴──────────────────────────────────────┘
+
+  Also cleans up abandoned multipart uploads after 7 days across all prefixes.
+-->
+<LifecycleConfiguration>
+
+  <!-- ── Booking photos: 2-year retention then delete ───────────────────── -->
+  <!-- Covers before/after/checkout/damage photos for active + closed jobs.  -->
+  <!-- 730 days covers Stripe's 18-month dispute window with comfortable     -->
+  <!-- margin. Adjust upward if your legal team requires longer.             -->
+  <Rule>
+    <ID>expire-booking-photos</ID>
+    <Status>Enabled</Status>
+    <Filter>
+      <Prefix>bookings/</Prefix>
+    </Filter>
+    <Expiration>
+      <Days>730</Days>
+    </Expiration>
+  </Rule>
+
+  <!-- ── Certificates: 7-year retention ──────────────────────────────────── -->
+  <Rule>
+    <ID>expire-certificates</ID>
+    <Status>Enabled</Status>
+    <Filter>
+      <Prefix>certificates/</Prefix>
+    </Filter>
+    <Expiration>
+      <Days>2555</Days>
+    </Expiration>
+  </Rule>
+
+  <!-- ── Insurance documents: 7-year retention ───────────────────────────── -->
+  <Rule>
+    <ID>expire-insurance-docs</ID>
+    <Status>Enabled</Status>
+    <Filter>
+      <Prefix>insurance/</Prefix>
+    </Filter>
+    <Expiration>
+      <Days>2555</Days>
+    </Expiration>
+  </Rule>
+
+  <!-- ── Abort incomplete multipart uploads after 7 days (all prefixes) ─── -->
+  <!-- Prevents orphaned partial uploads from accumulating storage charges.  -->
+  <Rule>
+    <ID>abort-incomplete-multipart</ID>
+    <Status>Enabled</Status>
+    <Filter>
+      <Prefix></Prefix>
+    </Filter>
+    <AbortIncompleteMultipartUpload>
+      <DaysAfterInitiation>7</DaysAfterInitiation>
+    </AbortIncompleteMultipartUpload>
+  </Rule>
+
+</LifecycleConfiguration>

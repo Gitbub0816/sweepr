@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  R2 CORS Configuration — sweepr-media bucket
+  ============================================
+  Apply via Cloudflare dashboard:
+    R2 → sweepr-media → Settings → CORS Policy → paste this XML
+
+  Or via S3-compatible API (see apply-r2-config.sh):
+    aws s3api put-bucket-cors --bucket sweepr-media --cors-configuration file://cors.xml
+
+  Origins covered:
+    - app.getsweepr.com      Customer app (booking photos upload)
+    - clean.getsweepr.com    Cleaner app  (before/after/checkout photos)
+    - admin.getsweepr.com    Admin app    (training/certificate uploads)
+    - localhost:*            Local development
+
+  Methods:
+    PUT   — presigned direct-to-R2 uploads (the only write path)
+    GET   — public asset reads via custom domain
+    HEAD  — existence checks / preflight
+    DELETE — not exposed (objects deleted only by Worker with API credentials)
+-->
+<CORSConfiguration>
+
+  <!-- ── Customer + Cleaner apps: booking photo uploads ──────────────────── -->
+  <CORSRule>
+    <ID>booking-photos-upload</ID>
+    <AllowedOrigin>https://app.getsweepr.com</AllowedOrigin>
+    <AllowedOrigin>https://clean.getsweepr.com</AllowedOrigin>
+    <AllowedMethod>PUT</AllowedMethod>
+    <AllowedMethod>GET</AllowedMethod>
+    <AllowedMethod>HEAD</AllowedMethod>
+    <AllowedHeader>Content-Type</AllowedHeader>
+    <AllowedHeader>Content-Length</AllowedHeader>
+    <AllowedHeader>x-amz-date</AllowedHeader>
+    <AllowedHeader>x-amz-content-sha256</AllowedHeader>
+    <AllowedHeader>Authorization</AllowedHeader>
+    <ExposeHeader>ETag</ExposeHeader>
+    <MaxAgeSeconds>3600</MaxAgeSeconds>
+  </CORSRule>
+
+  <!-- ── Admin app: training assets, certificates, insurance docs ────────── -->
+  <CORSRule>
+    <ID>admin-uploads</ID>
+    <AllowedOrigin>https://admin.getsweepr.com</AllowedOrigin>
+    <AllowedMethod>PUT</AllowedMethod>
+    <AllowedMethod>GET</AllowedMethod>
+    <AllowedMethod>HEAD</AllowedMethod>
+    <AllowedHeader>Content-Type</AllowedHeader>
+    <AllowedHeader>Content-Length</AllowedHeader>
+    <AllowedHeader>x-amz-date</AllowedHeader>
+    <AllowedHeader>x-amz-content-sha256</AllowedHeader>
+    <AllowedHeader>Authorization</AllowedHeader>
+    <ExposeHeader>ETag</ExposeHeader>
+    <MaxAgeSeconds>3600</MaxAgeSeconds>
+  </CORSRule>
+
+  <!-- ── Local development (never reaches production R2 if using mock) ───── -->
+  <CORSRule>
+    <ID>local-dev</ID>
+    <AllowedOrigin>http://localhost:3000</AllowedOrigin>
+    <AllowedOrigin>http://localhost:3001</AllowedOrigin>
+    <AllowedOrigin>http://localhost:3002</AllowedOrigin>
+    <AllowedOrigin>http://localhost:3003</AllowedOrigin>
+    <AllowedOrigin>http://localhost:5173</AllowedOrigin>
+    <AllowedOrigin>http://localhost:8787</AllowedOrigin>
+    <AllowedMethod>PUT</AllowedMethod>
+    <AllowedMethod>GET</AllowedMethod>
+    <AllowedMethod>HEAD</AllowedMethod>
+    <AllowedHeader>*</AllowedHeader>
+    <ExposeHeader>ETag</ExposeHeader>
+    <MaxAgeSeconds>300</MaxAgeSeconds>
+  </CORSRule>
+
+</CORSConfiguration>
