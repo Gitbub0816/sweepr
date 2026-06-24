@@ -121,7 +121,7 @@ function CoverageMap({ areas, pins }: { areas: ServiceArea[]; pins: Array<{ lat:
         });
       });
 
-      // City request pins (small dots)
+      // City request pins
       if (pins.length > 0) {
         const pinGeo: GeoJSON.FeatureCollection = {
           type: "FeatureCollection",
@@ -132,17 +132,43 @@ function CoverageMap({ areas, pins }: { areas: ServiceArea[]; pins: Array<{ lat:
           })),
         };
         map.addSource("pins", { type: "geojson", data: pinGeo });
-        map.addLayer({
-          id: "pins-layer",
-          type: "circle",
-          source: "pins",
-          paint: {
-            "circle-radius": 5,
-            "circle-color": "#f59e0b",
-            "circle-stroke-width": 1.5,
-            "circle-stroke-color": "#fff",
-            "circle-opacity": 0.85,
-          },
+
+        const addPinLayer = (useBroom: boolean) => {
+          if (useBroom) {
+            map.addLayer({
+              id: "pins-layer",
+              type: "symbol",
+              source: "pins",
+              layout: {
+                "icon-image": "broom-pin",
+                "icon-size": 0.45,
+                "icon-anchor": "bottom",
+                "icon-allow-overlap": true,
+              },
+            });
+          } else {
+            map.addLayer({
+              id: "pins-layer",
+              type: "circle",
+              source: "pins",
+              paint: {
+                "circle-radius": 5,
+                "circle-color": "#f59e0b",
+                "circle-stroke-width": 1.5,
+                "circle-stroke-color": "#fff",
+                "circle-opacity": 0.85,
+              },
+            });
+          }
+        };
+
+        map.loadImage("/assets/sweepr-broom-pin.png", (err, img) => {
+          if (!err && img) {
+            map.addImage("broom-pin", img);
+            addPinLayer(true);
+          } else {
+            addPinLayer(false);
+          }
         });
       }
     });
