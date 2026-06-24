@@ -47,8 +47,10 @@ preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
 # R2_ACCOUNT_ID             (Cloudflare account ID)
 # R2_ACCESS_KEY_ID          (R2 token access key ID)
 # R2_SECRET_ACCESS_KEY      (R2 token secret access key)
-# R2_BUCKET                 (R2 bucket name, e.g. sweepr-media)
-# R2_PUBLIC_URL             (public base URL, e.g. https://media.getsweepr.com)
+# R2_BUCKET                 (value: sweepr)
+# R2_PUBLIC_URL             (value: https://objects.getsweepr.com)
+# R2_LEGAL_ACCESS_KEY_ID    (R2 API token for sweepr-legal bucket — PUT only)
+# R2_LEGAL_SECRET_ACCESS_KEY
 # CHECKR_API_KEY            (omit for mock mode — account under review)
 # CHECKR_PACKAGE
 # CHECKR_WEBHOOK_SECRET

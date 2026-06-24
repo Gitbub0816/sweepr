@@ -25,6 +25,8 @@ export interface Env {
   RATE_LIMIT_KV: KVNamespace;
   CLEANER_APP_URL?: string;
   ADMIN_URL?: string;
+  R2_LEGAL_ACCESS_KEY_ID: string;
+  R2_LEGAL_SECRET_ACCESS_KEY: string;
   ACCESS_CODE_ENCRYPTION_KEY?: string;
 }
 

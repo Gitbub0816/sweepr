@@ -112,3 +112,17 @@ export function parseR2Config(env: {
     publicUrlBase: env.R2_PUBLIC_URL,
   };
 }
+
+export function parseR2LegalConfig(env: {
+  R2_ACCOUNT_ID: string;
+  R2_LEGAL_ACCESS_KEY_ID: string;
+  R2_LEGAL_SECRET_ACCESS_KEY: string;
+}): R2Config {
+  return {
+    accountId: env.R2_ACCOUNT_ID,
+    accessKeyId: env.R2_LEGAL_ACCESS_KEY_ID,
+    secretAccessKey: env.R2_LEGAL_SECRET_ACCESS_KEY,
+    bucket: "sweepr-legal",
+    publicUrlBase: "https://legalobjects.getsweepr.com",
+  };
+}

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { createPresignedUploadUrl, parseR2Config } from "../lib/r2";
+import { createPresignedUploadUrl, parseR2Config, parseR2LegalConfig } from "../lib/r2";
 import { requireAuth } from "../middleware/auth";
 import { MAX_UPLOAD_BYTES } from "../lib/constants";
 import type { AppBindings } from "../types";
@@ -9,6 +9,9 @@ import type { AppBindings } from "../types";
 export const storageRouter = new Hono<AppBindings>();
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+
+// Scopes that go to sweepr-legal (WORM bucket, 7-year retention).
+const LEGAL_SCOPES = new Set(["certificate", "insurance"]);
 
 const signSchema = z.object({
   fileName: z.string().min(1).max(255),
@@ -31,7 +34,6 @@ storageRouter.post(
   zValidator("json", signSchema),
   async (c) => {
     const input = c.req.valid("json");
-    const cfg = parseR2Config(c.env as Parameters<typeof parseR2Config>[0]);
 
     const prefix = {
       booking: "bookings",
@@ -44,12 +46,24 @@ storageRouter.post(
     const ext = input.fileName.split(".").pop()?.toLowerCase() ?? "jpg";
     const objectKey = `${prefix}/${input.refId}/${Date.now()}.${ext}`;
 
+    // Legal docs (certificates, insurance) go to the WORM-locked sweepr-legal bucket.
+    // Everything else goes to sweepr (objects.getsweepr.com).
+    const cfg = LEGAL_SCOPES.has(input.scope)
+      ? parseR2LegalConfig(c.env)
+      : parseR2Config(c.env as Parameters<typeof parseR2Config>[0]);
+
     const { uploadUrl, storageKey } = await createPresignedUploadUrl(
       cfg,
       objectKey,
       input.contentType,
     );
 
-    return c.json({ uploadUrl, storageKey });
+    // Tell the client which public base URL to use for reading the file back.
+    return c.json({
+      uploadUrl,
+      storageKey,
+      publicUrl: `${cfg.publicUrlBase}/${storageKey}`,
+      bucket: cfg.bucket,
+    });
   }
 );
