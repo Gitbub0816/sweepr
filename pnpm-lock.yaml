@@ -30,6 +30,12 @@ importers:
       '@hookform/resolvers':
         specifier: ^3.10.0
         version: 3.10.0(react-hook-form@7.80.0(react@18.3.1))
+      '@react-three/drei':
+        specifier: ^9.122.0
+        version: 9.122.0(@react-three/fiber@8.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.169.0))(@types/react@18.3.31)(@types/three@0.184.1)(immer@11.1.8)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.169.0)(use-sync-external-store@1.6.0(react@18.3.1))
+      '@react-three/fiber':
+        specifier: ^8.18.0
+        version: 8.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.169.0)
       '@sweepr/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -42,6 +48,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.62.11
         version: 5.101.0(react@18.3.1)
+      '@types/three':
+        specifier: ^0.184.1
+        version: 0.184.1
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -78,6 +87,9 @@ importers:
       tailwind-merge:
         specifier: ^2.6.0
         version: 2.6.1
+      three:
+        specifier: ^0.169.0
+        version: 0.169.0
       zod:
         specifier: ^3.24.1
         version: 3.25.76

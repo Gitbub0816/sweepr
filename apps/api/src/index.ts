@@ -30,6 +30,7 @@ import { dayOfServiceRouter } from "./routes/dayOfService";
 import { insuranceRouter, insuranceAdminRouter } from "./routes/insurance";
 import { serviceDemoRouter } from "./routes/serviceDemo";
 import { observabilityRouter } from "./routes/adminObservability";
+import { adminAutomationRouter } from "./routes/adminAutomation";
 import { AppError, toSafeError } from "./lib/errors";
 import { logger } from "./lib/logger";
 import type { AppBindings } from "./types";
@@ -91,6 +92,7 @@ app.route("/insurance", insuranceRouter);
 app.route("/admin/insurance", insuranceAdminRouter);
 app.route("/service", serviceDemoRouter);
 app.route("/admin/observability", observabilityRouter);
+app.route("/admin/automation", adminAutomationRouter);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 
@@ -106,4 +108,56 @@ app.onError((err, c) => {
   return c.json(toSafeError(err, isDev), 500);
 });
 
-export default app;
+export default {
+  fetch: app.fetch.bind(app),
+
+  /**
+   * Cloudflare Cron Trigger handler.
+   * Schedules defined in wrangler.toml under [[triggers.crons]].
+   */
+  async scheduled(event: ScheduledEvent, env: Record<string, unknown>, _ctx: ExecutionContext) {
+    const { getDb } = await import("./lib/db");
+    const { processExpiredOffers } = await import("./lib/assignment");
+    const sql = getDb(env.DATABASE_URL as string);
+
+    logger.info("cron.fired", { cron: event.cron });
+
+    try {
+      // Every 15 minutes: expire stale assignment offers.
+      await processExpiredOffers(sql);
+
+      // Hourly jobs (run on every fire, guard with DB dedup via automation_runs).
+      const { adminAutomationRouter: _ } = await import("./routes/adminAutomation");
+      // Directly call the business logic instead of HTTP self-calls.
+      const { getStripe } = await import("./lib/stripe");
+      const stripe = getStripe(env.STRIPE_SECRET_KEY as string);
+
+      // Capture completed payments.
+      const pendingCaptures = await sql`
+        SELECT b.id, b.stripe_payment_intent_id
+        FROM bookings b
+        LEFT JOIN payments p ON p.booking_id = b.id AND p.status = 'captured'
+        WHERE b.status = 'completed'
+          AND b.stripe_payment_intent_id IS NOT NULL
+          AND p.id IS NULL
+        LIMIT 50
+      ` as { id: string; stripe_payment_intent_id: string }[];
+
+      for (const row of pendingCaptures) {
+        try {
+          const pi = await stripe.paymentIntents.retrieve(row.stripe_payment_intent_id);
+          if (pi.status === "requires_capture") {
+            await stripe.paymentIntents.capture(pi.id);
+            await sql`UPDATE payments SET status = 'captured' WHERE booking_id = ${row.id}`;
+          }
+        } catch (err) {
+          logger.error("cron.capture failed", err, { bookingId: row.id });
+        }
+      }
+
+      logger.info("cron.completed", { cron: event.cron, captures: pendingCaptures.length });
+    } catch (err) {
+      logger.error("cron.failed", err, { cron: event.cron });
+    }
+  },
+};

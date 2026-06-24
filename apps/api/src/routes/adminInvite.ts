@@ -51,8 +51,11 @@ const requireAdmin = createMiddleware<AppBindings>(async (c, next) => {
 // Protected — admin only
 // ---------------------------------------------------------------------------
 
+const ADMIN_ROLES = ["super_admin", "admin", "ops", "finance", "trainer", "support"] as const;
+
 const createInviteSchema = z.object({
   email: z.string().email(),
+  adminRole: z.enum(ADMIN_ROLES).default("admin"),
 });
 
 /** Create a one-time invite link and email it to the recipient. */
@@ -62,18 +65,19 @@ adminInviteRouter.post(
   requireAdmin,
   zValidator("json", createInviteSchema),
   async (c) => {
-    const { email } = c.req.valid("json");
+    const { email, adminRole } = c.req.valid("json");
     const sql = getDb(c.env.DATABASE_URL);
     const actorClerkId = c.get("user").clerkId;
 
     const token = generateToken();
 
     await sql`
-      INSERT INTO admin_invites (token, email, created_by, expires_at)
+      INSERT INTO admin_invites (token, email, created_by, admin_role, expires_at)
       VALUES (
         ${token},
         ${email.toLowerCase()},
         ${actorClerkId},
+        ${adminRole},
         NOW() + INTERVAL '7 days'
       )
     `;
@@ -180,23 +184,26 @@ adminInviteRouter.post(
       WHERE token = ${token}
         AND used_at IS NULL
         AND expires_at > NOW()
-      RETURNING email
-    ` as Array<{ email: string }>;
+      RETURNING email, admin_role
+    ` as Array<{ email: string; admin_role: string }>;
 
     if (!rows[0]) {
       return c.json({ error: "Invalid, expired, or already-used token" }, 410);
     }
 
+    const grantedRole = rows[0].admin_role ?? "admin";
+
     // Promote the user in our DB
     await sql`
-      UPDATE users SET role = 'admin' WHERE clerk_id = ${clerkId}
+      UPDATE users SET role = 'admin', admin_role = ${grantedRole}
+      WHERE clerk_id = ${clerkId}
     `;
 
     // Sync role to Clerk metadata so frontend can read it from the JWT
     try {
       const clerk = createClerkClient({ secretKey: c.env.CLERK_SECRET_KEY });
       await clerk.users.updateUserMetadata(clerkId, {
-        publicMetadata: { role: "admin" },
+        publicMetadata: { role: "admin", adminRole: grantedRole },
       });
     } catch {
       // Non-fatal — DB is source of truth
@@ -245,3 +252,67 @@ adminInviteRouter.post("/sync-role", requireAuth, async (c) => {
 
   return c.json({ ok: true, role });
 });
+
+// ─── Admin user management ────────────────────────────────────────────────────
+
+/** List all admin users. */
+adminInviteRouter.get("/admins", requireAuth, requireAdmin, async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const admins = await sql`
+    SELECT id, email, role, admin_role, created_at, updated_at
+    FROM users
+    WHERE role IN ('admin', 'super_admin')
+    ORDER BY created_at DESC
+  `;
+  return c.json({ admins });
+});
+
+const updateRoleSchema = z.object({
+  adminRole: z.enum(["super_admin", "admin", "ops", "finance", "trainer", "support"]),
+});
+
+/** Change an admin user's role. Requires super_admin or admin. */
+adminInviteRouter.patch(
+  "/admins/:userId/role",
+  requireAuth,
+  requireAdmin,
+  zValidator("json", updateRoleSchema),
+  async (c) => {
+    const userId = c.req.param("userId");
+    const { adminRole } = c.req.valid("json");
+    const sql = getDb(c.env.DATABASE_URL);
+    const actorClerkId = c.get("user").clerkId;
+
+    const updated = await sql`
+      UPDATE users SET admin_role = ${adminRole}, updated_at = NOW()
+      WHERE id = ${userId} AND role IN ('admin', 'super_admin')
+      RETURNING id, email, admin_role
+    ` as { id: string; email: string; admin_role: string }[];
+
+    if (!updated[0]) return c.json({ error: "Admin not found" }, 404);
+
+    // Sync to Clerk metadata.
+    try {
+      const clerk = createClerkClient({ secretKey: c.env.CLERK_SECRET_KEY });
+      const clerkUser = await sql`
+        SELECT clerk_id FROM users WHERE id = ${userId} LIMIT 1
+      ` as { clerk_id: string }[];
+      if (clerkUser[0]) {
+        await clerk.users.updateUserMetadata(clerkUser[0].clerk_id, {
+          publicMetadata: { role: "admin", adminRole },
+        });
+      }
+    } catch { /* non-fatal */ }
+
+    await audit(sql, {
+      action: "user.role_changed",
+      actorClerkId,
+      targetType: "user",
+      targetId: userId,
+      metadata: { newAdminRole: adminRole },
+      timestamp: new Date().toISOString(),
+    });
+
+    return c.json({ ok: true, user: updated[0] });
+  }
+);

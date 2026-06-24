@@ -1,10 +1,17 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import {
   Activity, Server, CreditCard, TrendingUp, Truck, Shield,
   Heart, RefreshCw, AlertTriangle, CheckCircle2, Clock,
   ChevronDown, ChevronUp,
 } from "lucide-react";
+import {
+  HealthOrb,
+  BarChart3D,
+  LatencyGauges,
+  FunnelViz,
+  PaymentFlowViz,
+} from "../components/ObservabilityCharts";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
@@ -123,6 +130,43 @@ function OverviewTab() {
     <div className="space-y-6">
       <SectionHeader title="System Overview (last 24 h)" onRefresh={reload} loading={loading} />
       {error && <ErrorBox msg={error} />}
+
+      {/* R3F visual hero — health orbs */}
+      {!loading && data && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="col-span-1 bg-white rounded-xl border border-slate-200 p-3">
+            <Suspense fallback={<div className="h-32 bg-slate-100 rounded-lg animate-pulse" />}>
+              <HealthOrb
+                errorRate={parseFloat(errorRate) || 0}
+                label={`${data.apiHealth?.total ?? 0} requests`}
+              />
+            </Suspense>
+          </div>
+          <div className="col-span-1 bg-white rounded-xl border border-slate-200 p-3">
+            <Suspense fallback={<div className="h-32 bg-slate-100 rounded-lg animate-pulse" />}>
+              <PaymentFlowViz
+                successRate={data.paymentHealth?.total
+                  ? (data.paymentHealth.success / data.paymentHealth.total) * 100
+                  : 100}
+                total={data.paymentHealth?.total ?? 0}
+              />
+            </Suspense>
+          </div>
+          <div className="col-span-2 bg-white rounded-xl border border-slate-200 p-3">
+            <Suspense fallback={<div className="h-32 bg-slate-100 rounded-lg animate-pulse" />}>
+              <BarChart3D
+                title="Top Events (24h)"
+                data={(data.eventCounts ?? []).slice(0, 6).map(e => ({
+                  label: e.event_name.replace(/_/g, " ").slice(0, 8),
+                  value: e.count,
+                  color: "#14b8a6",
+                }))}
+              />
+            </Suspense>
+          </div>
+        </div>
+      )}
+
       {loading ? <LoadingGrid /> : (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -203,6 +247,17 @@ function ApiHealthTab() {
       {error && <ErrorBox msg={error} />}
       {loading ? <LoadingGrid /> : data && (
         <>
+          {/* R3F Latency gauges */}
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
+            <Suspense fallback={<div className="h-40 bg-slate-100 rounded-lg animate-pulse" />}>
+              <LatencyGauges
+                p50={data.summary?.p50_latency_ms ?? 0}
+                p95={data.summary?.p95_latency_ms ?? 0}
+                p99={data.summary?.p99_latency_ms ?? 0}
+              />
+            </Suspense>
+          </div>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <StatCard label="Total Requests" value={data.summary?.total_requests ?? "—"} />
             <StatCard label="5xx Errors" value={data.summary?.errors_5xx ?? "—"} color={(data.summary?.errors_5xx ?? 0) > 0 ? "red" : "green"} />
@@ -313,6 +368,32 @@ function PaymentsTab() {
       {error && <ErrorBox msg={error} />}
       {loading ? <LoadingGrid /> : data && (
         <>
+          {/* R3F Payment flow */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white rounded-xl border border-slate-200 p-4">
+              <Suspense fallback={<div className="h-40 bg-slate-100 rounded-lg animate-pulse" />}>
+                <PaymentFlowViz
+                  successRate={data.summary?.total
+                    ? (data.summary.success / data.summary.total) * 100
+                    : 100}
+                  total={data.summary?.total ?? 0}
+                />
+              </Suspense>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 p-4">
+              <Suspense fallback={<div className="h-40 bg-slate-100 rounded-lg animate-pulse" />}>
+                <BarChart3D
+                  title="By Event Type"
+                  data={(data.byType ?? []).slice(0, 5).map(t => ({
+                    label: t.event_type.replace(/_/g, " ").slice(0, 8),
+                    value: t.total,
+                    color: t.failed > 0 ? "#ef4444" : "#10b981",
+                  }))}
+                />
+              </Suspense>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <StatCard label="Total Events" value={data.summary?.total ?? "—"} />
             <StatCard label="Success Rate" value={`${successRate}%`}
@@ -433,6 +514,18 @@ function BookingFunnelTab() {
       {error && <ErrorBox msg={error} />}
       {loading ? <LoadingGrid /> : (
         <>
+          {/* R3F 3D Funnel */}
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
+            <Suspense fallback={<div className="h-48 bg-slate-100 rounded-lg animate-pulse" />}>
+              <FunnelViz
+                steps={FUNNEL_ORDER.map(step => ({
+                  label: FUNNEL_LABELS[step]?.split(" ")[0] ?? step,
+                  count: stepMap[step]?.count ?? 0,
+                }))}
+              />
+            </Suspense>
+          </div>
+
           <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Funnel Steps</p>
             {FUNNEL_ORDER.map((step, i) => {

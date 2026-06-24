@@ -55,3 +55,7 @@ preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
 
 [env.production]
 vars = { ENVIRONMENT = "production" }
+
+
+[triggers]
+crons = ["*/15 * * * *"]
