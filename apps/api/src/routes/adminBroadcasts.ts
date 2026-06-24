@@ -14,7 +14,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { getUserByClerkId } from "@sweepr/db";
 import { getDb } from "../lib/db";
-import { sendBulkEmail } from "../lib/mailer";
+import { sendBulkEmail, wrapBodyInTemplate } from "../lib/mailer";
 import { requireAuth } from "../middleware/auth";
 import type { AppBindings } from "../types";
 
@@ -60,20 +60,24 @@ adminBroadcastsRouter.get("/counts", async (c) => {
   });
 });
 
+const BROADCAST_TYPES = ["announcement", "launch", "feature", "area", "offer", "operational"] as const;
+type BroadcastType = typeof BROADCAST_TYPES[number];
+
 const sendSchema = z.object({
   audience: z.enum(["newsletter", "waitlist_customer", "waitlist_cleaner", "city", "all"]),
+  broadcastType: z.enum(BROADCAST_TYPES).default("announcement"),
   areaSlug: z.string().optional(),
   subject: z.string().min(1).max(200),
-  html: z.string().min(1),
+  body: z.string().min(1),
   previewTo: z.string().email().optional(),
 });
 
 adminBroadcastsRouter.post("/send", zValidator("json", sendSchema), async (c) => {
-  const { audience, areaSlug, subject, html, previewTo } = c.req.valid("json");
+  const { audience, broadcastType, areaSlug, subject, body, previewTo } = c.req.valid("json");
+  const html = wrapBodyInTemplate(subject, body);
   const sql = getDb(c.env.DATABASE_URL);
   const actorClerkId = c.get("user").clerkId;
 
-  // Preview send
   if (previewTo) {
     const { sendEmail } = await import("../lib/mailer");
     await sendEmail(c.env.MAILERSEND_API_KEY, { to: previewTo, subject, html });
@@ -109,9 +113,9 @@ adminBroadcastsRouter.post("/send", zValidator("json", sendSchema), async (c) =>
   const sent = await sendBulkEmail(c.env.MAILERSEND_API_KEY, recipients, subject, html);
 
   await sql`
-    INSERT INTO broadcast_sends (audience, area_slug, subject, html, sent_count, sent_by)
+    INSERT INTO broadcast_sends (audience, broadcast_type, area_slug, subject, html, sent_count, sent_by)
     VALUES (
-      ${audience}, ${areaSlug ?? null}, ${subject}, ${html}, ${sent}, ${actorClerkId}
+      ${audience}, ${broadcastType}, ${areaSlug ?? null}, ${subject}, ${html}, ${sent}, ${actorClerkId}
     )
   `;
 

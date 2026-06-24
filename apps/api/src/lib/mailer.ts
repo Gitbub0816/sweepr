@@ -10,6 +10,28 @@ export const TEMPLATES = {
   STATUS_UPDATE: "yzkq3403wrx4d796",
 } as const;
 
+/**
+ * Wrap plain-text body paragraphs in the Sweepr branded email template.
+ * Double newlines become paragraph breaks; single newlines become <br/>.
+ */
+export function wrapBodyInTemplate(subject: string, body: string): string {
+  const paragraphs = body
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => `<p style="font-size:15px;line-height:1.7;color:#444;margin:0 0 16px">${p.replace(/\n/g, "<br/>")}</p>`)
+    .join("\n  ");
+
+  return `<div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#111">
+  <img src="https://getsweepr.com/logo.png" alt="Sweepr" style="height:36px;margin-bottom:28px" />
+  <h1 style="font-size:22px;font-weight:700;margin:0 0 20px">${subject}</h1>
+  ${paragraphs}
+  <a href="https://getsweepr.com" style="display:inline-block;background:#14b8a6;color:#fff;font-weight:600;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:14px;margin-top:8px">Visit Sweepr</a>
+  <hr style="margin:32px 0;border:none;border-top:1px solid #e5e7eb" />
+  <p style="font-size:12px;color:#9ca3af;margin:0">You're receiving this from Sweepr.</p>
+</div>`;
+}
+
 export interface SendEmailInput {
   to: string;
   toName?: string;

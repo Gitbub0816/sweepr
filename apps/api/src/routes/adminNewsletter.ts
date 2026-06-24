@@ -4,7 +4,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { getUserByClerkId } from "@sweepr/db";
 import { getDb } from "../lib/db";
-import { sendBulkEmail } from "../lib/mailer";
+import { sendBulkEmail, wrapBodyInTemplate } from "../lib/mailer";
 import { requireAuth } from "../middleware/auth";
 import { audit } from "../lib/audit";
 import type { AppBindings } from "../types";
@@ -35,25 +35,19 @@ adminNewsletterRouter.get("/subscribers", async (c) => {
 
 const sendSchema = z.object({
   subject: z.string().min(1).max(200),
-  html: z.string().min(1),
-  /** Optional — preview send to a single address instead of all subscribers */
+  body: z.string().min(1),
   previewTo: z.string().email().optional(),
 });
 
-/**
- * Compose and send a newsletter.
- * Pass previewTo to send a test to one address only.
- * Without previewTo, sends to all active subscribers.
- */
 adminNewsletterRouter.post(
   "/send",
   zValidator("json", sendSchema),
   async (c) => {
-    const { subject, html, previewTo } = c.req.valid("json");
+    const { subject, body, previewTo } = c.req.valid("json");
+    const html = wrapBodyInTemplate(subject, body);
     const sql = getDb(c.env.DATABASE_URL);
 
     if (previewTo) {
-      // Test/preview send
       const { sendEmail } = await import("../lib/mailer");
       await sendEmail(c.env.MAILERSEND_API_KEY, { to: previewTo, subject, html });
       return c.json({ ok: true, sent: 1, preview: true });

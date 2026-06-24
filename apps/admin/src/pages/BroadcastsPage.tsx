@@ -5,6 +5,7 @@ import { DashboardShell, Card, Button, Input, toast } from "@sweepr/ui";
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
 type Audience = "newsletter" | "waitlist_customer" | "waitlist_cleaner" | "city" | "all";
+type BroadcastType = "announcement" | "launch" | "feature" | "area" | "offer" | "operational";
 
 interface Counts {
   newsletter: number;
@@ -17,6 +18,7 @@ interface Counts {
 interface BroadcastSend {
   id: string;
   audience: string;
+  broadcast_type: string;
   area_slug: string | null;
   subject: string;
   sent_count: number;
@@ -32,18 +34,23 @@ const AUDIENCE_LABELS: Record<Audience, string> = {
   all: "All lists (deduplicated)",
 };
 
-const STARTER_HTML = `<div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#111">
-  <img src="https://getsweepr.com/logo.png" alt="Sweepr" style="height:36px;margin-bottom:28px" />
-  <h1 style="font-size:22px;font-weight:700;margin:0 0 16px">Update from Sweepr</h1>
-  <p style="font-size:15px;line-height:1.7;color:#444;margin:0 0 24px">
-    Your message here…
-  </p>
-  <a href="https://getsweepr.com" style="display:inline-block;background:#14b8a6;color:#fff;font-weight:600;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:14px">
-    Learn more
-  </a>
-  <hr style="margin:32px 0;border:none;border-top:1px solid #e5e7eb" />
-  <p style="font-size:12px;color:#9ca3af;margin:0">You're receiving this from Sweepr.</p>
-</div>`;
+const BROADCAST_TYPES: Array<{ value: BroadcastType; label: string; description: string }> = [
+  { value: "announcement", label: "Announcement",       description: "General news or update" },
+  { value: "launch",       label: "Launch update",      description: "We're live / area opening" },
+  { value: "feature",      label: "Feature update",     description: "New product or app feature" },
+  { value: "area",         label: "New service area",   description: "New city or coverage expansion" },
+  { value: "offer",        label: "Promotional offer",  description: "Deal, discount, or referral" },
+  { value: "operational",  label: "Operational notice", description: "Maintenance or service notice" },
+];
+
+const TYPE_BADGE: Record<BroadcastType, string> = {
+  announcement: "bg-blue-100 text-blue-700",
+  launch:       "bg-seafoam-100 text-seafoam-700",
+  feature:      "bg-violet-100 text-violet-700",
+  area:         "bg-emerald-100 text-emerald-700",
+  offer:        "bg-amber-100 text-amber-700",
+  operational:  "bg-slate-100 text-slate-600",
+};
 
 export function BroadcastsPage() {
   const { getToken } = useAuth();
@@ -52,10 +59,10 @@ export function BroadcastsPage() {
   const [tab, setTab] = useState<"compose" | "history">("compose");
 
   const [audience, setAudience] = useState<Audience>("newsletter");
+  const [broadcastType, setBroadcastType] = useState<BroadcastType>("announcement");
   const [areaSlug, setAreaSlug] = useState("");
   const [subject, setSubject] = useState("");
-  const [html, setHtml] = useState(STARTER_HTML);
-  const [editorTab, setEditorTab] = useState<"write" | "preview">("write");
+  const [body, setBody] = useState("");
   const [previewTo, setPreviewTo] = useState("");
   const [sending, setSending] = useState(false);
   const [previewing, setPreviewing] = useState(false);
@@ -85,20 +92,20 @@ export function BroadcastsPage() {
 
   async function send(preview = false) {
     if (!subject.trim()) { toast.error("Subject is required"); return; }
-    if (!html.trim()) { toast.error("Body is required"); return; }
+    if (!body.trim()) { toast.error("Body is required"); return; }
     if (preview && !previewTo.trim()) { toast.error("Enter a test address"); return; }
 
     preview ? setPreviewing(true) : setSending(true);
     try {
       const token = await getToken();
-      const body: Record<string, string> = { audience, subject, html };
-      if (audience === "city" && areaSlug) body.areaSlug = areaSlug;
-      if (preview) body.previewTo = previewTo;
+      const payload: Record<string, string> = { audience, broadcastType, subject, body };
+      if (audience === "city" && areaSlug) payload.areaSlug = areaSlug;
+      if (preview) payload.previewTo = previewTo;
 
       const res = await fetch(`${API}/admin/broadcasts/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(body),
+        body: JSON.stringify(payload),
       });
       const data = await res.json() as { ok?: boolean; sent?: number; error?: string };
       if (!res.ok) throw new Error(data.error ?? "Failed");
@@ -107,7 +114,8 @@ export function BroadcastsPage() {
         toast.success(`Test sent to ${previewTo}`);
       } else {
         toast.success(`Sent to ${data.sent} recipient${data.sent === 1 ? "" : "s"}`);
-        // Refresh history
+        setSubject("");
+        setBody("");
         const histRes = await fetch(`${API}/admin/broadcasts`, { headers: { Authorization: `Bearer ${token}` } });
         if (histRes.ok) setHistory((await histRes.json() as { sends: BroadcastSend[] }).sends);
       }
@@ -135,9 +143,9 @@ export function BroadcastsPage() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Sidebar */}
           <div className="space-y-4">
-            <Card className="p-5 space-y-4">
+            {/* Audience */}
+            <Card className="p-5 space-y-3">
               <h3 className="text-sm font-semibold">Audience</h3>
-
               <div className="space-y-2">
                 {(Object.keys(AUDIENCE_LABELS) as Audience[]).map((a) => (
                   <label key={a} className="flex items-center gap-2.5 cursor-pointer">
@@ -172,16 +180,36 @@ export function BroadcastsPage() {
               <div className="pt-2 border-t border-slate-100">
                 <p className="text-xs text-slate-500">
                   <span className="font-semibold text-charcoal">{recipientCount()}</span> recipients
-                  {audience === "all" && <span className="text-slate-400"> (may overlap — deduped on send)</span>}
+                  {audience === "all" && <span className="text-slate-400"> (deduped on send)</span>}
                 </p>
               </div>
             </Card>
 
+            {/* Broadcast type */}
             <Card className="p-5 space-y-3">
-              <h3 className="text-sm font-semibold">Send test</h3>
+              <h3 className="text-sm font-semibold">Broadcast type</h3>
+              <div className="space-y-2">
+                {BROADCAST_TYPES.map((t) => (
+                  <label key={t.value} className="flex items-start gap-2.5 cursor-pointer">
+                    <input type="radio" name="broadcastType" value={t.value}
+                      checked={broadcastType === t.value}
+                      onChange={() => setBroadcastType(t.value)}
+                      className="mt-0.5 text-seafoam-500 focus:ring-seafoam-400" />
+                    <div>
+                      <span className="text-sm text-slate-700 font-medium">{t.label}</span>
+                      <p className="text-xs text-slate-400">{t.description}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </Card>
+
+            {/* Optional test */}
+            <Card className="p-5 space-y-3">
+              <h3 className="text-sm font-semibold">Send test <span className="font-normal text-slate-400">(optional)</span></h3>
               <Input label="Test address" type="email" placeholder="you@example.com"
                 value={previewTo} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPreviewTo(e.target.value)} />
-              <Button variant="secondary" disabled={previewing || !subject || !html || !previewTo}
+              <Button variant="secondary" disabled={previewing || !subject || !body || !previewTo}
                 onClick={() => send(true)} className="w-full">
                 {previewing ? "Sending…" : "Send test"}
               </Button>
@@ -195,30 +223,25 @@ export function BroadcastsPage() {
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSubject(e.target.value)} />
 
               <div>
-                <div className="flex border-b border-slate-200 mb-3">
-                  {(["write", "preview"] as const).map((t) => (
-                    <button key={t} onClick={() => setEditorTab(t)}
-                      className={`px-4 py-2 text-sm font-medium capitalize transition-colors ${
-                        editorTab === t ? "border-b-2 border-seafoam-500 text-seafoam-600" : "text-slate-500 hover:text-slate-700"
-                      }`}>{t}</button>
-                  ))}
-                </div>
-
-                {editorTab === "write" ? (
-                  <textarea value={html} onChange={(e) => setHtml(e.target.value)} rows={22} spellCheck={false}
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 font-mono text-xs leading-relaxed text-slate-800 focus:outline-none focus:ring-2 focus:ring-seafoam-400 resize-y" />
-                ) : (
-                  <div className="rounded-lg border border-slate-200 overflow-hidden bg-white">
-                    <div className="bg-slate-100 px-3 py-1.5 text-xs text-slate-500 border-b border-slate-200">
-                      Preview — {subject || "(no subject)"}
-                    </div>
-                    <iframe srcDoc={html} title="preview" className="w-full border-none" style={{ minHeight: 440 }} sandbox="allow-same-origin" />
-                  </div>
-                )}
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Message body</label>
+                <textarea
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  rows={18}
+                  spellCheck
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm leading-relaxed text-slate-800 focus:outline-none focus:ring-2 focus:ring-seafoam-400 resize-y dark:bg-slate-900 dark:text-slate-200 dark:border-slate-700"
+                  placeholder={"Your message here…\n\nDouble line breaks become paragraphs."}
+                />
+                <p className="mt-1.5 text-xs text-slate-400">
+                  Plain text — your branded email template is applied automatically.
+                </p>
               </div>
 
-              <div className="flex justify-end pt-1">
-                <Button disabled={sending || !subject || !html || recipientCount() === 0} onClick={() => send(false)}>
+              <div className="flex items-center justify-between pt-1">
+                <p className="text-xs text-slate-400">
+                  {recipientCount()} recipient{recipientCount() === 1 ? "" : "s"}
+                </p>
+                <Button disabled={sending || !subject || !body || recipientCount() === 0} onClick={() => send(false)}>
                   {sending ? "Sending…" : `Send to ${recipientCount()} recipient${recipientCount() === 1 ? "" : "s"}`}
                 </Button>
               </div>
@@ -230,19 +253,30 @@ export function BroadcastsPage() {
       {tab === "history" && (
         <div className="space-y-2">
           {history.length === 0 && <p className="text-sm text-slate-400">No broadcasts sent yet.</p>}
-          {history.map((s) => (
-            <Card key={s.id} className="p-4 flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm text-charcoal truncate">{s.subject}</p>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  {s.audience}{s.area_slug ? ` › ${s.area_slug}` : ""} · {s.sent_count} sent · {new Date(s.created_at).toLocaleString()}
-                </p>
-              </div>
-              <span className="text-xs bg-slate-100 text-slate-600 rounded-full px-2.5 py-0.5 whitespace-nowrap">
-                {s.sent_count} sent
-              </span>
-            </Card>
-          ))}
+          {history.map((s) => {
+            const typeInfo = BROADCAST_TYPES.find((t) => t.value === s.broadcast_type);
+            const badgeCls = TYPE_BADGE[(s.broadcast_type as BroadcastType)] ?? TYPE_BADGE.announcement;
+            return (
+              <Card key={s.id} className="p-4 flex items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <p className="font-medium text-sm text-charcoal truncate">{s.subject}</p>
+                    <span className={`text-xs rounded-full px-2 py-0.5 font-medium whitespace-nowrap ${badgeCls}`}>
+                      {typeInfo?.label ?? s.broadcast_type}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    {AUDIENCE_LABELS[s.audience as Audience] ?? s.audience}
+                    {s.area_slug ? ` › ${s.area_slug}` : ""}
+                    {" · "}{s.sent_count} sent{" · "}{new Date(s.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <span className="text-xs bg-slate-100 text-slate-600 rounded-full px-2.5 py-0.5 whitespace-nowrap">
+                  {s.sent_count} sent
+                </span>
+              </Card>
+            );
+          })}
         </div>
       )}
     </DashboardShell>

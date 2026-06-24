@@ -741,14 +741,15 @@ CREATE INDEX IF NOT EXISTS city_subscribers_slug_idx ON city_subscribers(area_sl
 
 -- Broadcast history — one row per send (all list types)
 CREATE TABLE IF NOT EXISTS broadcast_sends (
-  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  audience    TEXT        NOT NULL,   -- 'newsletter'|'waitlist_customer'|'waitlist_cleaner'|'city'|'all'
-  area_slug   TEXT,                   -- set when audience='city'
-  subject     TEXT        NOT NULL,
-  html        TEXT        NOT NULL,
-  sent_count  INTEGER     NOT NULL DEFAULT 0,
-  sent_by     TEXT        NOT NULL,   -- clerk_id
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  audience       TEXT        NOT NULL,   -- 'newsletter'|'waitlist_customer'|'waitlist_cleaner'|'city'|'all'
+  broadcast_type TEXT        NOT NULL DEFAULT 'announcement', -- 'announcement'|'launch'|'feature'|'area'|'offer'|'operational'
+  area_slug      TEXT,                   -- set when audience='city'
+  subject        TEXT        NOT NULL,
+  html           TEXT        NOT NULL,
+  sent_count     INTEGER     NOT NULL DEFAULT 0,
+  sent_by        TEXT        NOT NULL,   -- clerk_id
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ─────────────────────────────────────────────────────────────────────────
