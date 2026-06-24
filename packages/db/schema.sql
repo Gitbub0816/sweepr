@@ -753,6 +753,17 @@ CREATE TABLE IF NOT EXISTS broadcast_sends (
 );
 
 -- ─────────────────────────────────────────────────────────────────────────
+-- 017_dos_test_sessions.sql
+-- ─────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS dos_test_sessions (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  day_status  TEXT        NOT NULL DEFAULT 'confirmed',
+  photo_count INT         NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ─────────────────────────────────────────────────────────────────────────
 -- 011_course_builder.sql
 -- ─────────────────────────────────────────────────────────────────────────
 -- ============================================================================

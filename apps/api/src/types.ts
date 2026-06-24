@@ -21,6 +21,7 @@ export interface Env {
   DIDIT_WEBHOOK_SECRET?: string;
   ALLOWED_ORIGINS?: string;
   POSTHOG_KEY?: string;
+  SEED_BOOL?: string;
   RATE_LIMIT_KV: KVNamespace;
 }
 
