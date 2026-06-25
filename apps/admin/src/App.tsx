@@ -1,5 +1,5 @@
 import { Routes, Route } from "react-router-dom";
-import { SignIn } from "@clerk/clerk-react";
+import { SignInPage } from "./components/SignInPage";
 import {
   LayoutDashboard,
   Briefcase,
@@ -38,7 +38,6 @@ import { ServiceAreasPage } from "./pages/ServiceAreasPage";
 import { EventsPage } from "./pages/EventsPage";
 import { StatusPage } from "./pages/StatusPage";
 import { TrainingAdminPage } from "./pages/TrainingAdminPage";
-import { AuthPage } from "./components/AuthPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminGuard } from "./components/AdminGuard";
 import { NavAuth } from "./components/NavAuth";
@@ -97,14 +96,7 @@ function Guarded({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <Routes>
-      <Route
-        path="/sign-in/*"
-        element={
-          <AuthPage title="Sweepr Ops" subtitle="Sign in to the admin console">
-            <SignIn routing="path" path="/sign-in" fallbackRedirectUrl="/" />
-          </AuthPage>
-        }
-      />
+      <Route path="/sign-in" element={<SignInPage />} />
 
       {/* Public — no auth required, token in query string */}
       <Route path="/accept-invite" element={<AcceptInvitePage />} />

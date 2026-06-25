@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate, Outlet } from "react-router-dom";
-import { SignIn, SignUp } from "@clerk/clerk-react";
+import { SignInPage } from "./components/SignInPage";
+import { SignUpPage } from "./components/SignUpPage";
 import {
   CalendarCheck,
   CreditCard,
@@ -7,23 +8,11 @@ import {
   Home as HomeIcon,
   Repeat,
 } from "lucide-react";
-import { useState } from "react";
-import { AppShell, SMSOptIn, PrelaunchGate } from "@sweepr/ui";
+import { AppShell, PrelaunchGate } from "@sweepr/ui";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 import { BookingLayout } from "./booking/BookingLayout";
 import { SubscriptionsPage } from "./pages/SubscriptionsPage";
-
-/** SMS consent shown alongside customer sign-up (TCPA — never pre-checked). */
-function SignUpWithSms({ children }: { children: React.ReactNode }) {
-  const [opted, setOpted] = useState(false);
-  return (
-    <div className="flex w-full max-w-sm flex-col items-center gap-4">
-      {children}
-      <SMSOptIn value={opted} onChange={setOpted} />
-    </div>
-  );
-}
 import { AddressStep } from "./booking/steps/AddressStep";
 import { HomeStep } from "./booking/steps/HomeStep";
 import { ServiceStep } from "./booking/steps/ServiceStep";
@@ -38,7 +27,6 @@ import { PaymentMethodsPage } from "./pages/PaymentMethodsPage";
 import { Home } from "./pages/Home";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { OfflineIndicator } from "./components/OfflineIndicator";
-import { AuthPage } from "./components/AuthPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { NavAuth } from "./components/NavAuth";
 
@@ -82,37 +70,8 @@ export default function App() {
       <Routes>
         <Route element={<GateLayout />}>
         {/* Auth */}
-        <Route
-          path="/sign-in/*"
-          element={
-            <AuthPage title="Welcome back" subtitle="Sign in to manage your cleans">
-              <SignIn
-                routing="path"
-                path="/sign-in"
-                signUpUrl="/sign-up"
-                fallbackRedirectUrl="/book"
-              />
-            </AuthPage>
-          }
-        />
-        <Route
-          path="/sign-up/*"
-          element={
-            <AuthPage
-              title="Create your account"
-              subtitle="Book your first clean in minutes"
-            >
-              <SignUpWithSms>
-                <SignUp
-                  routing="path"
-                  path="/sign-up"
-                  signInUrl="/sign-in"
-                  fallbackRedirectUrl="/book"
-                />
-              </SignUpWithSms>
-            </AuthPage>
-          }
-        />
+        <Route path="/sign-in" element={<SignInPage />} />
+        <Route path="/sign-up" element={<SignUpPage />} />
 
         <Route path="/" element={<Navigate to="/home" replace />} />
         <Route path="/home" element={<Protected><Home /></Protected>} />
