@@ -123,6 +123,7 @@ export function SignUpPage() {
                   </div>
                 </Field>
                 {error && <ErrorBox message={error} />}
+                <div id="clerk-captcha" />
                 <SubmitButton loading={loading} disabled={!isLoaded} label="Create account" />
               </form>
             ) : (
@@ -132,6 +133,7 @@ export function SignUpPage() {
                     className={inputCls} placeholder="+1 (555) 000-0000" />
                 </Field>
                 {error && <ErrorBox message={error} />}
+                <div id="clerk-captcha" />
                 <SubmitButton loading={loading} disabled={!isLoaded} label="Send code" />
               </form>
             )}

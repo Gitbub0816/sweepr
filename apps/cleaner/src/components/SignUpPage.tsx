@@ -216,6 +216,7 @@ export function SignUpPage() {
                   </div>
                 </div>
                 {error && <ErrorBox message={error} />}
+                <div id="clerk-captcha" />
                 <SubmitButton loading={loading} disabled={!isLoaded} label="Create account" />
               </form>
             ) : (
@@ -233,6 +234,7 @@ export function SignUpPage() {
                   />
                 </div>
                 {error && <ErrorBox message={error} />}
+                <div id="clerk-captcha" />
                 <SubmitButton loading={loading} disabled={!isLoaded} label="Send code" />
               </form>
             )}
