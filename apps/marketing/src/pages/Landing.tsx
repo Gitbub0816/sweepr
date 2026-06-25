@@ -197,12 +197,12 @@ const faqs: AccordionItemData[] = [
   {
     question: "Will I get the same Sweepr each time?",
     answer:
-      "On a recurring plan, yes — you're matched with the same Sweepr so they know your home and your preferences. For one-time bookings, you can request a specific Sweepr if you've used one before.",
+      "Sweeprs are assigned on a best-match basis — factoring in location, availability, ratings, and job type — so you'll always get the right person for the job. If you've worked with a Sweepr before and want to request them again, you can do that from your booking history.",
   },
   {
     question: "How does recurring pricing work?",
     answer:
-      "Recurring bookings are billed per visit at a lower rate than one-time cleans. You'll be matched with the same Sweepr each time. Pause or cancel anytime — no lock-in.",
+      "Recurring bookings are billed per visit at a lower rate than one-time cleans. Pause or cancel anytime — no lock-in.",
   },
   {
     question: "What areas does Sweepr serve?",

@@ -65,9 +65,11 @@ function Guarded({ children }: { children: React.ReactNode }) {
   );
 }
 
+const FORCE_PRELAUNCH = import.meta.env.VITE_PRELAUNCH_FORCE === "true";
+
 function GateLayout() {
   return (
-    <PrelaunchGate type="cleaner" apiUrl={API_URL}>
+    <PrelaunchGate type="cleaner" apiUrl={API_URL} forcePrelaunch={FORCE_PRELAUNCH}>
       <Outlet />
     </PrelaunchGate>
   );

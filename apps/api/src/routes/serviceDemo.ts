@@ -1,8 +1,9 @@
 /**
- * Day-of-service demo/test routes — only active when SEED_BOOL=true.
+ * Day-of-service demo routes — always active in production.
  *
  * Provides a stateful sandbox session that simulates the full day-of-service
- * flow without requiring real bookings, auth tokens, or GPS.
+ * flow without requiring real bookings, auth tokens, or GPS. Sessions are
+ * isolated rows in dos_test_sessions; they never touch real bookings or users.
  *
  * Routes (all unauthenticated):
  *   POST /service/seed          → create a fresh session; returns { txId }
@@ -44,18 +45,6 @@ type DayStatus =
   | "in_progress"
   | "awaiting_checkout"
   | "completed";
-
-function isSeedEnabled(env: AppBindings["Bindings"]): boolean {
-  return env.SEED_BOOL === "true";
-}
-
-/** Guard — returns 404 if SEED_BOOL is not true. */
-serviceDemoRouter.use("*", async (c, next) => {
-  if (!isSeedEnabled(c.env)) {
-    return c.json({ error: "Not found" }, 404);
-  }
-  await next();
-});
 
 /** Create a fresh demo session. */
 serviceDemoRouter.post("/seed", async (c) => {

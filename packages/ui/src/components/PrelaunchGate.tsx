@@ -9,6 +9,8 @@ interface PrelaunchGateProps {
   type: "cleaner" | "customer";
   apiUrl: string;
   children: React.ReactNode;
+  /** When true, always show the prelaunch gate regardless of API response or bypass codes. */
+  forcePrelaunch?: boolean;
 }
 
 interface StatusSettings {
@@ -16,7 +18,7 @@ interface StatusSettings {
   prelaunch_customer: boolean;
 }
 
-export function PrelaunchGate({ type, apiUrl, children }: PrelaunchGateProps) {
+export function PrelaunchGate({ type, apiUrl, children, forcePrelaunch = false }: PrelaunchGateProps) {
   const [settings, setSettings] = useState<StatusSettings | null>(null);
   const [bypassed, setBypassed] = useState(false);
   const [clickCount, setClickCount] = useState(0);
@@ -76,7 +78,7 @@ export function PrelaunchGate({ type, apiUrl, children }: PrelaunchGateProps) {
   }
 
   // Still loading
-  if (settings === null) {
+  if (settings === null && !forcePrelaunch) {
     return (
       <div className="flex h-screen items-center justify-center bg-white">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-seafoam-400 border-t-transparent" />
@@ -85,9 +87,10 @@ export function PrelaunchGate({ type, apiUrl, children }: PrelaunchGateProps) {
   }
 
   const isPrelaunch =
-    type === "cleaner" ? settings.prelaunch_cleaner : settings.prelaunch_customer;
+    forcePrelaunch ||
+    (type === "cleaner" ? settings!.prelaunch_cleaner : settings!.prelaunch_customer);
 
-  if (!isPrelaunch || bypassed) {
+  if (!isPrelaunch || (bypassed && !forcePrelaunch)) {
     return <>{children}</>;
   }
 
