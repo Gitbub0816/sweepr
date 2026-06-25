@@ -28,6 +28,8 @@ export interface Env {
   R2_LEGAL_ACCESS_KEY_ID: string;
   R2_LEGAL_SECRET_ACCESS_KEY: string;
   ACCESS_CODE_ENCRYPTION_KEY?: string;
+  CF_STREAM_ACCOUNT_ID?: string;
+  CF_STREAM_API_TOKEN?: string;
 }
 
 export interface AuthUser {

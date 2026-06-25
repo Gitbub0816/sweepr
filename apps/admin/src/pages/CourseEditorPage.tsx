@@ -7,7 +7,7 @@ import {
   Copy, Trash2, Save, Palette, Square, Minus, MessageSquare,
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight,
   BringToFront, SendToBack, AlignHorizontalJustifyCenter,
-  AlignVerticalJustifyCenter, Layout,
+  AlignVerticalJustifyCenter, Layout, Upload, Loader2, CheckCircle2,
 } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
@@ -800,6 +800,168 @@ function ThumbBlock({ block }: { block: Block }) {
 
 // ─── Inspectors ───────────────────────────────────────────────────────────────
 
+// ─── Cloudflare Stream uploader ─────────────────────────────────────────────
+
+type UploadState = "idle" | "requesting" | "uploading" | "polling" | "ready" | "error";
+
+function StreamUploader({
+  streamId,
+  onChange,
+}: {
+  streamId: string;
+  onChange: (props: Record<string, unknown>) => void;
+}) {
+  const { getToken } = useAuth();
+  const [state, setState] = useState<UploadState>(streamId ? "ready" : "idle");
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearPoll = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
+
+  useEffect(() => () => clearPoll(), []);
+
+  async function pollStatus(id: string) {
+    clearPoll();
+    setState("polling");
+    pollRef.current = setInterval(async () => {
+      try {
+        const token = await getToken();
+        const res = await fetch(`${API}/admin/courses/stream/${id}/status`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const d = await res.json() as { ready: boolean; state: string; pctComplete?: string; thumbnail?: string };
+        if (d.ready) {
+          clearPoll();
+          setState("ready");
+          onChange({ streamId: id, thumbnail: d.thumbnail });
+        } else if (d.state === "error") {
+          clearPoll();
+          setError("Stream processing failed.");
+          setState("error");
+        }
+      } catch { /* retry on next tick */ }
+    }, 4000);
+  }
+
+  async function handleFile(file: File) {
+    setError("");
+    setState("requesting");
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API}/admin/courses/stream/upload-url`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ maxDurationSeconds: 3600 }),
+      });
+      if (!res.ok) throw new Error((await res.json() as { error?: string }).error ?? "Failed to get upload URL");
+      const { streamId: newId, uploadUrl } = await res.json() as { streamId: string; uploadUrl: string };
+
+      setState("uploading");
+      setProgress(0);
+
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", uploadUrl);
+        xhr.upload.onprogress = (e) => { if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100)); };
+        xhr.onload = () => { if (xhr.status < 300) resolve(); else reject(new Error(`Upload failed: ${xhr.status}`)); };
+        xhr.onerror = () => reject(new Error("Network error"));
+        const fd = new FormData();
+        fd.append("file", file);
+        xhr.send(fd);
+      });
+
+      onChange({ streamId: newId });
+      await pollStatus(newId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed");
+      setState("error");
+    }
+  }
+
+  if (state === "ready") {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-emerald-800">Video ready</p>
+            <p className="text-xs text-emerald-600 font-mono truncate">{streamId}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => { onChange({ streamId: "" }); setState("idle"); }}
+            className="text-xs text-slate-400 hover:text-red-500"
+          >Replace</button>
+        </div>
+        <a
+          href={`https://iframe.videodelivery.net/${streamId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-seafoam-600 hover:underline"
+        >Preview in Stream ↗</a>
+      </div>
+    );
+  }
+
+  if (state === "polling") {
+    return (
+      <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2">
+        <Loader2 className="h-4 w-4 text-blue-500 animate-spin shrink-0" />
+        <p className="text-xs text-blue-700">Processing video… this may take a minute</p>
+      </div>
+    );
+  }
+
+  if (state === "uploading") {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-xs text-slate-500">
+          <span>Uploading to Stream…</span><span>{progress}%</span>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+          <div className="h-full rounded-full bg-seafoam-500 transition-all" style={{ width: `${progress}%` }} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {state === "requesting" && (
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <Loader2 className="h-3 w-3 animate-spin" /> Preparing upload…
+        </div>
+      )}
+      {error && <p className="text-xs text-red-500">{error}</p>}
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        disabled={state === "requesting"}
+        className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 px-4 py-3 text-sm text-slate-500 hover:border-seafoam-400 hover:text-seafoam-600 disabled:opacity-50 transition-colors"
+      >
+        <Upload className="h-4 w-4" />
+        Upload video to Cloudflare Stream
+      </button>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="video/*"
+        className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
+      />
+      {streamId && (
+        <div className="text-xs text-slate-400">
+          Current ID: <span className="font-mono">{streamId}</span>
+          <button type="button" onClick={() => setState("ready")} className="ml-2 text-seafoam-500 hover:underline">view</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block mb-3">
@@ -933,7 +1095,12 @@ function BlockInspector({ block, onChange, onGeom, onDelete }: {
 
       {block.block_type === "video" && (
         <>
-          <Field label="Cloudflare Stream ID"><input className={inputCls} value={(p.streamId as string) ?? ""} onChange={(e) => onChange({ streamId: e.target.value })} /></Field>
+          <Field label="Video">
+            <StreamUploader
+              streamId={(p.streamId as string) ?? ""}
+              onChange={onChange}
+            />
+          </Field>
           <Field label="Required watch %"><input type="number" className={inputCls} value={(p.requireWatchPercent as number) ?? 95} onChange={(e) => onChange({ requireWatchPercent: Number(e.target.value) })} /></Field>
           <label className="flex items-center gap-2 text-sm text-slate-600">
             <input type="checkbox" checked={Boolean(p.allowSkip)} onChange={(e) => onChange({ allowSkip: e.target.checked })} /> Allow skip

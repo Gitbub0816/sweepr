@@ -338,3 +338,85 @@ adminCoursesRouter.post(
     return c.json({ ok: true, published_version: draft.version_number });
   }
 );
+
+// ─── Cloudflare Stream ───────────────────────────────────────────────────────
+
+/**
+ * POST /admin/courses/stream/upload-url
+ * Returns a one-time Direct Creator Upload URL from Cloudflare Stream.
+ * The browser POSTs the video file directly to this URL — the API key
+ * never touches the browser.
+ */
+adminCoursesRouter.post("/stream/upload-url", async (c) => {
+  const { CF_STREAM_ACCOUNT_ID, CF_STREAM_API_TOKEN } = c.env;
+  if (!CF_STREAM_ACCOUNT_ID || !CF_STREAM_API_TOKEN) {
+    return c.json({ error: "Cloudflare Stream not configured. Set CF_STREAM_ACCOUNT_ID and CF_STREAM_API_TOKEN." }, 503);
+  }
+
+  const body = await c.req.json<{ maxDurationSeconds?: number; requireSignedURLs?: boolean }>().catch(() => ({ maxDurationSeconds: 3600, requireSignedURLs: false }));
+  const maxDuration = (body as { maxDurationSeconds?: number }).maxDurationSeconds ?? 3600;
+
+  const res = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${CF_STREAM_ACCOUNT_ID}/stream/direct_upload`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${CF_STREAM_API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        maxDurationSeconds: maxDuration,
+        requireSignedURLs: (body as { requireSignedURLs?: boolean }).requireSignedURLs ?? false,
+        meta: { source: "sweepr-admin-course-editor" },
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.text();
+    return c.json({ error: `Stream API error: ${err}` }, 502);
+  }
+
+  const data = await res.json() as {
+    result: { uid: string; uploadURL: string };
+    success: boolean;
+  };
+
+  return c.json({
+    streamId: data.result.uid,
+    uploadUrl: data.result.uploadURL,
+    embedUrl: `https://iframe.videodelivery.net/${data.result.uid}`,
+  });
+});
+
+/**
+ * GET /admin/courses/stream/:streamId/status
+ * Polls Stream to check if a video has finished processing.
+ */
+adminCoursesRouter.get("/stream/:streamId/status", async (c) => {
+  const { CF_STREAM_ACCOUNT_ID, CF_STREAM_API_TOKEN } = c.env;
+  if (!CF_STREAM_ACCOUNT_ID || !CF_STREAM_API_TOKEN) {
+    return c.json({ error: "Stream not configured" }, 503);
+  }
+
+  const { streamId } = c.req.param();
+  const res = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${CF_STREAM_ACCOUNT_ID}/stream/${streamId}`,
+    { headers: { Authorization: `Bearer ${CF_STREAM_API_TOKEN}` } }
+  );
+
+  if (!res.ok) return c.json({ error: "Video not found" }, 404);
+
+  const data = await res.json() as {
+    result: { uid: string; status: { state: string; pctComplete?: string }; duration?: number; thumbnail?: string };
+  };
+
+  return c.json({
+    streamId: data.result.uid,
+    state: data.result.status.state,       // "pendingupload" | "downloading" | "queued" | "inprogress" | "ready" | "error"
+    pctComplete: data.result.status.pctComplete,
+    duration: data.result.duration,
+    thumbnail: data.result.thumbnail,
+    ready: data.result.status.state === "ready",
+  });
+});
