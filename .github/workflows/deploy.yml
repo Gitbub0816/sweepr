@@ -160,6 +160,12 @@ jobs:
           VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
           VITE_POSTHOG_DASHBOARD_URL: ${{ secrets.VITE_POSTHOG_DASHBOARD_URL }}
           VITE_API_URL: https://api.getsweepr.com
+          VITE_CF_ANALYTICS_TOKEN: ${{ secrets.VITE_CF_ANALYTICS_TOKEN }}
+          VITE_CF_ZONE_ID: ${{ secrets.VITE_CF_ZONE_ID }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_SENTRY_AUTH_TOKEN: ${{ secrets.VITE_SENTRY_AUTH_TOKEN }}
+          VITE_SENTRY_ORG: ${{ secrets.VITE_SENTRY_ORG }}
+          VITE_SENTRY_PROJECT: ${{ secrets.VITE_SENTRY_PROJECT }}
       - run: pnpm exec wrangler pages deploy apps/admin/dist --project-name=sweepr-admin --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
