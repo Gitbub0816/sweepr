@@ -2,10 +2,21 @@
  * React Three Fiber visualizations for the Observability dashboard.
  * Each export is a self-contained canvas component.
  */
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useState, useEffect } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Text, RoundedBox, Float, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
+
+// Guard: only mount a Canvas once the container has non-zero dimensions.
+// Prevents WebGL context loss from canvases rendered at 0x0.
+function useMounted(delay = 50): boolean {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setMounted(true), delay);
+    return () => clearTimeout(t);
+  }, [delay]);
+  return mounted;
+}
 
 // ─── Health Orb ──────────────────────────────────────────────────────────────
 
@@ -53,19 +64,21 @@ function OrbInner({ errorRate }: { errorRate: number }) {
 export function HealthOrb({ errorRate, label }: { errorRate: number; label: string }) {
   const statusText = errorRate > 5 ? "Degraded" : errorRate > 1 ? "Warning" : "Healthy";
   const textColor = errorRate > 5 ? "#ef4444" : errorRate > 1 ? "#f59e0b" : "#10b981";
+  const mounted = useMounted();
 
   return (
     <div className="relative">
-      <Canvas
+      {mounted && <Canvas
         camera={{ position: [0, 0, 3.5], fov: 45 }}
         style={{ height: 180 }}
-        gl={{ antialias: true, alpha: true }}
+        frameloop="demand"
+        gl={{ antialias: false, alpha: true, powerPreference: "low-power" }}
       >
         <ambientLight intensity={0.4} />
         <pointLight position={[5, 5, 5]} intensity={1.5} />
         <pointLight position={[-5, -5, -5]} intensity={0.5} />
         <OrbInner errorRate={errorRate} />
-      </Canvas>
+      </Canvas>}
       <div className="text-center -mt-2">
         <p className="text-xs font-bold" style={{ color: textColor }}>{statusText}</p>
         <p className="text-xs text-slate-400">{label}</p>
@@ -113,10 +126,12 @@ export function BarChart3D({
   const spacing = 0.55;
   const totalWidth = (data.length - 1) * spacing;
 
+  const mounted = useMounted();
+
   return (
     <div>
       <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{title}</p>
-      <Canvas camera={{ position: [0, 1.5, 5], fov: 50 }} style={{ height: 200 }} gl={{ antialias: true, alpha: true }}>
+      {mounted && <Canvas camera={{ position: [0, 1.5, 5], fov: 50 }} style={{ height: 200 }} frameloop="demand" gl={{ antialias: false, alpha: true, powerPreference: "low-power" }}>
         <ambientLight intensity={0.6} />
         <pointLight position={[3, 5, 3]} intensity={1.2} />
         <pointLight position={[-3, -3, 3]} intensity={0.4} />
@@ -132,7 +147,7 @@ export function BarChart3D({
         ))}
         {/* Floor grid */}
         <gridHelper args={[8, 8, "#e2e8f0", "#f1f5f9"]} position={[0, -1.5, 0]} />
-      </Canvas>
+      </Canvas>}
     </div>
   );
 }
@@ -187,13 +202,13 @@ export function LatencyGauges({ p50, p95, p99, threshold = 2000 }: {
   const pct95 = Math.min(p95 / threshold, 1);
   const pct99 = Math.min(p99 / threshold, 1);
   const col = (ms: number) => ms < 300 ? "#10b981" : ms < 1000 ? "#f59e0b" : "#ef4444";
-
   const fmt = (ms: number) => ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
+  const mounted = useMounted();
 
   return (
     <div>
       <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Latency Percentiles</p>
-      <Canvas camera={{ position: [0, 0, 5], fov: 45 }} style={{ height: 180 }} gl={{ antialias: true, alpha: true }}>
+      {mounted && <Canvas camera={{ position: [0, 0, 5], fov: 45 }} style={{ height: 180 }} frameloop="demand" gl={{ antialias: false, alpha: true, powerPreference: "low-power" }}>
         <ambientLight intensity={0.6} />
         <pointLight position={[0, 3, 3]} intensity={1} />
         <group position={[-2.2, 0, 0]}>
@@ -205,7 +220,7 @@ export function LatencyGauges({ p50, p95, p99, threshold = 2000 }: {
         <group position={[2.2, 0, 0]}>
           <GaugeRing pct={pct99} color={col(p99)} label="P99" value={fmt(p99)} radius={0.8} />
         </group>
-      </Canvas>
+      </Canvas>}
     </div>
   );
 }
@@ -241,11 +256,12 @@ function FunnelStep({ y, radius, height, color, label, count, pct }: {
 export function FunnelViz({ steps }: { steps: { label: string; count: number }[] }) {
   const top = steps[0]?.count ?? 1;
   const colors = ["#14b8a6", "#22d3ee", "#38bdf8", "#60a5fa", "#818cf8", "#a78bfa"];
+  const mounted = useMounted();
 
   return (
     <div>
       <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Booking Funnel (3D)</p>
-      <Canvas camera={{ position: [2.5, 0, 6], fov: 50 }} style={{ height: 260 }} gl={{ antialias: true, alpha: true }}>
+      {mounted && <Canvas camera={{ position: [2.5, 0, 6], fov: 50 }} style={{ height: 260 }} frameloop="demand" gl={{ antialias: false, alpha: true, powerPreference: "low-power" }}>
         <ambientLight intensity={0.5} />
         <pointLight position={[3, 5, 5]} intensity={1.2} />
         <pointLight position={[-3, -3, 5]} intensity={0.4} />
@@ -264,7 +280,7 @@ export function FunnelViz({ steps }: { steps: { label: string; count: number }[]
             </Float>
           );
         })}
-      </Canvas>
+      </Canvas>}
     </div>
   );
 }
@@ -304,11 +320,12 @@ export function PaymentFlowViz({ successRate, total }: { successRate: number; to
       color: i < (successRate / 100) * 30 ? "#10b981" : "#ef4444",
     }));
   }, [total, successRate]);
+  const mounted = useMounted();
 
   return (
     <div>
       <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Payment Flow</p>
-      <Canvas camera={{ position: [0, 0, 6], fov: 50 }} style={{ height: 160 }} gl={{ antialias: true, alpha: true }}>
+      {mounted && <Canvas camera={{ position: [0, 0, 6], fov: 50 }} style={{ height: 160 }} frameloop="demand" gl={{ antialias: false, alpha: true, powerPreference: "low-power" }}>
         <ambientLight intensity={0.8} />
         {particles.map((p, i) => (
           <PaymentParticle key={i} position={p.position} color={p.color} />
@@ -319,7 +336,7 @@ export function PaymentFlowViz({ successRate, total }: { successRate: number; to
         <Text position={[0, -0.7, 0]} fontSize={0.2} color="#94a3b8" anchorX="center">
           success rate
         </Text>
-      </Canvas>
+      </Canvas>}
     </div>
   );
 }
