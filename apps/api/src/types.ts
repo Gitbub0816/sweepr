@@ -30,6 +30,7 @@ export interface Env {
   ACCESS_CODE_ENCRYPTION_KEY?: string;
   CF_STREAM_ACCOUNT_ID?: string;
   CF_STREAM_API_TOKEN?: string;
+  CLERK_WEBHOOK_SECRET?: string;
 }
 
 export interface AuthUser {

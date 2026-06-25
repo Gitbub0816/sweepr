@@ -16,6 +16,7 @@ import { scheduleRouter } from "./routes/schedule";
 import { subscriptionsRouter } from "./routes/subscriptions";
 import { checkrRouter } from "./routes/checkr";
 import { diditRouter, diditWebhookRouter } from "./routes/didit";
+import { clerkWebhookRouter } from "./routes/webhooks/clerk";
 import { statusRouter } from "./routes/status";
 import { statusAdminRouter } from "./routes/admin/statusAdmin";
 import { adminInviteRouter } from "./routes/adminInvite";
@@ -67,6 +68,7 @@ app.route("/bookings", bookingsRouter);
 app.route("/pricing", pricingRouter);
 app.route("/payments", paymentsRouter);
 app.route("/webhooks/stripe", stripeWebhookRouter);
+app.route("/webhooks/clerk", clerkWebhookRouter);
 app.route("/cleaners", cleanersRouter);
 // Cleaner self-service dashboard (separate from admin cleaners management).
 // Mounted under /cleaner-dashboard to avoid conflict with /cleaners admin routes.

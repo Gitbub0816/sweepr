@@ -57,6 +57,7 @@ preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
 # ALLOWED_ORIGINS
 # CF_STREAM_ACCOUNT_ID      (Cloudflare account ID — same value as R2_ACCOUNT_ID)
 # CF_STREAM_API_TOKEN       (API token with Cloudflare Stream:Edit permission)
+# CLERK_WEBHOOK_SECRET      (from Clerk Dashboard → Webhooks → signing secret, starts with whsec_)
 
 [env.production]
 vars = { ENVIRONMENT = "production" }
