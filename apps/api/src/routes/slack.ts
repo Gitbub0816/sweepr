@@ -35,6 +35,14 @@ import {
   createChannel,
   getUserInfo,
 } from "../lib/slack";
+import {
+  approve,
+  decline,
+  joinCollaboration,
+  proposeModification,
+  ApprovalError,
+} from "../lib/approvalEngine";
+import { updateProposalCard } from "../lib/approvalNotify";
 import type { AppBindings } from "../types";
 
 export const slackRouter = new Hono<AppBindings>();
@@ -177,6 +185,7 @@ slackRouter.post("/interactivity", async (c) => {
   `) as Array<{ id: string; bot_token: string }>;
   const ws = wsRows[0];
   let email: string | undefined;
+  let clerkId: string | undefined;
   let isSuperAdmin = false;
   if (ws && slackUserId) {
     const info = await getUserInfo(ws.bot_token, slackUserId);
@@ -184,16 +193,18 @@ slackRouter.post("/interactivity", async (c) => {
     if (email) {
       if (isOwnerEmail(email, c.env)) {
         isSuperAdmin = true;
-      } else {
-        const u = (await sql`
-          SELECT role, admin_role FROM users WHERE LOWER(email) = LOWER(${email}) LIMIT 1
-        `) as Array<{ role: string; admin_role: string | null }>;
-        isSuperAdmin = u[0]?.role === "super_admin" || u[0]?.admin_role === "super_admin";
+      }
+      const u = (await sql`
+        SELECT clerk_id, role, admin_role FROM users WHERE LOWER(email) = LOWER(${email}) LIMIT 1
+      `) as Array<{ clerk_id: string; role: string; admin_role: string | null }>;
+      if (u[0]) {
+        clerkId = u[0].clerk_id;
+        if (u[0].role === "super_admin" || u[0].admin_role === "super_admin") isSuperAdmin = true;
       }
     }
   }
 
-  if (!isSuperAdmin) {
+  if (!isSuperAdmin || !clerkId) {
     return c.json({
       response_type: "ephemeral",
       replace_original: false,
@@ -201,17 +212,39 @@ slackRouter.post("/interactivity", async (c) => {
     });
   }
 
-  // The Approval Engine (next workstream) wires these actions to proposal state.
-  // Until then, acknowledge and direct the verified admin to Sweepr.
-  logger.info("slack.interactivity", {
-    action: action.action_id,
-    proposalId: action.value,
-    email,
-  });
+  const proposalId = action.value ?? "";
+  const actor = { clerkId, email };
+  try {
+    switch (action.action_id) {
+      case "approve":
+        await approve(sql, proposalId, actor);
+        break;
+      case "decline":
+        await decline(sql, proposalId, actor, "Declined via Slack");
+        break;
+      case "join_collaboration":
+        await joinCollaboration(sql, proposalId, actor);
+        break;
+      case "propose_modification":
+        await proposeModification(sql, proposalId, actor, "Requested changes via Slack");
+        break;
+      default:
+        return c.json({ response_type: "ephemeral", text: "Unsupported action." });
+    }
+  } catch (err) {
+    if (err instanceof ApprovalError) {
+      return c.json({ response_type: "ephemeral", replace_original: false, text: err.message });
+    }
+    logger.error("slack.interactivity failed", err, { action: action.action_id, proposalId });
+    return c.json({ response_type: "ephemeral", replace_original: false, text: "Something went wrong handling that action." });
+  }
+
+  await updateProposalCard(sql, c.env, proposalId);
+  logger.info("slack.interactivity", { action: action.action_id, proposalId, email });
   return c.json({
     response_type: "ephemeral",
     replace_original: false,
-    text: `Received "${action.action_id}". Finalize this action in Sweepr: ${adminUrl(c.env)}/approvals/${action.value ?? ""}`,
+    text: `✅ "${action.action_id}" recorded. View in Sweepr: ${adminUrl(c.env)}/approvals/${proposalId}`,
   });
 });
 

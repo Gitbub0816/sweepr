@@ -1957,8 +1957,64 @@ INSERT INTO schema_migrations (filename) VALUES
   ('030_it_tickets_notifications.sql'),
   ('031_hard_delete_cascades.sql'),
   ('032_legal_compliance_tracking.sql'),
-  ('033_slack_integration.sql')
+  ('033_slack_integration.sql'),
+  ('034_fee_approval_engine.sql')
 ON CONFLICT (filename) DO NOTHING;
+
+-- ── 034: Fee Change Approval Engine ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS fee_configurations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL, fee_type TEXT NOT NULL, affected_party TEXT NOT NULL,
+  calculation_method TEXT NOT NULL, flat_amount_cents INTEGER, percentage_bps INTEGER,
+  formula_json JSONB, city TEXT, state TEXT, service_type TEXT,
+  status TEXT NOT NULL DEFAULT 'draft', active_from TIMESTAMPTZ, active_until TIMESTAMPTZ,
+  version INTEGER NOT NULL DEFAULT 1, supersedes_id UUID REFERENCES fee_configurations(id),
+  created_by TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_fee_configs_status ON fee_configurations (status);
+CREATE TABLE IF NOT EXISTS fee_change_proposals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  proposed_fee_configuration_id UUID NOT NULL REFERENCES fee_configurations(id) ON DELETE CASCADE,
+  proposer_clerk_id TEXT NOT NULL, proposer_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  title TEXT NOT NULL, reason TEXT NOT NULL, internal_notes TEXT, external_notice_summary TEXT,
+  status TEXT NOT NULL DEFAULT 'pending', proposed_effective_at TIMESTAMPTZ NOT NULL,
+  response_deadline_at TIMESTAMPTZ NOT NULL, response_deadline_removed_at TIMESTAMPTZ,
+  approved_at TIMESTAMPTZ, cooldown_started_at TIMESTAMPTZ, cooldown_expires_at TIMESTAMPTZ,
+  notice_sent_at TIMESTAMPTZ, notice_period_ends_at TIMESTAMPTZ, final_effective_at TIMESTAMPTZ,
+  declined_at TIMESTAMPTZ, decline_reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_fee_proposals_status ON fee_change_proposals (status);
+CREATE TABLE IF NOT EXISTS fee_change_proposal_actions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  proposal_id UUID NOT NULL REFERENCES fee_change_proposals(id) ON DELETE CASCADE,
+  actor_clerk_id TEXT NOT NULL, actor_email TEXT, action TEXT NOT NULL,
+  comment TEXT, proposed_modification_json JSONB, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_fee_actions_proposal ON fee_change_proposal_actions (proposal_id);
+CREATE TABLE IF NOT EXISTS fee_change_collaborators (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  proposal_id UUID NOT NULL REFERENCES fee_change_proposals(id) ON DELETE CASCADE,
+  clerk_id TEXT NOT NULL, email TEXT, joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  must_approve_final BOOLEAN NOT NULL DEFAULT TRUE, approved_final_at TIMESTAMPTZ,
+  UNIQUE (proposal_id, clerk_id)
+);
+CREATE TABLE IF NOT EXISTS fee_change_notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  proposal_id UUID NOT NULL REFERENCES fee_change_proposals(id) ON DELETE CASCADE,
+  clerk_id TEXT, channel TEXT NOT NULL, recipient TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending', sent_at TIMESTAMPTZ,
+  provider_message_id TEXT, error_message TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_fee_notifications_proposal ON fee_change_notifications (proposal_id);
+CREATE TABLE IF NOT EXISTS fee_change_action_links (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  proposal_id UUID NOT NULL REFERENCES fee_change_proposals(id) ON DELETE CASCADE,
+  clerk_id TEXT NOT NULL, email TEXT, token_hash TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL, used_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_fee_action_links_token ON fee_change_action_links (token_hash);
 
 -- ── 033: Slack integration ───────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS slack_workspaces (

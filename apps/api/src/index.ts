@@ -41,6 +41,7 @@ import { itRouter } from "./routes/it";
 import { accountRouter } from "./routes/account";
 import { adminNotificationSettingsRouter } from "./routes/adminNotificationSettings";
 import { slackRouter } from "./routes/slack";
+import { feeProposalsRouter, feeActionRouter } from "./routes/feeProposals";
 import { requestLogger } from "./middleware/requestLogger";
 import { clientErrorsRouter } from "./routes/clientErrors";
 import { AppError, toSafeError } from "./lib/errors";
@@ -125,6 +126,8 @@ app.route("/admin/payouts", adminPayoutsRouter);
 app.route("/admin/me", adminMeRouter);
 app.route("/cleaner-dashboard", cleanerDashboardRouter);
 app.route("/slack", slackRouter);
+app.route("/admin/fee-proposals", feeProposalsRouter);
+app.route("/fee-action", feeActionRouter);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 
@@ -239,6 +242,26 @@ export default {
             SELECT 1 FROM disputes d WHERE d.booking_id = b.id AND d.status = 'open'
           )
       `;
+
+      // Fee Change Approval Engine transitions (idempotent, time-driven).
+      try {
+        const {
+          expirePending,
+          completeCooldowns,
+          activateEffective,
+        } = await import("./lib/approvalEngine");
+        const { updateProposalCard } = await import("./lib/approvalNotify");
+        const env2 = env as unknown as import("./types").Env;
+
+        await expirePending(sql);
+        const noticed = await completeCooldowns(sql);
+        const activated = await activateEffective(sql);
+        for (const p of [...noticed, ...activated]) {
+          await updateProposalCard(sql, env2, p.id as string);
+        }
+      } catch (err) {
+        logger.error("cron.approval_engine failed", err, { cron: event.cron });
+      }
 
       logger.info("cron.completed", { cron: event.cron, captures: pendingCaptures.length });
     } catch (err) {
