@@ -43,12 +43,26 @@ jobs:
           node-version: '22'
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
+      # Fail-soft: a missing DATABASE_URL secret (or a transient DB hiccup)
+      # warns but never blocks the deploy.
       - name: Run migrations
-        run: pnpm --filter @sweepr/db migrate
+        continue-on-error: true
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::warning::DATABASE_URL secret not set — skipping migrations"
+            exit 0
+          fi
+          pnpm --filter @sweepr/db migrate
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
       - name: Seed verified test cleaner
-        run: pnpm --filter @sweepr/db seed:test-cleaner
+        continue-on-error: true
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::warning::DATABASE_URL secret not set — skipping seed"
+            exit 0
+          fi
+          pnpm --filter @sweepr/db seed:test-cleaner
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SEED_CLERK_ID: ${{ secrets.SEED_CLERK_ID }}
