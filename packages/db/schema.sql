@@ -8,7 +8,7 @@
 -- This file is GENERATED. Do not edit by hand — edit the migrations in
 -- src/migrations/ and re-run: node packages/db/build-schema.mjs
 --
--- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql
+-- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -1687,3 +1687,39 @@ UPDATE users
 SET role = 'super_admin',
     admin_role = 'super_admin'
 WHERE lower(email) = lower('caleb.owen2019@outlook.com');
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 028_error_logs.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Migration 028: centralized error log feed for the admin dashboard.
+--
+-- Captures both server-side (API onError) and client-side (React error
+-- boundaries / unhandled rejections) errors so admins have one place to see
+-- what's breaking, where, and for whom. No request bodies or PII are stored —
+-- only the error message, stack, and coarse request context.
+
+CREATE TABLE IF NOT EXISTS error_logs (
+  id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  occurred_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  source       TEXT        NOT NULL DEFAULT 'server'   -- 'server' | 'client'
+    CHECK (source IN ('server','client')),
+  app          TEXT,                                    -- 'api','admin','customer','cleaner','marketing'
+  level        TEXT        NOT NULL DEFAULT 'error'
+    CHECK (level IN ('error','warn','fatal')),
+  message      TEXT        NOT NULL,
+  stack        TEXT,
+  path         TEXT,                                    -- url / route path
+  method       TEXT,
+  status_code  INT,
+  clerk_id     TEXT,
+  user_id      UUID,
+  request_id   TEXT,
+  context      JSONB       NOT NULL DEFAULT '{}',
+  resolved     BOOLEAN     NOT NULL DEFAULT false,
+  resolved_at  TIMESTAMPTZ,
+  resolved_by  TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_error_logs_occurred  ON error_logs (occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_error_logs_unresolved ON error_logs (occurred_at DESC) WHERE resolved = false;
+CREATE INDEX IF NOT EXISTS idx_error_logs_app       ON error_logs (app);

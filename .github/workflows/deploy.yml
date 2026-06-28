@@ -47,6 +47,13 @@ jobs:
         run: pnpm --filter @sweepr/db migrate
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - name: Seed verified test cleaner
+        run: pnpm --filter @sweepr/db seed:test-cleaner
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SEED_CLERK_ID: ${{ secrets.SEED_CLERK_ID }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          SEED_EMAIL: ${{ secrets.SEED_EMAIL }}
 
   deploy-api:
     name: Deploy API Worker (api.getsweepr.com)
