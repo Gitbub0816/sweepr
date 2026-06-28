@@ -86,11 +86,16 @@ export function PrelaunchGate({ type, apiUrl, children, forcePrelaunch = false }
     );
   }
 
-  const isPrelaunch =
-    forcePrelaunch ||
-    (type === "cleaner" ? settings!.prelaunch_cleaner : settings!.prelaunch_customer);
+  // forcePrelaunch keeps the gate up regardless of the /status toggle, but the
+  // bypass code (?bypass=… or triple-click) must still let the owner preview.
+  const settingsPrelaunch = settings
+    ? type === "cleaner"
+      ? settings.prelaunch_cleaner
+      : settings.prelaunch_customer
+    : false;
+  const isPrelaunch = forcePrelaunch || settingsPrelaunch;
 
-  if (!isPrelaunch || (bypassed && !forcePrelaunch)) {
+  if (!isPrelaunch || bypassed) {
     return <>{children}</>;
   }
 
