@@ -58,6 +58,9 @@ preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
 # CF_STREAM_ACCOUNT_ID      (Cloudflare account ID — same value as R2_ACCOUNT_ID)
 # CF_STREAM_API_TOKEN       (API token with Cloudflare Stream:Edit permission)
 # CLERK_WEBHOOK_SECRET      (from Clerk Dashboard → Webhooks → signing secret, starts with whsec_)
+# SLACK_CLIENT_ID           (Slack app → Basic Information → App Credentials)
+# SLACK_CLIENT_SECRET       (Slack app → Basic Information → App Credentials)
+# SLACK_SIGNING_SECRET      (Slack app → Basic Information → App Credentials; verifies inbound webhooks)
 
 [env.production]
 vars = { ENVIRONMENT = "production" }

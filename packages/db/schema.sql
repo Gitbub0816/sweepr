@@ -8,7 +8,7 @@
 -- This file is GENERATED. Do not edit by hand — edit the migrations in
 -- src/migrations/ and re-run: node packages/db/build-schema.mjs
 --
--- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql
+-- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -2067,3 +2067,80 @@ CREATE TABLE IF NOT EXISTS cookie_consents (
 );
 CREATE INDEX IF NOT EXISTS idx_cookie_consents_user ON cookie_consents (user_id);
 CREATE INDEX IF NOT EXISTS idx_cookie_consents_anon ON cookie_consents (anonymous_id);
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 033_slack_integration.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Migration 033: Slack workspace integration.
+--
+-- Sweepr remains the source of truth. Slack is a notification/collaboration
+-- interface. These tables store workspace connections (OAuth tokens), mapped
+-- channels, OAuth CSRF state, and a posted-message registry so approval cards
+-- can be updated in place.
+
+-- ── Connected Slack workspaces ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS slack_workspaces (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  team_id          TEXT NOT NULL UNIQUE,        -- Slack workspace (team) id
+  team_name        TEXT,
+  app_id           TEXT,
+  bot_user_id      TEXT,
+  bot_token        TEXT NOT NULL,               -- xoxb- token (secret)
+  scope            TEXT,
+  authed_user_id   TEXT,                         -- Slack user who installed
+  installed_by     TEXT,                         -- Sweepr clerk id of installer
+  incoming_webhook_url TEXT,                      -- optional, if requested
+  status           TEXT NOT NULL DEFAULT 'active'
+    CHECK (status IN ('active','revoked','error')),
+  last_error       TEXT,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ── Mapped Slack channels ────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS slack_channels (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id UUID NOT NULL REFERENCES slack_workspaces(id) ON DELETE CASCADE,
+  channel_id   TEXT NOT NULL,
+  channel_name TEXT,
+  -- Logical purpose this channel serves in Sweepr routing.
+  purpose      TEXT NOT NULL DEFAULT 'custom'
+    CHECK (purpose IN ('approvals','admin','operations','finance','it','training','custom')),
+  is_private   BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (workspace_id, channel_id)
+);
+CREATE INDEX IF NOT EXISTS idx_slack_channels_ws ON slack_channels (workspace_id);
+CREATE INDEX IF NOT EXISTS idx_slack_channels_purpose ON slack_channels (purpose);
+
+-- ── OAuth CSRF state (short-lived) ───────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS slack_oauth_states (
+  state       TEXT PRIMARY KEY,
+  created_by  TEXT,                              -- Sweepr clerk id
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at  TIMESTAMPTZ NOT NULL
+);
+
+-- ── Posted message registry (so cards can be updated in place) ───────────────
+CREATE TABLE IF NOT EXISTS slack_messages (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id UUID REFERENCES slack_workspaces(id) ON DELETE CASCADE,
+  channel_id   TEXT NOT NULL,
+  message_ts   TEXT NOT NULL,                    -- Slack message timestamp (id)
+  ref_type     TEXT,                             -- e.g. 'fee_proposal', 'pricing_proposal'
+  ref_id       TEXT,                             -- related Sweepr record id
+  thread_ts    TEXT,                             -- collaboration thread root, if any
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_slack_messages_ref ON slack_messages (ref_type, ref_id);
+
+-- ── Map Slack users to Sweepr users (for permission checks on actions) ───────
+CREATE TABLE IF NOT EXISTS slack_user_links (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id  UUID NOT NULL REFERENCES slack_workspaces(id) ON DELETE CASCADE,
+  slack_user_id TEXT NOT NULL,
+  user_id       UUID REFERENCES users(id) ON DELETE CASCADE,
+  email         TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (workspace_id, slack_user_id)
+);

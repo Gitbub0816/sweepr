@@ -23,6 +23,7 @@ import {
   Bug,
   LifeBuoy,
   BellRing,
+  Slack,
 } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -56,6 +57,7 @@ import { AutomationPage } from "./pages/AutomationPage";
 import { ErrorsPage } from "./pages/ErrorsPage";
 import { ITPortalPage } from "./pages/ITPortalPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
+import { SlackPage } from "./pages/SlackPage";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -78,6 +80,7 @@ const nav = [
   { to: "/errors", label: "Errors", icon: Bug },
   { to: "/it-portal", label: "IT Portal", icon: LifeBuoy },
   { to: "/notifications", label: "Notifications", icon: BellRing },
+  { to: "/slack", label: "Slack", icon: Slack },
   { to: "/automation", label: "Automation", icon: Zap },
   { to: "/admins", label: "Admin Team", icon: Users2 },
   { to: "/settings", label: "Settings", icon: Settings },
@@ -147,6 +150,7 @@ export default function App() {
       <Route path="/errors" element={<Guarded><ErrorsPage /></Guarded>} />
       <Route path="/it-portal" element={<Guarded><ITPortalPage /></Guarded>} />
       <Route path="/notifications" element={<Guarded><NotificationsPage /></Guarded>} />
+      <Route path="/slack" element={<Guarded><SlackPage /></Guarded>} />
       <Route path="/automation" element={<Guarded><AutomationPage /></Guarded>} />
       <Route path="/admins" element={<Guarded><AdminsPage /></Guarded>} />
       <Route path="/settings" element={<Guarded><SettingsPage /></Guarded>} />

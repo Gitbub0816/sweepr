@@ -1956,8 +1956,48 @@ INSERT INTO schema_migrations (filename) VALUES
   ('029_cleaner_dashboard_columns.sql'),
   ('030_it_tickets_notifications.sql'),
   ('031_hard_delete_cascades.sql'),
-  ('032_legal_compliance_tracking.sql')
+  ('032_legal_compliance_tracking.sql'),
+  ('033_slack_integration.sql')
 ON CONFLICT (filename) DO NOTHING;
+
+-- ── 033: Slack integration ───────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS slack_workspaces (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  team_id TEXT NOT NULL UNIQUE, team_name TEXT, app_id TEXT, bot_user_id TEXT,
+  bot_token TEXT NOT NULL, scope TEXT, authed_user_id TEXT, installed_by TEXT,
+  incoming_webhook_url TEXT, status TEXT NOT NULL DEFAULT 'active',
+  last_error TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS slack_channels (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id UUID NOT NULL REFERENCES slack_workspaces(id) ON DELETE CASCADE,
+  channel_id TEXT NOT NULL, channel_name TEXT,
+  purpose TEXT NOT NULL DEFAULT 'custom', is_private BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (workspace_id, channel_id)
+);
+CREATE INDEX IF NOT EXISTS idx_slack_channels_ws ON slack_channels (workspace_id);
+CREATE INDEX IF NOT EXISTS idx_slack_channels_purpose ON slack_channels (purpose);
+CREATE TABLE IF NOT EXISTS slack_oauth_states (
+  state TEXT PRIMARY KEY, created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), expires_at TIMESTAMPTZ NOT NULL
+);
+CREATE TABLE IF NOT EXISTS slack_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id UUID REFERENCES slack_workspaces(id) ON DELETE CASCADE,
+  channel_id TEXT NOT NULL, message_ts TEXT NOT NULL,
+  ref_type TEXT, ref_id TEXT, thread_ts TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_slack_messages_ref ON slack_messages (ref_type, ref_id);
+CREATE TABLE IF NOT EXISTS slack_user_links (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id UUID NOT NULL REFERENCES slack_workspaces(id) ON DELETE CASCADE,
+  slack_user_id TEXT NOT NULL, user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  email TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (workspace_id, slack_user_id)
+);
 
 -- ── 032: legal compliance tracking ───────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS legal_documents (

@@ -41,6 +41,10 @@ export interface Env {
   SENTRY_AUTH_TOKEN?: string;
   SENTRY_ORG?: string;
   SENTRY_PROJECT?: string;
+  // Slack integration (server-side only — never exposed to the browser).
+  SLACK_CLIENT_ID?: string;
+  SLACK_CLIENT_SECRET?: string;
+  SLACK_SIGNING_SECRET?: string;
 }
 
 export interface AuthUser {

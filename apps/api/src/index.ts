@@ -40,6 +40,7 @@ import { itTicketsRouter } from "./routes/itTickets";
 import { itRouter } from "./routes/it";
 import { accountRouter } from "./routes/account";
 import { adminNotificationSettingsRouter } from "./routes/adminNotificationSettings";
+import { slackRouter } from "./routes/slack";
 import { requestLogger } from "./middleware/requestLogger";
 import { clientErrorsRouter } from "./routes/clientErrors";
 import { AppError, toSafeError } from "./lib/errors";
@@ -68,6 +69,7 @@ app.use("/payments/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "
 app.use("/storage/*", rateLimit({ limit: 20, windowMs: 60 * 60_000, keyPrefix: "storage" }));
 app.use("/pricing/*", rateLimit({ limit: 60, windowMs: 60_000, keyPrefix: "pricing" }));
 app.use("/client-errors/*", rateLimit({ limit: 20, windowMs: 60_000, keyPrefix: "clienterr" }));
+app.use("/slack/*", rateLimit({ limit: 300, windowMs: 60_000, keyPrefix: "slack" }));
 
 app.get("/", (c) => c.json({ name: "sweepr-api", status: "ok" }));
 app.get("/health", (c) => c.json({ ok: true }));
@@ -122,6 +124,7 @@ app.route("/admin/automation", adminAutomationRouter);
 app.route("/admin/payouts", adminPayoutsRouter);
 app.route("/admin/me", adminMeRouter);
 app.route("/cleaner-dashboard", cleanerDashboardRouter);
+app.route("/slack", slackRouter);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 
