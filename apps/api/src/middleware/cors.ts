@@ -22,9 +22,13 @@ export function buildCorsMiddleware(env: {
   ENVIRONMENT?: string;
   ALLOWED_ORIGINS?: string;
 }) {
-  const origins = env.ALLOWED_ORIGINS
-    ? env.ALLOWED_ORIGINS.split(",").map((s) => s.trim())
-    : LOCALHOST_ORIGINS;
+  // Merge any env-provided origins with the known production origins so adding a
+  // new subdomain in code always works, even when ALLOWED_ORIGINS is set on the
+  // Worker (which would otherwise replace the list entirely).
+  const envOrigins = env.ALLOWED_ORIGINS
+    ? env.ALLOWED_ORIGINS.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
+  const origins = [...new Set([...LOCALHOST_ORIGINS, ...envOrigins])];
   return cors({
     origin: origins,
     allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
