@@ -2,7 +2,7 @@ import { createMiddleware } from "hono/factory";
 import { verifyToken } from "@clerk/backend";
 import { upsertUser } from "@sweepr/db";
 import { getDb } from "../lib/db";
-import { isOwnerEmail, isOwnerClerkId, PRIMARY_OWNER_EMAIL } from "../lib/owner";
+import { isOwnerEmail, isOwnerClerkId } from "../lib/owner";
 import type { AppBindings } from "../types";
 
 // CSRF note: this API uses Authorization: Bearer tokens, not cookies.
@@ -91,17 +91,38 @@ export const requireAuth = createMiddleware<AppBindings>(async (c, next) => {
     // whatever DB the Worker is actually connected to. role='super_admin'
     // satisfies every admin guard, so no lockouts from missing migrations, a
     // failing Clerk webhook, or a JWT with no email claim. Match on clerk id or
-    // email; UPSERT so the row exists even if it was never synced.
+    // email.
     const isOwner =
       isOwnerClerkId(clerkId, c.env) ||
       (resolvedEmail ? isOwnerEmail(resolvedEmail, c.env) : false);
     if (isOwner) {
-      const ownerEmail = resolvedEmail ?? PRIMARY_OWNER_EMAIL;
-      await sql`
-        INSERT INTO users (clerk_id, email, role)
-        VALUES (${clerkId}, ${ownerEmail}, 'super_admin')
-        ON CONFLICT (clerk_id) DO UPDATE SET role = 'super_admin'
-      `;
+      // Elevate an existing row first (avoids the email UNIQUE landmine when a
+      // sibling account already owns this email).
+      const updated = (await sql`
+        UPDATE users SET role = 'super_admin'
+        WHERE clerk_id = ${clerkId}
+        RETURNING id
+      `) as Array<{ id: string }>;
+
+      if (updated.length === 0) {
+        // No row yet — insert one. Use the resolved email if it's free, else a
+        // synthetic unique email so the NOT NULL/UNIQUE constraints can't block
+        // the owner from being created.
+        const synthetic = `${clerkId}@owner.sweepr.local`;
+        try {
+          await sql`
+            INSERT INTO users (clerk_id, email, role)
+            VALUES (${clerkId}, ${resolvedEmail ?? synthetic}, 'super_admin')
+            ON CONFLICT (clerk_id) DO UPDATE SET role = 'super_admin'
+          `;
+        } catch {
+          await sql`
+            INSERT INTO users (clerk_id, email, role)
+            VALUES (${clerkId}, ${synthetic}, 'super_admin')
+            ON CONFLICT (clerk_id) DO UPDATE SET role = 'super_admin'
+          `;
+        }
+      }
     }
   } catch {
     // Non-fatal: existing rows still work; next request will retry.
