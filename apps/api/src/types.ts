@@ -35,6 +35,12 @@ export interface Env {
   CF_STREAM_ACCOUNT_ID?: string;
   CF_STREAM_API_TOKEN?: string;
   CLERK_WEBHOOK_SECRET?: string;
+  // External observability integrations (server-side proxied — never exposed to the browser).
+  CF_ANALYTICS_TOKEN?: string;
+  CF_ZONE_ID?: string;
+  SENTRY_AUTH_TOKEN?: string;
+  SENTRY_ORG?: string;
+  SENTRY_PROJECT?: string;
 }
 
 export interface AuthUser {

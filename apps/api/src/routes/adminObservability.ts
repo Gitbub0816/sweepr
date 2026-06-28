@@ -413,6 +413,70 @@ observabilityRouter.get("/posthog-summary", async (c) => {
   return c.json({ events_7d, sessions_7d });
 });
 
+// ─── External integrations (Cloudflare + Sentry) ─────────────────────────────
+// Proxied server-side so the browser never makes cross-origin calls (CORS/CSP)
+// or sees the API tokens. Returns { status, value } tiles the frontend renders.
+
+// GET /admin/observability/cloudflare
+observabilityRouter.get("/cloudflare", async (c) => {
+  const token = c.env.CF_ANALYTICS_TOKEN;
+  const zone = c.env.CF_ZONE_ID;
+  if (!token || !zone) {
+    return c.json({ status: "unconfigured" as const, requests: null, errorRate: null });
+  }
+  try {
+    const since = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    const until = new Date().toISOString().slice(0, 10);
+    const gql = `{ viewer { zones(filter:{zoneTag:"${zone}"}) {
+      httpRequests1dGroups(limit:1, filter:{date_geq:"${since}", date_leq:"${until}"}) {
+        sum { requests responseStatusMap { edgeResponseStatus requests } }
+      } } } }`;
+    const res = await fetch("https://api.cloudflare.com/client/v4/graphql", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ query: gql }),
+    });
+    if (!res.ok) return c.json({ status: "error" as const, requests: null, errorRate: null });
+    const d = (await res.json()) as {
+      data?: { viewer?: { zones?: Array<{ httpRequests1dGroups: Array<{ sum: { requests: number; responseStatusMap: Array<{ edgeResponseStatus: number; requests: number }> } }> }> } };
+    };
+    const sum = d.data?.viewer?.zones?.[0]?.httpRequests1dGroups?.[0]?.sum;
+    if (!sum) return c.json({ status: "error" as const, requests: null, errorRate: null });
+    const total = sum.requests;
+    const errors = sum.responseStatusMap.filter((s) => s.edgeResponseStatus >= 500).reduce((a, s) => a + s.requests, 0);
+    const errPct = total > 0 ? (errors / total) * 100 : 0;
+    return c.json({ status: "ok" as const, requests: total, errors, errorRate: errPct });
+  } catch {
+    return c.json({ status: "error" as const, requests: null, errorRate: null });
+  }
+});
+
+// GET /admin/observability/sentry
+observabilityRouter.get("/sentry", async (c) => {
+  const token = c.env.SENTRY_AUTH_TOKEN;
+  const org = c.env.SENTRY_ORG;
+  const project = c.env.SENTRY_PROJECT;
+  if (!token || !org || !project) {
+    return c.json({ status: "unconfigured" as const, issues: null });
+  }
+  try {
+    const res = await fetch(
+      `https://sentry.io/api/0/projects/${org}/${project}/issues/?limit=1&statsPeriod=24h&query=is:unresolved`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!res.ok) return c.json({ status: "error" as const, issues: null });
+    const issues = (await res.json()) as unknown[];
+    const total = parseInt(res.headers.get("X-Hits") ?? String(issues.length), 10);
+    return c.json({
+      status: "ok" as const,
+      issues: total,
+      url: `https://sentry.io/organizations/${org}/issues/`,
+    });
+  } catch {
+    return c.json({ status: "error" as const, issues: null });
+  }
+});
+
 // ─── Error Feed ──────────────────────────────────────────────────────────────
 
 // GET /admin/observability/errors

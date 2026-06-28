@@ -745,11 +745,9 @@ function AuditTrailTab() {
 // Fetches live data from: Cloudflare Analytics, Sentry, PostHog, Stripe webhooks, Clerk
 // Keys are baked at build time (VITE_*) or read from the admin observability API.
 
-const CF_ANALYTICS_TOKEN = import.meta.env.VITE_CF_ANALYTICS_TOKEN as string | undefined;
-const CF_ZONE_ID = import.meta.env.VITE_CF_ZONE_ID as string | undefined;
-const SENTRY_AUTH_TOKEN = import.meta.env.VITE_SENTRY_AUTH_TOKEN as string | undefined;
-const SENTRY_ORG = import.meta.env.VITE_SENTRY_ORG as string | undefined;
-const SENTRY_PROJECT = import.meta.env.VITE_SENTRY_PROJECT as string | undefined;
+// Cloudflare & Sentry analytics are fetched server-side via
+// /admin/observability/{cloudflare,sentry} so no tokens are exposed to the
+// browser and there are no cross-origin (CORS/CSP) calls from the admin app.
 
 interface IntegrationTile {
   id: string;
@@ -821,64 +819,53 @@ function ExternalIntegrationsPanel() {
     async function loadAll() {
       const token = await getToken();
 
-      // ── 1. Cloudflare Analytics (GraphQL API) ─────────────────────────────
-      if (!CF_ANALYTICS_TOKEN || !CF_ZONE_ID) {
-        setTile("cf-requests", { status: "unconfigured", value: null });
-        setTile("cf-errors",   { status: "unconfigured", value: null });
-      } else {
-        try {
-          const since = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-          const until = new Date().toISOString().slice(0, 10);
-          const gql = `{
-            viewer { zones(filter:{zoneTag:"${CF_ZONE_ID}"}) {
-              httpRequests1dGroups(limit:1, filter:{date_geq:"${since}", date_leq:"${until}"}) {
-                sum { requests cachedRequests responseStatusMap { edgeResponseStatus requests } }
-              }
-            }}
-          }`;
-          const res = await fetch("https://api.cloudflare.com/client/v4/graphql", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${CF_ANALYTICS_TOKEN}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ query: gql }),
-          });
-          if (!cancelled && res.ok) {
-            const d = await res.json() as { data?: { viewer?: { zones?: Array<{ httpRequests1dGroups: Array<{ sum: { requests: number; responseStatusMap: Array<{ edgeResponseStatus: number; requests: number }> } }> }> } } };
-            const group = d.data?.viewer?.zones?.[0]?.httpRequests1dGroups?.[0]?.sum;
-            if (group) {
-              const total = group.requests;
-              const errors = group.responseStatusMap.filter(s => s.edgeResponseStatus >= 500).reduce((a, s) => a + s.requests, 0);
-              const errPct = total > 0 ? ((errors / total) * 100).toFixed(2) : "0.00";
-              setTile("cf-requests", { value: total.toLocaleString(), status: "ok", sub: "Total requests past 24h", href: "https://dash.cloudflare.com" });
-              setTile("cf-errors",   { value: `${errPct}%`, status: parseFloat(errPct) > 1 ? "warn" : "ok", sub: `${errors.toLocaleString()} 5xx errors`, href: "https://dash.cloudflare.com" });
-            }
+      const apiBase = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
+
+      // ── 1. Cloudflare Analytics (proxied through our API — no browser CORS) ─
+      try {
+        const res = await fetch(`${apiBase}/admin/observability/cloudflare`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const d = await res.json() as { status: string; requests: number | null; errors?: number; errorRate: number | null };
+        if (!cancelled) {
+          if (d.status === "unconfigured") {
+            setTile("cf-requests", { status: "unconfigured", value: null });
+            setTile("cf-errors",   { status: "unconfigured", value: null });
+          } else if (d.status === "ok" && d.requests != null) {
+            const errPct = (d.errorRate ?? 0).toFixed(2);
+            setTile("cf-requests", { value: d.requests.toLocaleString(), status: "ok", sub: "Total requests past 24h", href: "https://dash.cloudflare.com" });
+            setTile("cf-errors",   { value: `${errPct}%`, status: parseFloat(errPct) > 1 ? "warn" : "ok", sub: `${(d.errors ?? 0).toLocaleString()} 5xx errors`, href: "https://dash.cloudflare.com" });
+          } else {
+            setTile("cf-requests", { status: "error", value: "Fetch failed" });
+            setTile("cf-errors",   { status: "error", value: "Fetch failed" });
           }
-        } catch {
-          if (!cancelled) { setTile("cf-requests", { status: "error", value: "Fetch failed" }); setTile("cf-errors", { status: "error", value: "Fetch failed" }); }
         }
+      } catch {
+        if (!cancelled) { setTile("cf-requests", { status: "error", value: "Fetch failed" }); setTile("cf-errors", { status: "error", value: "Fetch failed" }); }
       }
 
-      // ── 2. Sentry — issue count via REST API ─────────────────────────────
-      if (!SENTRY_AUTH_TOKEN || !SENTRY_ORG || !SENTRY_PROJECT) {
-        setTile("sentry-errors", { status: "unconfigured", value: null });
-      } else {
-        try {
-          const res = await fetch(
-            `https://sentry.io/api/0/projects/${SENTRY_ORG}/${SENTRY_PROJECT}/issues/?limit=1&statsPeriod=24h&query=is:unresolved`,
-            { headers: { Authorization: `Bearer ${SENTRY_AUTH_TOKEN}` } }
-          );
-          if (!cancelled && res.ok) {
-            const issues = await res.json() as unknown[];
-            const total = parseInt(res.headers.get("X-Hits") ?? String(issues.length), 10);
+      // ── 2. Sentry — issue count (proxied through our API) ─────────────────
+      try {
+        const res = await fetch(`${apiBase}/admin/observability/sentry`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const d = await res.json() as { status: string; issues: number | null; url?: string };
+        if (!cancelled) {
+          if (d.status === "unconfigured") {
+            setTile("sentry-errors", { status: "unconfigured", value: null });
+          } else if (d.status === "ok" && d.issues != null) {
             setTile("sentry-errors", {
-              value: total.toLocaleString(),
-              status: total === 0 ? "ok" : total < 10 ? "warn" : "error",
+              value: d.issues.toLocaleString(),
+              status: d.issues === 0 ? "ok" : d.issues < 10 ? "warn" : "error",
               sub: "Unresolved issues (24h)",
-              href: `https://sentry.io/organizations/${SENTRY_ORG}/issues/`,
+              href: d.url,
             });
+          } else {
+            setTile("sentry-errors", { status: "error", value: "Fetch failed" });
           }
-        } catch {
-          if (!cancelled) setTile("sentry-errors", { status: "error", value: "Fetch failed" });
         }
+      } catch {
+        if (!cancelled) setTile("sentry-errors", { status: "error", value: "Fetch failed" });
       }
 
       // ── 3. Stripe webhook health — from our own API ────────────────────────
