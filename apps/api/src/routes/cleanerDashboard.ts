@@ -355,31 +355,40 @@ cleanerDashboardRouter.post("/stripe-connect/onboard", async (c) => {
   const adminUrl = c.env.ADMIN_URL as string ?? "https://admin.getsweepr.com";
   const baseUrl  = c.env.CLEANER_APP_URL as string ?? "https://clean.getsweepr.com";
 
-  // Check if account exists
-  let accountId = ctx.stripe_connect_id;
-  if (!accountId) {
-    const account = await stripe.accounts.create({ type: "express" });
-    accountId = account.id;
-    await sql`UPDATE cleaners SET stripe_connect_id = ${accountId} WHERE id = ${ctx.cleaner_id}`;
+  try {
+    // Check if account exists
+    let accountId = ctx.stripe_connect_id;
+    if (!accountId) {
+      const account = await stripe.accounts.create({ type: "express" });
+      accountId = account.id;
+      await sql`UPDATE cleaners SET stripe_connect_id = ${accountId} WHERE id = ${ctx.cleaner_id}`;
+      await sql`
+        INSERT INTO stripe_connected_accounts (cleaner_id, stripe_account_id)
+        VALUES (${ctx.cleaner_id}, ${accountId})
+        ON CONFLICT (stripe_account_id) DO NOTHING
+      `;
+    }
+
+    const link = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: `${baseUrl}/earnings?stripe=refresh`,
+      return_url:  `${baseUrl}/earnings?stripe=return`,
+      type: "account_onboarding",
+    });
+
     await sql`
-      INSERT INTO stripe_connected_accounts (cleaner_id, stripe_account_id)
-      VALUES (${ctx.cleaner_id}, ${accountId})
-      ON CONFLICT (stripe_account_id) DO NOTHING
+      UPDATE stripe_connected_accounts SET onboarding_url = ${link.url}
+      WHERE stripe_account_id = ${accountId}
     `;
+
+    return c.json({ url: link.url });
+  } catch (err) {
+    // Surface the real reason (e.g. Connect not enabled on the platform account)
+    // instead of a raw 500 so the UI can tell the cleaner what to do.
+    const message = err instanceof Error ? err.message : "Stripe onboarding failed";
+    return c.json(
+      { error: "stripe_onboarding_failed", message },
+      502,
+    );
   }
-
-  const link = await stripe.accountLinks.create({
-    account: accountId,
-    refresh_url: `${baseUrl}/earnings?stripe=refresh`,
-    return_url:  `${baseUrl}/earnings?stripe=return`,
-    type: "account_onboarding",
-  });
-
-  // Store onboarding URL
-  await sql`
-    UPDATE stripe_connected_accounts SET onboarding_url = ${link.url}
-    WHERE stripe_account_id = ${accountId}
-  `;
-
-  return c.json({ url: link.url });
 });

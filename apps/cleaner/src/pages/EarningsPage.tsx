@@ -48,9 +48,9 @@ export function EarningsPage() {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
-      const { url } = (await res.json()) as { url?: string };
-      if (url) { window.location.href = url; return; }
-      toast.error("Could not start Stripe onboarding.");
+      const body = (await res.json()) as { url?: string; message?: string };
+      if (body.url) { window.location.href = body.url; return; }
+      toast.error(body.message || "Could not start Stripe onboarding.");
     } catch {
       toast.error("Could not start Stripe onboarding.");
     } finally {
