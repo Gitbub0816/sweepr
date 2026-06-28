@@ -84,17 +84,29 @@ cleanerDashboardRouter.get("/my-jobs", async (c) => {
 
   const { limit = "20", offset = "0", status } = c.req.query();
 
-  const jobs = await sql`
-    SELECT b.id, b.status, b.day_status, b.service_type, b.scheduled_at,
-           b.total_price, b.cleaner_payout, b.bedrooms, b.bathrooms,
-           a.city AS address_city, a.state AS address_state
-    FROM bookings b
-    LEFT JOIN addresses a ON a.id = b.address_id
-    WHERE b.cleaner_id = ${ctx.cleaner_id}
-      ${status ? sql`AND b.status = ${status}` : sql``}
-    ORDER BY b.scheduled_at DESC
-    LIMIT ${Number(limit)} OFFSET ${Number(offset)}
-  `;
+  // Two explicit queries instead of an inlined conditional sql`` fragment — the
+  // empty-fragment form produced a "syntax error at or near $2" on the driver.
+  const jobs = status
+    ? await sql`
+        SELECT b.id, b.status, b.day_status, b.service_type, b.scheduled_at,
+               b.total_price, b.cleaner_payout, b.bedrooms, b.bathrooms,
+               a.city AS address_city, a.state AS address_state
+        FROM bookings b
+        LEFT JOIN addresses a ON a.id = b.address_id
+        WHERE b.cleaner_id = ${ctx.cleaner_id} AND b.status = ${status}
+        ORDER BY b.scheduled_at DESC
+        LIMIT ${Number(limit)} OFFSET ${Number(offset)}
+      `
+    : await sql`
+        SELECT b.id, b.status, b.day_status, b.service_type, b.scheduled_at,
+               b.total_price, b.cleaner_payout, b.bedrooms, b.bathrooms,
+               a.city AS address_city, a.state AS address_state
+        FROM bookings b
+        LEFT JOIN addresses a ON a.id = b.address_id
+        WHERE b.cleaner_id = ${ctx.cleaner_id}
+        ORDER BY b.scheduled_at DESC
+        LIMIT ${Number(limit)} OFFSET ${Number(offset)}
+      `;
 
   return c.json({ jobs });
 });

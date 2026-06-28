@@ -149,14 +149,16 @@ insuranceAdminRouter.get("/", async (c) => {
   const db = getDb(c.env.DATABASE_URL);
   const status = c.req.query("status") ?? "pending_review";
 
+  // Include BOTH personal policies and Sweepr Coverage Program enrollments so the
+  // admin view matches what cleaners see. (Only personal policies ever reach
+  // 'pending_review'/'rejected'; program enrollments show as 'active'.)
   const rows = await db`
     SELECT ci.*, cl.first_name, cl.last_name, u.email
     FROM cleaner_insurance ci
     JOIN cleaners cl ON cl.id = ci.cleaner_id
     JOIN users u ON u.id = cl.user_id
-    WHERE ci.coverage_type = 'personal_policy'
-      AND ci.policy_status = ${status}
-    ORDER BY ci.doc_uploaded_at DESC
+    WHERE ci.policy_status = ${status}
+    ORDER BY ci.doc_uploaded_at DESC NULLS LAST
   `;
   return c.json({ policies: rows });
 });

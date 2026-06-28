@@ -8,6 +8,8 @@ import {
   ChevronUp,
   Server,
   Monitor,
+  Copy,
+  Check,
 } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
@@ -59,6 +61,31 @@ export function ErrorsPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState<"" | "server" | "client">("");
   const [includeResolved, setIncludeResolved] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  async function copyAll() {
+    const text = errors
+      .map((e) =>
+        [
+          `[${new Date(e.occurred_at).toISOString()}] ${e.level.toUpperCase()} ${e.source}${e.app ? `/${e.app}` : ""}`,
+          `${e.method ?? ""} ${e.path ?? ""}${e.status_code != null ? ` → ${e.status_code}` : ""}`.trim(),
+          e.message,
+          e.clerk_id ? `user: ${e.clerk_id}` : "",
+          e.request_id ? `ray: ${e.request_id}` : "",
+          e.stack ? `\n${e.stack}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      )
+      .join("\n\n────────────────────\n\n");
+    try {
+      await navigator.clipboard.writeText(text || "No errors.");
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* clipboard unavailable */
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -103,13 +130,23 @@ export function ErrorsPage() {
             Server &amp; client-side errors across every Sweepr app.
           </p>
         </div>
-        <button
-          onClick={load}
-          disabled={loading}
-          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 disabled:opacity-50"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={copyAll}
+            disabled={errors.length === 0}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          >
+            {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? "Copied" : "Copy all"}
+          </button>
+          <button
+            onClick={load}
+            disabled={loading}
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
