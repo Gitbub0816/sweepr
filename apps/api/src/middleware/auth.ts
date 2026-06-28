@@ -10,6 +10,34 @@ import type { AppBindings } from "../types";
 // Bearer token auth is immune to CSRF by design.
 
 /**
+ * Fetch a user's primary email from the Clerk API. Used as a last resort when
+ * the session JWT has no email claim and the DB row doesn't exist yet (e.g. the
+ * Clerk webhook is failing). Best-effort: returns undefined on any failure.
+ */
+async function fetchClerkEmail(
+  clerkId: string,
+  secretKey: string,
+): Promise<string | undefined> {
+  if (!secretKey) return undefined;
+  try {
+    const res = await fetch(`https://api.clerk.com/v1/users/${clerkId}`, {
+      headers: { Authorization: `Bearer ${secretKey}` },
+    });
+    if (!res.ok) return undefined;
+    const u = (await res.json()) as {
+      primary_email_address_id?: string;
+      email_addresses?: Array<{ id: string; email_address: string }>;
+    };
+    const primary =
+      u.email_addresses?.find((e) => e.id === u.primary_email_address_id)
+        ?.email_address ?? u.email_addresses?.[0]?.email_address;
+    return primary ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Verifies the Clerk session JWT from the Authorization header and attaches
  * the user to the request context. Returns 401 when missing/invalid.
  *
@@ -41,20 +69,34 @@ export const requireAuth = createMiddleware<AppBindings>(async (c, next) => {
   // Lazily sync the user row — non-fatal if it fails (e.g. DB temporarily down).
   try {
     const sql = getDb(c.env.DATABASE_URL);
-    if (email) await upsertUser(sql, { clerkId, email });
+
+    // Resolve the user's email: JWT claim → existing DB row → Clerk API.
+    // The Clerk fetch only happens for users with no email claim AND no row
+    // yet (i.e. the webhook never synced them), so it's bounded to first-touch.
+    let resolvedEmail = email;
+    if (!resolvedEmail) {
+      const rows = (await sql`
+        SELECT email FROM users WHERE clerk_id = ${clerkId} LIMIT 1
+      `) as Array<{ email: string | null }>;
+      resolvedEmail = rows[0]?.email ?? undefined;
+    }
+    if (!resolvedEmail) {
+      resolvedEmail = await fetchClerkEmail(clerkId, c.env.CLERK_SECRET_KEY);
+    }
+
+    // Keep the DB in sync even when the webhook is down.
+    if (resolvedEmail) await upsertUser(sql, { clerkId, email: resolvedEmail });
 
     // Self-heal owner access: guarantee the founding account is super_admin on
     // whatever DB the Worker is actually connected to. role='super_admin'
     // satisfies every admin guard, so no lockouts from missing migrations, a
-    // failing Clerk webhook, or a JWT with no email claim.
-    //
-    // Match on clerk id (always present) OR email — and UPSERT so the owner row
-    // exists even if it was never synced. email is NOT NULL, so fall back to the
-    // known owner email when the token doesn't carry one.
+    // failing Clerk webhook, or a JWT with no email claim. Match on clerk id or
+    // email; UPSERT so the row exists even if it was never synced.
     const isOwner =
-      isOwnerClerkId(clerkId, c.env) || (email ? isOwnerEmail(email, c.env) : false);
+      isOwnerClerkId(clerkId, c.env) ||
+      (resolvedEmail ? isOwnerEmail(resolvedEmail, c.env) : false);
     if (isOwner) {
-      const ownerEmail = email ?? PRIMARY_OWNER_EMAIL;
+      const ownerEmail = resolvedEmail ?? PRIMARY_OWNER_EMAIL;
       await sql`
         INSERT INTO users (clerk_id, email, role)
         VALUES (${clerkId}, ${ownerEmail}, 'super_admin')
