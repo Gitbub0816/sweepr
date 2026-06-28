@@ -24,11 +24,13 @@ function Root() {
   return <ClerkProvider publishableKey={PUBLISHABLE_KEY}>{tree}</ClerkProvider>;
 }
 
-installGlobalErrorHandlers();
+const API_URL = (import.meta.env.VITE_API_URL as string) ?? "";
+
+installGlobalErrorHandlers({ app: "marketing", apiUrl: API_URL });
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <ErrorBoundary>
+    <ErrorBoundary app="marketing" apiUrl={API_URL} variant="playful">
     <Root />
       </ErrorBoundary>
   </React.StrictMode>

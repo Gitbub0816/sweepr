@@ -20,6 +20,7 @@ import {
   Telescope,
   Zap,
   Users2,
+  Bug,
 } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -50,6 +51,7 @@ import { InsurancePage } from "./pages/InsurancePage";
 import { ObservabilityPage } from "./pages/ObservabilityPage";
 import { AdminsPage } from "./pages/AdminsPage";
 import { AutomationPage } from "./pages/AutomationPage";
+import { ErrorsPage } from "./pages/ErrorsPage";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -69,6 +71,7 @@ const nav = [
   { to: "/newsletter", label: "Newsletter", icon: Mail },
   { to: "/broadcasts", label: "Broadcasts", icon: Send },
   { to: "/observability", label: "Observability", icon: Telescope },
+  { to: "/errors", label: "Errors", icon: Bug },
   { to: "/automation", label: "Automation", icon: Zap },
   { to: "/admins", label: "Admin Team", icon: Users2 },
   { to: "/settings", label: "Settings", icon: Settings },
@@ -135,6 +138,7 @@ export default function App() {
       <Route path="/newsletter" element={<Guarded><NewsletterPage /></Guarded>} />
       <Route path="/broadcasts" element={<Guarded><BroadcastsPage /></Guarded>} />
       <Route path="/observability" element={<Guarded><ObservabilityPage /></Guarded>} />
+      <Route path="/errors" element={<Guarded><ErrorsPage /></Guarded>} />
       <Route path="/automation" element={<Guarded><AutomationPage /></Guarded>} />
       <Route path="/admins" element={<Guarded><AdminsPage /></Guarded>} />
       <Route path="/settings" element={<Guarded><SettingsPage /></Guarded>} />

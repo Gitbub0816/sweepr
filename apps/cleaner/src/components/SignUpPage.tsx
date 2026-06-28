@@ -29,7 +29,7 @@ export function SignUpPage() {
       await signUp.authenticateWithRedirect({
         strategy: provider,
         redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/onboarding",
+        redirectUrlComplete: "/",
       });
     } catch (err: unknown) {
       setError(
@@ -89,7 +89,7 @@ export function SignUpPage() {
           : await signUp.attemptPhoneNumberVerification({ code });
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        navigate("/onboarding");
+        navigate("/");
       }
     } catch (err: unknown) {
       setError(

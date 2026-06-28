@@ -36,8 +36,11 @@ import { adminPayoutsRouter } from "./routes/adminPayouts";
 import { adminMeRouter } from "./routes/adminMe";
 import { cleanerDashboardRouter } from "./routes/cleanerDashboard";
 import { requestLogger } from "./middleware/requestLogger";
+import { clientErrorsRouter } from "./routes/clientErrors";
 import { AppError, toSafeError } from "./lib/errors";
 import { logger } from "./lib/logger";
+import { recordError } from "./lib/errorLog";
+import { getDb } from "./lib/db";
 import type { AppBindings } from "./types";
 
 const app = new Hono<AppBindings>();
@@ -59,11 +62,13 @@ app.use("/auth/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "auth
 app.use("/payments/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "payments" }));
 app.use("/storage/*", rateLimit({ limit: 20, windowMs: 60 * 60_000, keyPrefix: "storage" }));
 app.use("/pricing/*", rateLimit({ limit: 60, windowMs: 60_000, keyPrefix: "pricing" }));
+app.use("/client-errors/*", rateLimit({ limit: 20, windowMs: 60_000, keyPrefix: "clienterr" }));
 
 app.get("/", (c) => c.json({ name: "sweepr-api", status: "ok" }));
 app.get("/health", (c) => c.json({ ok: true }));
 
 app.route("/auth", authRouter);
+app.route("/client-errors", clientErrorsRouter);
 app.route("/bookings", bookingsRouter);
 app.route("/pricing", pricingRouter);
 app.route("/payments", paymentsRouter);
@@ -113,10 +118,42 @@ app.notFound((c) => c.json({ error: "Not found" }, 404));
 app.onError((err, c) => {
   const isDev = c.env.ENVIRONMENT === "development";
   logger.error("Unhandled request error", err);
-  if (err instanceof AppError) {
+
+  const isAppError = err instanceof AppError;
+  const statusCode = isAppError ? (err as AppError).statusCode : 500;
+
+  // Persist to the admin error feed (non-blocking, best-effort). We skip
+  // expected 4xx AppErrors — those are normal client mistakes, not incidents.
+  if (!isAppError || statusCode >= 500) {
+    let clerkId: string | null = null;
+    try {
+      clerkId = c.get("user")?.clerkId ?? null;
+    } catch {
+      /* user not set on context */
+    }
+    const task = recordError(getDb(c.env.DATABASE_URL), {
+      source: "server",
+      app: "api",
+      level: statusCode >= 500 ? "error" : "warn",
+      message: err.message || "Unhandled error",
+      stack: err.stack ?? null,
+      path: c.req.path,
+      method: c.req.method,
+      statusCode,
+      clerkId,
+      requestId: c.req.header("cf-ray") ?? null,
+    });
+    try {
+      c.executionCtx.waitUntil(task);
+    } catch {
+      void task; // outside a request context (shouldn't happen) — fire & forget
+    }
+  }
+
+  if (isAppError) {
     return c.json(
-      { error: err.message, code: err.code },
-      err.statusCode as 400
+      { error: err.message, code: (err as AppError).code },
+      statusCode as 400
     );
   }
   return c.json(toSafeError(err, isDev), 500);

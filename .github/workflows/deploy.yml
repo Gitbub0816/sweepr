@@ -30,9 +30,48 @@ jobs:
           node packages/db/verify-schema.mjs
           git diff --exit-code packages/db/schema.sql || (echo "ERROR: schema.sql is stale. Run 'node packages/db/build-schema.mjs' and commit the result." && exit 1)
 
+  migrate:
+    name: Apply DB Migrations
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      # Fail-soft: a missing DATABASE_URL secret (or a transient DB hiccup)
+      # warns but never blocks the deploy.
+      - name: Run migrations
+        continue-on-error: true
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::warning::DATABASE_URL secret not set — skipping migrations"
+            exit 0
+          fi
+          pnpm --filter @sweepr/db migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - name: Seed verified test cleaner
+        continue-on-error: true
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::warning::DATABASE_URL secret not set — skipping seed"
+            exit 0
+          fi
+          pnpm --filter @sweepr/db seed:test-cleaner
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SEED_CLERK_ID: ${{ secrets.SEED_CLERK_ID }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          SEED_EMAIL: ${{ secrets.SEED_EMAIL }}
+
   deploy-api:
     name: Deploy API Worker (api.getsweepr.com)
-    needs: build
+    needs: migrate
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:

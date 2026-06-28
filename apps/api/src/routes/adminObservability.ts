@@ -410,3 +410,54 @@ observabilityRouter.get("/posthog-summary", async (c) => {
 
   return c.json({ events_7d, sessions_7d });
 });
+
+// ─── Error Feed ──────────────────────────────────────────────────────────────
+
+// GET /admin/observability/errors
+observabilityRouter.get("/errors", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const limit = Math.min(parseInt(c.req.query("limit") ?? "100", 10), 500);
+  const offset = parseInt(c.req.query("offset") ?? "0", 10);
+  const includeResolved = c.req.query("resolved") === "true";
+  const sourceFilter = c.req.query("source"); // 'server' | 'client' | undefined
+  const appFilter = c.req.query("app");
+
+  const rows = await settle(sql`
+    SELECT id, occurred_at, source, app, level, message, stack, path, method,
+           status_code, clerk_id, request_id, resolved, resolved_at
+    FROM error_logs
+    WHERE (${includeResolved} OR resolved = false)
+      AND (${sourceFilter ?? null}::text IS NULL OR source = ${sourceFilter ?? null})
+      AND (${appFilter ?? null}::text IS NULL OR app = ${appFilter ?? null})
+    ORDER BY occurred_at DESC
+    LIMIT ${limit} OFFSET ${offset}
+  `, [] as unknown[]);
+
+  const counts = await settle(sql`
+    SELECT
+      COUNT(*) FILTER (WHERE resolved = false)::int AS unresolved,
+      COUNT(*) FILTER (WHERE resolved = false AND occurred_at > NOW() - INTERVAL '24 hours')::int AS last_24h,
+      COUNT(*) FILTER (WHERE source = 'server' AND resolved = false)::int AS server_open,
+      COUNT(*) FILTER (WHERE source = 'client' AND resolved = false)::int AS client_open
+    FROM error_logs
+  `, [{ unresolved: 0, last_24h: 0, server_open: 0, client_open: 0 }] as unknown[]);
+
+  return c.json({
+    errors: rows,
+    counts: (counts as Array<Record<string, number>>)[0],
+  });
+});
+
+// POST /admin/observability/errors/:id/resolve
+observabilityRouter.post("/errors/:id/resolve", async (c) => {
+  const { id } = c.req.param();
+  const sql = getDb(c.env.DATABASE_URL);
+  const clerkId = c.get("user").clerkId;
+
+  await sql`
+    UPDATE error_logs
+    SET resolved = true, resolved_at = NOW(), resolved_by = ${clerkId}
+    WHERE id = ${id} AND resolved = false
+  `;
+  return c.json({ ok: true });
+});

@@ -54,11 +54,11 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Auth + onboarding-gated app page. */
-function Guarded({ children }: { children: React.ReactNode }) {
+/** Auth + onboarding-gated app page. jobsGated=true locks the page until approved. */
+function Guarded({ children, jobsGated = false }: { children: React.ReactNode; jobsGated?: boolean }) {
   return (
     <ProtectedRoute>
-      <OnboardingGuard>
+      <OnboardingGuard jobsGated={jobsGated}>
         <Shell>{children}</Shell>
       </OnboardingGuard>
     </ProtectedRoute>
@@ -117,9 +117,9 @@ export default function App() {
       {/* App (protected + onboarding-gated) */}
       <Route path="/" element={<Guarded><DashboardPage /></Guarded>} />
       <Route path="/home" element={<Guarded><HomePage /></Guarded>} />
-      <Route path="/jobs" element={<Guarded><JobsPage /></Guarded>} />
-      <Route path="/jobs/:id" element={<Guarded><JobDetailPage /></Guarded>} />
-      <Route path="/schedule" element={<Guarded><SchedulePage /></Guarded>} />
+      <Route path="/jobs" element={<Guarded jobsGated><JobsPage /></Guarded>} />
+      <Route path="/jobs/:id" element={<Guarded jobsGated><JobDetailPage /></Guarded>} />
+      <Route path="/schedule" element={<Guarded jobsGated><SchedulePage /></Guarded>} />
       <Route path="/earnings" element={<Guarded><EarningsPage /></Guarded>} />
       <Route path="/performance" element={<Guarded><PerformancePage /></Guarded>} />
       <Route path="/insurance" element={<Guarded><InsurancePage /></Guarded>} />
