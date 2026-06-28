@@ -1958,8 +1958,17 @@ INSERT INTO schema_migrations (filename) VALUES
   ('031_hard_delete_cascades.sql'),
   ('032_legal_compliance_tracking.sql'),
   ('033_slack_integration.sql'),
-  ('034_fee_approval_engine.sql')
+  ('034_fee_approval_engine.sql'),
+  ('035_slack_user_tokens.sql')
 ON CONFLICT (filename) DO NOTHING;
+
+-- ── 035: per-user Slack tokens ───────────────────────────────────────────────
+ALTER TABLE slack_user_links
+  ADD COLUMN IF NOT EXISTS user_token   TEXT,
+  ADD COLUMN IF NOT EXISTS user_scopes  TEXT,
+  ADD COLUMN IF NOT EXISTS connected_at TIMESTAMPTZ;
+ALTER TABLE slack_oauth_states
+  ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'install';
 
 -- ── 034: Fee Change Approval Engine ──────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS fee_configurations (

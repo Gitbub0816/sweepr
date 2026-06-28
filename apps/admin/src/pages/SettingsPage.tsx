@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { DashboardShell, Card, Input, Button, toast } from "@sweepr/ui";
+import { SlackSettings } from "../components/SlackSettings";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
@@ -77,6 +78,11 @@ export function SettingsPage() {
         </Card>
 
         <AdminInvitePanel />
+
+        <div>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Slack</h2>
+          <SlackSettings />
+        </div>
       </div>
     </DashboardShell>
   );

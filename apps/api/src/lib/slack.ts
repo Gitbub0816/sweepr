@@ -31,11 +31,27 @@ export interface SlackOAuthResult {
   bot_user_id?: string;
   access_token?: string; // xoxb- bot token
   scope?: string;
-  authed_user?: { id: string };
+  authed_user?: { id: string; access_token?: string; scope?: string };
   incoming_webhook?: { url?: string; channel_id?: string; channel?: string };
 }
 
-/** Build the Slack "Add to Slack" / install URL. */
+/** User scopes requested when an admin connects their personal Slack account. */
+export const DEFAULT_USER_SCOPES = [
+  "channels:read",
+  "channels:history",
+  "groups:read",
+  "groups:history",
+  "im:read",
+  "im:history",
+  "mpim:read",
+  "mpim:history",
+  "chat:write",
+  "reactions:read",
+  "reactions:write",
+  "users:read",
+].join(",");
+
+/** Build the Slack "Add to Slack" / install URL (bot install). */
 export function getInstallUrl(
   clientId: string,
   redirectUri: string,
@@ -45,6 +61,22 @@ export function getInstallUrl(
   const p = new URLSearchParams({
     client_id: clientId,
     scope: scopes,
+    redirect_uri: redirectUri,
+    state,
+  });
+  return `https://slack.com/oauth/v2/authorize?${p.toString()}`;
+}
+
+/** Build a personal-connect URL requesting a user token (xoxp-). */
+export function getUserConnectUrl(
+  clientId: string,
+  redirectUri: string,
+  state: string,
+  userScopes: string = DEFAULT_USER_SCOPES,
+): string {
+  const p = new URLSearchParams({
+    client_id: clientId,
+    user_scope: userScopes,
     redirect_uri: redirectUri,
     state,
   });
@@ -198,6 +230,45 @@ export async function getUserInfo(
     headers: { Authorization: `Bearer ${botToken}` },
   });
   return (await res.json()) as SlackApiResponse;
+}
+
+// ── Embedded-workspace reads (use a user token where possible) ────────────────
+
+export async function conversationsList(token: string): Promise<SlackApiResponse> {
+  return slackApi("conversations.list", token, {
+    types: "public_channel,private_channel,mpim,im",
+    exclude_archived: true,
+    limit: 200,
+  });
+}
+
+export async function conversationsHistory(
+  token: string,
+  channel: string,
+  limit = 50,
+): Promise<SlackApiResponse> {
+  return slackApi("conversations.history", token, { channel, limit });
+}
+
+export async function conversationsReplies(
+  token: string,
+  channel: string,
+  ts: string,
+): Promise<SlackApiResponse> {
+  return slackApi("conversations.replies", token, { channel, ts, limit: 100 });
+}
+
+export async function usersList(token: string): Promise<SlackApiResponse> {
+  return slackApi("users.list", token, { limit: 500 });
+}
+
+export async function reactionsAdd(
+  token: string,
+  channel: string,
+  ts: string,
+  name: string,
+): Promise<SlackApiResponse> {
+  return slackApi("reactions.add", token, { channel, timestamp: ts, name });
 }
 
 // ── Block Kit builders ───────────────────────────────────────────────────────

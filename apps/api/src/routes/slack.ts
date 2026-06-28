@@ -28,12 +28,18 @@ import { logger } from "../lib/logger";
 import { isOwnerEmail } from "../lib/owner";
 import {
   getInstallUrl,
+  getUserConnectUrl,
   exchangeOAuthCode,
   verifySlackSignature,
   postMessage,
   listChannels,
   createChannel,
   getUserInfo,
+  conversationsList,
+  conversationsHistory,
+  conversationsReplies,
+  usersList,
+  reactionsAdd,
 } from "../lib/slack";
 import {
   approve,
@@ -74,14 +80,28 @@ slackRouter.get("/install", requireAuth, requireAdminRole("super_admin"), async 
   const sql = getDb(c.env.DATABASE_URL);
   const state = crypto.randomUUID();
   await sql`
-    INSERT INTO slack_oauth_states (state, created_by, expires_at)
-    VALUES (${state}, ${c.get("user").clerkId}, NOW() + INTERVAL '15 minutes')
+    INSERT INTO slack_oauth_states (state, created_by, kind, expires_at)
+    VALUES (${state}, ${c.get("user").clerkId}, 'install', NOW() + INTERVAL '15 minutes')
   `;
   const url = getInstallUrl(clientId, redirectUri(c.env), state);
   return c.json({ url });
 });
 
-// ── OAuth callback (public) ───────────────────────────────────────────────────
+// ── Connect personal Slack account (user token) ───────────────────────────────
+slackRouter.get("/connect", requireAuth, requireAdminRole("super_admin"), async (c) => {
+  const clientId = c.env.SLACK_CLIENT_ID;
+  if (!clientId) return c.json({ error: "SLACK_CLIENT_ID not configured" }, 503);
+  const sql = getDb(c.env.DATABASE_URL);
+  const state = crypto.randomUUID();
+  await sql`
+    INSERT INTO slack_oauth_states (state, created_by, kind, expires_at)
+    VALUES (${state}, ${c.get("user").clerkId}, 'connect', NOW() + INTERVAL '15 minutes')
+  `;
+  const url = getUserConnectUrl(clientId, redirectUri(c.env), state);
+  return c.json({ url });
+});
+
+// ── OAuth callback (public) — handles both bot install and personal connect ────
 slackRouter.get("/oauth/callback", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const code = c.req.query("code");
@@ -92,10 +112,11 @@ slackRouter.get("/oauth/callback", async (c) => {
   if (!code || !state) return c.redirect(`${dest}?error=missing_params`);
 
   const stateRows = (await sql`
-    SELECT state FROM slack_oauth_states WHERE state = ${state} AND expires_at > NOW() LIMIT 1
-  `) as Array<{ state: string }>;
+    SELECT state, kind, created_by FROM slack_oauth_states WHERE state = ${state} AND expires_at > NOW() LIMIT 1
+  `) as Array<{ state: string; kind: string; created_by: string | null }>;
   if (!stateRows[0]) return c.redirect(`${dest}?error=invalid_state`);
   await sql`DELETE FROM slack_oauth_states WHERE state = ${state}`;
+  const { kind, created_by } = stateRows[0];
 
   const result = await exchangeOAuthCode(
     c.env.SLACK_CLIENT_ID ?? "",
@@ -103,19 +124,46 @@ slackRouter.get("/oauth/callback", async (c) => {
     code,
     redirectUri(c.env),
   );
-  if (!result.ok || !result.access_token || !result.team?.id) {
+  if (!result.ok || !result.team?.id) {
     logger.error("slack.oauth failed", undefined, { error: result.error });
     return c.redirect(`${dest}?error=${encodeURIComponent(result.error ?? "oauth_failed")}`);
   }
 
+  if (kind === "connect") {
+    // Personal connect: store the user (xoxp-) token for the installing admin.
+    const userToken = result.authed_user?.access_token;
+    const slackUserId = result.authed_user?.id;
+    if (!userToken || !slackUserId) return c.redirect(`${dest}?error=no_user_token`);
+    const wsRows = (await sql`SELECT id FROM slack_workspaces WHERE team_id = ${result.team.id} AND status = 'active' LIMIT 1`) as Array<{ id: string }>;
+    const ws = wsRows[0];
+    if (!ws) return c.redirect(`${dest}?error=workspace_not_connected`);
+    const userRow = created_by
+      ? ((await sql`SELECT id, email FROM users WHERE clerk_id = ${created_by} LIMIT 1`) as Array<{ id: string; email: string }>)[0]
+      : undefined;
+    await sql`
+      INSERT INTO slack_user_links (workspace_id, slack_user_id, user_id, email, user_token, user_scopes, connected_at)
+      VALUES (${ws.id}, ${slackUserId}, ${userRow?.id ?? null}, ${userRow?.email ?? null},
+              ${userToken}, ${result.authed_user?.scope ?? null}, NOW())
+      ON CONFLICT (workspace_id, slack_user_id) DO UPDATE SET
+        user_id = EXCLUDED.user_id, email = EXCLUDED.email,
+        user_token = EXCLUDED.user_token, user_scopes = EXCLUDED.user_scopes, connected_at = NOW()
+    `;
+    return c.redirect(`${dest}?connected_user=1`);
+  }
+
+  // Bot install.
+  if (!result.access_token) {
+    return c.redirect(`${dest}?error=${encodeURIComponent(result.error ?? "oauth_failed")}`);
+  }
   await sql`
     INSERT INTO slack_workspaces (
       team_id, team_name, app_id, bot_user_id, bot_token, scope,
-      authed_user_id, incoming_webhook_url, status
+      authed_user_id, incoming_webhook_url, installed_by, status
     ) VALUES (
       ${result.team.id}, ${result.team.name ?? null}, ${result.app_id ?? null},
       ${result.bot_user_id ?? null}, ${result.access_token}, ${result.scope ?? null},
-      ${result.authed_user?.id ?? null}, ${result.incoming_webhook?.url ?? null}, 'active'
+      ${result.authed_user?.id ?? null}, ${result.incoming_webhook?.url ?? null},
+      ${created_by ?? null}, 'active'
     )
     ON CONFLICT (team_id) DO UPDATE SET
       team_name = EXCLUDED.team_name, app_id = EXCLUDED.app_id,
@@ -127,9 +175,23 @@ slackRouter.get("/oauth/callback", async (c) => {
   return c.redirect(`${dest}?connected=1`);
 });
 
-// ── Events API (public, signature-verified) ───────────────────────────────────
+// ── Events API ────────────────────────────────────────────────────────────────
 slackRouter.post("/events", async (c) => {
   const raw = await c.req.text();
+  const body = JSON.parse(raw || "{}") as {
+    type?: string;
+    challenge?: string;
+    event?: { type?: string };
+    team_id?: string;
+  };
+
+  // Answer the URL-verification handshake immediately. It carries no action and
+  // must succeed even before the signing secret is configured in Slack's UI.
+  if (body.type === "url_verification") {
+    return c.json({ challenge: body.challenge });
+  }
+
+  // All real events are signature-verified.
   const ok = await verifySlackSignature(
     c.env.SLACK_SIGNING_SECRET ?? "",
     c.req.header("x-slack-request-timestamp") ?? null,
@@ -137,9 +199,6 @@ slackRouter.post("/events", async (c) => {
     raw,
   );
   if (!ok) return c.json({ error: "bad signature" }, 401);
-
-  const body = JSON.parse(raw) as { type?: string; challenge?: string; event?: { type?: string }; team_id?: string };
-  if (body.type === "url_verification") return c.json({ challenge: body.challenge });
 
   if (body.event?.type === "app_uninstalled" || body.event?.type === "tokens_revoked") {
     const sql = getDb(c.env.DATABASE_URL);
@@ -377,3 +436,155 @@ slackRouter.post(
     return c.json({ ok: true });
   },
 );
+
+// ── Embedded workspace (per-user Slack view) ──────────────────────────────────
+const wsGate = [requireAuth, requireAdminRole()] as const;
+
+async function userToken(sql: ReturnType<typeof getDb>, clerkId: string): Promise<string | null> {
+  const rows = (await sql`
+    SELECT sl.user_token FROM slack_user_links sl
+    JOIN users u ON u.id = sl.user_id
+    WHERE u.clerk_id = ${clerkId} AND sl.user_token IS NOT NULL
+    ORDER BY sl.connected_at DESC NULLS LAST LIMIT 1
+  `) as Array<{ user_token: string }>;
+  return rows[0]?.user_token ?? null;
+}
+
+slackRouter.get("/workspace/me", ...wsGate, async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const rows = (await sql`
+    SELECT sl.slack_user_id, sl.user_scopes, sl.connected_at, w.team_name
+    FROM slack_user_links sl
+    JOIN users u ON u.id = sl.user_id
+    LEFT JOIN slack_workspaces w ON w.id = sl.workspace_id
+    WHERE u.clerk_id = ${c.get("user").clerkId} AND sl.user_token IS NOT NULL
+    ORDER BY sl.connected_at DESC NULLS LAST LIMIT 1
+  `) as Array<Record<string, unknown>>;
+  const wsActive = await activeWorkspace(sql);
+  return c.json({
+    workspaceConnected: !!wsActive,
+    workspaceName: (wsActive?.team_name as string) ?? null,
+    userConnected: !!rows[0],
+    slackUserId: rows[0]?.slack_user_id ?? null,
+    connectedAt: rows[0]?.connected_at ?? null,
+  });
+});
+
+slackRouter.get("/workspace/channels", ...wsGate, async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const token = await userToken(sql, c.get("user").clerkId);
+  if (!token) return c.json({ error: "Slack account not connected" }, 409);
+  const list = await conversationsList(token);
+  if (!list.ok) return c.json({ error: list.error ?? "slack_error" }, 502);
+  const channels = ((list.channels ?? []) as Array<Record<string, unknown>>).map((ch) => ({
+    id: ch.id as string,
+    name: (ch.name as string) ?? null,
+    is_private: !!ch.is_private,
+    is_im: !!ch.is_im,
+    is_mpim: !!ch.is_mpim,
+    user: (ch.user as string) ?? null,
+  }));
+  return c.json({ channels });
+});
+
+async function userMap(token: string): Promise<Record<string, { name: string; avatar: string }>> {
+  const res = await usersList(token);
+  const map: Record<string, { name: string; avatar: string }> = {};
+  const members = (res.members ?? []) as Array<Record<string, unknown>>;
+  for (const m of members) {
+    const profile = (m.profile ?? {}) as Record<string, unknown>;
+    map[m.id as string] = {
+      name: (profile.display_name as string) || (profile.real_name as string) || (m.name as string) || (m.id as string),
+      avatar: (profile.image_48 as string) ?? "",
+    };
+  }
+  return map;
+}
+
+slackRouter.get("/workspace/history", ...wsGate, async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const token = await userToken(sql, c.get("user").clerkId);
+  if (!token) return c.json({ error: "Slack account not connected" }, 409);
+  const channel = c.req.query("channel");
+  if (!channel) return c.json({ error: "channel required" }, 400);
+
+  const [hist, users, cards] = await Promise.all([
+    conversationsHistory(token, channel, 50),
+    userMap(token),
+    sql`SELECT message_ts, ref_id FROM slack_messages WHERE channel_id = ${channel} AND ref_type = 'fee_proposal'`,
+  ]);
+  if (!hist.ok) return c.json({ error: hist.error ?? "slack_error" }, 502);
+  const cardRows = cards as Array<{ message_ts: string; ref_id: string }>;
+  const cardMap = new Map(cardRows.map((r) => [r.message_ts, r.ref_id]));
+
+  const messages = (((hist as Record<string, unknown>).messages ?? []) as Array<Record<string, unknown>>).map((m) => {
+    const ts = m.ts as string;
+    const author = users[m.user as string] ?? { name: (m.username as string) || "Sweepr", avatar: "" };
+    return {
+      ts,
+      text: (m.text as string) ?? "",
+      author: author.name,
+      avatar: author.avatar,
+      reply_count: (m.reply_count as number) ?? 0,
+      thread_ts: (m.thread_ts as string) ?? null,
+      reactions: ((m.reactions ?? []) as Array<{ name: string; count: number }>).map((r) => ({ name: r.name, count: r.count })),
+      approvalProposalId: cardMap.get(ts) ?? null,
+    };
+  }).reverse();
+  return c.json({ messages });
+});
+
+slackRouter.get("/workspace/replies", ...wsGate, async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const token = await userToken(sql, c.get("user").clerkId);
+  if (!token) return c.json({ error: "Slack account not connected" }, 409);
+  const channel = c.req.query("channel");
+  const ts = c.req.query("ts");
+  if (!channel || !ts) return c.json({ error: "channel and ts required" }, 400);
+  const [res, users] = await Promise.all([conversationsReplies(token, channel, ts), userMap(token)]);
+  if (!res.ok) return c.json({ error: res.error ?? "slack_error" }, 502);
+  const messages = (((res as Record<string, unknown>).messages ?? []) as Array<Record<string, unknown>>).map((m) => {
+    const author = users[m.user as string] ?? { name: (m.username as string) || "Sweepr", avatar: "" };
+    return { ts: m.ts as string, text: (m.text as string) ?? "", author: author.name, avatar: author.avatar };
+  });
+  return c.json({ messages });
+});
+
+slackRouter.post(
+  "/workspace/message",
+  ...wsGate,
+  zValidator("json", z.object({ channel: z.string(), text: z.string().min(1).max(4000), thread_ts: z.string().optional() })),
+  async (c) => {
+    const sql = getDb(c.env.DATABASE_URL);
+    const token = await userToken(sql, c.get("user").clerkId);
+    if (!token) return c.json({ error: "Slack account not connected" }, 409);
+    const { channel, text, thread_ts } = c.req.valid("json");
+    const res = await postMessage(token, channel, { text, thread_ts });
+    if (!res.ok) return c.json({ error: res.error ?? "post_failed" }, 502);
+    return c.json({ ok: true, ts: res.ts });
+  },
+);
+
+slackRouter.post(
+  "/workspace/react",
+  ...wsGate,
+  zValidator("json", z.object({ channel: z.string(), ts: z.string(), name: z.string() })),
+  async (c) => {
+    const sql = getDb(c.env.DATABASE_URL);
+    const token = await userToken(sql, c.get("user").clerkId);
+    if (!token) return c.json({ error: "Slack account not connected" }, 409);
+    const { channel, ts, name } = c.req.valid("json");
+    const res = await reactionsAdd(token, channel, ts, name);
+    if (!res.ok) return c.json({ error: res.error ?? "react_failed" }, 502);
+    return c.json({ ok: true });
+  },
+);
+
+slackRouter.post("/workspace/disconnect-user", ...wsGate, async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  await sql`
+    UPDATE slack_user_links SET user_token = NULL, user_scopes = NULL, connected_at = NULL
+    WHERE user_id = (SELECT id FROM users WHERE clerk_id = ${c.get("user").clerkId} LIMIT 1)
+  `;
+  return c.json({ ok: true });
+});
