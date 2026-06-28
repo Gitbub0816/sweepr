@@ -23,6 +23,7 @@ const MIG_DIR = join(__dirname, "src", "migrations");
 
 const files = readdirSync(MIG_DIR)
   .filter((f) => f.endsWith(".sql"))
+  .filter((f) => /^\d{3}/.test(f)) // numbered migrations only (skip neon-ensure.sql etc.)
   .filter((f) => !/^008/.test(f)) // skip training content seeds
   .sort();
 

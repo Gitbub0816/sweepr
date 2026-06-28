@@ -49,6 +49,9 @@ async function main() {
 
   const files = readdirSync(MIG_DIR)
     .filter((f) => f.endsWith(".sql"))
+    // Only numbered migrations run automatically. Helper/repair files like
+    // neon-ensure.sql (not prefixed with a number) are skipped here.
+    .filter((f) => /^\d{3}/.test(f))
     .sort();
 
   // Auto-baseline: this database already had migrations 001–025 applied by hand
