@@ -39,22 +39,31 @@ export const requireAuth = createMiddleware<AppBindings>(async (c, next) => {
   }
 
   // Lazily sync the user row — non-fatal if it fails (e.g. DB temporarily down).
-  if (email) {
-    try {
-      const sql = getDb(c.env.DATABASE_URL);
-      await upsertUser(sql, { clerkId, email });
-      // Self-heal owner access: guarantee the founding account is super_admin
-      // on whatever DB the Worker is actually connected to. role='super_admin'
-      // satisfies every admin guard, so no lockouts from missing migrations.
-      if (isOwnerEmail(email, c.env)) {
-        await sql`
-          UPDATE users SET role = 'super_admin'
-          WHERE clerk_id = ${clerkId} AND role IS DISTINCT FROM 'super_admin'
-        `;
-      }
-    } catch {
-      // Non-fatal: existing rows still work; next request will retry.
+  try {
+    const sql = getDb(c.env.DATABASE_URL);
+    if (email) await upsertUser(sql, { clerkId, email });
+
+    // Self-heal owner access: guarantee the founding account is super_admin on
+    // whatever DB the Worker is actually connected to. role='super_admin'
+    // satisfies every admin guard, so no lockouts from missing migrations.
+    //
+    // The Clerk session JWT often omits the email claim, so fall back to the
+    // email already stored on the user row (synced via the Clerk webhook).
+    let ownerEmail = email;
+    if (!ownerEmail) {
+      const rows = (await sql`
+        SELECT email FROM users WHERE clerk_id = ${clerkId} LIMIT 1
+      `) as Array<{ email: string | null }>;
+      ownerEmail = rows[0]?.email ?? undefined;
     }
+    if (isOwnerEmail(ownerEmail, c.env)) {
+      await sql`
+        UPDATE users SET role = 'super_admin'
+        WHERE clerk_id = ${clerkId} AND role IS DISTINCT FROM 'super_admin'
+      `;
+    }
+  } catch {
+    // Non-fatal: existing rows still work; next request will retry.
   }
 
   await next();
