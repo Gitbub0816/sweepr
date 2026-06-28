@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { MapPin, CalendarClock, Check, Star } from "lucide-react";
 import { motion } from "framer-motion";
@@ -20,7 +20,8 @@ import {
   JOB_STATUS_LABELS,
 } from "@sweepr/utils";
 import { useAuth } from "@clerk/clerk-react";
-import { mockBookings } from "../data/mock";
+import { fetchBooking } from "../data/bookings";
+import type { Booking } from "@sweepr/types";
 import { CleanerTracker } from "../components/CleanerTracker";
 
 const API = import.meta.env.VITE_API_URL ?? "";
@@ -153,16 +154,34 @@ function ReviewModal({
 export function BookingDetailPage() {
   const { id } = useParams();
   const { getToken } = useAuth();
-  const booking = mockBookings.find((b) => b.id === id);
-  const [reviewOpen, setReviewOpen] = useState(
-    booking?.status === "completed_pending_review"
-  );
+  const [booking, setBooking] = useState<Booking | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
 
-  // Lazily resolve the Clerk token so CleanerTracker can use it
-  useState(() => {
+  useEffect(() => {
     getToken().then((t) => setAuthToken(t ?? null)).catch(() => {});
-  });
+  }, [getToken]);
+
+  useEffect(() => {
+    if (!id) return;
+    let active = true;
+    fetchBooking(getToken, id).then((b) => {
+      if (!active) return;
+      setBooking(b);
+      setReviewOpen(b?.status === "completed_pending_review");
+      setLoading(false);
+    });
+    return () => { active = false; };
+  }, [id, getToken]);
+
+  if (loading) {
+    return (
+      <DashboardShell title="Booking" description="">
+        <div className="h-48 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
+      </DashboardShell>
+    );
+  }
 
   if (!booking) {
     return (

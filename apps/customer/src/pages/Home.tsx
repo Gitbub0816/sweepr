@@ -2,13 +2,13 @@ import { Link } from "react-router-dom";
 import { ArrowRight, CalendarClock, Repeat, Sparkles, Home as HomeIcon, Truck } from "lucide-react";
 import { StatusBadge } from "@sweepr/ui";
 import { formatCurrency, formatDateTime, SERVICE_LABELS } from "@sweepr/utils";
-import { mockBookings } from "../data/mock";
+import { useBookings } from "../data/bookings";
 
 const suggested = [
-  { type: "standard" as const, icon: HomeIcon, price: 89 },
-  { type: "deep" as const, icon: Sparkles, price: 149 },
-  { type: "move_in_out" as const, icon: Truck, price: 199 },
-  { type: "recurring" as const, icon: Repeat, price: 79 },
+  { type: "standard" as const, icon: HomeIcon },
+  { type: "deep" as const, icon: Sparkles },
+  { type: "move_in_out" as const, icon: Truck },
+  { type: "recurring" as const, icon: Repeat },
 ];
 
 function greeting(): string {
@@ -19,10 +19,11 @@ function greeting(): string {
 }
 
 export function Home() {
-  const upcoming = mockBookings.find((b) =>
-    ["confirmed", "booked", "cleaner_on_the_way", "in_progress"].includes(b.status)
+  const { bookings } = useBookings();
+  const upcoming = bookings.find((b) =>
+    ["confirmed", "booked", "cleaner_on_the_way", "in_progress", "cleaner_accepted", "arrived"].includes(b.status)
   );
-  const last = mockBookings[mockBookings.length - 1];
+  const last = bookings[0];
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
@@ -98,7 +99,7 @@ export function Home() {
               <p className="font-black text-charcoal dark:text-white">
                 {SERVICE_LABELS[s.type]}
               </p>
-              <p className="text-sm text-slate-500">from {formatCurrency(s.price)}</p>
+              <p className="text-sm text-slate-500">Get an instant quote</p>
             </div>
             <ArrowRight className="h-5 w-5 text-slate-300" />
           </Link>

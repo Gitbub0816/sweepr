@@ -32,6 +32,36 @@ const intentSchema = z.object({
 
 export const paymentsRouter = new Hono<AppBindings>();
 
+/** List the signed-in customer's saved Stripe cards (empty if none). */
+paymentsRouter.get("/methods", requireAuth, async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const user = await getUserByClerkId(sql, c.get("user").clerkId);
+  if (!user) return c.json({ methods: [] });
+  const rows = (await sql`
+    SELECT stripe_customer_id FROM customers WHERE user_id = ${user.id} LIMIT 1
+  `) as Array<{ stripe_customer_id: string | null }>;
+  const customerId = rows[0]?.stripe_customer_id;
+  if (!customerId) return c.json({ methods: [] });
+  try {
+    const stripe = getStripe(c.env.STRIPE_SECRET_KEY);
+    const list = await stripe.paymentMethods.list({ customer: customerId, type: "card" });
+    const def = (await stripe.customers.retrieve(customerId)) as { invoice_settings?: { default_payment_method?: string } };
+    const defaultPm = def?.invoice_settings?.default_payment_method;
+    return c.json({
+      methods: list.data.map((pm) => ({
+        id: pm.id,
+        brand: pm.card?.brand ?? "card",
+        last4: pm.card?.last4 ?? "",
+        expMonth: pm.card?.exp_month ?? null,
+        expYear: pm.card?.exp_year ?? null,
+        isDefault: pm.id === defaultPm,
+      })),
+    });
+  } catch {
+    return c.json({ methods: [] });
+  }
+});
+
 paymentsRouter.post(
   "/create-intent",
   requireAuth,

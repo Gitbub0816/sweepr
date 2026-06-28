@@ -12,16 +12,14 @@ import {
   formatDateTime,
   formatCurrency,
 } from "@sweepr/utils";
-import { mockBookings } from "../data/mock";
+import type { Booking } from "@sweepr/types";
+import { useBookings } from "../data/bookings";
 import { useBookingStore } from "../store/booking";
 
 export function BookingsPage() {
-  const upcoming = mockBookings.filter((b) =>
-    new Date(b.scheduledFor) > new Date()
-  );
-  const past = mockBookings.filter(
-    (b) => new Date(b.scheduledFor) <= new Date()
-  );
+  const { bookings, loading } = useBookings();
+  const upcoming = bookings.filter((b) => new Date(b.scheduledFor) > new Date());
+  const past = bookings.filter((b) => new Date(b.scheduledFor) <= new Date());
 
   return (
     <DashboardShell
@@ -33,8 +31,14 @@ export function BookingsPage() {
         </Link>
       }
     >
-      <Section title="Upcoming" bookings={upcoming} />
-      <Section title="Past" bookings={past} empty showRebook />
+      {loading ? (
+        <div className="h-40 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
+      ) : (
+        <>
+          <Section title="Upcoming" bookings={upcoming} />
+          <Section title="Past" bookings={past} empty showRebook />
+        </>
+      )}
     </DashboardShell>
   );
 }
@@ -46,7 +50,7 @@ function Section({
   showRebook,
 }: {
   title: string;
-  bookings: typeof mockBookings;
+  bookings: Booking[];
   empty?: boolean;
   showRebook?: boolean;
 }) {
