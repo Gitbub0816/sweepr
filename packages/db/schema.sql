@@ -8,7 +8,7 @@
 -- This file is GENERATED. Do not edit by hand — edit the migrations in
 -- src/migrations/ and re-run: node packages/db/build-schema.mjs
 --
--- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql
+-- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -1825,3 +1825,79 @@ DO $$ BEGIN
   ALTER TABLE admin_invites ADD CONSTRAINT admin_invites_admin_role_check CHECK (admin_role IN ('super_admin','admin','ops','finance','trainer','support','it'));
 EXCEPTION WHEN duplicate_object THEN NULL; WHEN duplicate_table THEN NULL;
 END $$;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 031_hard_delete_cascades.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Migration 031: make the database genuinely hard-deletable for GDPR/CCPA.
+--
+-- Recreates the key foreign keys with ON DELETE CASCADE so deleting a user row
+-- actually removes all of their data (no orphans, no FK-restrict failures).
+-- Also adds a non-PII deletion audit log so we can prove a deletion happened
+-- without retaining any personal data.
+
+-- Helper: drop whatever FK exists on (table, single column) and re-add it with
+-- ON DELETE CASCADE pointing at <ref>(id). Idempotent / safe to re-run.
+CREATE OR REPLACE FUNCTION _recreate_fk_cascade(p_table regclass, p_column text, p_ref regclass)
+RETURNS void AS $$
+DECLARE cname text;
+BEGIN
+  IF to_regclass(p_table::text) IS NULL OR to_regclass(p_ref::text) IS NULL THEN RETURN; END IF;
+  SELECT conname INTO cname
+  FROM pg_constraint
+  WHERE contype = 'f' AND conrelid = p_table
+    AND conkey = (SELECT array_agg(attnum)
+                  FROM pg_attribute
+                  WHERE attrelid = p_table AND attname = p_column AND NOT attisdropped);
+  IF cname IS NOT NULL THEN
+    EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', p_table, cname);
+  END IF;
+  EXECUTE format(
+    'ALTER TABLE %s ADD FOREIGN KEY (%I) REFERENCES %s(id) ON DELETE CASCADE',
+    p_table, p_column, p_ref
+  );
+EXCEPTION WHEN undefined_column OR undefined_table THEN
+  RETURN; -- table/column not present on this DB — skip
+END$$ LANGUAGE plpgsql;
+
+DO $$
+BEGIN
+  -- Direct children of users
+  PERFORM _recreate_fk_cascade('customers', 'user_id', 'users');
+  PERFORM _recreate_fk_cascade('cleaners', 'user_id', 'users');
+  PERFORM _recreate_fk_cascade('addresses', 'user_id', 'users');
+  PERFORM _recreate_fk_cascade('notifications', 'user_id', 'users');
+  PERFORM _recreate_fk_cascade('data_subject_requests', 'user_id', 'users');
+  PERFORM _recreate_fk_cascade('consent_log', 'user_id', 'users');
+  PERFORM _recreate_fk_cascade('device_tokens', 'user_id', 'users');
+
+  -- Bookings + their dependents
+  PERFORM _recreate_fk_cascade('bookings', 'customer_id', 'customers');
+  PERFORM _recreate_fk_cascade('bookings', 'cleaner_id', 'cleaners');
+  PERFORM _recreate_fk_cascade('bookings', 'address_id', 'addresses');
+  PERFORM _recreate_fk_cascade('payments', 'booking_id', 'bookings');
+  PERFORM _recreate_fk_cascade('reviews', 'booking_id', 'bookings');
+  PERFORM _recreate_fk_cascade('reviews', 'cleaner_id', 'cleaners');
+  PERFORM _recreate_fk_cascade('reviews', 'customer_id', 'customers');
+  PERFORM _recreate_fk_cascade('booking_addons', 'booking_id', 'bookings');
+  PERFORM _recreate_fk_cascade('payouts', 'cleaner_id', 'cleaners');
+  PERFORM _recreate_fk_cascade('payouts', 'booking_id', 'bookings');
+  PERFORM _recreate_fk_cascade('subscriptions', 'customer_id', 'customers');
+
+  -- Cleaner-scoped data
+  PERFORM _recreate_fk_cascade('cleaner_training_progress', 'cleaner_id', 'cleaners');
+  PERFORM _recreate_fk_cascade('cleaner_quiz_attempts', 'cleaner_id', 'cleaners');
+  PERFORM _recreate_fk_cascade('cleaner_insurance', 'cleaner_id', 'cleaners');
+  PERFORM _recreate_fk_cascade('stripe_connected_accounts', 'cleaner_id', 'cleaners');
+  PERFORM _recreate_fk_cascade('payout_ledger', 'cleaner_id', 'cleaners');
+END$$;
+
+DROP FUNCTION IF EXISTS _recreate_fk_cascade(regclass, text, regclass);
+
+-- Non-PII deletion audit (proves a deletion happened; stores no personal data).
+CREATE TABLE IF NOT EXISTS account_deletion_log (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email_hash  TEXT,                       -- sha256(email); never the raw email
+  scope       TEXT NOT NULL,              -- 'pii' | 'account' | 'account_and_data'
+  deleted_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

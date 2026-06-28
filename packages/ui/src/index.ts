@@ -41,6 +41,7 @@ export * from "./components/PrelaunchGate";
 export * from "./components/WaitlistForm";
 export * from "./components/NewsletterSubscribe";
 export * from "./components/ReportProblem";
+export * from "./components/AccountPrivacy";
 
 // Calendar
 export { SweeprCalendar } from "./calendar/SweeprCalendar";
