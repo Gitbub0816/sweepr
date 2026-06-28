@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { getUserByClerkId } from "@sweepr/db";
 import { requireAuth } from "../middleware/auth";
+import { isOwnerClerkId } from "../lib/owner";
 import { getDb } from "../lib/db";
 import type { AppBindings } from "../types";
 
@@ -27,10 +28,14 @@ export const adminMeRouter = new Hono<AppBindings>();
 adminMeRouter.get("/", requireAuth, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const user = await getUserByClerkId(sql, c.get("user").clerkId);
-  if (!user) return c.json({ error: "Forbidden" }, 403);
+  const isOwner = isOwnerClerkId(c.get("user").clerkId, c.env);
 
-  const role = user.role as string;
-  const adminRole = (user as unknown as Record<string, unknown>).admin_role as string | null;
+  if (!user && !isOwner) return c.json({ error: "Forbidden" }, 403);
+
+  const role = isOwner ? "super_admin" : (user!.role as string);
+  const adminRole = isOwner
+    ? "super_admin"
+    : ((user as unknown as Record<string, unknown>).admin_role as string | null);
 
   if (role !== "admin" && role !== "super_admin") {
     return c.json({ error: "Forbidden" }, 403);
@@ -41,8 +46,8 @@ adminMeRouter.get("/", requireAuth, async (c) => {
 
   return c.json({
     user: {
-      id: user.id,
-      email: user.email,
+      id: user?.id ?? null,
+      email: user?.email ?? c.get("user").email ?? null,
       role,
       adminRole,
       permissions,

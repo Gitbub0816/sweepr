@@ -16,11 +16,13 @@ import { getUserByClerkId } from "@sweepr/db";
 import { getDb } from "../lib/db";
 import { sendBulkEmail, wrapBodyInTemplate } from "../lib/mailer";
 import { requireAuth } from "../middleware/auth";
+import { isOwnerClerkId } from "../lib/owner";
 import type { AppBindings } from "../types";
 
 export const adminBroadcastsRouter = new Hono<AppBindings>();
 
 const requireAdmin = createMiddleware<AppBindings>(async (c, next) => {
+  if (isOwnerClerkId(c.get("user").clerkId, c.env)) return next();
   const sql = getDb(c.env.DATABASE_URL);
   const user = await getUserByClerkId(sql, c.get("user").clerkId);
   if (!user || (user.role !== "admin" && user.role !== "super_admin")) {

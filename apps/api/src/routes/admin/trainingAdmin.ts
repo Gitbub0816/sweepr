@@ -9,6 +9,7 @@ import { z } from "zod";
 import { getUserByClerkId } from "@sweepr/db";
 import { getDb } from "../../lib/db";
 import { requireAuth } from "../../middleware/auth";
+import { isOwnerClerkId } from "../../lib/owner";
 import type { AppBindings } from "../../types";
 
 export const trainingAdminRouter = new Hono<AppBindings>();
@@ -17,10 +18,11 @@ trainingAdminRouter.use("*", requireAuth);
 
 // Admin check middleware
 trainingAdminRouter.use("*", async (c, next) => {
+  if (isOwnerClerkId(c.get("user").clerkId, c.env)) return next();
   const sql = getDb(c.env.DATABASE_URL);
   const authUser = c.get("user");
   const user = await getUserByClerkId(sql, authUser.clerkId);
-  if (!user || user.role !== "admin") {
+  if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
     return c.json({ error: "Forbidden" }, 403);
   }
   await next();

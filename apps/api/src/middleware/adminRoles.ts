@@ -1,6 +1,7 @@
 import { createMiddleware } from "hono/factory";
 import { getUserByClerkId } from "@sweepr/db";
 import { getDb } from "../lib/db";
+import { isOwnerClerkId } from "../lib/owner";
 import type { AppBindings } from "../types";
 
 export type AdminRole = "super_admin" | "admin" | "ops" | "finance" | "trainer" | "support";
@@ -19,6 +20,9 @@ export const ALL_ADMIN_ROLES: AdminRole[] = [
  */
 export function requireAdminRole(...allowed: AdminRole[]) {
   return createMiddleware<AppBindings>(async (c, next) => {
+    // Founding owner(s) always pass, independent of any DB state.
+    if (isOwnerClerkId(c.get("user").clerkId, c.env)) return next();
+
     const sql = getDb(c.env.DATABASE_URL);
     const user = await getUserByClerkId(sql, c.get("user").clerkId);
 
