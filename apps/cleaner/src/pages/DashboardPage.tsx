@@ -98,26 +98,37 @@ interface OnboardingStep {
   done: boolean;
 }
 
+interface OnboardingProgress {
+  status: string;
+  steps: {
+    profile: boolean;
+    training: boolean;
+    background: boolean;
+    identity: boolean;
+    submitted: boolean;
+    approved: boolean;
+  };
+}
+
 function OnboardingChecklist({ status }: { status: string | undefined }) {
-  const { data: training } = useApi<{ summary: { backgroundCheckUnlocked: boolean; completedRequired: number; totalRequired: number } }>(
+  const { data: progress } = useApi<OnboardingProgress>("/cleaners/onboarding-progress");
+  const { data: training } = useApi<{ summary: { totalPassed: number; totalRequired: number } }>(
     "/training/progress",
   );
 
   if (status === "approved") return null;
 
-  const bgUnlocked = training?.summary?.backgroundCheckUnlocked ?? false;
-  const completed = training?.summary?.completedRequired ?? 0;
+  const p = progress?.steps;
+  const passed = training?.summary?.totalPassed ?? 0;
   const total = training?.summary?.totalRequired ?? 10;
 
   // Individual-cleaner steps (mirrors INDIVIDUAL_STEPS in OnboardingPage).
   const steps: OnboardingStep[] = [
-    { label: "Profile basics", desc: "Name, photo & bio", step: 0, done: false },
-    { label: "Service area", desc: "Where you'll work", step: 1, done: false },
-    { label: "Services & pricing", desc: "What you offer", step: 2, done: false },
-    { label: "Training", desc: `${completed}/${total} required modules`, step: -1, done: bgUnlocked },
-    { label: "Background check", desc: "Verify your record", step: 3, done: false },
-    { label: "Identity verification", desc: "Confirm who you are", step: 4, done: false },
-    { label: "Review & submit", desc: "Send your application", step: 5, done: false },
+    { label: "Profile & services", desc: "Name, photo, area & services", step: 0, done: p?.profile ?? false },
+    { label: "Training", desc: `${passed}/${total} required modules`, step: -1, done: p?.training ?? false },
+    { label: "Background check", desc: "Verify your record", step: 3, done: p?.background ?? false },
+    { label: "Identity verification", desc: "Confirm who you are", step: 4, done: p?.identity ?? false },
+    { label: "Review & submit", desc: "Send your application", step: 5, done: p?.submitted ?? false },
   ];
 
   const doneCount = steps.filter((s) => s.done).length;

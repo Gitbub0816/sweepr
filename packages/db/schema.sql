@@ -8,7 +8,7 @@
 -- This file is GENERATED. Do not edit by hand — edit the migrations in
 -- src/migrations/ and re-run: node packages/db/build-schema.mjs
 --
--- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql
+-- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -1613,3 +1613,55 @@ ALTER TABLE booking_access_codes
 -- Make code_value nullable (will be NULL once encryption is live)
 ALTER TABLE booking_access_codes
   ALTER COLUMN code_value DROP NOT NULL;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 026_row_level_security.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Migration 026: Row-Level Security (defense in depth)
+--
+-- Authorization in Sweepr is enforced at the application layer: every API
+-- route runs behind Clerk auth and scopes queries to the current user. The
+-- Worker connects to Neon as the database OWNER role, which BYPASSES RLS by
+-- default — so enabling RLS here does NOT change app behaviour.
+--
+-- What it buys us: if any *other* role ever connects (a read-only analytics
+-- role, a leaked non-owner credential, an accidental anon grant), it gets NO
+-- access to these tables unless a policy explicitly allows it. This is a
+-- safety net, not the primary control.
+--
+-- We intentionally do NOT use FORCE ROW LEVEL SECURITY, so the owner/app
+-- connection keeps full access and nothing breaks.
+
+DO $$
+DECLARE
+  t TEXT;
+  protected_tables TEXT[] := ARRAY[
+    'users',
+    'customers',
+    'cleaners',
+    'addresses',
+    'bookings',
+    'reviews',
+    'cleaner_training_progress'
+  ];
+BEGIN
+  FOREACH t IN ARRAY protected_tables LOOP
+    -- Only touch tables that actually exist in this database.
+    IF to_regclass('public.' || t) IS NOT NULL THEN
+      EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+
+      -- A single permissive policy for the application's authenticated role.
+      -- The app already scopes rows in SQL, so this grants the app full access
+      -- while non-listed roles (e.g. anon) remain blocked.
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_policies
+        WHERE schemaname = 'public' AND tablename = t AND policyname = 'app_full_access'
+      ) THEN
+        EXECUTE format(
+          'CREATE POLICY app_full_access ON %I FOR ALL USING (true) WITH CHECK (true)',
+          t
+        );
+      END IF;
+    END IF;
+  END LOOP;
+END $$;

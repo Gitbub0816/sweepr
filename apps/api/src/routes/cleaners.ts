@@ -30,6 +30,39 @@ cleanersRouter.get("/me", async (c) => {
   return c.json({ cleaner });
 });
 
+/**
+ * Onboarding progress — server-authoritative completion of each onboarding
+ * step. Safe to call before a cleaner row exists (everything reports false).
+ * Drives the dashboard checklist so cleaners can complete steps individually.
+ */
+cleanersRouter.get("/onboarding-progress", async (c) => {
+  const { user, cleaner } = await currentCleaner(c);
+  if (!user) return c.json({ error: "User not found" }, 404);
+
+  const ch = cleaner as
+    | {
+        first_name?: string | null;
+        bio?: string | null;
+        checkr_status?: string | null;
+        didit_status?: string | null;
+        required_training_completed?: boolean | null;
+        status?: string | null;
+      }
+    | null;
+
+  const profile = Boolean(ch?.first_name && ch?.bio);
+  const training = Boolean(ch?.required_training_completed);
+  const background = ch?.checkr_status === "clear";
+  const identity = ch?.didit_status === "approved";
+  const submitted = ch?.status === "pending" || ch?.status === "approved";
+  const approved = ch?.status === "approved";
+
+  return c.json({
+    status: ch?.status ?? "incomplete",
+    steps: { profile, training, background, identity, submitted, approved },
+  });
+});
+
 const profileSchema = z.object({
   firstName: z.string().optional(),
   lastName: z.string().optional(),

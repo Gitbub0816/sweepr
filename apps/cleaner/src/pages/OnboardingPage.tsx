@@ -328,7 +328,7 @@ export function OnboardingPage() {
         // Allow continuing once Checkr invitation was sent (pending = check in progress)
         return checkrStatus === "submitted" || checkrStatus === "pending";
       case "Identity":
-        return diditStatus === "submitted";
+        return diditStatus === "submitted" || diditStatus === "pending";
       case "Review":
         return form.certifyAccurate && form.agreeIC;
       default:
@@ -339,28 +339,50 @@ export function OnboardingPage() {
   // Background check is now handled entirely within BackgroundCheckStep via
   // the Checkr invitation flow — no PII passes through OnboardingPage.
 
+  // Reflect any existing Didit decision when the applicant reaches/returns to
+  // the Identity step (e.g. after completing the hosted flow and coming back).
+  useEffect(() => {
+    if (stepName !== "Identity" || !API_URL) return;
+    void (async () => {
+      try {
+        const token = await getToken();
+        const res = await fetch(`${API_URL}/didit/status`, {
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { status?: string };
+        if (data.status === "approved") setDiditStatus("submitted");
+        else if (data.status === "pending" || data.status === "in_review")
+          setDiditStatus("pending");
+      } catch {
+        // ignore — show the start button
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepName]);
+
   async function submitIdentity() {
     setDiditStatus("submitting");
     try {
-      if (API_URL) {
-        const res = await fetch(`${API_URL}/cleaners/identity-verify`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ provider: "didit" }),
-        });
-        const data = (await res.json().catch(() => ({}))) as {
-          url?: string;
-          stub?: boolean;
-        };
-        // Live Didit: redirect the applicant to the hosted verification page.
-        // All ID capture happens on Didit — no documents touch Sweepr.
-        if (data.url && !data.stub) {
-          window.location.href = data.url;
-          return;
-        }
+      const token = await getToken();
+      const res = await fetch(`${API_URL}/didit/session`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token ?? ""}`,
+        },
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        url?: string;
+        stub?: boolean;
+      };
+      // Live Didit: redirect the applicant to the hosted verification page.
+      // All ID capture happens on Didit — no documents touch Sweepr.
+      if (data.url && !data.stub) {
+        window.location.href = data.url;
+        return;
       }
-      await new Promise((r) => setTimeout(r, 900));
+      // Stub mode (Didit not configured): session goes to manual admin review.
       setDiditStatus("submitted");
       toast.success("Identity verification submitted for review.");
     } catch {
@@ -1007,9 +1029,12 @@ function StepIdentity({
           sees or stores your ID images.
         </p>
       </div>
-      {status === "submitted" ? (
+      {status === "submitted" || status === "pending" ? (
         <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300">
-          <CheckCircle2 className="h-5 w-5" /> Identity verification submitted.
+          <CheckCircle2 className="h-5 w-5" />
+          {status === "pending"
+            ? "Identity verification in review."
+            : "Identity verification submitted."}
         </div>
       ) : (
         <Button

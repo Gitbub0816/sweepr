@@ -30,9 +30,27 @@ jobs:
           node packages/db/verify-schema.mjs
           git diff --exit-code packages/db/schema.sql || (echo "ERROR: schema.sql is stale. Run 'node packages/db/build-schema.mjs' and commit the result." && exit 1)
 
+  migrate:
+    name: Apply DB Migrations
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - name: Run migrations
+        run: pnpm --filter @sweepr/db migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
   deploy-api:
     name: Deploy API Worker (api.getsweepr.com)
-    needs: build
+    needs: migrate
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
