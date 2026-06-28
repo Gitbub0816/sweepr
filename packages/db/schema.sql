@@ -8,7 +8,7 @@
 -- This file is GENERATED. Do not edit by hand — edit the migrations in
 -- src/migrations/ and re-run: node packages/db/build-schema.mjs
 --
--- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql
+-- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -1665,3 +1665,25 @@ BEGIN
     END IF;
   END LOOP;
 END $$;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 027_grant_owner_super_admin.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Migration 027: ensure the founding owner has full super_admin access.
+--
+-- Symptom this fixes: admin pages gated by a specific admin_role (e.g. Payouts →
+-- Fee Configuration, which requires finance/ops/super_admin) return 403 even
+-- though the generic admin pages load. That happens when the user is an admin
+-- but their admin_role is NULL.
+--
+-- Idempotent: safe to run repeatedly. Also re-asserts the admin_role columns in
+-- case migration 019 had not been applied on this database.
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS admin_role TEXT
+    CHECK (admin_role IN ('super_admin','admin','ops','finance','trainer','support'));
+
+UPDATE users
+SET role = 'super_admin',
+    admin_role = 'super_admin'
+WHERE lower(email) = lower('caleb.owen2019@outlook.com');
