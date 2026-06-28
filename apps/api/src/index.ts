@@ -35,6 +35,7 @@ import { adminAutomationRouter } from "./routes/adminAutomation";
 import { adminPayoutsRouter } from "./routes/adminPayouts";
 import { adminMeRouter } from "./routes/adminMe";
 import { cleanerDashboardRouter } from "./routes/cleanerDashboard";
+import { adminDebugRouter } from "./routes/adminDebug";
 import { requestLogger } from "./middleware/requestLogger";
 import { clientErrorsRouter } from "./routes/clientErrors";
 import { AppError, toSafeError } from "./lib/errors";
@@ -78,6 +79,7 @@ app.route("/cleaners", cleanersRouter);
 // Cleaner self-service dashboard (separate from admin cleaners management).
 // Mounted under /cleaner-dashboard to avoid conflict with /cleaners admin routes.
 app.route("/reviews", reviewsRouter);
+app.route("/admin/debug", adminDebugRouter);
 app.route("/admin", adminRouter);
 app.route("/storage", storageRouter);
 app.route("/notifications", notificationsRouter);
