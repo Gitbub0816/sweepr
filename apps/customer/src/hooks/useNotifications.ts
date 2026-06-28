@@ -1,62 +1,49 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@clerk/clerk-react";
 import type { NotificationItem } from "@sweepr/ui";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
-// Mock notifications used when the API is unavailable (dev / preview builds).
-const MOCK: NotificationItem[] = [
-  {
-    id: "n_1",
-    title: "Your cleaner is on the way",
-    body: "Alex will arrive around 9:00 AM.",
-    createdAt: new Date(Date.now() - 8 * 60_000).toISOString(),
-    read: false,
-    href: "/bookings",
-  },
-  {
-    id: "n_2",
-    title: "Booking confirmed",
-    body: "Your deep clean for Saturday is booked.",
-    createdAt: new Date(Date.now() - 3 * 3_600_000).toISOString(),
-    read: false,
-    href: "/bookings",
-  },
-  {
-    id: "n_3",
-    title: "Receipt available",
-    body: "View the receipt for your last clean.",
-    createdAt: new Date(Date.now() - 26 * 3_600_000).toISOString(),
-    read: true,
-    href: "/bookings",
-  },
-];
+type GetToken = () => Promise<string | null>;
 
-async function fetchNotifications(): Promise<NotificationItem[]> {
-  if (!API_URL) return MOCK;
+async function authHeaders(getToken: GetToken): Promise<HeadersInit> {
+  const token = await getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function fetchNotifications(getToken: GetToken): Promise<NotificationItem[]> {
+  if (!API_URL) return [];
   try {
-    const res = await fetch(`${API_URL}/notifications`);
-    if (!res.ok) return MOCK;
+    const res = await fetch(`${API_URL}/notifications`, {
+      headers: await authHeaders(getToken),
+    });
+    if (!res.ok) return [];
     const data = (await res.json()) as { notifications: NotificationItem[] };
-    return data.notifications ?? MOCK;
+    return data.notifications ?? [];
   } catch {
-    return MOCK;
+    return [];
   }
 }
 
 export function useNotifications() {
   const qc = useQueryClient();
+  const { getToken, isSignedIn } = useAuth();
   const key = ["notifications"];
 
   const { data = [] } = useQuery({
     queryKey: key,
-    queryFn: fetchNotifications,
+    queryFn: () => fetchNotifications(getToken),
     refetchInterval: 30_000,
+    enabled: !!isSignedIn,
   });
 
   const markRead = useMutation({
     mutationFn: async (id: string) => {
       if (API_URL) {
-        await fetch(`${API_URL}/notifications/${id}/read`, { method: "PATCH" });
+        await fetch(`${API_URL}/notifications/${id}/read`, {
+          method: "PATCH",
+          headers: await authHeaders(getToken),
+        });
       }
       return id;
     },
@@ -76,7 +63,10 @@ export function useNotifications() {
   const markAllRead = useMutation({
     mutationFn: async () => {
       if (API_URL) {
-        await fetch(`${API_URL}/notifications/read-all`, { method: "PATCH" });
+        await fetch(`${API_URL}/notifications/read-all`, {
+          method: "PATCH",
+          headers: await authHeaders(getToken),
+        });
       }
     },
     onMutate: async () => {

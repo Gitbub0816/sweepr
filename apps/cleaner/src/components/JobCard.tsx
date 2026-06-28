@@ -2,7 +2,20 @@ import { useEffect, useState } from "react";
 import { MapPin, Navigation, Home, Clock, CheckCircle2 } from "lucide-react";
 import { Card, Button, track, Events } from "@sweepr/ui";
 import { SERVICE_LABELS, formatCurrency, cn } from "@sweepr/utils";
-import type { AvailableJob } from "../data/mock";
+import type { ServiceType } from "@sweepr/types";
+
+export interface AvailableJob {
+  id: string;
+  serviceType: ServiceType;
+  area: string; // partial address until accepted
+  pay: number;
+  distanceMi: number;
+  bedrooms: number;
+  bathrooms: number;
+  sqft: number;
+  timeSlot: string;
+  date: string;
+}
 
 function fmt(seconds: number): string {
   const m = Math.floor(seconds / 60);

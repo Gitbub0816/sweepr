@@ -11,44 +11,17 @@ async function authHeaders(getToken: GetToken): Promise<HeadersInit> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-const MOCK: NotificationItem[] = [
-  {
-    id: "n_1",
-    title: "New job available nearby",
-    body: "Standard clean in Hillcrest — $71 est. pay.",
-    createdAt: new Date(Date.now() - 4 * 60_000).toISOString(),
-    read: false,
-    href: "/jobs",
-  },
-  {
-    id: "n_2",
-    title: "Payout sent",
-    body: "$1,240 is on the way to your bank.",
-    createdAt: new Date(Date.now() - 5 * 3_600_000).toISOString(),
-    read: false,
-    href: "/earnings",
-  },
-  {
-    id: "n_3",
-    title: "You got a 5-star review",
-    body: "Jane D. left you a great review.",
-    createdAt: new Date(Date.now() - 30 * 3_600_000).toISOString(),
-    read: true,
-    href: "/profile",
-  },
-];
-
 async function fetchNotifications(getToken: GetToken): Promise<NotificationItem[]> {
-  if (!API_URL) return MOCK;
+  if (!API_URL) return [];
   try {
     const res = await fetch(`${API_URL}/notifications`, {
       headers: await authHeaders(getToken),
     });
-    if (!res.ok) return MOCK;
+    if (!res.ok) return [];
     const data = (await res.json()) as { notifications: NotificationItem[] };
-    return data.notifications ?? MOCK;
+    return data.notifications ?? [];
   } catch {
-    return MOCK;
+    return [];
   }
 }
 

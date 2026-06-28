@@ -1,41 +1,56 @@
-import { useState } from "react";
-import { Wallet, TrendingUp, Briefcase, Building2, ArrowRight } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Wallet, TrendingUp, BarChart3, DollarSign, Building2, ArrowRight } from "lucide-react";
+import { useAuth } from "@clerk/clerk-react";
 import { DashboardShell, StatCard, Card, Button, toast } from "@sweepr/ui";
-import { formatCurrency, cn } from "@sweepr/utils";
-import { weeklyEarnings, monthlyEarnings } from "../data/mock";
+import { formatCurrency } from "@sweepr/utils";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
+interface EarningSummary {
+  thisWeek: number;
+  thisMonth: number;
+  lastMonth: number;
+  allTime: number;
+  pendingPayout: number;
+  nextPayoutDate: string | null;
+  stripeConnected: boolean;
+  recent: { date: string; amount: number; status: string; booking_id: string }[];
+}
+
 export function EarningsPage() {
-  const [range, setRange] = useState<"week" | "month">("week");
-  // Mock connect status — in production this comes from /cleaners/stripe-connect/status.
-  const [stripeConnectEnabled, setStripeConnectEnabled] = useState(false);
+  const { getToken } = useAuth();
+  const [data, setData] = useState<EarningSummary | null>(null);
+  const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
 
-  const data =
-    range === "week"
-      ? weeklyEarnings.map((d) => ({ label: d.day, amount: d.amount }))
-      : monthlyEarnings;
-  const total = data.reduce((s, d) => s + d.amount, 0);
-  const max = Math.max(...data.map((d) => d.amount), 1);
+  const load = useCallback(async () => {
+    if (!API_URL) { setLoading(false); return; }
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_URL}/cleaner-dashboard/earnings`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setData((await res.json()) as EarningSummary);
+    } catch {
+      /* leave null → empty state */
+    } finally {
+      setLoading(false);
+    }
+  }, [getToken]);
+
+  useEffect(() => { load(); }, [load]);
 
   async function setupPayouts() {
     setConnecting(true);
     try {
-      if (API_URL) {
-        const res = await fetch(`${API_URL}/cleaners/stripe-connect/onboard`, {
-          method: "POST",
-        });
-        const { url } = (await res.json()) as { url?: string };
-        if (url) {
-          window.location.href = url;
-          return;
-        }
-      }
-      // Dev fallback — simulate completing onboarding.
-      await new Promise((r) => setTimeout(r, 700));
-      setStripeConnectEnabled(true);
-      toast.success("Payouts set up!");
+      const token = await getToken();
+      const res = await fetch(`${API_URL}/cleaner-dashboard/stripe-connect/onboard`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const { url } = (await res.json()) as { url?: string };
+      if (url) { window.location.href = url; return; }
+      toast.error("Could not start Stripe onboarding.");
     } catch {
       toast.error("Could not start Stripe onboarding.");
     } finally {
@@ -44,95 +59,83 @@ export function EarningsPage() {
   }
 
   return (
-    <DashboardShell
-      title="Earnings"
-      description="Track your payouts and performance."
-      actions={
-        <div className="flex rounded-xl border border-slate-200 p-0.5 dark:border-slate-700">
-          {(["week", "month"] as const).map((r) => (
-            <Button
-              key={r}
-              size="sm"
-              variant={range === r ? "primary" : "ghost"}
-              onClick={() => setRange(r)}
-            >
-              {r === "week" ? "Weekly" : "Monthly"}
-            </Button>
-          ))}
-        </div>
-      }
-    >
-      {!stripeConnectEnabled ? (
-        <Card className="flex flex-col items-start gap-3 border-seafoam-200 bg-seafoam-50 dark:border-seafoam-900/40 dark:bg-seafoam-900/10 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-seafoam-500 text-white">
-              <Building2 className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="font-semibold text-charcoal dark:text-white">
-                Set up payouts
-              </p>
-              <p className="text-sm text-slate-500">
-                Connect your bank with Stripe to start receiving payments.
-              </p>
-            </div>
-          </div>
-          <Button onClick={setupPayouts} loading={connecting}>
-            Set up payouts with Stripe <ArrowRight className="h-4 w-4" />
-          </Button>
+    <DashboardShell title="Earnings" description="Track your payouts and performance.">
+      {loading ? (
+        <div className="h-64 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
+      ) : !data ? (
+        <Card>
+          <p className="text-sm text-slate-500">Could not load earnings right now.</p>
         </Card>
       ) : (
-        <Card className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500 text-white">
-              <Building2 className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="font-semibold text-charcoal dark:text-white">
-                Bank account •••• 4242
-              </p>
-              <p className="text-sm text-slate-500">
-                Next payout: Monday · Pending {formatCurrency(420)}
-              </p>
-            </div>
+        <div className="space-y-6">
+          {!data.stripeConnected && (
+            <Card className="flex flex-col items-start gap-3 border-seafoam-200 bg-seafoam-50 dark:border-seafoam-900/40 dark:bg-seafoam-900/10 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-seafoam-500 text-white">
+                  <Building2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="font-semibold text-charcoal dark:text-white">Set up payouts</p>
+                  <p className="text-sm text-slate-500">
+                    Connect your bank with Stripe to start receiving payments.
+                  </p>
+                </div>
+              </div>
+              <Button onClick={setupPayouts} loading={connecting}>
+                Set up payouts with Stripe <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Card>
+          )}
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard label="This Week"  value={formatCurrency(data.thisWeek / 100)}  icon={Wallet} />
+            <StatCard label="This Month" value={formatCurrency(data.thisMonth / 100)} icon={TrendingUp} />
+            <StatCard label="Last Month" value={formatCurrency(data.lastMonth / 100)} icon={BarChart3} />
+            <StatCard label="All Time"   value={formatCurrency(data.allTime / 100)}   icon={DollarSign} />
           </div>
-        </Card>
-      )}
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard
-          label={range === "week" ? "This week" : "This month"}
-          value={formatCurrency(total)}
-          icon={Wallet}
-        />
-        <StatCard
-          label="Avg / job"
-          value={formatCurrency(Math.round(total / 12))}
-          icon={TrendingUp}
-        />
-        <StatCard label="Lifetime earnings" value={formatCurrency(18420)} icon={Briefcase} />
-      </div>
-
-      <Card>
-        <h2 className="mb-6 font-semibold text-charcoal dark:text-white">
-          {range === "week" ? "Daily earnings" : "Weekly earnings"}
-        </h2>
-        <div className="flex h-48 items-end gap-3">
-          {data.map((d) => (
-            <div key={d.label} className="flex flex-1 flex-col items-center gap-2">
-              <div
-                className={cn(
-                  "w-full rounded-t-lg bg-seafoam-500 transition-all",
-                  d.amount === 0 && "bg-slate-200 dark:bg-slate-700"
-                )}
-                style={{ height: `${(d.amount / max) * 100}%`, minHeight: 4 }}
-                title={formatCurrency(d.amount)}
-              />
-              <span className="text-xs text-slate-400">{d.label}</span>
+          {data.pendingPayout > 0 && (
+            <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+              <strong>{formatCurrency(data.pendingPayout / 100)}</strong> pending payout
+              {data.nextPayoutDate && ` — expected ${new Date(data.nextPayoutDate).toLocaleDateString()}`}.
             </div>
-          ))}
+          )}
+
+          {data.recent.length > 0 ? (
+            <Card className="overflow-hidden p-0">
+              <div className="px-4 py-3 border-b border-slate-100 text-sm font-medium text-slate-700 dark:border-slate-800 dark:text-slate-200">
+                Recent Payouts
+              </div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-50 text-xs text-slate-500 dark:border-slate-800">
+                    <th className="text-left px-4 py-2">Date</th>
+                    <th className="text-right px-4 py-2">Amount</th>
+                    <th className="text-left px-4 py-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.recent.map((r) => (
+                    <tr key={r.booking_id} className="border-b border-slate-50 last:border-0 dark:border-slate-800">
+                      <td className="px-4 py-2 text-slate-600 dark:text-slate-300">{new Date(r.date).toLocaleDateString()}</td>
+                      <td className="px-4 py-2 text-right font-medium">{formatCurrency(r.amount / 100)}</td>
+                      <td className="px-4 py-2">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${r.status === "paid" || r.status === "transferred" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                          {r.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+          ) : (
+            <Card>
+              <p className="text-sm text-slate-500">No payouts yet. Completed jobs will show up here.</p>
+            </Card>
+          )}
         </div>
-      </Card>
+      )}
     </DashboardShell>
   );
 }
