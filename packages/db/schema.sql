@@ -8,7 +8,7 @@
 -- This file is GENERATED. Do not edit by hand — edit the migrations in
 -- src/migrations/ and re-run: node packages/db/build-schema.mjs
 --
--- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql
+-- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -1723,3 +1723,36 @@ CREATE TABLE IF NOT EXISTS error_logs (
 CREATE INDEX IF NOT EXISTS idx_error_logs_occurred  ON error_logs (occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_error_logs_unresolved ON error_logs (occurred_at DESC) WHERE resolved = false;
 CREATE INDEX IF NOT EXISTS idx_error_logs_app       ON error_logs (app);
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 029_cleaner_dashboard_columns.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Migration 029: fix cleaner self-service dashboard schema gaps.
+--
+-- 1) cleaner_availability was created in 001 WITHOUT active/created_at/updated_at.
+--    Migration 024 re-declared it with CREATE TABLE IF NOT EXISTS, which is a
+--    no-op when the table already exists — so those columns were never added and
+--    GET/PUT /cleaner-dashboard/availability 500s. Add them idempotently.
+--
+-- 2) The cleaner settings columns referenced by /cleaner-dashboard/settings were
+--    never defined in any migration, so that endpoint always 500s. Add them.
+
+ALTER TABLE cleaner_availability
+  ADD COLUMN IF NOT EXISTS active     BOOLEAN     NOT NULL DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+ALTER TABLE cleaners
+  ADD COLUMN IF NOT EXISTS max_jobs_per_day        INTEGER NOT NULL DEFAULT 3,
+  ADD COLUMN IF NOT EXISTS max_distance_miles      INTEGER NOT NULL DEFAULT 25,
+  ADD COLUMN IF NOT EXISTS accepts_last_minute     BOOLEAN NOT NULL DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS notification_job_offer  BOOLEAN NOT NULL DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS notification_reminder   BOOLEAN NOT NULL DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS notification_payout     BOOLEAN NOT NULL DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS notification_marketing  BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS preferred_service_types TEXT[] NOT NULL DEFAULT ARRAY['standard','deep']::TEXT[];
+
+-- Defensive: ensure the day-of-service column exists (added in 012) in case a
+-- baseline skipped it on this database.
+ALTER TABLE bookings
+  ADD COLUMN IF NOT EXISTS day_status TEXT;
