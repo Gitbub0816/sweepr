@@ -68,7 +68,7 @@ export function TermsOfService() {
       <Section id="contractor" title="4. Independent Contractor Status">
         <p><strong>4.1</strong> Cleaners are independent contractors and not employees, agents, partners, or joint venturers of the Company. The Company does not control the means or methods by which Cleaners perform cleaning services, including tools, supplies, techniques, or timing.</p>
         <p><strong>4.2</strong> Nothing in this Agreement creates an employment, agency, partnership, or fiduciary relationship between the Company and any Cleaner or Customer.</p>
-        <p><strong>4.3 California Residents.</strong> Sweepr classifies Cleaners as independent contractors consistent with applicable California law, including Assembly Bill 5 (AB5) and relevant Proposition 22 frameworks. Cleaners set their own schedules, supply their own equipment, are free to accept or decline any job, and may work for other platforms or directly for their own clients.</p>
+        <p><strong>4.3 California Residents.</strong> Sweepr classifies Cleaners as independent contractors consistent with applicable California law, including Assembly Bill 5 (AB5) and the Borello multi-factor analysis. Cleaners set their own schedules, supply their own equipment, are free to accept or decline any job, and may work for other platforms or directly for their own clients. See the <a className="text-seafoam-600 underline" href="/contractor-agreement">Independent Contractor Agreement</a> and <a className="text-seafoam-600 underline" href="/cleaner-agreement">Cleaner Platform Agreement</a>.</p>
       </Section>
 
       <Section id="accounts" title="5. Accounts and Security">
@@ -88,7 +88,7 @@ export function TermsOfService() {
         <p><strong>7.1 Transparent Pricing.</strong> <strong>All prices displayed on the Platform are final and all-inclusive. There are no hidden fees.</strong> The price shown at checkout is the total amount you will be charged, including the service fee, supply fee, and any applicable taxes.</p>
         <p><strong>7.2</strong> Sweepr sets all pricing displayed on the Platform. Cleaners do not negotiate or adjust prices directly with Customers.</p>
         <p><strong>7.3</strong> Subscription plans are billed at the per-visit price displayed at enrollment for the selected cadence (e.g., weekly, biweekly). Prices are subject to change upon thirty (30) days' written notice.</p>
-        <p><strong>7.4</strong> The Company reserves the right to modify pricing at any time. Changes to pricing will not affect Bookings that have already been confirmed.</p>
+        <p><strong>7.4</strong> The Company reserves the right to modify pricing and fees prospectively. Changes will not affect Bookings that have already been confirmed, and changes to Cleaner payout-affecting fees will not reduce payment for bookings already accepted by a Cleaner before the effective date, except as permitted under the <a className="text-seafoam-600 underline" href="/platform-fee-policy">Platform Fee Policy</a>. Material fee changes are provided with advance notice as described in the Platform Fee Policy and the <a className="text-seafoam-600 underline" href="/legal-updates">Legal Updates Policy</a>.</p>
       </Section>
 
       <Section id="payment" title="8. Payment Processing">

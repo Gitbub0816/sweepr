@@ -9,7 +9,7 @@ import {
 const toc = [
   { id: "scope", title: "Scope" },
   { id: "status", title: "Independent Contractor Status" },
-  { id: "ab5", title: "California AB5 / Prop 22 Disclosure" },
+  { id: "ab5", title: "California Classification (AB5 / Borello)" },
   { id: "fee", title: "Platform Fee" },
   { id: "ratecard", title: "Opt-In to Rate Card" },
   { id: "background", title: "Background Check Consent" },
@@ -57,22 +57,31 @@ export function IndependentContractorAgreement() {
         </ul>
       </Section>
 
-      <Section id="ab5" title="3. California AB5 / Prop 22 Disclosure">
+      {/*
+        NOTE (DRAFT — attorney review required): Proposition 22 applies to
+        app-based transportation and delivery network companies, not ordinary
+        home-cleaning marketplaces, and should NOT be relied upon here. The
+        classification analysis below is framed around AB5 / the Borello
+        factors and the independent-business model. Counsel must review the
+        classification strategy before production use.
+      */}
+      <Section id="ab5" title="3. California Classification (AB5 / Borello)">
         <p>
           Sweepr classifies Cleaners as independent contractors. This
-          classification is based on the fact that Service Providers operate
-          independent businesses: they control how, when, and whether they
-          perform work; they supply their own equipment; they are free to
-          provide services to other businesses and directly to their own
-          clients; and the cleaning work performed is outside Sweepr's usual
-          course of business as a technology platform.
+          classification reflects that Service Providers operate independent
+          businesses: they control how, when, and whether they perform work;
+          they supply their own equipment and supplies; they set their own
+          service areas and schedules; and they are free to provide services to
+          other platforms and directly to their own clients.
         </p>
         <p>
-          This Agreement is intended to comply with applicable California law,
-          including Assembly Bill 5 (AB5, Labor Code § 2775 et seq.) and the
-          framework established by Proposition 22, where and to the extent
-          applicable. Nothing in this Agreement shall be construed to create an
-          employment relationship.
+          This Agreement is intended to be consistent with applicable California
+          law, including Assembly Bill 5 (AB5, Labor Code § 2775 et seq.) and the
+          multi-factor analysis under <em>S.G. Borello &amp; Sons, Inc. v.
+          Department of Industrial Relations</em>. Nothing in this Agreement
+          shall be construed to create an employment relationship. The parties
+          acknowledge that worker classification is a fact-specific legal
+          question and that this Agreement is subject to review by counsel.
         </p>
       </Section>
 
@@ -81,6 +90,20 @@ export function IndependentContractorAgreement() {
           Sweepr charges a platform fee from each completed booking. The Cleaner
           receives their agreed payout. The applicable fee and payout are
           disclosed in the Cleaner dashboard prior to acceptance of each job.
+        </p>
+        <p>
+          Platform fees and commissions may change for future bookings on advance
+          notice and will not be applied retroactively to reduce payment for a
+          booking already accepted before the effective date, except as permitted
+          under the{" "}
+          <a className="text-seafoam-600 underline" href="/platform-fee-policy">
+            Platform Fee Policy
+          </a>
+          . Payouts are processed under the{" "}
+          <a className="text-seafoam-600 underline" href="/payment-terms">
+            Payment Services Terms
+          </a>
+          .
         </p>
       </Section>
 

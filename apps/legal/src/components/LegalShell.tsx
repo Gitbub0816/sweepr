@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { COMPANY_NAME, DOCS, LAST_UPDATED } from "../docs";
+import { COMPANY_NAME, DOCS, LAST_UPDATED, docsByCategory } from "../docs";
 import { LegalLogo } from "./LegalLogo";
 
 const REF_URLS: Record<string, { label: string; url: string }> = {
@@ -46,23 +46,30 @@ export function LegalShell({ children }: { children: ReactNode }) {
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Documents
             </p>
-            <nav className="space-y-1">
-              {DOCS.map((doc) => {
-                const active = pathname === `/${doc.slug}`;
-                return (
-                  <Link
-                    key={doc.slug}
-                    to={`/${doc.slug}`}
-                    className={`block rounded-lg px-3 py-2 text-sm transition-colors ${
-                      active
-                        ? "bg-seafoam-50 font-medium text-seafoam-700"
-                        : "text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    {doc.title}
-                  </Link>
-                );
-              })}
+            <nav className="max-h-[calc(100vh-9rem)] space-y-4 overflow-y-auto pr-1">
+              {docsByCategory().map((group) => (
+                <div key={group.category}>
+                  <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-300">
+                    {group.category}
+                  </p>
+                  {group.docs.map((doc) => {
+                    const active = pathname === `/${doc.slug}`;
+                    return (
+                      <Link
+                        key={doc.slug}
+                        to={`/${doc.slug}`}
+                        className={`block rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                          active
+                            ? "bg-seafoam-50 font-medium text-seafoam-700"
+                            : "text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        {doc.title}
+                      </Link>
+                    );
+                  })}
+                </div>
+              ))}
             </nav>
           </div>
         </aside>

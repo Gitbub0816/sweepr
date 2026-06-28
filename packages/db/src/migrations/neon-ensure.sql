@@ -1955,7 +1955,105 @@ INSERT INTO schema_migrations (filename) VALUES
   ('028_error_logs.sql'),
   ('029_cleaner_dashboard_columns.sql'),
   ('030_it_tickets_notifications.sql'),
-  ('031_hard_delete_cascades.sql')
+  ('031_hard_delete_cascades.sql'),
+  ('032_legal_compliance_tracking.sql')
 ON CONFLICT (filename) DO NOTHING;
+
+-- ── 032: legal compliance tracking ───────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS legal_documents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug TEXT NOT NULL, title TEXT NOT NULL, version TEXT NOT NULL DEFAULT '1.0',
+  effective_date DATE, last_updated DATE, hash TEXT, html_url TEXT, pdf_url TEXT,
+  status TEXT NOT NULL DEFAULT 'draft',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (slug, version)
+);
+CREATE INDEX IF NOT EXISTS idx_legal_documents_slug ON legal_documents (slug);
+
+CREATE TABLE IF NOT EXISTS legal_acceptances (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  document_slug TEXT NOT NULL, document_version TEXT NOT NULL, document_hash TEXT,
+  accepted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ip_address TEXT, user_agent TEXT, flow_context TEXT, checkbox_label_snapshot TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_legal_acceptances_user ON legal_acceptances (user_id);
+CREATE INDEX IF NOT EXISTS idx_legal_acceptances_doc ON legal_acceptances (document_slug);
+
+CREATE TABLE IF NOT EXISTS sms_consents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  phone_number TEXT NOT NULL,
+  consent_type TEXT NOT NULL DEFAULT 'transactional',
+  opt_in_at TIMESTAMPTZ, opt_in_source TEXT, checkbox_text_snapshot TEXT,
+  opt_out_at TIMESTAMPTZ, opt_out_source TEXT, last_stop_message_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_sms_consents_user ON sms_consents (user_id);
+
+CREATE TABLE IF NOT EXISTS background_check_consents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  cleaner_id UUID REFERENCES cleaners(id) ON DELETE CASCADE,
+  disclosure_version TEXT, authorization_version TEXT, authorized_at TIMESTAMPTZ,
+  ip_address TEXT, vendor TEXT, report_status TEXT,
+  pre_adverse_action_at TIMESTAMPTZ, adverse_action_at TIMESTAMPTZ, dispute_deadline TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_bg_consents_cleaner ON background_check_consents (cleaner_id);
+
+CREATE TABLE IF NOT EXISTS tax_profiles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  cleaner_id UUID REFERENCES cleaners(id) ON DELETE CASCADE,
+  legal_name TEXT, business_name TEXT, tin_status TEXT DEFAULT 'not_collected',
+  w9_collected_at TIMESTAMPTZ, backup_withholding_status TEXT DEFAULT 'none',
+  tax_form_delivery_consent BOOLEAN NOT NULL DEFAULT FALSE,
+  tax_year INT, form_type TEXT, form_status TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_tax_profiles_cleaner ON tax_profiles (cleaner_id);
+
+CREATE TABLE IF NOT EXISTS privacy_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  requester_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  request_type TEXT NOT NULL, jurisdiction TEXT,
+  submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), verified_at TIMESTAMPTZ, due_at TIMESTAMPTZ,
+  status TEXT NOT NULL DEFAULT 'received', response_at TIMESTAMPTZ,
+  denial_reason TEXT, appeal_status TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_privacy_requests_requester ON privacy_requests (requester_id);
+
+CREATE TABLE IF NOT EXISTS damage_claims (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id UUID REFERENCES bookings(id) ON DELETE SET NULL,
+  customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
+  cleaner_id UUID REFERENCES cleaners(id) ON DELETE SET NULL,
+  reported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), deadline_status TEXT, description TEXT,
+  evidence_urls JSONB NOT NULL DEFAULT '[]', cleaner_statement TEXT, decision TEXT,
+  payout_amount INT, insurance_claim_id TEXT, status TEXT NOT NULL DEFAULT 'open',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_damage_claims_booking ON damage_claims (booking_id);
+
+CREATE TABLE IF NOT EXISTS incident_reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id UUID REFERENCES bookings(id) ON DELETE SET NULL,
+  reporter_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  type TEXT, severity TEXT, description TEXT, evidence_urls JSONB NOT NULL DEFAULT '[]',
+  police_report_required BOOLEAN NOT NULL DEFAULT FALSE, safety_action_taken TEXT,
+  status TEXT NOT NULL DEFAULT 'open', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_incident_reports_booking ON incident_reports (booking_id);
+
+CREATE TABLE IF NOT EXISTS cookie_consents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  anonymous_id TEXT,
+  necessary BOOLEAN NOT NULL DEFAULT TRUE, functional BOOLEAN NOT NULL DEFAULT FALSE,
+  analytics BOOLEAN NOT NULL DEFAULT FALSE, marketing BOOLEAN NOT NULL DEFAULT FALSE,
+  gpc_detected BOOLEAN NOT NULL DEFAULT FALSE,
+  consent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_cookie_consents_user ON cookie_consents (user_id);
+CREATE INDEX IF NOT EXISTS idx_cookie_consents_anon ON cookie_consents (anonymous_id);
 
 COMMIT;

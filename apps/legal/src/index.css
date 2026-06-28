@@ -2,8 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Legal Typography Standard
+ * -------------------------
+ * All Sweepr legal documents must render in Ubuntu Mono. This is a
+ * non-negotiable legal design standard and applies to every rendered legal
+ * page, print output, and any generated document template. Do not introduce
+ * decorative, serif, or sans-serif fonts into legal body content.
+ */
 :root {
-  font-family: Inter, system-ui, sans-serif;
+  --legal-font: "Ubuntu Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family: var(--legal-font);
   color: #1a1a2e;
   background: #ffffff;
 }
@@ -15,6 +25,15 @@ body,
   margin: 0;
 }
 
+/* Apply Ubuntu Mono globally to all legal content. */
+body,
+.legal-content,
+.legal-content *,
+.legal-doc,
+.legal-doc * {
+  font-family: var(--legal-font);
+}
+
 /* Print-friendly styles */
 @media print {
   .no-print {
@@ -24,7 +43,10 @@ body,
     max-width: none !important;
     padding: 0 !important;
   }
-  body {
+  body,
+  .legal-content,
+  .legal-content * {
+    font-family: var(--legal-font);
     font-size: 11pt;
     color: #000;
   }
