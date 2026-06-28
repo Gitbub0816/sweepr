@@ -85,15 +85,116 @@ interface DashboardStats {
   pendingPayout: number;
 }
 
+// ─── Onboarding Checklist ───────────────────────────────────────────────────
+// Cleaners land on the dashboard immediately after signing up. Until their
+// application is approved, this checklist lets them complete each onboarding
+// section individually (deep-linked into the wizard) rather than being forced
+// through a guided flow.
+
+interface OnboardingStep {
+  label: string;
+  desc: string;
+  step: number; // wizard step index (?step=N)
+  done: boolean;
+}
+
+function OnboardingChecklist({ status }: { status: string | undefined }) {
+  const { data: training } = useApi<{ summary: { backgroundCheckUnlocked: boolean; completedRequired: number; totalRequired: number } }>(
+    "/training/progress",
+  );
+
+  if (status === "approved") return null;
+
+  const bgUnlocked = training?.summary?.backgroundCheckUnlocked ?? false;
+  const completed = training?.summary?.completedRequired ?? 0;
+  const total = training?.summary?.totalRequired ?? 10;
+
+  // Individual-cleaner steps (mirrors INDIVIDUAL_STEPS in OnboardingPage).
+  const steps: OnboardingStep[] = [
+    { label: "Profile basics", desc: "Name, photo & bio", step: 0, done: false },
+    { label: "Service area", desc: "Where you'll work", step: 1, done: false },
+    { label: "Services & pricing", desc: "What you offer", step: 2, done: false },
+    { label: "Training", desc: `${completed}/${total} required modules`, step: -1, done: bgUnlocked },
+    { label: "Background check", desc: "Verify your record", step: 3, done: false },
+    { label: "Identity verification", desc: "Confirm who you are", step: 4, done: false },
+    { label: "Review & submit", desc: "Send your application", step: 5, done: false },
+  ];
+
+  const doneCount = steps.filter((s) => s.done).length;
+  const pct = Math.round((doneCount / steps.length) * 100);
+
+  return (
+    <div className="rounded-xl border border-amber-200 bg-amber-50 p-6">
+      <div className="flex items-start gap-3">
+        <div className="rounded-full bg-amber-100 p-2.5">
+          <Shield size={18} className="text-amber-600" />
+        </div>
+        <div className="flex-1">
+          <p className="font-semibold text-amber-900">
+            {status === "pending_review"
+              ? "Application under review"
+              : "Finish setting up your account"}
+          </p>
+          <p className="text-sm text-amber-700 mt-0.5">
+            {status === "pending_review"
+              ? "We're reviewing your application — we'll email you when you're approved. You can still update your profile and finish training below."
+              : "Complete these steps to unlock the job board and start accepting bookings. You can do them in any order."}
+          </p>
+        </div>
+      </div>
+
+      {status !== "pending_review" && (
+        <>
+          <div className="mt-4 h-2 rounded-full bg-amber-100 overflow-hidden">
+            <div className="h-full rounded-full bg-amber-500 transition-all" style={{ width: `${pct}%` }} />
+          </div>
+          <div className="mt-4 space-y-2">
+            {steps.map((s) => (
+              <a
+                key={s.label}
+                href={s.step === -1 ? "/training" : `/onboarding?step=${s.step}`}
+                className="flex items-center gap-3 rounded-lg bg-white/70 px-3 py-2.5 hover:bg-white transition-colors"
+              >
+                {s.done ? (
+                  <CheckCircle2 size={18} className="text-green-600 flex-shrink-0" />
+                ) : (
+                  <Clock size={18} className="text-amber-400 flex-shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-800">{s.label}</p>
+                  <p className="text-xs text-slate-500">{s.desc}</p>
+                </div>
+                <ChevronRight size={16} className="text-slate-300" />
+              </a>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function OverviewTab() {
   const { data, loading } = useApi<DashboardStats>("/cleaners/dashboard");
   const { user } = useUser();
+  const status = user?.publicMetadata?.cleanerStatus as string | undefined;
 
   if (loading) return <div className="animate-pulse h-64 bg-slate-100 rounded-xl" />;
-  if (!data) return <p className="text-slate-500 text-sm">Could not load dashboard.</p>;
+
+  // Brand-new cleaners have no stats row yet — still show the checklist so they
+  // can get started.
+  if (!data) {
+    return (
+      <div className="space-y-6">
+        <OnboardingChecklist status={status} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      <OnboardingChecklist status={status} />
+
       {/* Welcome */}
       <div className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 p-6 text-white">
         <h2 className="text-xl font-semibold">Welcome back, {user?.firstName ?? "Pro"}</h2>

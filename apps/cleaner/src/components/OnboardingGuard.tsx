@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { useUser } from "@clerk/clerk-react";
-import { Navigate, useLocation } from "react-router-dom";
 import { Clock, Lock } from "lucide-react";
 import { LoadingState, ThemeToggle } from "@sweepr/ui";
 
@@ -57,7 +56,6 @@ function JobsLocked() {
 
 function GuardInner({ children, jobsGated }: { children: ReactNode; jobsGated: boolean }) {
   const { isLoaded, user } = useUser();
-  const location = useLocation();
 
   if (!isLoaded) {
     return (
@@ -69,20 +67,18 @@ function GuardInner({ children, jobsGated }: { children: ReactNode; jobsGated: b
 
   const status = user?.publicMetadata?.cleanerStatus as CleanerStatus;
 
-  // Application submitted, waiting for admin — show holding screen everywhere.
-  if (status === "pending_review") {
-    return <UnderReview />;
-  }
+  // Dashboard, profile, training, earnings, etc. are always accessible once
+  // signed in — cleaners pick up where they left off (DoorDash-style).
+  if (!jobsGated) return <>{children}</>;
 
-  // Incomplete — can access dashboard + profile + training, but not jobs.
-  if ((status === undefined || status === "incomplete") && jobsGated) {
-    // Redirect /onboarding back into itself so the flow continues.
-    if (location.pathname === "/onboarding") return <>{children}</>;
-    return <JobsLocked />;
-  }
+  // Job-gated routes (job board, schedule) are locked until approved.
+  if (status === "approved") return <>{children}</>;
 
-  // approved, or incomplete on non-job routes — let through.
-  return <>{children}</>;
+  // Application submitted, waiting for admin — show the review holding screen.
+  if (status === "pending_review") return <UnderReview />;
+
+  // Incomplete — prompt them to finish onboarding before accepting jobs.
+  return <JobsLocked />;
 }
 
 /**

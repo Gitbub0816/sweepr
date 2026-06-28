@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useUser, useAuth } from "@clerk/clerk-react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -187,14 +187,31 @@ export function OnboardingPage() {
   const { getToken } = useAuth();
   const reduced = useReducedMotion();
 
+  const [searchParams, setSearchParams] = useSearchParams();
   const savedDraft = user ? loadDraft(user.id) : null;
   const [mode, setMode] = useState<OnboardingMode>(savedDraft?.mode ?? "individual");
-  const [step, setStep] = useState(savedDraft?.step ?? 0);
+  // Deep-link support: /onboarding?step=N jumps straight to a step so cleaners
+  // can complete sections individually from the dashboard checklist.
+  const initialStep = (() => {
+    const q = searchParams.get("step");
+    if (q !== null) {
+      const n = Number(q);
+      if (!Number.isNaN(n)) return n;
+    }
+    return savedDraft?.step ?? 0;
+  })();
+  const [step, setStep] = useState(initialStep);
   const [direction, setDirection] = useState(1);
   const [form, setForm] = useState<FormState>(savedDraft?.form ?? initialState);
 
   const STEPS = mode === "business" ? BUSINESS_STEPS : INDIVIDUAL_STEPS;
-  const stepName = STEPS[step];
+  // Guard against an out-of-range deep link (e.g. a business step index while
+  // in individual mode).
+  useEffect(() => {
+    if (step > STEPS.length - 1) setStep(STEPS.length - 1);
+    else if (step < 0) setStep(0);
+  }, [step, STEPS.length]);
+  const stepName = STEPS[Math.min(Math.max(step, 0), STEPS.length - 1)];
 
   // Persist draft on every change
   useEffect(() => {
@@ -260,14 +277,21 @@ export function OnboardingPage() {
     return { low, high };
   }, [weeklyHours]);
 
+  // Keep the URL in sync so each step is independently linkable/refreshable.
+  const goToStep = (next: number) => {
+    const clamped = Math.min(Math.max(next, 0), STEPS.length - 1);
+    setStep(clamped);
+    setSearchParams({ step: String(clamped) }, { replace: true });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   const goNext = () => {
     track(Events.CLEANER_ONBOARDING_STEP, { mode, step: stepName });
     setDirection(1);
-    setStep((s) => Math.min(s + 1, STEPS.length - 1));
+    goToStep(step + 1);
   };
   const goBack = () => {
     setDirection(-1);
-    setStep((s) => Math.max(s - 1, 0));
+    goToStep(step - 1);
   };
 
   const canContinue = (): boolean => {
@@ -416,11 +440,20 @@ export function OnboardingPage() {
     <div className="min-h-screen bg-offwhite pb-28 dark:bg-slate-950">
       <div className="mx-auto max-w-2xl px-4 py-8">
         <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <SweeprLogo size="lg" />
-            <span className="text-sm font-medium text-slate-400">Pro</span>
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-seafoam-600"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <SweeprLogo size="lg" />
+              <span className="text-sm font-medium text-slate-400">Pro</span>
+            </div>
+            <ThemeToggle />
           </div>
-          <ThemeToggle />
         </div>
 
         {/* Mode switcher */}
@@ -552,15 +585,16 @@ export function OnboardingPage() {
 
       {/* Sticky footer bar */}
       <div className="fixed inset-x-0 bottom-0 border-t border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
-        <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
-          <Button
-            variant="ghost"
-            onClick={goBack}
-            disabled={step === 0}
-            aria-label="Previous step"
-          >
-            <ArrowLeft className="h-4 w-4" /> Back
-          </Button>
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
+          {step === 0 ? (
+            <Button variant="ghost" onClick={() => navigate("/")}>
+              <ArrowLeft className="h-4 w-4" /> Dashboard
+            </Button>
+          ) : (
+            <Button variant="ghost" onClick={goBack} aria-label="Previous step">
+              <ArrowLeft className="h-4 w-4" /> Previous
+            </Button>
+          )}
           {step === STEPS.length - 1 ? (
             <Button
               onClick={submitApplication}
@@ -571,7 +605,7 @@ export function OnboardingPage() {
             </Button>
           ) : (
             <Button onClick={goNext} disabled={!canContinue()}>
-              Continue <ArrowRight className="h-4 w-4" />
+              Next Step <ArrowRight className="h-4 w-4" />
             </Button>
           )}
         </div>
