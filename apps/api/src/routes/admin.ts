@@ -312,3 +312,129 @@ adminRouter.patch(
     return c.json({ ok: true, status: "rejected" });
   }
 );
+
+// ─── Disputes ─────────────────────────────────────────────────────────────────
+
+adminRouter.get("/disputes", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const status = c.req.query("status");
+  const rows = status
+    ? await sql`
+      SELECT d.id, d.booking_id, d.reason, d.description, d.status, d.resolution,
+             d.created_at, d.resolved_at, b.service_type, b.scheduled_at, b.total_price,
+             cu.first_name AS customer_first, cu.last_name AS customer_last, ucu.email AS customer_email,
+             cl.first_name AS cleaner_first, cl.last_name AS cleaner_last
+      FROM disputes d
+      LEFT JOIN bookings b ON b.id = d.booking_id
+      LEFT JOIN customers cu ON cu.id = b.customer_id
+      LEFT JOIN users ucu ON ucu.id = cu.user_id
+      LEFT JOIN cleaners cl ON cl.id = b.cleaner_id
+      WHERE d.status = ${status}
+      ORDER BY d.created_at DESC`
+    : await sql`
+      SELECT d.id, d.booking_id, d.reason, d.description, d.status, d.resolution,
+             d.created_at, d.resolved_at, b.service_type, b.scheduled_at, b.total_price,
+             cu.first_name AS customer_first, cu.last_name AS customer_last, ucu.email AS customer_email,
+             cl.first_name AS cleaner_first, cl.last_name AS cleaner_last
+      FROM disputes d
+      LEFT JOIN bookings b ON b.id = d.booking_id
+      LEFT JOIN customers cu ON cu.id = b.customer_id
+      LEFT JOIN users ucu ON ucu.id = cu.user_id
+      LEFT JOIN cleaners cl ON cl.id = b.cleaner_id
+      ORDER BY d.created_at DESC`;
+  return c.json({ disputes: rows });
+});
+
+adminRouter.get("/disputes/:id", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const id = c.req.param("id");
+  const rows = (await sql`
+    SELECT d.id, d.booking_id, d.reason, d.description, d.status, d.resolution,
+           d.created_at, d.resolved_at, b.service_type, b.scheduled_at, b.total_price,
+           cu.first_name AS customer_first, cu.last_name AS customer_last, ucu.email AS customer_email,
+           cl.first_name AS cleaner_first, cl.last_name AS cleaner_last
+    FROM disputes d
+    LEFT JOIN bookings b ON b.id = d.booking_id
+    LEFT JOIN customers cu ON cu.id = b.customer_id
+    LEFT JOIN users ucu ON ucu.id = cu.user_id
+    LEFT JOIN cleaners cl ON cl.id = b.cleaner_id
+    WHERE d.id = ${id} LIMIT 1
+  `) as Array<Record<string, unknown>>;
+  if (!rows[0]) return c.json({ error: "Not found" }, 404);
+  return c.json({ dispute: rows[0] });
+});
+
+adminRouter.post(
+  "/disputes/:id/resolve",
+  zValidator("json", z.object({ status: z.enum(["open", "investigating", "resolved", "refunded", "denied"]), resolution: z.string().max(2000).optional() })),
+  async (c) => {
+    const sql = getDb(c.env.DATABASE_URL);
+    const id = c.req.param("id");
+    const { status, resolution } = c.req.valid("json");
+    const users = (await sql`SELECT id FROM users WHERE clerk_id = ${c.get("user").clerkId}`) as Array<{ id: string }>;
+    const resolvedTerminal = status === "resolved" || status === "refunded" || status === "denied";
+    const rows = (await sql`
+      UPDATE disputes SET
+        status = ${status},
+        resolution = COALESCE(${resolution ?? null}, resolution),
+        resolved_by = ${resolvedTerminal ? users[0]?.id ?? null : null},
+        resolved_at = ${resolvedTerminal ? sql`NOW()` : null}
+      WHERE id = ${id} RETURNING id, status
+    `) as Array<{ id: string; status: string }>;
+    if (!rows[0]) return c.json({ error: "Not found" }, 404);
+    return c.json({ ok: true, dispute: rows[0] });
+  }
+);
+
+// ─── Job (booking) detail ─────────────────────────────────────────────────────
+adminRouter.get("/jobs/:id", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const id = c.req.param("id");
+  const rows = (await sql`
+    SELECT b.*,
+      cu.first_name AS customer_first, cu.last_name AS customer_last, ucu.email AS customer_email, cu.phone AS customer_phone,
+      cl.id AS cleaner_id, cl.first_name AS cleaner_first, cl.last_name AS cleaner_last,
+      a.street, a.unit, a.city, a.state, a.zip
+    FROM bookings b
+    LEFT JOIN customers cu ON cu.id = b.customer_id
+    LEFT JOIN users ucu ON ucu.id = cu.user_id
+    LEFT JOIN cleaners cl ON cl.id = b.cleaner_id
+    LEFT JOIN addresses a ON a.id = b.address_id
+    WHERE b.id = ${id} LIMIT 1
+  `) as Array<Record<string, unknown>>;
+  if (!rows[0]) return c.json({ error: "Not found" }, 404);
+  return c.json({ job: rows[0] });
+});
+
+adminRouter.patch(
+  "/jobs/:id",
+  zValidator("json", z.object({ status: z.string().max(40).optional(), cleaner_id: z.string().uuid().nullable().optional() })),
+  async (c) => {
+    const sql = getDb(c.env.DATABASE_URL);
+    const id = c.req.param("id");
+    const { status, cleaner_id } = c.req.valid("json");
+    const rows = (await sql`
+      UPDATE bookings SET
+        status = COALESCE(${status ?? null}, status),
+        cleaner_id = ${cleaner_id === undefined ? sql`cleaner_id` : cleaner_id},
+        updated_at = NOW()
+      WHERE id = ${id} RETURNING id, status, cleaner_id
+    `) as Array<Record<string, unknown>>;
+    if (!rows[0]) return c.json({ error: "Not found" }, 404);
+    return c.json({ ok: true, job: rows[0] });
+  }
+);
+
+// ─── Application (cleaner) detail ──────────────────────────────────────────────
+adminRouter.get("/applications/:id", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const id = c.req.param("id");
+  const rows = (await sql`
+    SELECT cl.*, u.email, u.clerk_id
+    FROM cleaners cl
+    LEFT JOIN users u ON u.id = cl.user_id
+    WHERE cl.id = ${id} LIMIT 1
+  `) as Array<Record<string, unknown>>;
+  if (!rows[0]) return c.json({ error: "Not found" }, 404);
+  return c.json({ application: rows[0] });
+});
