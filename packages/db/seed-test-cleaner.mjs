@@ -35,6 +35,22 @@ const EMAIL = process.env.SEED_EMAIL || "test.sweepr@getsweepr.com";
 const CLERK_ID = process.env.SEED_CLERK_ID || `seed_${EMAIL.replace(/[^a-z0-9]/gi, "_")}`;
 const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY;
 
+// Never seed an owner/admin account as a test cleaner — that demotes the admin
+// to role 'cleaner' and flags it as an approved cleaner. If SEED_CLERK_ID points
+// at an owner, refuse and tell the operator to use a dedicated test account.
+const OWNER_CLERK_IDS = [
+  "user_3FTx8c9CFm4hXjCxQMLDC2NpvWy", // caleb.owen2019@outlook.com (admin)
+  "user_3FTuNlZwiqHjvLxQIS76lw5ehMB", // 1morecruise@gmail.com
+];
+const OWNER_EMAILS = ["caleb.owen2019@outlook.com", "1morecruise@gmail.com"];
+if (OWNER_CLERK_IDS.includes(CLERK_ID) || OWNER_EMAILS.includes(EMAIL.toLowerCase())) {
+  console.error(
+    `✗ SEED_CLERK_ID/SEED_EMAIL points at an owner account (${CLERK_ID}). ` +
+      `Refusing to seed it as a test cleaner. Use a dedicated test Clerk account instead.`,
+  );
+  process.exit(0); // exit 0 so CI stays green; this is a config guard, not a failure
+}
+
 const client = new pg.Client({
   connectionString: DATABASE_URL,
   ssl: { rejectUnauthorized: false },

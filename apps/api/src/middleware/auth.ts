@@ -78,20 +78,15 @@ export const requireAuth = createMiddleware<AppBindings>(async (c, next) => {
       const rows = (await sql`
         SELECT email FROM users WHERE clerk_id = ${clerkId} LIMIT 1
       `) as Array<{ email: string | null }>;
-      resolvedEmail = rows[0]?.email ?? undefined;
+      resolvedEmail = rows[0]?.email || undefined;
     }
     if (!resolvedEmail) {
       resolvedEmail = await fetchClerkEmail(clerkId, c.env.CLERK_SECRET_KEY);
     }
 
-    // Keep the DB in sync even when the webhook is down.
-    if (resolvedEmail) await upsertUser(sql, { clerkId, email: resolvedEmail });
-
-    // Self-heal owner access: guarantee the founding account is super_admin on
-    // whatever DB the Worker is actually connected to. role='super_admin'
-    // satisfies every admin guard, so no lockouts from missing migrations, a
-    // failing Clerk webhook, or a JWT with no email claim. Match on clerk id or
-    // email.
+    // Self-heal owner access FIRST, before the email upsert — otherwise a
+    // UNIQUE-violation on email (when a sibling row already owns it) would throw
+    // and skip elevation entirely. role='super_admin' satisfies every guard.
     const isOwner =
       isOwnerClerkId(clerkId, c.env) ||
       (resolvedEmail ? isOwnerEmail(resolvedEmail, c.env) : false);
@@ -122,6 +117,16 @@ export const requireAuth = createMiddleware<AppBindings>(async (c, next) => {
             ON CONFLICT (clerk_id) DO UPDATE SET role = 'super_admin'
           `;
         }
+      }
+    }
+
+    // Keep the DB email in sync (best-effort, isolated so a UNIQUE collision
+    // can't affect anything above). Skips owners whose row email we keep as-is.
+    if (resolvedEmail && !isOwner) {
+      try {
+        await upsertUser(sql, { clerkId, email: resolvedEmail });
+      } catch {
+        /* email already taken by another row — ignore */
       }
     }
   } catch {

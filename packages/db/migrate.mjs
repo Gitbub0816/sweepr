@@ -14,7 +14,7 @@
  * standard `pg` driver (simple query protocol) so multi-statement files and
  * DO $$ blocks run correctly.
  */
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
@@ -97,6 +97,23 @@ async function main() {
       ? "✓ Database already up to date"
       : `✓ Applied ${count} migration${count === 1 ? "" : "s"}`,
   );
+
+  // Heal step: apply the consolidated, fully-idempotent schema so any table or
+  // column a prior over-eager baseline marked "applied" but never created gets
+  // created now. Safe to run every time (CREATE ... IF NOT EXISTS throughout).
+  const schemaPath = join(__dirname, "schema.sql");
+  if (existsSync(schemaPath)) {
+    process.stdout.write("→ healing schema (idempotent) ... ");
+    try {
+      await client.query(readFileSync(schemaPath, "utf8"));
+      console.log("done");
+    } catch (err) {
+      console.log("FAILED");
+      console.error(err);
+      process.exit(1);
+    }
+  }
+
   await client.end();
 }
 
