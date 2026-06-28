@@ -14,7 +14,10 @@ const FALLBACK_OWNER_EMAILS = [
   "1morecruise@gmail.com",
   "caleb.owen2019@outlook.com",
 ];
-const FALLBACK_OWNER_CLERK_IDS = ["user_3FTuNlZwiqHjvLxQIS76lw5ehMB"];
+const FALLBACK_OWNER_CLERK_IDS = [
+  "user_3FTx8c9CFm4hXjCxQMLDC2NpvWy", // caleb.owen2019@outlook.com (admin)
+  "user_3FTuNlZwiqHjvLxQIS76lw5ehMB", // 1morecruise@gmail.com
+];
 
 /** Email used when bootstrapping an owner row that has no email yet. */
 export const PRIMARY_OWNER_EMAIL = "1morecruise@gmail.com";
