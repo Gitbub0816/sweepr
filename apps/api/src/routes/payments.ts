@@ -8,6 +8,7 @@ import { getDb } from "../lib/db";
 import { sendEmail } from "../lib/mailer";
 import { sendNotification } from "../lib/notifications";
 import { requireAuth } from "../middleware/auth";
+import { isOwnerClerkId } from "../lib/owner";
 import { loadFeeSettings, calculatePayout, getTierMultiplier } from "../lib/payoutEngine";
 import { audit } from "../lib/audit";
 import { serverTrack } from "../lib/posthog";
@@ -16,6 +17,7 @@ import type { BookingRow, CleanerRow } from "@sweepr/db";
 
 
 const requireAdmin = createMiddleware<AppBindings>(async (c, next) => {
+  if (isOwnerClerkId(c.get("user").clerkId, c.env)) return next();
   const sql = getDb(c.env.DATABASE_URL);
   const user = await getUserByClerkId(sql, c.get("user").clerkId);
   if (!user || (user.role !== "admin" && user.role !== "super_admin")) {

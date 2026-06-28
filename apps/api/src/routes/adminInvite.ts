@@ -20,6 +20,7 @@ import { getUserByClerkId } from "@sweepr/db";
 import { getDb } from "../lib/db";
 import { sendEmail } from "../lib/mailer";
 import { requireAuth } from "../middleware/auth";
+import { isOwnerClerkId } from "../lib/owner";
 import { audit } from "../lib/audit";
 import type { AppBindings } from "../types";
 import type { UserRow } from "@sweepr/db";
@@ -39,6 +40,7 @@ function generateToken(): string {
 }
 
 const requireAdmin = createMiddleware<AppBindings>(async (c, next) => {
+  if (isOwnerClerkId(c.get("user").clerkId, c.env)) return next();
   const sql = getDb(c.env.DATABASE_URL);
   const user = await getUserByClerkId(sql, c.get("user").clerkId);
   if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
