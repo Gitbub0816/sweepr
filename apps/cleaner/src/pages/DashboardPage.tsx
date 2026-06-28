@@ -186,7 +186,7 @@ function OnboardingChecklist({ status }: { status: string | undefined }) {
 }
 
 function OverviewTab() {
-  const { data, loading } = useApi<DashboardStats>("/cleaners/dashboard");
+  const { data, loading } = useApi<DashboardStats>("/cleaner-dashboard/dashboard");
   const { user } = useUser();
   const status = user?.publicMetadata?.cleanerStatus as string | undefined;
 
@@ -299,7 +299,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 function JobsTab() {
   const { getToken } = useAuth();
-  const { data, loading, reload } = useApi<{ jobs: JobRow[] }>("/cleaners/my-jobs");
+  const { data, loading, reload } = useApi<{ jobs: JobRow[] }>("/cleaner-dashboard/my-jobs");
   const [accepting, setAccepting] = useState<string | null>(null);
 
   async function accept(jobId: string) {
@@ -386,9 +386,9 @@ interface BlockedDate {
 function ScheduleTab() {
   const { getToken } = useAuth();
   const { data: avail, loading: loadingAvail, reload: reloadAvail } =
-    useApi<{ slots: AvailabilitySlot[] }>("/cleaners/availability");
+    useApi<{ slots: AvailabilitySlot[] }>("/cleaner-dashboard/availability");
   const { data: blocked, loading: loadingBlocked, reload: reloadBlocked } =
-    useApi<{ dates: BlockedDate[] }>("/cleaners/blocked-dates");
+    useApi<{ dates: BlockedDate[] }>("/cleaner-dashboard/blocked-dates");
 
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [saving, setSaving] = useState(false);
@@ -411,7 +411,7 @@ function ScheduleTab() {
     setSaving(true);
     try {
       const token = await getToken();
-      const res = await fetch(`${API}/cleaners/availability`, {
+      const res = await fetch(`${API}/cleaner-dashboard/availability`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ slots }),
@@ -428,7 +428,7 @@ function ScheduleTab() {
     setAddingBlock(true);
     try {
       const token = await getToken();
-      const res = await fetch(`${API}/cleaners/blocked-dates`, {
+      const res = await fetch(`${API}/cleaner-dashboard/blocked-dates`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ date: newBlock, reason: blockReason || null }),
@@ -444,7 +444,7 @@ function ScheduleTab() {
 
   async function removeBlockedDate(id: string) {
     const token = await getToken();
-    await fetch(`${API}/cleaners/blocked-dates/${id}`, {
+    await fetch(`${API}/cleaner-dashboard/blocked-dates/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -544,14 +544,14 @@ interface EarningSummary {
 
 function EarningsTab() {
   const { getToken } = useAuth();
-  const { data, loading } = useApi<EarningSummary>("/cleaners/earnings");
+  const { data, loading } = useApi<EarningSummary>("/cleaner-dashboard/earnings");
   const [connecting, setConnecting] = useState(false);
 
   async function setupPayouts() {
     setConnecting(true);
     try {
       const token = await getToken();
-      const res = await fetch(`${API}/cleaners/stripe-connect/onboard`, {
+      const res = await fetch(`${API}/cleaner-dashboard/stripe-connect/onboard`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -639,7 +639,7 @@ interface PerformanceStats {
 }
 
 function PerformanceTab() {
-  const { data, loading } = useApi<PerformanceStats>("/cleaners/performance-stats");
+  const { data, loading } = useApi<PerformanceStats>("/cleaner-dashboard/performance-stats");
 
   if (loading) return <div className="animate-pulse h-64 bg-slate-100 rounded-xl" />;
   if (!data) return null;
@@ -733,7 +733,7 @@ interface CleanerSettings {
 
 function SettingsTab() {
   const { getToken } = useAuth();
-  const { data, loading } = useApi<CleanerSettings>("/cleaners/settings");
+  const { data, loading } = useApi<CleanerSettings>("/cleaner-dashboard/settings");
   const [form, setForm] = useState<CleanerSettings | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -749,7 +749,7 @@ function SettingsTab() {
     setSaving(true);
     try {
       const token = await getToken();
-      const res = await fetch(`${API}/cleaners/settings`, {
+      const res = await fetch(`${API}/cleaner-dashboard/settings`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(form),

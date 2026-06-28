@@ -1,7 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@clerk/clerk-react";
 import type { NotificationItem } from "@sweepr/ui";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
+
+type GetToken = () => Promise<string | null>;
+
+async function authHeaders(getToken: GetToken): Promise<HeadersInit> {
+  const token = await getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 const MOCK: NotificationItem[] = [
   {
@@ -30,10 +38,12 @@ const MOCK: NotificationItem[] = [
   },
 ];
 
-async function fetchNotifications(): Promise<NotificationItem[]> {
+async function fetchNotifications(getToken: GetToken): Promise<NotificationItem[]> {
   if (!API_URL) return MOCK;
   try {
-    const res = await fetch(`${API_URL}/notifications`);
+    const res = await fetch(`${API_URL}/notifications`, {
+      headers: await authHeaders(getToken),
+    });
     if (!res.ok) return MOCK;
     const data = (await res.json()) as { notifications: NotificationItem[] };
     return data.notifications ?? MOCK;
@@ -44,18 +54,23 @@ async function fetchNotifications(): Promise<NotificationItem[]> {
 
 export function useNotifications() {
   const qc = useQueryClient();
+  const { getToken, isSignedIn } = useAuth();
   const key = ["notifications"];
 
   const { data = [] } = useQuery({
     queryKey: key,
-    queryFn: fetchNotifications,
+    queryFn: () => fetchNotifications(getToken),
     refetchInterval: 30_000,
+    enabled: !!isSignedIn,
   });
 
   const markRead = useMutation({
     mutationFn: async (id: string) => {
       if (API_URL) {
-        await fetch(`${API_URL}/notifications/${id}/read`, { method: "PATCH" });
+        await fetch(`${API_URL}/notifications/${id}/read`, {
+          method: "PATCH",
+          headers: await authHeaders(getToken),
+        });
       }
       return id;
     },
@@ -75,7 +90,10 @@ export function useNotifications() {
   const markAllRead = useMutation({
     mutationFn: async () => {
       if (API_URL) {
-        await fetch(`${API_URL}/notifications/read-all`, { method: "PATCH" });
+        await fetch(`${API_URL}/notifications/read-all`, {
+          method: "PATCH",
+          headers: await authHeaders(getToken),
+        });
       }
     },
     onMutate: async () => {

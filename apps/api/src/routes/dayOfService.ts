@@ -460,10 +460,16 @@ dayOfServiceRouter.post(
 
 // ─── CLEANER/CUSTOMER: Get Booking Status ────────────────────────────────────
 // Returns real-time booking state and last known cleaner location.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 dayOfServiceRouter.get("/bookings/:id/live", async (c) => {
   const bookingId = c.req.param("id");
   const clerkId = c.get("user").clerkId;
   const sql = getDb(c.env.DATABASE_URL);
+
+  // Non-UUID ids (e.g. seed/demo "job_501") can't exist — avoid a Postgres
+  // uuid cast error (500); treat as not found.
+  if (!UUID_RE.test(bookingId)) return c.json({ error: "Not found" }, 404);
 
   const rows = (await sql`
     SELECT b.id, b.status, b.day_status, b.cleaner_id, b.customer_id,
