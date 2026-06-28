@@ -31,8 +31,8 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
-const EMAIL = process.env.SEED_EMAIL ?? "test.sweepr@getsweepr.com";
-const CLERK_ID = process.env.SEED_CLERK_ID ?? `seed_${EMAIL.replace(/[^a-z0-9]/gi, "_")}`;
+const EMAIL = process.env.SEED_EMAIL || "test.sweepr@getsweepr.com";
+const CLERK_ID = process.env.SEED_CLERK_ID || `seed_${EMAIL.replace(/[^a-z0-9]/gi, "_")}`;
 const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY;
 
 const client = new pg.Client({

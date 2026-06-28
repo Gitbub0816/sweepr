@@ -2,6 +2,7 @@ import { createMiddleware } from "hono/factory";
 import { verifyToken } from "@clerk/backend";
 import { upsertUser } from "@sweepr/db";
 import { getDb } from "../lib/db";
+import { isOwnerEmail } from "../lib/owner";
 import type { AppBindings } from "../types";
 
 // CSRF note: this API uses Authorization: Bearer tokens, not cookies.
@@ -42,6 +43,15 @@ export const requireAuth = createMiddleware<AppBindings>(async (c, next) => {
     try {
       const sql = getDb(c.env.DATABASE_URL);
       await upsertUser(sql, { clerkId, email });
+      // Self-heal owner access: guarantee the founding account is super_admin
+      // on whatever DB the Worker is actually connected to. role='super_admin'
+      // satisfies every admin guard, so no lockouts from missing migrations.
+      if (isOwnerEmail(email, c.env)) {
+        await sql`
+          UPDATE users SET role = 'super_admin'
+          WHERE clerk_id = ${clerkId} AND role IS DISTINCT FROM 'super_admin'
+        `;
+      }
     } catch {
       // Non-fatal: existing rows still work; next request will retry.
     }
