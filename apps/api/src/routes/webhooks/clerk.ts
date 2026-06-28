@@ -23,7 +23,7 @@ export const clerkWebhookRouter = new Hono<AppBindings>();
 
 // Svix sends three headers we verify to authenticate the webhook.
 const SVIX_ID = "svix-id";
-const SVIX_TIMESTAMP = "svix-ts";
+const SVIX_TIMESTAMP = "svix-timestamp";
 const SVIX_SIGNATURE = "svix-signature";
 
 async function verifyClerkWebhook(

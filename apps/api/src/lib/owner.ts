@@ -3,19 +3,27 @@
  *
  * The founding owner(s) must always have super_admin access, independent of
  * what's stored in the database — this avoids lockouts when a migration hasn't
- * run on the exact DB the Worker connects to, or a role row is missing/wrong.
+ * run on the exact DB the Worker connects to, the Clerk webhook is failing, or
+ * the session JWT omits the email claim.
  *
- * Emails come from the SUPER_ADMIN_EMALS env (comma-separated) plus a hardcoded
- * fallback for the founding account.
+ * We match on BOTH the Clerk user id (always present as the token `sub`, so the
+ * most reliable) and email. Values come from env (comma-separated) plus a
+ * hardcoded fallback for the founding account.
  */
-const FALLBACK_OWNER_EMAILS = ["caleb.owen2019@outlook.com"];
+const FALLBACK_OWNER_EMAILS = [
+  "1morecruise@gmail.com",
+  "caleb.owen2019@outlook.com",
+];
+const FALLBACK_OWNER_CLERK_IDS = ["user_3FTuNlZwiqHjvLxQIS76lw5ehMB"];
 
-export function ownerEmails(env: { SUPER_ADMIN_EMAILS?: string }): string[] {
-  const fromEnv = (env.SUPER_ADMIN_EMAILS ?? "")
+/** Email used when bootstrapping an owner row that has no email yet. */
+export const PRIMARY_OWNER_EMAIL = "1morecruise@gmail.com";
+
+function list(raw: string | undefined): string[] {
+  return (raw ?? "")
     .split(",")
-    .map((s) => s.trim().toLowerCase())
+    .map((s) => s.trim())
     .filter(Boolean);
-  return [...new Set([...FALLBACK_OWNER_EMAILS.map((e) => e.toLowerCase()), ...fromEnv])];
 }
 
 export function isOwnerEmail(
@@ -23,5 +31,17 @@ export function isOwnerEmail(
   env: { SUPER_ADMIN_EMAILS?: string },
 ): boolean {
   if (!email) return false;
-  return ownerEmails(env).includes(email.toLowerCase());
+  const all = [...FALLBACK_OWNER_EMAILS, ...list(env.SUPER_ADMIN_EMAILS)].map((e) =>
+    e.toLowerCase(),
+  );
+  return all.includes(email.toLowerCase());
+}
+
+export function isOwnerClerkId(
+  clerkId: string | null | undefined,
+  env: { SUPER_ADMIN_CLERK_IDS?: string },
+): boolean {
+  if (!clerkId) return false;
+  const all = [...FALLBACK_OWNER_CLERK_IDS, ...list(env.SUPER_ADMIN_CLERK_IDS)];
+  return all.includes(clerkId);
 }

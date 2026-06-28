@@ -3,6 +3,8 @@ export interface Env {
   DATABASE_URL: string;
   /** Optional comma-separated list of emails that always get super_admin. */
   SUPER_ADMIN_EMAILS?: string;
+  /** Optional comma-separated list of Clerk user ids that always get super_admin. */
+  SUPER_ADMIN_CLERK_IDS?: string;
   CLERK_SECRET_KEY: string;
   CLERK_PUBLISHABLE_KEY: string;
   STRIPE_SECRET_KEY: string;

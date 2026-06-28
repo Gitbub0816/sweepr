@@ -2,7 +2,7 @@ import { createMiddleware } from "hono/factory";
 import { verifyToken } from "@clerk/backend";
 import { upsertUser } from "@sweepr/db";
 import { getDb } from "../lib/db";
-import { isOwnerEmail } from "../lib/owner";
+import { isOwnerEmail, isOwnerClerkId, PRIMARY_OWNER_EMAIL } from "../lib/owner";
 import type { AppBindings } from "../types";
 
 // CSRF note: this API uses Authorization: Bearer tokens, not cookies.
@@ -45,21 +45,20 @@ export const requireAuth = createMiddleware<AppBindings>(async (c, next) => {
 
     // Self-heal owner access: guarantee the founding account is super_admin on
     // whatever DB the Worker is actually connected to. role='super_admin'
-    // satisfies every admin guard, so no lockouts from missing migrations.
+    // satisfies every admin guard, so no lockouts from missing migrations, a
+    // failing Clerk webhook, or a JWT with no email claim.
     //
-    // The Clerk session JWT often omits the email claim, so fall back to the
-    // email already stored on the user row (synced via the Clerk webhook).
-    let ownerEmail = email;
-    if (!ownerEmail) {
-      const rows = (await sql`
-        SELECT email FROM users WHERE clerk_id = ${clerkId} LIMIT 1
-      `) as Array<{ email: string | null }>;
-      ownerEmail = rows[0]?.email ?? undefined;
-    }
-    if (isOwnerEmail(ownerEmail, c.env)) {
+    // Match on clerk id (always present) OR email — and UPSERT so the owner row
+    // exists even if it was never synced. email is NOT NULL, so fall back to the
+    // known owner email when the token doesn't carry one.
+    const isOwner =
+      isOwnerClerkId(clerkId, c.env) || (email ? isOwnerEmail(email, c.env) : false);
+    if (isOwner) {
+      const ownerEmail = email ?? PRIMARY_OWNER_EMAIL;
       await sql`
-        UPDATE users SET role = 'super_admin'
-        WHERE clerk_id = ${clerkId} AND role IS DISTINCT FROM 'super_admin'
+        INSERT INTO users (clerk_id, email, role)
+        VALUES (${clerkId}, ${ownerEmail}, 'super_admin')
+        ON CONFLICT (clerk_id) DO UPDATE SET role = 'super_admin'
       `;
     }
   } catch {
