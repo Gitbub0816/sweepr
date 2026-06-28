@@ -86,18 +86,19 @@ adminRouter.get("/stats", async (c) => {
 adminRouter.get("/cleaners", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const status = c.req.query("status");
-  const cleaners = (await sql`
-    SELECT c.id, c.first_name, c.last_name, c.status,
+  const cleaners = (await sql(
+    `SELECT c.id, c.first_name, c.last_name, c.status,
            u.email, c.city, c.state, c.created_at,
            c.stripe_connect_status,
            (SELECT COUNT(*)::int FROM bookings b WHERE b.cleaner_id = c.id AND b.status = 'completed') AS completed_jobs,
            (SELECT ROUND(AVG(r.rating), 1) FROM reviews r WHERE r.cleaner_id = c.id) AS avg_rating
     FROM cleaners c
     LEFT JOIN users u ON u.id = c.user_id
-    WHERE ${status ? sql`c.status = ${status}` : sql`true`}
+    ${status ? "WHERE c.status = $1" : ""}
     ORDER BY c.created_at DESC
-    LIMIT 200
-  `) as unknown[];
+    LIMIT 200`,
+    status ? [status] : []
+  )) as unknown[];
   return c.json({ cleaners });
 });
 
@@ -133,8 +134,8 @@ adminRouter.get("/jobs", async (c) => {
   const limit = Math.min(Number(c.req.query("limit") ?? 100) || 100, 500);
   const offset = Math.max(Number(c.req.query("offset") ?? 0) || 0, 0);
 
-  const jobs = (await sql`
-    SELECT b.id, b.status, b.service_type, b.scheduled_at AS scheduled_for, b.created_at,
+  const jobs = (await sql(
+    `SELECT b.id, b.status, b.service_type, b.scheduled_at AS scheduled_for, b.created_at,
            a.street AS address_line1, a.city AS address_city, a.state AS address_state,
            u.email AS customer_email,
            c.first_name AS cleaner_first, c.last_name AS cleaner_last,
@@ -145,15 +146,16 @@ adminRouter.get("/jobs", async (c) => {
     LEFT JOIN users u ON u.id = cust.user_id
     LEFT JOIN cleaners c ON c.id = b.cleaner_id
     LEFT JOIN payments p ON p.booking_id = b.id AND p.status = 'captured'
-    WHERE ${status ? sql`b.status = ${status}` : sql`true`}
+    ${status ? "WHERE b.status = $1" : ""}
     ORDER BY b.created_at DESC
-    LIMIT ${limit} OFFSET ${offset}
-  `) as unknown[];
+    LIMIT ${status ? "$2" : "$1"} OFFSET ${status ? "$3" : "$2"}`,
+    status ? [status, limit, offset] : [limit, offset]
+  )) as unknown[];
 
-  const totalRows = (await sql`
-    SELECT COUNT(*)::int AS total FROM bookings
-    WHERE ${status ? sql`status = ${status}` : sql`true`}
-  `) as Array<{ total: number }>;
+  const totalRows = (await sql(
+    `SELECT COUNT(*)::int AS total FROM bookings ${status ? "WHERE status = $1" : ""}`,
+    status ? [status] : []
+  )) as Array<{ total: number }>;
 
   return c.json({ jobs, total: totalRows[0]?.total ?? 0 });
 });
@@ -168,20 +170,21 @@ adminRouter.get("/events", async (c) => {
   const limit = Math.min(Number(c.req.query("limit") ?? 100) || 100, 500);
   const offset = Math.max(Number(c.req.query("offset") ?? 0) || 0, 0);
 
-  const events = (await sql`
-    SELECT
+  const events = (await sql(
+    `SELECT
       id, action, actor_clerk_id, target_type, target_id,
       metadata, ip_address, user_agent, created_at
     FROM admin_audit_log
-    WHERE ${action ? sql`action = ${action}` : sql`true`}
+    ${action ? "WHERE action = $1" : ""}
     ORDER BY created_at DESC
-    LIMIT ${limit} OFFSET ${offset}
-  `) as unknown[];
+    LIMIT ${action ? "$2" : "$1"} OFFSET ${action ? "$3" : "$2"}`,
+    action ? [action, limit, offset] : [limit, offset]
+  )) as unknown[];
 
-  const totalRows = (await sql`
-    SELECT COUNT(*)::int AS total FROM admin_audit_log
-    WHERE ${action ? sql`action = ${action}` : sql`true`}
-  `) as Array<{ total: number }>;
+  const totalRows = (await sql(
+    `SELECT COUNT(*)::int AS total FROM admin_audit_log ${action ? "WHERE action = $1" : ""}`,
+    action ? [action] : []
+  )) as Array<{ total: number }>;
 
   return c.json({ events, total: totalRows[0]?.total ?? 0 });
 });
@@ -378,7 +381,7 @@ adminRouter.post(
         status = ${status},
         resolution = COALESCE(${resolution ?? null}, resolution),
         resolved_by = ${resolvedTerminal ? users[0]?.id ?? null : null},
-        resolved_at = ${resolvedTerminal ? sql`NOW()` : null}
+        resolved_at = ${resolvedTerminal ? new Date().toISOString() : null}
       WHERE id = ${id} RETURNING id, status
     `) as Array<{ id: string; status: string }>;
     if (!rows[0]) return c.json({ error: "Not found" }, 404);
@@ -413,10 +416,12 @@ adminRouter.patch(
     const sql = getDb(c.env.DATABASE_URL);
     const id = c.req.param("id");
     const { status, cleaner_id } = c.req.valid("json");
+    // cleaner_id: undefined => leave unchanged; null => unassign; value => assign.
+    const setCleaner = cleaner_id !== undefined;
     const rows = (await sql`
       UPDATE bookings SET
         status = COALESCE(${status ?? null}, status),
-        cleaner_id = ${cleaner_id === undefined ? sql`cleaner_id` : cleaner_id},
+        cleaner_id = CASE WHEN ${setCleaner} THEN ${cleaner_id ?? null}::uuid ELSE cleaner_id END,
         updated_at = NOW()
       WHERE id = ${id} RETURNING id, status, cleaner_id
     `) as Array<Record<string, unknown>>;

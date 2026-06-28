@@ -306,14 +306,15 @@ observabilityRouter.get("/failed-webhooks", async (c) => {
   const offset = parseInt(c.req.query("offset") ?? "0", 10);
   const includeResolved = c.req.query("resolved") === "true";
 
-  const rows = await settle(sql`
-    SELECT id, stripe_event_id, event_type, error_message,
+  const rows = await settle(sql(
+    `SELECT id, stripe_event_id, event_type, error_message,
            retry_count, last_retry_at, created_at, resolved_at
     FROM failed_webhook_events
-    ${includeResolved ? sql`` : sql`WHERE resolved_at IS NULL`}
+    ${includeResolved ? "" : "WHERE resolved_at IS NULL"}
     ORDER BY created_at DESC
-    LIMIT ${limit} OFFSET ${offset}
-  `, [] as unknown[]);
+    LIMIT $1 OFFSET $2`,
+    [limit, offset]
+  ), [] as unknown[]);
 
   const counts = await settle(sql`
     SELECT

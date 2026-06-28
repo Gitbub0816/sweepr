@@ -133,22 +133,23 @@ itTicketsRouter.patch("/admin/:id", requireAdmin, zValidator("json", updateSchem
   const sql = getDb(c.env.DATABASE_URL);
   const id = c.req.param("id");
   const b = c.req.valid("json");
-  const resolvedAt = b.status === "resolved" ? "NOW()" : null;
-  const closedAt = b.status === "closed" ? "NOW()" : null;
+  // undefined => leave column unchanged; null => set NULL. Nested sql`` fragments
+  // don't compose in the Neon HTTP client, so gate with a boolean flag instead.
+  const setAssigned = b.assigned_to !== undefined;
+  const setDue = b.due_at !== undefined;
 
   const [row] = (await sql`
     UPDATE it_tickets SET
       status      = COALESCE(${b.status ?? null}, status),
       priority    = COALESCE(${b.priority ?? null}, priority),
-      assigned_to = ${b.assigned_to === undefined ? sql`assigned_to` : b.assigned_to},
-      due_at      = ${b.due_at === undefined ? sql`due_at` : b.due_at},
+      assigned_to = CASE WHEN ${setAssigned} THEN ${b.assigned_to ?? null} ELSE assigned_to END,
+      due_at      = CASE WHEN ${setDue} THEN ${b.due_at ?? null}::timestamptz ELSE due_at END,
       resolved_at = CASE WHEN ${b.status ?? null} = 'resolved' THEN NOW() ELSE resolved_at END,
       closed_at   = CASE WHEN ${b.status ?? null} = 'closed' THEN NOW() ELSE closed_at END,
       updated_at  = NOW()
     WHERE id = ${id}
     RETURNING id, status
   `) as Array<{ id: string; status: string }>;
-  void resolvedAt; void closedAt;
   if (!row) return c.json({ error: "Not found" }, 404);
   return c.json({ ok: true, ticket: row });
 });

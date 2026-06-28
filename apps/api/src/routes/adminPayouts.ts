@@ -56,35 +56,42 @@ adminPayoutsRouter.get("/transactions", requireAuth, anyAdmin, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const { limit = "50", offset = "0", cleaner_id, status, from, to } = c.req.query();
 
-  const rows = await sql`
-    SELECT p.id, p.booking_id, p.cleaner_id, p.amount, p.platform_fee,
+  // Build optional filters as positional params ($1..) — nested sql`` fragments
+  // are not composable in the Neon HTTP client.
+  const conds: string[] = [];
+  const params: unknown[] = [];
+  if (cleaner_id) { params.push(cleaner_id); conds.push(`AND p.cleaner_id = $${params.length}`); }
+  if (status) { params.push(status); conds.push(`AND p.status = $${params.length}`); }
+  if (from) { params.push(from); conds.push(`AND p.created_at >= $${params.length}`); }
+  if (to) { params.push(to); conds.push(`AND p.created_at <= $${params.length}`); }
+  const filter = conds.join("\n      ");
+
+  const limitParam = params.length + 1;
+  const offsetParam = params.length + 2;
+  const rows = await sql(
+    `SELECT p.id, p.booking_id, p.cleaner_id, p.amount, p.platform_fee,
            p.gross_amount, p.net_amount, p.fee_rate, p.tier_multiplier,
            p.status, p.stripe_transfer_id, p.stripe_payout_id,
            p.scheduled_for, p.paid_at, p.held_reason, p.dispute_id,
            p.notes, p.created_at,
-           u.first_name || ' ' || u.last_name AS cleaner_name,
-           b.scheduled_date
+           cl.first_name || ' ' || cl.last_name AS cleaner_name,
+           b.scheduled_at AS scheduled_date
     FROM payouts p
     JOIN cleaners cl ON cl.id = p.cleaner_id
-    JOIN users u ON u.id = cl.user_id
     JOIN bookings b ON b.id = p.booking_id
     WHERE TRUE
-      ${cleaner_id ? sql`AND p.cleaner_id = ${cleaner_id}` : sql``}
-      ${status ? sql`AND p.status = ${status}` : sql``}
-      ${from ? sql`AND p.created_at >= ${from}` : sql``}
-      ${to ? sql`AND p.created_at <= ${to}` : sql``}
+      ${filter}
     ORDER BY p.created_at DESC
-    LIMIT ${Number(limit)}
-    OFFSET ${Number(offset)}
-  `;
+    LIMIT $${limitParam}
+    OFFSET $${offsetParam}`,
+    [...params, Number(limit), Number(offset)]
+  );
 
-  const total = await sql`
-    SELECT COUNT(*) n FROM payouts p WHERE TRUE
-      ${cleaner_id ? sql`AND p.cleaner_id = ${cleaner_id}` : sql``}
-      ${status ? sql`AND p.status = ${status}` : sql``}
-      ${from ? sql`AND p.created_at >= ${from}` : sql``}
-      ${to ? sql`AND p.created_at <= ${to}` : sql``}
-  `;
+  const total = await sql(
+    `SELECT COUNT(*) n FROM payouts p WHERE TRUE
+      ${filter}`,
+    params
+  ) as Array<{ n: string }>;
 
   return c.json({ rows, total: Number(total[0].n) });
 });
@@ -95,16 +102,15 @@ adminPayoutsRouter.get("/payouts", requireAuth, anyAdmin, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const { limit = "50", offset = "0", status } = c.req.query();
 
-  const rows = await sql`
-    SELECT p.*, u.first_name || ' ' || u.last_name AS cleaner_name
+  const rows = await sql(
+    `SELECT p.*, cl.first_name || ' ' || cl.last_name AS cleaner_name
     FROM payouts p
     JOIN cleaners cl ON cl.id = p.cleaner_id
-    JOIN users u ON u.id = cl.user_id
-    WHERE TRUE
-      ${status ? sql`AND p.status = ${status}` : sql``}
+    ${status ? "WHERE p.status = $1" : ""}
     ORDER BY p.created_at DESC
-    LIMIT ${Number(limit)} OFFSET ${Number(offset)}
-  `;
+    LIMIT ${status ? "$2" : "$1"} OFFSET ${status ? "$3" : "$2"}`,
+    status ? [status, Number(limit), Number(offset)] : [Number(limit), Number(offset)]
+  );
 
   return c.json({ rows });
 });
@@ -334,8 +340,14 @@ adminPayoutsRouter.get("/contractor-earnings", requireAuth, anyAdmin, async (c) 
   const sql = getDb(c.env.DATABASE_URL);
   const { limit = "50", offset = "0", from, to } = c.req.query();
 
-  const rows = await sql`
-    SELECT cl.id, u.first_name || ' ' || u.last_name AS name,
+  const conds: string[] = [];
+  const params: unknown[] = [];
+  if (from) { params.push(from); conds.push(`AND p.paid_at >= $${params.length}`); }
+  if (to) { params.push(to); conds.push(`AND p.paid_at <= $${params.length}`); }
+  const filter = conds.join("\n      ");
+
+  const rows = await sql(
+    `SELECT cl.id, cl.first_name || ' ' || cl.last_name AS name,
            cl.tier, cl.stripe_connect_id,
            COUNT(p.id) AS payout_count,
            COALESCE(SUM(p.amount), 0) AS total_paid,
@@ -344,15 +356,14 @@ adminPayoutsRouter.get("/contractor-earnings", requireAuth, anyAdmin, async (c) 
            COALESCE(AVG(p.fee_rate), 0) AS avg_fee_rate,
            MAX(p.paid_at) AS last_paid_at
     FROM cleaners cl
-    JOIN users u ON u.id = cl.user_id
     LEFT JOIN payouts p ON p.cleaner_id = cl.id
       AND p.status IN ('paid', 'transferred')
-      ${from ? sql`AND p.paid_at >= ${from}` : sql``}
-      ${to ? sql`AND p.paid_at <= ${to}` : sql``}
-    GROUP BY cl.id, u.first_name, u.last_name, cl.tier, cl.stripe_connect_id
+      ${filter}
+    GROUP BY cl.id, cl.first_name, cl.last_name, cl.tier, cl.stripe_connect_id
     ORDER BY total_paid DESC
-    LIMIT ${Number(limit)} OFFSET ${Number(offset)}
-  `;
+    LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+    [...params, Number(limit), Number(offset)]
+  );
 
   return c.json({ rows });
 });
@@ -385,10 +396,9 @@ adminPayoutsRouter.get("/disputes", requireAuth, anyAdmin, async (c) => {
   const rows = await sql`
     SELECT p.id, p.booking_id, p.cleaner_id, p.amount, p.status,
            p.dispute_id, p.held_reason, p.created_at,
-           u.first_name || ' ' || u.last_name AS cleaner_name
+           cl.first_name || ' ' || cl.last_name AS cleaner_name
     FROM payouts p
     JOIN cleaners cl ON cl.id = p.cleaner_id
-    JOIN users u ON u.id = cl.user_id
     WHERE p.status IN ('disputed', 'held') OR p.dispute_id IS NOT NULL
     ORDER BY p.created_at DESC
     LIMIT 100
@@ -436,7 +446,7 @@ adminPayoutsRouter.get("/settings-audit", requireAuth, financeOrAbove, async (c)
   const { limit = "50", offset = "0" } = c.req.query();
 
   const rows = await sql`
-    SELECT pa.*, u.first_name || ' ' || u.last_name AS actor_name
+    SELECT pa.*, u.email AS actor_name
     FROM payout_settings_audit pa
     JOIN users u ON u.id = pa.actor_id
     ORDER BY pa.created_at DESC
@@ -452,16 +462,15 @@ adminPayoutsRouter.get("/connected-accounts", requireAuth, anyAdmin, async (c) =
   const sql = getDb(c.env.DATABASE_URL);
   const { status } = c.req.query();
 
-  const rows = await sql`
-    SELECT sa.*, u.first_name || ' ' || u.last_name AS cleaner_name
+  const rows = await sql(
+    `SELECT sa.*, cl.first_name || ' ' || cl.last_name AS cleaner_name
     FROM stripe_connected_accounts sa
     JOIN cleaners cl ON cl.id = sa.cleaner_id
-    JOIN users u ON u.id = cl.user_id
-    WHERE TRUE
-      ${status ? sql`AND sa.status = ${status}` : sql``}
+    ${status ? "WHERE sa.status = $1" : ""}
     ORDER BY sa.created_at DESC
-    LIMIT 100
-  `;
+    LIMIT 100`,
+    status ? [status] : []
+  );
 
   return c.json({ rows });
 });
