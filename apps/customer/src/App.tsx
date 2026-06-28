@@ -8,9 +8,17 @@ import {
   Home as HomeIcon,
   Repeat,
 } from "lucide-react";
-import { AppShell, PrelaunchGate } from "@sweepr/ui";
+import { AppShell, PrelaunchGate, ReportProblem } from "@sweepr/ui";
+import { useAuth } from "@clerk/clerk-react";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
+
+/** Floating "Report a problem" — shown on every authenticated customer flow. */
+function ReportProblemMount() {
+  const { isSignedIn, getToken } = useAuth();
+  if (!isSignedIn) return null;
+  return <ReportProblem app="customer" apiUrl={API_URL} getToken={getToken} />;
+}
 import { BookingLayout } from "./booking/BookingLayout";
 import { SubscriptionsPage } from "./pages/SubscriptionsPage";
 import { AddressStep } from "./booking/steps/AddressStep";
@@ -69,6 +77,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <OfflineIndicator />
+      <ReportProblemMount />
       <Routes>
         <Route element={<GateLayout />}>
         {/* Auth */}

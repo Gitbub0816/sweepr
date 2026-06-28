@@ -121,6 +121,19 @@ export function ErrorsPage() {
     load();
   }
 
+  async function createTicket(id: string) {
+    const token = await getToken();
+    const res = await fetch(`${API}/it-tickets/admin/from-error/${id}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const d = (await res.json()) as { ticket?: { ticket_number?: number } };
+      alert(`Ticket #${d.ticket?.ticket_number ?? ""} created in IT Portal.`);
+      load();
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -253,12 +266,20 @@ export function ErrorsPage() {
                     </button>
                   )}
                   {!e.resolved && (
-                    <button
-                      onClick={() => resolve(e.id)}
-                      className="rounded-lg bg-seafoam-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-seafoam-600"
-                    >
-                      Resolve
-                    </button>
+                    <>
+                      <button
+                        onClick={() => createTicket(e.id)}
+                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                      >
+                        Create ticket
+                      </button>
+                      <button
+                        onClick={() => resolve(e.id)}
+                        className="rounded-lg bg-seafoam-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-seafoam-600"
+                      >
+                        Resolve
+                      </button>
+                    </>
                   )}
                   {e.resolved && (
                     <span className="flex items-center gap-1 text-xs text-emerald-600">

@@ -1,5 +1,5 @@
 import { Routes, Route, Outlet } from "react-router-dom";
-import { AuthenticateWithRedirectCallback } from "@clerk/clerk-react";
+import { AuthenticateWithRedirectCallback, useAuth } from "@clerk/clerk-react";
 import {
   LayoutDashboard,
   Briefcase,
@@ -11,9 +11,16 @@ import {
   BookOpen,
   ShieldCheck,
 } from "lucide-react";
-import { AppShell, PrelaunchGate } from "@sweepr/ui";
+import { AppShell, PrelaunchGate, ReportProblem } from "@sweepr/ui";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
+
+/** Floating "Report a problem" — shown on every authenticated cleaner flow. */
+function ReportProblemMount() {
+  const { isSignedIn, getToken } = useAuth();
+  if (!isSignedIn) return null;
+  return <ReportProblem app="cleaner" apiUrl={API_URL} getToken={getToken} />;
+}
 import { HomePage } from "./pages/HomePage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { OnboardingPage } from "./pages/OnboardingPage";
@@ -77,6 +84,8 @@ function GateLayout() {
 
 export default function App() {
   return (
+    <>
+    <ReportProblemMount />
     <Routes>
       {/* OAuth SSO callback and mock Checkr form bypass the prelaunch gate */}
       <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback />} />
@@ -126,5 +135,6 @@ export default function App() {
       <Route path="/profile" element={<Guarded><ProfilePage /></Guarded>} />
       </Route>{/* end GateLayout */}
     </Routes>
+    </>
   );
 }

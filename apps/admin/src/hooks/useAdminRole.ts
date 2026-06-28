@@ -1,6 +1,6 @@
 import { useUser } from "@clerk/clerk-react";
 
-export type AdminRole = "super_admin" | "admin" | "ops" | "finance" | "trainer" | "support";
+export type AdminRole = "super_admin" | "admin" | "ops" | "finance" | "trainer" | "support" | "it";
 
 export interface AdminPermissions {
   role: AdminRole | null;

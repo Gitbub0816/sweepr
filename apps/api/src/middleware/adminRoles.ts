@@ -4,12 +4,24 @@ import { getDb } from "../lib/db";
 import { isOwnerClerkId } from "../lib/owner";
 import type { AppBindings } from "../types";
 
-export type AdminRole = "super_admin" | "admin" | "ops" | "finance" | "trainer" | "support";
+export type AdminRole = "super_admin" | "admin" | "ops" | "finance" | "trainer" | "support" | "it";
 
 /** Roles that map to "any admin" — the baseline gate used everywhere. */
 export const ALL_ADMIN_ROLES: AdminRole[] = [
-  "super_admin", "admin", "ops", "finance", "trainer", "support",
+  "super_admin", "admin", "ops", "finance", "trainer", "support", "it",
 ];
+
+/**
+ * IT Portal access: any admin (including the dedicated "it" admin_role) can view
+ * tickets, telemetry and errors.
+ */
+export const requireITAccess = requireAdminRole();
+
+/**
+ * Sensitive IT actions (password resets, user management): super_admin or the
+ * dedicated "it" admin_role only (owner always passes).
+ */
+export const requireITAdmin = requireAdminRole("it");
 
 /**
  * Require the user to be an admin AND have one of the listed admin_roles.

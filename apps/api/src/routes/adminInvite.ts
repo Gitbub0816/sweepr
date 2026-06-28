@@ -53,7 +53,7 @@ const requireAdmin = createMiddleware<AppBindings>(async (c, next) => {
 // Protected — admin only
 // ---------------------------------------------------------------------------
 
-const ADMIN_ROLES = ["super_admin", "admin", "ops", "finance", "trainer", "support"] as const;
+const ADMIN_ROLES = ["super_admin", "admin", "ops", "finance", "trainer", "support", "it"] as const;
 
 const createInviteSchema = z.object({
   email: z.string().email(),

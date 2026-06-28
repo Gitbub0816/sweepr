@@ -40,6 +40,7 @@ export * from "./components/SMSOptIn";
 export * from "./components/PrelaunchGate";
 export * from "./components/WaitlistForm";
 export * from "./components/NewsletterSubscribe";
+export * from "./components/ReportProblem";
 
 // Calendar
 export { SweeprCalendar } from "./calendar/SweeprCalendar";

@@ -8,7 +8,7 @@
 -- This file is GENERATED. Do not edit by hand — edit the migrations in
 -- src/migrations/ and re-run: node packages/db/build-schema.mjs
 --
--- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql
+-- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -1756,3 +1756,72 @@ ALTER TABLE cleaners
 -- baseline skipped it on this database.
 ALTER TABLE bookings
   ADD COLUMN IF NOT EXISTS day_status TEXT;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 030_it_tickets_notifications.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Migration 030: IT ticketing system + notification settings.
+
+-- ── IT tickets ───────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS it_tickets (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ticket_number  BIGSERIAL UNIQUE,
+  title          TEXT NOT NULL,
+  description    TEXT,
+  category       TEXT NOT NULL DEFAULT 'other'
+    CHECK (category IN ('bug','billing','account','technical','feature_request','safety','other')),
+  priority       TEXT NOT NULL DEFAULT 'normal'
+    CHECK (priority IN ('low','normal','high','urgent')),
+  status         TEXT NOT NULL DEFAULT 'open'
+    CHECK (status IN ('open','in_progress','resolved','closed')),
+  source         TEXT NOT NULL DEFAULT 'user_report'
+    CHECK (source IN ('user_report','error','admin')),
+  app            TEXT,                         -- customer | cleaner | admin | api | service
+  reporter_clerk_id TEXT,
+  reporter_email TEXT,
+  assigned_to    TEXT,                          -- admin clerk id
+  related_error_id UUID REFERENCES error_logs(id) ON DELETE SET NULL,
+  context        JSONB NOT NULL DEFAULT '{}',
+  due_at         TIMESTAMPTZ,
+  resolved_at    TIMESTAMPTZ,
+  closed_at      TIMESTAMPTZ,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_it_tickets_status   ON it_tickets (status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_it_tickets_due      ON it_tickets (due_at) WHERE status IN ('open','in_progress');
+CREATE INDEX IF NOT EXISTS idx_it_tickets_reporter ON it_tickets (reporter_clerk_id);
+
+CREATE TABLE IF NOT EXISTS it_ticket_comments (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ticket_id   UUID NOT NULL REFERENCES it_tickets(id) ON DELETE CASCADE,
+  author_clerk_id TEXT,
+  author_email TEXT,
+  is_admin    BOOLEAN NOT NULL DEFAULT FALSE,
+  body        TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_it_ticket_comments_ticket ON it_ticket_comments (ticket_id, created_at);
+
+-- ── Notification settings ────────────────────────────────────────────────────
+-- One row per notification event key. The full catalog of available events lives
+-- in code; this table stores the admin on/off override per event.
+CREATE TABLE IF NOT EXISTS notification_settings (
+  event_key   TEXT PRIMARY KEY,
+  enabled     BOOLEAN NOT NULL DEFAULT TRUE,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_by  TEXT
+);
+
+-- ── Add the "it" admin role to the existing CHECK constraints ─────────────────
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_admin_role_check;
+DO $$ BEGIN
+  ALTER TABLE users ADD CONSTRAINT users_admin_role_check CHECK (admin_role IN ('super_admin','admin','ops','finance','trainer','support','it'));
+EXCEPTION WHEN duplicate_object THEN NULL; WHEN duplicate_table THEN NULL;
+END $$;
+
+ALTER TABLE admin_invites DROP CONSTRAINT IF EXISTS admin_invites_admin_role_check;
+DO $$ BEGIN
+  ALTER TABLE admin_invites ADD CONSTRAINT admin_invites_admin_role_check CHECK (admin_role IN ('super_admin','admin','ops','finance','trainer','support','it'));
+EXCEPTION WHEN duplicate_object THEN NULL; WHEN duplicate_table THEN NULL;
+END $$;

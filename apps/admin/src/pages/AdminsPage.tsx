@@ -12,6 +12,7 @@ const ROLES: { value: AdminRole; label: string; color: string; description: stri
   { value: "finance", label: "Finance", color: "bg-emerald-100 text-emerald-700", description: "Pricing, insurance, payouts, payment observability" },
   { value: "trainer", label: "Trainer", color: "bg-amber-100 text-amber-700", description: "Training content and courses only" },
   { value: "support", label: "Support", color: "bg-slate-100 text-slate-600", description: "Read-only access to jobs, customers, disputes" },
+  { value: "it", label: "IT Admin", color: "bg-cyan-100 text-cyan-700", description: "IT Portal, errors, password resets, telemetry" },
 ];
 
 interface AdminUser {

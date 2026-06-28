@@ -21,6 +21,8 @@ const PERMISSION_MAP: Record<string, string[]> = {
                  "cleaners:view"],
   support:     ["dashboard:view","jobs:view","customers:view","cleaners:view","disputes:view",
                  "bookings:view","events:view"],
+  it:          ["dashboard:view","it_portal:view","it_portal:manage","errors:view","errors:manage",
+                 "users:reset_password","observability:view","notifications:view","notifications:manage"],
 };
 
 export const adminMeRouter = new Hono<AppBindings>();
