@@ -1,6 +1,8 @@
 import { Routes, Route, Navigate, Outlet } from "react-router-dom";
+import { AuthenticateWithRedirectCallback } from "@clerk/clerk-react";
 import { SignInPage } from "./components/SignInPage";
 import { SignUpPage } from "./components/SignUpPage";
+import { ContinueSignUp } from "./components/ContinueSignUp";
 import {
   CalendarCheck,
   CreditCard,
@@ -79,10 +81,14 @@ export default function App() {
       <OfflineIndicator />
       <ReportProblemMount />
       <Routes>
+        {/* OAuth SSO callback — outside prelaunch gate, handles token exchange */}
+        <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback continueSignUpUrl="/sign-up/continue" />} />
+
         <Route element={<GateLayout />}>
         {/* Auth */}
         <Route path="/sign-in" element={<SignInPage />} />
         <Route path="/sign-up" element={<SignUpPage />} />
+        <Route path="/sign-up/continue" element={<ContinueSignUp />} />
 
         <Route path="/" element={<Navigate to="/home" replace />} />
         <Route path="/home" element={<Protected><Home /></Protected>} />

@@ -1,5 +1,6 @@
 import { Routes, Route, Outlet } from "react-router-dom";
 import { AuthenticateWithRedirectCallback, useAuth } from "@clerk/clerk-react";
+import { ContinueSignUp } from "./components/ContinueSignUp";
 import {
   LayoutDashboard,
   Briefcase,
@@ -88,7 +89,8 @@ export default function App() {
     <ReportProblemMount />
     <Routes>
       {/* OAuth SSO callback and mock Checkr form bypass the prelaunch gate */}
-      <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback />} />
+      <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback continueSignUpUrl="/sign-up/continue" />} />
+      <Route path="/sign-up/continue" element={<ContinueSignUp />} />
       <Route path="/checkr-simulate" element={<CheckrSimulatePage />} />
 
       {/* Everything else is gated during prelaunch */}
