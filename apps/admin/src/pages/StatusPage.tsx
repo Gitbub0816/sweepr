@@ -132,8 +132,14 @@ export function StatusPage() {
 
   async function patchSetting(key: string, value: string) {
     const headers = await authHeaders();
-    await fetch(`${API_URL}/admin/status/settings`, { method: "PATCH", headers, body: JSON.stringify({ key, value }) });
+    // Optimistic update
     setSettings((prev) => ({ ...prev, [key]: value }));
+    const res = await fetch(`${API_URL}/admin/status/settings`, { method: "PATCH", headers, body: JSON.stringify({ key, value }) });
+    if (!res.ok) {
+      // Roll back and re-fetch real state
+      await fetchData();
+      alert("Failed to save setting. Please try again.");
+    }
   }
 
   async function createIncident(e: React.FormEvent) {

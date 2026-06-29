@@ -34,8 +34,9 @@ interface UpdateRow {
 }
 
 statusRouter.get("/", async (c) => {
+  // Fail-safe: if the DB is unreachable, keep the gate UP so the app stays gated.
   const defaultResponse = {
-    settings: { prelaunch_cleaner: false, prelaunch_customer: false, prelaunch_pricing: false },
+    settings: { prelaunch_cleaner: true, prelaunch_customer: true, prelaunch_pricing: true },
     incidents: [],
     maintenance: [],
   };
@@ -48,18 +49,20 @@ statusRouter.get("/", async (c) => {
       WHERE key IN ('prelaunch_cleaner', 'prelaunch_customer', 'prelaunch_pricing')
     `) as SettingRow[];
 
+    // Default to true (gate UP / prelaunch on) when a row is missing.
+    // Explicit "false" in the DB is the only way to open the gate.
     const settings = {
-      prelaunch_cleaner: false,
-      prelaunch_customer: false,
-      prelaunch_pricing: false,
+      prelaunch_cleaner: true,
+      prelaunch_customer: true,
+      prelaunch_pricing: true,
     };
     for (const row of settingsRows) {
       if (row.key === "prelaunch_cleaner") {
-        settings.prelaunch_cleaner = row.value === "true";
+        settings.prelaunch_cleaner = row.value !== "false";
       } else if (row.key === "prelaunch_customer") {
-        settings.prelaunch_customer = row.value === "true";
+        settings.prelaunch_customer = row.value !== "false";
       } else if (row.key === "prelaunch_pricing") {
-        settings.prelaunch_pricing = row.value === "true";
+        settings.prelaunch_pricing = row.value !== "false";
       }
     }
 

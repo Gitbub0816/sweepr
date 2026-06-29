@@ -47,10 +47,21 @@ export function PrelaunchGate({ type, apiUrl, children, forcePrelaunch = false }
       // localStorage unavailable
     }
 
+    // Fail-safe: if the API is unreachable, keep the gate UP.
     fetch(`${apiUrl}/status`)
       .then((r) => r.json() as Promise<{ settings?: StatusSettings }>)
-      .then((data) => setSettings(data.settings ?? { prelaunch_cleaner: false, prelaunch_customer: false }))
-      .catch(() => setSettings({ prelaunch_cleaner: false, prelaunch_customer: false }));
+      .then((data) => {
+        const resolved = data.settings ?? { prelaunch_cleaner: true, prelaunch_customer: true };
+        setSettings(resolved);
+        // If admin has turned the gate ON while the user has a bypass stored,
+        // clear the bypass so it takes effect immediately.
+        const gated = type === "cleaner" ? resolved.prelaunch_cleaner : resolved.prelaunch_customer;
+        if (gated) {
+          try { localStorage.removeItem(BYPASS_KEY); } catch { /* noop */ }
+          setBypassed(false);
+        }
+      })
+      .catch(() => setSettings({ prelaunch_cleaner: true, prelaunch_customer: true }));
   }, [apiUrl]);
 
   function handleBypassClick() {
