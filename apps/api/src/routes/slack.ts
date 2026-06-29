@@ -406,7 +406,7 @@ slackRouter.post(
     "json",
     z.object({
       workspaceId: z.string().uuid(),
-      purpose: z.enum(["approvals", "admin", "operations", "finance", "it", "training", "custom"]),
+      purpose: z.enum(["approvals", "admin", "operations", "finance", "it", "training", "security", "custom"]),
       channelId: z.string().optional(),
       createName: z.string().optional(),
       isPrivate: z.boolean().optional(),
@@ -512,6 +512,59 @@ slackRouter.get("/workspace/channels", ...wsGate, async (c) => {
     user: (ch.user as string) ?? null,
   }));
   return c.json({ channels });
+});
+
+// ── Role-filtered Sweepr channels (only provisioned channels the user may see) ─
+// Returns channels from the slack_channels DB table, filtered by the current
+// admin's role. super_admin sees all; role-specific admins see their channel +
+// team-wide; all admins see team-wide.
+const PURPOSE_FOR_ROLE: Record<string, string[]> = {
+  super_admin: [], // empty = allow all
+  it: ["it", "admin"],
+  trainer: ["training", "admin"],
+  ops: ["operations", "admin"],
+  finance: ["finance", "admin"],
+  admin: ["admin"],
+};
+
+slackRouter.get("/workspace/my-channels", ...wsGate, async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+
+  // Resolve this user's effective role.
+  const [u] = (await sql`
+    SELECT COALESCE(admin_role, role, 'admin') AS effective_role
+    FROM users WHERE clerk_id = ${c.get("user").clerkId} LIMIT 1
+  `) as Array<{ effective_role: string }>;
+  const role = u?.effective_role ?? "admin";
+  const isSuperAdmin = role === "super_admin" || isOwnerEmail(c.get("user").email ?? "", c.env);
+
+  // Fetch provisioned channels.
+  const ws = await activeWorkspace(sql);
+  if (!ws) return c.json({ channels: [] });
+
+  const allChannels = (await sql`
+    SELECT channel_id, channel_name, purpose, is_private
+    FROM slack_channels WHERE workspace_id = ${ws.id as string}
+    ORDER BY purpose
+  `) as Array<{ channel_id: string; channel_name: string | null; purpose: string; is_private: boolean }>;
+
+  const allowed = isSuperAdmin
+    ? allChannels
+    : allChannels.filter((ch) => {
+        const purposes = PURPOSE_FOR_ROLE[role] ?? ["admin"];
+        return purposes.includes(ch.purpose);
+      });
+
+  return c.json({
+    channels: allowed.map((ch) => ({
+      id: ch.channel_id,
+      name: ch.channel_name ?? ch.purpose,
+      purpose: ch.purpose,
+      is_private: ch.is_private,
+      is_im: false,
+      is_mpim: false,
+    })),
+  });
 });
 
 async function userMap(token: string): Promise<Record<string, { name: string; avatar: string }>> {
@@ -626,6 +679,7 @@ const DEFAULT_CHANNELS: Array<{ name: string; purpose: string; private: boolean;
   { name: "finance", purpose: "finance", private: true, roles: ["super_admin", "finance"] },
   { name: "it", purpose: "it", private: true, roles: ["super_admin", "it"] },
   { name: "training", purpose: "training", private: true, roles: ["super_admin", "trainer"] },
+  { name: "security", purpose: "security", private: true, roles: ["super_admin"] },
 ];
 
 slackRouter.post("/admin/provision-defaults", requireAuth, requireAdminRole("super_admin"), async (c) => {

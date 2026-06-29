@@ -44,7 +44,7 @@ export function SlackPage() {
   }, [authed]);
 
   const loadChannels = useCallback(async () => {
-    const res = await authed("/slack/workspace/channels");
+    const res = await authed("/slack/workspace/my-channels");
     if (res.ok) {
       const ch = ((await res.json()) as { channels: Channel[] }).channels ?? [];
       setChannels(ch);
