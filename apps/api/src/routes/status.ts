@@ -37,6 +37,7 @@ statusRouter.get("/", async (c) => {
   const defaultResponse = {
     settings: { prelaunch_cleaner: false, prelaunch_customer: false, prelaunch_pricing: false },
     incidents: [],
+    maintenance: [],
   };
 
   try {
@@ -86,6 +87,18 @@ statusRouter.get("/", async (c) => {
       updates: updates.filter((u) => u.incident_id === incident.id),
     }));
 
+    const maintenance = await sql`
+      SELECT id, title, description, scheduled_start, scheduled_end, affected_services, status
+      FROM maintenance_windows
+      WHERE status IN ('scheduled','in_progress')
+        AND scheduled_end > NOW()
+      ORDER BY scheduled_start ASC
+    ` as Array<{
+      id: string; title: string; description: string | null;
+      scheduled_start: string; scheduled_end: string;
+      affected_services: string[]; status: string;
+    }>;
+
     const serviceAreas = (await sql`
       SELECT id, name, slug, status, polygon, center_lat, center_lng
       FROM service_areas ORDER BY status DESC, name ASC
@@ -99,9 +112,9 @@ statusRouter.get("/", async (c) => {
       WHERE lat IS NOT NULL AND lng IS NOT NULL
     `) as Array<{ lat: number; lng: number }>;
 
-    return c.json({ settings, incidents: incidentsWithUpdates, serviceAreas, cityRequestPins });
+    return c.json({ settings, incidents: incidentsWithUpdates, maintenance, serviceAreas, cityRequestPins });
   } catch {
-    return c.json({ ...defaultResponse, settings: { prelaunch_cleaner: false, prelaunch_customer: false, prelaunch_pricing: false }, serviceAreas: [], cityRequestPins: [] });
+    return c.json({ ...defaultResponse, settings: { prelaunch_cleaner: false, prelaunch_customer: false, prelaunch_pricing: false }, serviceAreas: [], cityRequestPins: [], maintenance: [] });
   }
 });
 

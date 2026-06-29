@@ -290,6 +290,15 @@ export default {
         logger.error("cron.approval_engine failed", err, { cron: event.cron });
       }
 
+      // Auto-detect error patterns and open status incidents.
+      try {
+        const { detectAndCreateIncidents } = await import("./lib/statusAutoDetect");
+        const opened = await detectAndCreateIncidents(sql, env as unknown as import("./types").Env);
+        if (opened > 0) logger.info("cron.autoDetect", { opened });
+      } catch (err) {
+        logger.error("cron.autoDetect failed", err, { cron: event.cron });
+      }
+
       logger.info("cron.completed", { cron: event.cron, captures: pendingCaptures.length });
     } catch (err) {
       logger.error("cron.failed", err, { cron: event.cron });
