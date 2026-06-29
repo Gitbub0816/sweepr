@@ -8,6 +8,7 @@ import { getDb } from "../lib/db";
 import { sendEmail } from "../lib/mailer";
 import { requireAuth } from "../middleware/auth";
 import { isOwnerClerkId } from "../lib/owner";
+import { checkrClient } from "../lib/checkr";
 import { audit } from "../lib/audit";
 import type { AppBindings } from "../types";
 import type { UserRow } from "@sweepr/db";
@@ -443,3 +444,38 @@ adminRouter.get("/applications/:id", async (c) => {
   if (!rows[0]) return c.json({ error: "Not found" }, 404);
   return c.json({ application: rows[0] });
 });
+
+// ─── Checkr Adjudication ──────────────────────────────────────────────────────
+
+adminRouter.post(
+  "/applications/:id/adjudicate",
+  zValidator(
+    "json",
+    z.object({
+      adjudication: z.enum(["engaged", "pre_adverse_action", "adverse_action"]),
+    })
+  ),
+  async (c) => {
+    const cleanerId = c.req.param("id");
+    const { adjudication } = c.req.valid("json");
+    const sql = getDb(c.env.DATABASE_URL);
+
+    const rows = (await sql`
+      SELECT checkr_report_id, checkr_candidate_id FROM cleaners WHERE id = ${cleanerId} LIMIT 1
+    `) as { checkr_report_id: string | null; checkr_candidate_id: string | null }[];
+
+    const cleaner = rows[0];
+    if (!cleaner) return c.json({ error: "Not found" }, 404);
+    if (!cleaner.checkr_report_id) return c.json({ error: "No report on file" }, 400);
+
+    const client = checkrClient(c.env);
+    await client.adjudicate(cleaner.checkr_report_id, adjudication);
+
+    const newStatus = adjudication === "engaged" ? "clear" : adjudication;
+    await sql`
+      UPDATE cleaners SET checkr_status = ${newStatus}, updated_at = NOW() WHERE id = ${cleanerId}
+    `;
+
+    return c.json({ ok: true });
+  }
+);

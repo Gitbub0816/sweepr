@@ -63,18 +63,33 @@ checkrRouter.post("/invite", requireAuth, zValidator("json", inviteSchema), asyn
 
   const client = checkrClient(c.env);
 
-  // Step 1 — create candidate on Checkr with name + email only. No PII.
-  const candidate = await client.createCandidate(user.email ?? "", firstName, lastName);
+  // Check for an existing Checkr candidate to enable check reuse.
+  // Checkr requires reusing the same candidate_id rather than creating duplicates.
+  const cleanerRows = (await sql`
+    SELECT id, checkr_candidate_id FROM cleaners WHERE user_id = ${user.id} LIMIT 1
+  `) as { id: string; checkr_candidate_id: string | null }[];
+  const existingCandidateId = cleanerRows[0]?.checkr_candidate_id ?? null;
 
-  // Step 2 — create invitation; Checkr returns a hosted-apply URL.
-  const invitation = await client.createInvitation(candidate.id, workState);
+  let candidateId: string;
+  if (existingCandidateId) {
+    // Reuse existing Checkr candidate — create a new invitation on the same record.
+    candidateId = existingCandidateId;
+  } else {
+    // First-time: create a candidate with name + email only. No PII.
+    const candidate = await client.createCandidate(user.email ?? "", firstName, lastName);
+    candidateId = candidate.id;
+  }
+
+  // Create invitation; Checkr returns a hosted-apply URL.
+  const invitation = existingCandidateId
+    ? await client.reInvite(candidateId, workState)
+    : await client.createInvitation(candidateId, workState);
 
   try {
-    const existing = await sql`SELECT id FROM cleaners WHERE user_id = ${user.id} LIMIT 1` as Array<{id: string}>;
-    if (existing[0]) {
+    if (cleanerRows[0]) {
       await sql`
         UPDATE cleaners
-        SET checkr_candidate_id  = ${candidate.id},
+        SET checkr_candidate_id  = ${candidateId},
             checkr_invitation_id = ${invitation.id},
             checkr_status        = 'invited',
             checkr_invited_at    = NOW()
@@ -83,7 +98,7 @@ checkrRouter.post("/invite", requireAuth, zValidator("json", inviteSchema), asyn
     } else {
       await sql`
         INSERT INTO cleaners (user_id, checkr_candidate_id, checkr_invitation_id, checkr_status, checkr_invited_at)
-        VALUES (${user.id}, ${candidate.id}, ${invitation.id}, 'invited', NOW())
+        VALUES (${user.id}, ${candidateId}, ${invitation.id}, 'invited', NOW())
       `;
     }
   } catch (err) {

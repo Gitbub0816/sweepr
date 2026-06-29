@@ -53,6 +53,13 @@ export interface CheckrReport {
   turnaround_time: number | null;
 }
 
+export interface CheckrAdjudication {
+  id: string;
+  report_id: string;
+  adjudication: "engaged" | "pre_adverse_action" | "adverse_action";
+  created_at: string;
+}
+
 export interface CheckrWebhookPayload {
   id: string;
   type: string;
@@ -118,6 +125,36 @@ function mockClient(packageSlug: string) {
         turnaround_time: 3600,
       };
     },
+
+    async adjudicate(
+      reportId: string,
+      adjudication: "engaged" | "pre_adverse_action" | "adverse_action"
+    ): Promise<CheckrAdjudication> {
+      return {
+        id: `mock_adj_${crypto.randomUUID().slice(0, 8)}`,
+        report_id: reportId,
+        adjudication,
+        created_at: new Date().toISOString(),
+      };
+    },
+
+    async reInvite(
+      candidateId: string,
+      workState: string
+    ): Promise<CheckrInvitation> {
+      const id = `mock_inv_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
+      const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      const base = "https://clean.getsweepr.com";
+      return {
+        id,
+        status: "pending",
+        invitation_url: `${base}/checkr-simulate?inv=${id}&pkg=${packageSlug}&state=${workState}`,
+        package: packageSlug,
+        candidate_id: candidateId,
+        created_at: new Date().toISOString(),
+        expires_at: expires.toISOString(),
+      };
+    },
   };
 }
 
@@ -167,6 +204,39 @@ function liveClient(apiKey: string, packageSlug: string) {
 
     async getReport(reportId: string): Promise<CheckrReport> {
       return req<CheckrReport>("GET", `/reports/${reportId}`);
+    },
+
+    /**
+     * Record an adjudication decision on a completed report.
+     * Checkr requires this call whenever the employer makes a hire/adverse decision.
+     * - "engaged"            → hired; no adverse action
+     * - "pre_adverse_action" → starting adverse action; Checkr sends pre-adverse notice
+     * - "adverse_action"     → finalizing adverse action after the waiting period
+     */
+    async adjudicate(
+      reportId: string,
+      adjudication: "engaged" | "pre_adverse_action" | "adverse_action"
+    ): Promise<CheckrAdjudication> {
+      return req<CheckrAdjudication>("POST", `/adjudications`, {
+        report_id: reportId,
+        adjudication,
+      });
+    },
+
+    /**
+     * Create a new invitation for an existing Checkr candidate (check reuse).
+     * Used when a cleaner needs a fresh background check without creating a
+     * duplicate candidate record.
+     */
+    async reInvite(
+      candidateId: string,
+      workState: string
+    ): Promise<CheckrInvitation> {
+      return req<CheckrInvitation>("POST", "/invitations", {
+        candidate_id: candidateId,
+        package: packageSlug,
+        work_locations: [{ country: "US", state: workState }],
+      });
     },
   };
 }
