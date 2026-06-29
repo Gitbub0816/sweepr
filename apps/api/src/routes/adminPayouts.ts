@@ -54,7 +54,7 @@ adminPayoutsRouter.get("/overview", requireAuth, anyAdmin, async (c) => {
 
 // ─── Transactions (ledger) ───────────────────────────────────────────────────
 
-const PAYOUT_STATUSES = new Set(["pending","eligible","on_hold","transferred","paid","failed","disputed"]);
+const PAYOUT_STATUSES = new Set(["pending","eligible","on_hold","transferred","paid","failed","disputed","canceled"]);
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T[\d:.Z+-]*)?$/;
 
 adminPayoutsRouter.get("/transactions", requireAuth, anyAdmin, async (c) => {
@@ -208,7 +208,7 @@ adminPayoutsRouter.post(
   "/hold/:id",
   requireAuth,
   financeOrAbove,
-  zValidator("json", z.object({ reason: z.string().min(1) })),
+  zValidator("json", z.object({ reason: z.string().min(1).max(500) })),
   async (c) => {
     const payoutId = c.req.param("id");
     const { reason } = c.req.valid("json");
@@ -465,13 +465,13 @@ adminPayoutsRouter.post(
   "/disputes/:id/resolve",
   requireAuth,
   financeOrAbove,
-  zValidator("json", z.object({ resolution: z.enum(["release", "cancel"]), notes: z.string().optional() })),
+  zValidator("json", z.object({ resolution: z.enum(["release", "cancel"]), notes: z.string().max(1000).optional() })),
   async (c) => {
     const payoutId = c.req.param("id");
     const { resolution, notes } = c.req.valid("json");
     const sql = getDb(c.env.DATABASE_URL);
 
-    const newStatus = resolution === "release" ? "pending" : "canceled";
+    const newStatus = resolution === "release" ? "pending" : "failed";
     await sql`
       UPDATE payouts SET status = ${newStatus}, held_reason = NULL,
         notes = ${notes ?? null}
