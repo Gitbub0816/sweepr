@@ -62,6 +62,17 @@ import type { AppBindings } from "../types";
 
 export const slackRouter = new Hono<AppBindings>();
 
+// Role → which channel purposes that role can access.
+// Empty array for super_admin = allow all (checked separately).
+const PURPOSE_FOR_ROLE: Record<string, string[]> = {
+  super_admin: [],
+  it: ["it", "admin"],
+  trainer: ["training", "admin"],
+  ops: ["operations", "admin"],
+  finance: ["finance", "admin"],
+  admin: ["admin"],
+};
+
 function redirectUri(env: AppBindings["Bindings"]): string {
   // Must exactly match the Redirect URL configured in the Slack app.
   const base = "https://api.getsweepr.com";
@@ -140,23 +151,43 @@ slackRouter.get("/oauth/callback", async (c) => {
 
   if (kind === "connect") {
     // Personal connect: store the user (xoxp-) token for the installing admin.
-    const userToken = result.authed_user?.access_token;
+    const uToken = result.authed_user?.access_token;
     const slackUserId = result.authed_user?.id;
-    if (!userToken || !slackUserId) return c.redirect(`${dest}?error=no_user_token`);
-    const wsRows = (await sql`SELECT id FROM slack_workspaces WHERE team_id = ${result.team.id} AND status = 'active' LIMIT 1`) as Array<{ id: string }>;
+    if (!uToken || !slackUserId) return c.redirect(`${dest}?error=no_user_token`);
+    const wsRows = (await sql`SELECT id, bot_token FROM slack_workspaces WHERE team_id = ${result.team.id} AND status = 'active' LIMIT 1`) as Array<{ id: string; bot_token: string }>;
     const ws = wsRows[0];
     if (!ws) return c.redirect(`${dest}?error=workspace_not_connected`);
     const userRow = created_by
-      ? ((await sql`SELECT id, email FROM users WHERE clerk_id = ${created_by} LIMIT 1`) as Array<{ id: string; email: string }>)[0]
+      ? ((await sql`SELECT id, email, COALESCE(admin_role, role, 'admin') AS effective_role FROM users WHERE clerk_id = ${created_by} LIMIT 1`) as Array<{ id: string; email: string; effective_role: string }>)[0]
       : undefined;
     await sql`
       INSERT INTO slack_user_links (workspace_id, slack_user_id, user_id, email, user_token, user_scopes, connected_at)
       VALUES (${ws.id}, ${slackUserId}, ${userRow?.id ?? null}, ${userRow?.email ?? null},
-              ${userToken}, ${result.authed_user?.scope ?? null}, NOW())
+              ${uToken}, ${result.authed_user?.scope ?? null}, NOW())
       ON CONFLICT (workspace_id, slack_user_id) DO UPDATE SET
         user_id = EXCLUDED.user_id, email = EXCLUDED.email,
         user_token = EXCLUDED.user_token, user_scopes = EXCLUDED.user_scopes, connected_at = NOW()
     `;
+
+    // Auto-invite the user to the channels their role entitles them to see.
+    // Uses the BOT token (bot can invite users to channels it manages).
+    try {
+      const role = userRow?.effective_role ?? "admin";
+      const isSuperAdmin = role === "super_admin" || (userRow?.email ? isOwnerEmail(userRow.email, c.env) : false);
+      const channelRows = (await sql`
+        SELECT channel_id, purpose FROM slack_channels WHERE workspace_id = ${ws.id}
+      `) as Array<{ channel_id: string; purpose: string }>;
+      const purposesForRole = PURPOSE_FOR_ROLE[role] ?? ["admin"];
+      const entitled = channelRows.filter((ch) =>
+        isSuperAdmin || purposesForRole.includes(ch.purpose),
+      );
+      for (const ch of entitled) {
+        try {
+          await inviteUsers(ws.bot_token, ch.channel_id, [slackUserId]);
+        } catch { /* already_in_channel or can't invite — non-fatal */ }
+      }
+    } catch { /* non-fatal — don't block the redirect */ }
+
     return c.redirect(`${dest}?connected_user=1`);
   }
 
@@ -519,14 +550,6 @@ slackRouter.get("/workspace/channels", ...wsGate, async (c) => {
 // Returns channels from the slack_channels DB table, filtered by the current
 // admin's role. super_admin sees all; role-specific admins see their channel +
 // team-wide; all admins see team-wide.
-const PURPOSE_FOR_ROLE: Record<string, string[]> = {
-  super_admin: [], // empty = allow all
-  it: ["it", "admin"],
-  trainer: ["training", "admin"],
-  ops: ["operations", "admin"],
-  finance: ["finance", "admin"],
-  admin: ["admin"],
-};
 
 slackRouter.get("/workspace/my-channels", ...wsGate, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);

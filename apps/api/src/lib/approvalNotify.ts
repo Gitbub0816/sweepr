@@ -7,6 +7,7 @@
 import type { Sql } from "./db";
 import type { Env } from "../types";
 import { logger } from "./logger";
+import { recordError } from "./errorLog";
 import { sendEmail, SENDERS, TEMPLATES, formatEmailTimestamp } from "./mailer";
 import { sendNotification } from "./notifications";
 import { listSuperAdmins } from "./approvalEngine";
@@ -162,7 +163,13 @@ export async function postProposalCard(sql: Sql, env: Env, proposal: ProposalRow
       await logNotif(sql, proposal.id, null, "slack", channel, "failed", res.error ?? "post_failed");
     }
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
     logger.error("approval.slack_card failed", err, { proposalId: proposal.id });
+    void recordError(sql, {
+      source: "server", app: "admin", level: "error",
+      message: `Approval Slack card failed for proposal ${proposal.id}: ${msg}`,
+      path: "approvalNotify.postProposalCard", context: { proposalId: proposal.id },
+    });
   }
 }
 
@@ -285,7 +292,13 @@ export async function postPricingCard(sql: Sql, env: Env, proposal: PricingPropo
       `;
     }
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
     logger.error("pricing.slack_card failed", err, { proposalId: proposal.id });
+    void recordError(sql, {
+      source: "server", app: "admin", level: "error",
+      message: `Pricing Slack card failed for proposal ${proposal.id}: ${msg}`,
+      path: "approvalNotify.postPricingProposalCard", context: { proposalId: proposal.id },
+    });
   }
 }
 
