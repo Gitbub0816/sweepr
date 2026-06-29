@@ -202,6 +202,7 @@ export default {
   async scheduled(event: ScheduledEvent, env: Record<string, unknown>, _ctx: ExecutionContext) {
     const { getDb } = await import("./lib/db");
     const { processExpiredOffers } = await import("./lib/assignment");
+    const typedEnv = env as unknown as import("./types").Env;
     const sql = getDb(env.DATABASE_URL as string);
 
     logger.info("cron.fired", { cron: event.cron });
@@ -268,13 +269,11 @@ export default {
           activateEffective,
         } = await import("./lib/approvalEngine");
         const { updateProposalCard } = await import("./lib/approvalNotify");
-        const env2 = env as unknown as import("./types").Env;
-
         await expirePending(sql);
         const noticed = await completeCooldowns(sql);
         const activated = await activateEffective(sql);
         for (const p of [...noticed, ...activated]) {
-          await updateProposalCard(sql, env2, p.id as string);
+          await updateProposalCard(sql, typedEnv, p.id as string);
         }
 
         // Pricing change engine (parallel transitions).
@@ -284,7 +283,7 @@ export default {
         const pNoticed = await pricing.completeCooldowns(sql);
         const pActivated = await pricing.activateEffective(sql);
         for (const p of [...pNoticed, ...pActivated]) {
-          await updatePricingCard(sql, env2, p.id as string);
+          await updatePricingCard(sql, typedEnv, p.id as string);
         }
       } catch (err) {
         logger.error("cron.approval_engine failed", err, { cron: event.cron });
@@ -293,7 +292,7 @@ export default {
       // Auto-detect error patterns and open status incidents.
       try {
         const { detectAndCreateIncidents } = await import("./lib/statusAutoDetect");
-        const opened = await detectAndCreateIncidents(sql, env as unknown as import("./types").Env);
+        const opened = await detectAndCreateIncidents(sql, typedEnv);
         if (opened > 0) logger.info("cron.autoDetect", { opened });
       } catch (err) {
         logger.error("cron.autoDetect failed", err, { cron: event.cron });

@@ -35,12 +35,6 @@ export function SignUpPage() {
   const [hasAccount, setHasAccount] = useState(false);
   const probeTimer = useRef<ReturnType<typeof setTimeout>>();
 
-  // If navigated here with a prefill email, probe immediately
-  useEffect(() => {
-    if (prefillEmail) probeEmail(prefillEmail);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const probeEmail = useCallback((val: string) => {
     clearTimeout(probeTimer.current);
     setHasAccount(false);
@@ -59,6 +53,11 @@ export function SignUpPage() {
       } catch { /* non-fatal */ }
     }, 600);
   }, [signIn]);
+
+  // If navigated here with a prefill email, probe immediately
+  useEffect(() => {
+    if (prefillEmail) probeEmail(prefillEmail);
+  }, [prefillEmail, probeEmail]);
 
   async function handleOAuth(provider: "oauth_google" | "oauth_apple") {
     if (!isLoaded) return;

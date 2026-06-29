@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { DashboardShell, Card, Button, Input } from "@sweepr/ui";
 import { Bot, Wrench } from "lucide-react";
@@ -110,12 +110,12 @@ export function StatusPage() {
   const [mEnd, setMEnd] = useState("");
   const [mServices, setMServices] = useState("");
 
-  async function authHeaders() {
+  const authHeaders = useCallback(async () => {
     const token = await getToken();
     return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
-  }
+  }, [getToken]);
 
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
     const headers = await authHeaders();
     const [incRes, settingsRes, maintRes] = await Promise.all([
       fetch(`${API_URL}/admin/status/incidents`, { headers }),
@@ -126,9 +126,9 @@ export function StatusPage() {
     if (settingsRes.ok) setSettings(await settingsRes.json() as SiteSettings);
     if (maintRes.ok) setMaintenance(await maintRes.json() as MaintenanceWindow[]);
     setLoading(false);
-  }
+  }, [authHeaders]);
 
-  useEffect(() => { void fetchData(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void fetchData(); }, [fetchData]);
 
   async function patchSetting(key: string, value: string) {
     const headers = await authHeaders();
