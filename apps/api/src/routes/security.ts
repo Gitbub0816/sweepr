@@ -51,10 +51,10 @@ function stripHtml(html: string): string {
 securityRouter.post("/inbound", async (c) => {
   const raw = await c.req.text();
 
-  // Verify MailerSend inbound signature when a secret is configured.
-  if (c.env.MAILERSEND_INBOUND_SECRET) {
+  // Verify against the Security inbound route's own signing secret.
+  if (c.env.MAILERSEND_SECURITY_INBOUND_SECRET) {
     const sig = c.req.header("signature") ?? c.req.header("x-mailersend-signature") ?? "";
-    const expected = await hmacHex(c.env.MAILERSEND_INBOUND_SECRET, raw);
+    const expected = await hmacHex(c.env.MAILERSEND_SECURITY_INBOUND_SECRET, raw);
     if (sig !== expected) return c.json({ error: "bad signature" }, 401);
   }
 

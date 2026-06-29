@@ -61,7 +61,8 @@ preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
 # SLACK_CLIENT_ID           (Slack app → Basic Information → App Credentials)
 # SLACK_CLIENT_SECRET       (Slack app → Basic Information → App Credentials)
 # SLACK_SIGNING_SECRET      (Slack app → Basic Information → App Credentials; verifies inbound webhooks)
-# MAILERSEND_INBOUND_SECRET (MailerSend → Inbound routes → security@ route signing secret; verifies inbound mail)
+# MAILERSEND_IT_INBOUND_SECRET        (MailerSend → Inbound routes → IT@ route signing secret)
+# MAILERSEND_SECURITY_INBOUND_SECRET  (MailerSend → Inbound routes → security@ route signing secret)
 
 [env.production]
 vars = { ENVIRONMENT = "production" }

@@ -45,9 +45,10 @@ function stripHtml(html: string): string {
 
 itInboundRouter.post("/inbound", async (c) => {
   const raw = await c.req.text();
-  if (c.env.MAILERSEND_INBOUND_SECRET) {
+  // Verify against the IT inbound route's own signing secret.
+  if (c.env.MAILERSEND_IT_INBOUND_SECRET) {
     const sig = c.req.header("signature") ?? c.req.header("x-mailersend-signature") ?? "";
-    if (sig !== (await hmacHex(c.env.MAILERSEND_INBOUND_SECRET, raw))) return c.json({ error: "bad signature" }, 401);
+    if (sig !== (await hmacHex(c.env.MAILERSEND_IT_INBOUND_SECRET, raw))) return c.json({ error: "bad signature" }, 401);
   }
   let payload: Record<string, unknown> = {};
   try { payload = JSON.parse(raw || "{}"); } catch { return c.json({ error: "bad json" }, 400); }
