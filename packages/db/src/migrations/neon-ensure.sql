@@ -2373,4 +2373,10 @@ CREATE TABLE IF NOT EXISTS email_suppressions (
 );
 CREATE INDEX IF NOT EXISTS email_suppressions_email_idx ON email_suppressions (LOWER(email));
 
+-- Migration 043: Add 'security' to slack_channels purpose check constraint.
+ALTER TABLE slack_channels DROP CONSTRAINT IF EXISTS slack_channels_purpose_check;
+ALTER TABLE slack_channels
+  ADD CONSTRAINT slack_channels_purpose_check
+  CHECK (purpose IN ('approvals','admin','operations','finance','it','training','security','custom'));
+
 COMMIT;
