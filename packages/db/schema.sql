@@ -2660,6 +2660,7 @@ CREATE TABLE IF NOT EXISTS email_delivery_log (
 CREATE INDEX IF NOT EXISTS email_delivery_log_recipient_idx ON email_delivery_log (recipient);
 CREATE INDEX IF NOT EXISTS email_delivery_log_related_idx   ON email_delivery_log (related_type, related_id);
 CREATE INDEX IF NOT EXISTS email_delivery_log_sent_at_idx   ON email_delivery_log (sent_at DESC);
+CREATE INDEX IF NOT EXISTS email_delivery_log_status_idx    ON email_delivery_log (status);
 
 -- ── email_suppressions ────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS email_suppressions (
