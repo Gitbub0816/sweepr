@@ -1962,8 +1962,14 @@ INSERT INTO schema_migrations (filename) VALUES
   ('035_slack_user_tokens.sql'),
   ('036_pricing_engine.sql'),
   ('037_security_tickets.sql'),
-  ('038_compact_ticket_ids.sql')
+  ('038_compact_ticket_ids.sql'),
+  ('039_report_submitter.sql')
 ON CONFLICT (filename) DO NOTHING;
+
+-- ── 039: report submitter on security tickets ────────────────────────────────
+ALTER TABLE security_tickets
+  ADD COLUMN IF NOT EXISTS reporter_clerk_id TEXT,
+  ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'inbound_email';
 
 -- ── 038: compact ticket identifiers (Case Code + Ticket ID) ──────────────────
 ALTER TABLE security_tickets

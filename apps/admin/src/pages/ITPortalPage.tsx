@@ -48,6 +48,8 @@ export function ITPortalPage() {
 interface Ticket {
   id: string;
   ticket_number: number;
+  case_code: string | null;
+  ticket_id: string | null;
   title: string;
   description: string | null;
   category: string;
@@ -56,6 +58,7 @@ interface Ticket {
   source: "user_report" | "error" | "admin";
   app: string | null;
   reporter_email: string | null;
+  reporter_clerk_id: string | null;
   assigned_to: string | null;
   due_at: string | null;
   created_at: string;
@@ -151,7 +154,7 @@ function TicketsSection() {
                 onClick={() => setSelected(t)}
                 className="flex w-full items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-slate-300"
               >
-                <span className="mt-0.5 font-mono text-xs text-slate-400">#{t.ticket_number}</span>
+                <span className="mt-0.5 font-mono text-xs font-semibold text-seafoam-700">{t.case_code ?? `#${t.ticket_number}`}</span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${PRIORITY_COLOR[t.priority]}`}>{t.priority}</span>
@@ -189,6 +192,9 @@ function TicketDrawer({ ticketId, onClose, onChanged }: { ticketId: string; onCl
   const [comments, setComments] = useState<Comment[]>([]);
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
+  const [assignTo, setAssignTo] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [emailStatus, setEmailStatus] = useState("Work In Progress");
 
   const load = useCallback(async () => {
     const token = await getToken();
@@ -226,12 +232,33 @@ function TicketDrawer({ ticketId, onClose, onChanged }: { ticketId: string; onCl
     load();
   }
 
+  async function assign() {
+    if (!assignTo.trim()) return;
+    await patch({ assigned_to: assignTo.trim() });
+    setAssignTo("");
+    load();
+  }
+
+  async function emailReporter() {
+    if (!emailBody.trim()) return;
+    setBusy(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API}/it-tickets/admin/${ticketId}/email-reply`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ body: emailBody, caseStatus: emailStatus, assignedTo: assignTo.trim() || undefined }),
+      });
+      if (res.ok) { setEmailBody(""); load(); }
+    } finally { setBusy(false); }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={onClose}>
       <div className="h-full w-full max-w-lg overflow-y-auto bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between">
           <h2 className="text-lg font-bold text-charcoal">
-            {ticket ? `#${ticket.ticket_number} · ${ticket.title}` : "Loading…"}
+            {ticket ? <><span className="font-mono text-seafoam-700">{ticket.case_code ?? `#${ticket.ticket_number}`}</span> · {ticket.title}</> : "Loading…"}
           </h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="h-5 w-5" /></button>
         </div>
@@ -241,9 +268,11 @@ function TicketDrawer({ ticketId, onClose, onChanged }: { ticketId: string; onCl
             <p className="whitespace-pre-wrap text-sm text-slate-600">{ticket.description || "No description."}</p>
             <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
               <div>Reporter: <span className="text-slate-700">{ticket.reporter_email ?? "—"}</span></div>
+              <div>Submitter: <span className="text-slate-700">{ticket.reporter_clerk_id ? "signed-in user" : "anonymous"}</span></div>
               <div>App: <span className="text-slate-700">{ticket.app ?? "—"}</span></div>
               <div>Category: <span className="text-slate-700">{ticket.category}</span></div>
-              <div>Source: <span className="text-slate-700">{ticket.source}</span></div>
+              <div>Assigned: <span className="text-slate-700">{ticket.assigned_to ?? "—"}</span></div>
+              <div className="col-span-2">Ticket ID: <span className="font-mono text-slate-400">{ticket.ticket_id ?? "—"}</span></div>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -278,6 +307,40 @@ function TicketDrawer({ ticketId, onClose, onChanged }: { ticketId: string; onCl
                 title="Due date"
               />
             </div>
+
+            {/* Assign */}
+            <div className="flex gap-2">
+              <input
+                value={assignTo}
+                onChange={(e) => setAssignTo(e.target.value)}
+                placeholder="Assign to (name or team)…"
+                className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              />
+              <button onClick={assign} disabled={busy || !assignTo.trim()} className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50">Assign</button>
+            </div>
+
+            {/* Email the reporter */}
+            {ticket.reporter_email && (
+              <div className="rounded-xl border border-slate-200 p-3">
+                <h3 className="mb-2 text-sm font-semibold text-charcoal">Email the reporter</h3>
+                <p className="mb-2 text-xs text-slate-400">Sends from IT@getsweepr.com to {ticket.reporter_email} using the IT response template.</p>
+                <textarea
+                  value={emailBody}
+                  onChange={(e) => setEmailBody(e.target.value)}
+                  rows={3}
+                  placeholder="Write your response to the reporter…"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                />
+                <div className="mt-2 flex items-center gap-2">
+                  <select value={emailStatus} onChange={(e) => setEmailStatus(e.target.value)} className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm">
+                    {["Pending Review", "Investigating", "Awaiting User Response", "Information Requested", "Work In Progress", "Resolved", "Closed", "Unable to Reproduce", "Duplicate", "Rejected"].map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <button onClick={emailReporter} disabled={busy || !emailBody.trim()} className="flex items-center gap-1 rounded-lg bg-seafoam-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-seafoam-600 disabled:opacity-50">
+                    <Send className="h-4 w-4" /> Send email
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div>
               <h3 className="mb-2 text-sm font-semibold text-charcoal">Activity</h3>

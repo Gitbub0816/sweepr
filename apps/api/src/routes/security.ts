@@ -21,35 +21,21 @@ import { requireAdminRole } from "../middleware/adminRoles";
 import { getDb } from "../lib/db";
 import { logger } from "../lib/logger";
 import { sendEmail, SENDERS, TEMPLATES, formatEmailTimestamp } from "../lib/mailer";
-import { generateTicketId, securityTypeCode } from "../lib/ticketId";
+import { generateTicketId } from "../lib/ticketId";
+import { SECURITY_LABELS, securityTypeFromLabel, classifySecurity } from "../lib/issueTypes";
 import type { AppBindings } from "../types";
 
 export const securityRouter = new Hono<AppBindings>();
 
-const CLASSIFICATIONS = [
-  "General Inquiry", "Suspicious Email", "Misdirected Email", "Account Security",
-  "Credential Exposure", "Potential Vulnerability", "Phishing Report", "Privacy Concern",
-  "Fraud Report", "Abuse Report", "Policy Violation", "Responsible Disclosure",
-  "Bug Bounty Submission", "Internal Security Matter", "Other",
-] as const;
+// Canonical security issue types (shared with the report form + admin UI).
+const CLASSIFICATIONS = SECURITY_LABELS as readonly string[];
 
 const STATUSES = [
   "Active", "Pending Review", "Awaiting Response", "Investigating", "Information Requested",
   "Resolved", "Closed", "Rejected", "Duplicate", "Unable to Reproduce",
 ] as const;
 
-/** Lightweight keyword classifier (never reveals investigation logic). */
-function classify(subject: string, body: string): string {
-  const t = `${subject} ${body}`.toLowerCase();
-  if (/phish/.test(t)) return "Phishing Report";
-  if (/vuln|exploit|xss|sqli|cve|disclosure/.test(t)) return "Potential Vulnerability";
-  if (/password|credential|leak|exposed|token/.test(t)) return "Credential Exposure";
-  if (/fraud|scam/.test(t)) return "Fraud Report";
-  if (/abuse|harass/.test(t)) return "Abuse Report";
-  if (/privacy|gdpr|ccpa|data request/.test(t)) return "Privacy Concern";
-  if (/account|login|2fa|locked/.test(t)) return "Account Security";
-  return "General Inquiry";
-}
+const classify = classifySecurity;
 
 async function hmacHex(secret: string, raw: string): Promise<string> {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
@@ -86,7 +72,7 @@ securityRouter.post("/inbound", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const classification = classify(subject, bodyText);
   const receivedAt = new Date();
-  const gen = generateTicketId("SR", securityTypeCode(classification), receivedAt);
+  const gen = generateTicketId("SR", securityTypeFromLabel(classification).code, receivedAt);
 
   const rows = (await sql`
     INSERT INTO security_tickets (
@@ -179,7 +165,7 @@ securityRouter.post(
   zValidator("json", z.object({
     body: z.string().min(1),
     status: z.enum(STATUSES).optional(),
-    classification: z.enum(CLASSIFICATIONS).optional(),
+    classification: z.string().optional(),
     assignedTo: z.string().optional(),
   })),
   async (c) => {
@@ -238,7 +224,7 @@ securityRouter.patch(
   ...gate,
   zValidator("json", z.object({
     status: z.enum(STATUSES).optional(),
-    classification: z.enum(CLASSIFICATIONS).optional(),
+    classification: z.string().optional(),
     caseOwner: z.string().optional(),
     assignedTo: z.string().optional(),
   })),

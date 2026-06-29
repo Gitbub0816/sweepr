@@ -45,6 +45,7 @@ import { feeProposalsRouter, feeActionRouter } from "./routes/feeProposals";
 import { pricingAdminRouter } from "./routes/pricingAdmin";
 import { securityRouter } from "./routes/security";
 import { itInboundRouter } from "./routes/itInbound";
+import { reportRouter } from "./routes/report";
 import { requestLogger } from "./middleware/requestLogger";
 import { clientErrorsRouter } from "./routes/clientErrors";
 import { AppError, toSafeError } from "./lib/errors";
@@ -134,6 +135,7 @@ app.route("/fee-action", feeActionRouter);
 app.route("/admin/pricing", pricingAdminRouter);
 app.route("/security", securityRouter);
 app.route("/it-mail", itInboundRouter);
+app.route("/report", reportRouter);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 
