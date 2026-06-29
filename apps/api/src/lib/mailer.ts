@@ -53,7 +53,7 @@ export function wrapBodyInTemplate(subject: string, body: string): string {
 
   return `<div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#111">
   <img src="https://getsweepr.com/logo.png" alt="Sweepr" style="height:36px;margin-bottom:28px" />
-  <h1 style="font-size:22px;font-weight:700;margin:0 0 20px">${subject}</h1>
+  <h1 style="font-size:22px;font-weight:700;margin:0 0 20px">${subject.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</h1>
   ${paragraphs}
   <a href="https://getsweepr.com" style="display:inline-block;background:#14b8a6;color:#fff;font-weight:600;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:14px;margin-top:8px">Visit Sweepr</a>
   <hr style="margin:32px 0;border:none;border-top:1px solid #e5e7eb" />
@@ -118,8 +118,10 @@ async function callMailerSend(
   if (input.replyTo) body.reply_to = input.replyTo;
 
   if (input.category === "marketing") {
+    // RFC 8058: include both https (for one-click POST) and mailto as fallback.
+    const unsubUrl = `https://api.getsweepr.com/unsubscribe?email=${encodeURIComponent(input.to)}`;
     body.headers = [
-      { name: "List-Unsubscribe", value: `<mailto:unsubscribe@getsweepr.com?subject=unsubscribe>` },
+      { name: "List-Unsubscribe", value: `<${unsubUrl}>, <mailto:unsubscribe@getsweepr.com?subject=unsubscribe>` },
       { name: "List-Unsubscribe-Post", value: "List-Unsubscribe=One-Click" },
     ];
   }

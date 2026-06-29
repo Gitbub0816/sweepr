@@ -50,7 +50,10 @@ const createSchema = z.object({
   category: z.enum(CATEGORY).default("other"),
   priority: z.enum(PRIORITY).optional(),
   app: z.enum(["customer", "cleaner", "admin", "service"]).optional(),
-  context: z.record(z.unknown()).optional(),
+  context: z.record(z.unknown()).optional().refine(
+    (v) => !v || JSON.stringify(v).length < 4096,
+    { message: "context too large (max 4096 bytes)" },
+  ),
 });
 
 itTicketsRouter.post("/", zValidator("json", createSchema), async (c) => {
@@ -212,28 +215,26 @@ itTicketsRouter.post(
     const classification = (t.category as string) ?? "Other";
     if (!c.env.MAILERSEND_API_KEY) return c.json({ error: "Email not configured — MAILERSEND_API_KEY is missing." }, 502);
     let delivery = "failed";
-    if (c.env.MAILERSEND_API_KEY) {
-      try {
-        await sendEmail(c.env.MAILERSEND_API_KEY, {
-          to: t.reporter_email as string,
-          subject: `Sweepr IT Update — ${caseCode}`,
-          from: SENDERS.IT,
-          replyTo: SENDERS.IT,
-          templateId: TEMPLATES.IT_MANUAL_RESPONSE,
-          variables: {
-            case_code: caseCode,
-            ticket_id: (t.ticket_id as string) ?? caseCode,
-            generated_at: formatEmailTimestamp(),
-            it_classification: classification,
-            case_status: caseStatus ?? "Work In Progress",
-            assigned_to: assignedTo ?? (t.assigned_to as string) ?? "IT Operations",
-            response_body: body,
-          },
-        });
-        delivery = "sent";
-      } catch (err) {
-        return c.json({ error: "Email delivery failed." }, 502);
-      }
+    try {
+      await sendEmail(c.env.MAILERSEND_API_KEY, {
+        to: t.reporter_email as string,
+        subject: `Sweepr IT Update — ${caseCode}`,
+        from: SENDERS.IT,
+        replyTo: SENDERS.IT,
+        templateId: TEMPLATES.IT_MANUAL_RESPONSE,
+        variables: {
+          case_code: caseCode,
+          ticket_id: (t.ticket_id as string) ?? caseCode,
+          generated_at: formatEmailTimestamp(),
+          it_classification: classification,
+          case_status: caseStatus ?? "Work In Progress",
+          assigned_to: assignedTo ?? (t.assigned_to as string) ?? "IT Operations",
+          response_body: body,
+        },
+      });
+      delivery = "sent";
+    } catch (err) {
+      return c.json({ error: "Email delivery failed." }, 502);
     }
     await sql`
       INSERT INTO it_ticket_comments (ticket_id, author_clerk_id, author_email, is_admin, body)

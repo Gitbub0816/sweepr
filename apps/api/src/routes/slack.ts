@@ -217,7 +217,18 @@ slackRouter.get("/oauth/callback", async (c) => {
 
 // ── Events API ────────────────────────────────────────────────────────────────
 slackRouter.post("/events", async (c) => {
+  if (!c.env.SLACK_SIGNING_SECRET) return c.json({ error: "Not configured" }, 503);
   const raw = await c.req.text();
+
+  // Verify signature first — Slack sends a valid signature on url_verification too.
+  const ok = await verifySlackSignature(
+    c.env.SLACK_SIGNING_SECRET,
+    c.req.header("x-slack-request-timestamp") ?? null,
+    c.req.header("x-slack-signature") ?? null,
+    raw,
+  );
+  if (!ok) return c.json({ error: "bad signature" }, 401);
+
   const body = JSON.parse(raw || "{}") as {
     type?: string;
     challenge?: string;
@@ -225,20 +236,10 @@ slackRouter.post("/events", async (c) => {
     team_id?: string;
   };
 
-  // Answer the URL-verification handshake immediately. It carries no action and
-  // must succeed even before the signing secret is configured in Slack's UI.
   if (body.type === "url_verification") {
-    return c.json({ challenge: body.challenge });
+    const challenge = typeof body.challenge === "string" ? body.challenge.slice(0, 200) : "";
+    return c.json({ challenge });
   }
-
-  // All real events are signature-verified.
-  const ok = await verifySlackSignature(
-    c.env.SLACK_SIGNING_SECRET ?? "",
-    c.req.header("x-slack-request-timestamp") ?? null,
-    c.req.header("x-slack-signature") ?? null,
-    raw,
-  );
-  if (!ok) return c.json({ error: "bad signature" }, 401);
 
   if (body.event?.type === "app_uninstalled" || body.event?.type === "tokens_revoked") {
     const sql = getDb(c.env.DATABASE_URL);
@@ -251,9 +252,10 @@ slackRouter.post("/events", async (c) => {
 
 // ── Interactivity (public, signature-verified) ────────────────────────────────
 slackRouter.post("/interactivity", async (c) => {
+  if (!c.env.SLACK_SIGNING_SECRET) return c.json({ error: "Not configured" }, 503);
   const raw = await c.req.text();
   const ok = await verifySlackSignature(
-    c.env.SLACK_SIGNING_SECRET ?? "",
+    c.env.SLACK_SIGNING_SECRET,
     c.req.header("x-slack-request-timestamp") ?? null,
     c.req.header("x-slack-signature") ?? null,
     raw,
@@ -279,6 +281,8 @@ slackRouter.post("/interactivity", async (c) => {
   const slackUserId = payload.user?.id;
 
   // Resolve the acting Slack user to a Sweepr user and verify permission.
+  // Cross-check: the Slack user ID must match a linked record in our DB,
+  // so a workspace compromise cannot impersonate admins via email alone.
   const wsRows = (await sql`
     SELECT id, bot_token FROM slack_workspaces WHERE team_id = ${teamId ?? ""} AND status = 'active' LIMIT 1
   `) as Array<{ id: string; bot_token: string }>;
@@ -293,8 +297,14 @@ slackRouter.post("/interactivity", async (c) => {
       if (isOwnerEmail(email, c.env)) {
         isSuperAdmin = true;
       }
+      // Require both email AND slack_user_id to match — this prevents a
+      // compromised Slack workspace from impersonating admins via email alone.
       const u = (await sql`
-        SELECT clerk_id, role, admin_role FROM users WHERE LOWER(email) = LOWER(${email}) LIMIT 1
+        SELECT u.clerk_id, u.role, u.admin_role
+        FROM users u
+        INNER JOIN slack_user_links sul ON sul.user_id = u.id AND sul.slack_user_id = ${slackUserId}
+        WHERE LOWER(u.email) = LOWER(${email})
+        LIMIT 1
       `) as Array<{ clerk_id: string; role: string; admin_role: string | null }>;
       if (u[0]) {
         clerkId = u[0].clerk_id;
@@ -368,9 +378,10 @@ slackRouter.post("/interactivity", async (c) => {
 
 // ── Slash commands (public, signature-verified) ───────────────────────────────
 slackRouter.post("/commands", async (c) => {
+  if (!c.env.SLACK_SIGNING_SECRET) return c.json({ error: "Not configured" }, 503);
   const raw = await c.req.text();
   const ok = await verifySlackSignature(
-    c.env.SLACK_SIGNING_SECRET ?? "",
+    c.env.SLACK_SIGNING_SECRET,
     c.req.header("x-slack-request-timestamp") ?? null,
     c.req.header("x-slack-signature") ?? null,
     raw,

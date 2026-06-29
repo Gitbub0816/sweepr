@@ -52,12 +52,18 @@ function stripHtml(html: string): string {
 securityRouter.post("/inbound", async (c) => {
   const raw = await c.req.text();
 
-  // Verify against the Security inbound route's own signing secret.
-  if (c.env.MAILERSEND_SECURITY_INBOUND_SECRET) {
-    const sig = c.req.header("signature") ?? c.req.header("x-mailersend-signature") ?? "";
-    const expected = await hmacHex(c.env.MAILERSEND_SECURITY_INBOUND_SECRET, raw);
-    if (sig !== expected) return c.json({ error: "bad signature" }, 401);
-  }
+  // Fail-closed: require the secret to be configured.
+  if (!c.env.MAILERSEND_SECURITY_INBOUND_SECRET) return c.json({ error: "Inbound not configured" }, 503);
+  const sig = c.req.header("signature") ?? c.req.header("x-mailersend-signature") ?? "";
+  // Use crypto.subtle.verify for timing-safe HMAC comparison.
+  const key = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(c.env.MAILERSEND_SECURITY_INBOUND_SECRET),
+    { name: "HMAC", hash: "SHA-256" }, false, ["verify"],
+  );
+  const sigBytes = Uint8Array.from(sig.match(/[0-9a-f]{2}/gi)?.map((b) => parseInt(b, 16)) ?? []);
+  const valid = sigBytes.length > 0 &&
+    await crypto.subtle.verify("HMAC", key, sigBytes, new TextEncoder().encode(raw));
+  if (!valid) return c.json({ error: "bad signature" }, 401);
 
   let payload: Record<string, unknown> = {};
   try { payload = JSON.parse(raw || "{}"); } catch { return c.json({ error: "bad json" }, 400); }

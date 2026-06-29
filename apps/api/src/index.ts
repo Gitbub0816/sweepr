@@ -47,7 +47,7 @@ import { securityRouter } from "./routes/security";
 import { itInboundRouter } from "./routes/itInbound";
 import { reportRouter } from "./routes/report";
 import { responseTemplatesRouter } from "./routes/responseTemplates";
-import { adminEmailRouter, mailersendWebhookRouter } from "./routes/adminEmail";
+import { adminEmailRouter, mailersendWebhookRouter, unsubscribeRouter } from "./routes/adminEmail";
 import { requestLogger } from "./middleware/requestLogger";
 import { clientErrorsRouter } from "./routes/clientErrors";
 import { AppError, toSafeError } from "./lib/errors";
@@ -77,6 +77,7 @@ app.use("/storage/*", rateLimit({ limit: 20, windowMs: 60 * 60_000, keyPrefix: "
 app.use("/pricing/*", rateLimit({ limit: 60, windowMs: 60_000, keyPrefix: "pricing" }));
 app.use("/client-errors/*", rateLimit({ limit: 20, windowMs: 60_000, keyPrefix: "clienterr" }));
 app.use("/slack/*", rateLimit({ limit: 300, windowMs: 60_000, keyPrefix: "slack" }));
+app.use("/unsubscribe/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "unsub" }));
 
 app.get("/", (c) => c.json({ name: "sweepr-api", status: "ok" }));
 app.get("/health", (c) => c.json({ ok: true }));
@@ -141,6 +142,7 @@ app.route("/report", reportRouter);
 app.route("/admin/response-templates", responseTemplatesRouter);
 app.route("/admin/email", adminEmailRouter);
 app.route("/webhooks/mailersend", mailersendWebhookRouter);
+app.route("/unsubscribe", unsubscribeRouter);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 
