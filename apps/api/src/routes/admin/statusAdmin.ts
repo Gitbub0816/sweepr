@@ -243,8 +243,8 @@ statusAdminRouter.post(
   zValidator("json", maintenanceSchema),
   async (c) => {
     const body = c.req.valid("json");
-    const user = c.get("user") as { id?: string; email?: string } | undefined;
-    const createdBy = user?.email ?? user?.id ?? "admin";
+    const user = c.get("user");
+    const createdBy = user?.email ?? user?.clerkId ?? "admin";
     const sql = getDb(c.env.DATABASE_URL);
     const rows = (await sql`
       INSERT INTO maintenance_windows

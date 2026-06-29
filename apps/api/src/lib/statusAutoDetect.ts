@@ -127,7 +127,7 @@ export async function detectAndCreateIncidents(
       WHERE occurred_at > NOW() - INTERVAL '24 hours'
         AND user_id IS NOT NULL
     ` as { cnt: number }[];
-    const activeUsers = Math.max(activeRows[0]?.cnt ?? 0, 10);
+    const activeUsers = Math.max(parseInt(String(activeRows[0]?.cnt ?? 0), 10) || 0, 10);
 
     // Error patterns in last 30 min
     const patterns = await sql`
@@ -151,11 +151,13 @@ export async function detectAndCreateIncidents(
         (COUNT(DISTINCT user_id) >= 3 AND COUNT(*) >= 20)
         OR (COUNT(*) FILTER (WHERE occurred_at > NOW() - INTERVAL '10 minutes') >= 20
             AND COUNT(DISTINCT user_id) >= 2)
-    ` as { app: string | null; msg_norm: string; count_30min: number; count_10min: number; distinct_users: number }[];
+    ` as { app: string | null; msg_norm: string; count_30min: string; count_10min: string; distinct_users: string }[];
 
     for (const p of patterns) {
       const fp = fingerprint(p.app, p.msg_norm);
-      const affectedPct = (p.distinct_users / activeUsers) * 100;
+      const distinctUsers = parseInt(p.distinct_users, 10) || 0;
+      const count30min = parseInt(p.count_30min, 10) || 0;
+      const affectedPct = (distinctUsers / activeUsers) * 100;
       const severity = severityFromPct(affectedPct);
       const service = affectedService(p.app);
 
@@ -171,8 +173,8 @@ export async function detectAndCreateIncidents(
         // Update counts on existing incident so admin can see freshness
         await sql`
           UPDATE status_incidents SET
-            affected_user_count = ${p.distinct_users},
-            total_occurrences   = ${Number(p.count_30min)},
+            affected_user_count = ${distinctUsers},
+            total_occurrences   = ${count30min},
             updated_at          = NOW()
           WHERE id = ${existing[0].id}
         `;
@@ -192,7 +194,7 @@ export async function detectAndCreateIncidents(
            affected_user_count, total_occurrences)
         VALUES
           (${title}, ${summary}, 'investigating', ${severity}, ${[service]},
-           false, true, ${fp}, ${p.distinct_users}, ${Number(p.count_30min)})
+           false, true, ${fp}, ${distinctUsers}, ${count30min})
         RETURNING id
       ` as { id: string }[];
 
@@ -203,16 +205,14 @@ export async function detectAndCreateIncidents(
         INSERT INTO status_updates (incident_id, message, status)
         VALUES (
           ${incidentId},
-          ${'Incident auto-detected by Sweepr monitoring. ' +
-            `${p.distinct_users} user(s) affected · ` +
-            `${p.count_30min} occurrences in the last 30 min.`},
+          ${`Incident auto-detected by Sweepr monitoring. ${distinctUsers} user(s) affected · ${count30min} occurrences in the last 30 min.`},
           'investigating'
         )
       `;
 
       created++;
 
-      await postSlackAlert(sql, env, incidentId, title, severity, p.distinct_users, Number(p.count_30min));
+      await postSlackAlert(sql, env, incidentId, title, severity, distinctUsers, count30min);
     }
   } catch (err) {
     // Non-fatal — don't block the cron handler
