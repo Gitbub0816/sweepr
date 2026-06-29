@@ -13,7 +13,6 @@ import {
   Map,
   Activity,
   Mail,
-  Send,
   GraduationCap,
   MonitorPlay,
   ShieldCheck,
@@ -48,8 +47,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminGuard } from "./components/AdminGuard";
 import { NavAuth } from "./components/NavAuth";
 import { AcceptInvitePage } from "./pages/AcceptInvitePage";
-import { NewsletterPage } from "./pages/NewsletterPage";
-import { BroadcastsPage } from "./pages/BroadcastsPage";
+import { EmailPage } from "./pages/EmailPage";
 import { CourseBuilderPage } from "./pages/CourseBuilderPage";
 import { CourseEditorPage } from "./pages/CourseEditorPage";
 import { InsurancePage } from "./pages/InsurancePage";
@@ -82,8 +80,7 @@ const nav = [
   { to: "/status", label: "Status", icon: Activity },
   { to: "/training", label: "Training", icon: GraduationCap },
   { to: "/courses", label: "Course Builder", icon: MonitorPlay },
-  { to: "/newsletter", label: "Newsletter", icon: Mail },
-  { to: "/broadcasts", label: "Broadcasts", icon: Send },
+  { to: "/email", label: "Email", icon: Mail },
   { to: "/observability", label: "Observability", icon: Telescope },
   { to: "/errors", label: "Errors", icon: Bug },
   { to: "/it-portal", label: "IT Portal", icon: LifeBuoy },
@@ -155,8 +152,7 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-      <Route path="/newsletter" element={<Guarded><NewsletterPage /></Guarded>} />
-      <Route path="/broadcasts" element={<Guarded><BroadcastsPage /></Guarded>} />
+      <Route path="/email" element={<Guarded><EmailPage /></Guarded>} />
       <Route path="/observability" element={<Guarded><ObservabilityPage /></Guarded>} />
       <Route path="/errors" element={<Guarded><ErrorsPage /></Guarded>} />
       <Route path="/it-portal" element={<Guarded><ITPortalPage /></Guarded>} />
