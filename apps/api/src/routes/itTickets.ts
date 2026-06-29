@@ -22,6 +22,7 @@ import { requireAuth } from "../middleware/auth";
 import { isOwnerClerkId } from "../lib/owner";
 import { generateTicketId, itTypeCode } from "../lib/ticketId";
 import { sendEmail, SENDERS, TEMPLATES, formatEmailTimestamp } from "../lib/mailer";
+import { getTicketContext } from "../lib/ticketContext";
 import type { AppBindings } from "../types";
 
 export const itTicketsRouter = new Hono<AppBindings>();
@@ -125,6 +126,15 @@ itTicketsRouter.get("/admin/:id", requireAdmin, async (c) => {
     SELECT id, author_email, is_admin, body, created_at
     FROM it_ticket_comments WHERE ticket_id = ${id} ORDER BY created_at ASC`;
   return c.json({ ticket, comments });
+});
+
+itTicketsRouter.get("/admin/:id/context", requireAdmin, async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const id = c.req.param("id");
+  const [t] = (await sql`SELECT id, reporter_email, related_error_id FROM it_tickets WHERE id = ${id} LIMIT 1`) as Array<{ id: string; reporter_email: string | null; related_error_id: string | null }>;
+  if (!t) return c.json({ error: "Not found" }, 404);
+  const context = await getTicketContext(sql, t.reporter_email, { kind: "it", ticketDbId: id, errorId: t.related_error_id });
+  return c.json({ context });
 });
 
 const updateSchema = z.object({

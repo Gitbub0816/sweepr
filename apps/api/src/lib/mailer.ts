@@ -80,10 +80,16 @@ export async function sendEmail(
   if (input.templateId) {
     body.template_id = input.templateId;
     if (input.variables) {
-      body.personalization = [
+      // Send BOTH formats so the values populate whether the template uses
+      // advanced personalization ({{ var }}) or simple variables ({$var}).
+      body.personalization = [{ email: input.to, data: input.variables }];
+      body.variables = [
         {
           email: input.to,
-          data: input.variables,
+          substitutions: Object.entries(input.variables).map(([k, v]) => ({
+            var: k,
+            value: String(v ?? ""),
+          })),
         },
       ];
     }

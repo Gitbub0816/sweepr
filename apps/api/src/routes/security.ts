@@ -22,7 +22,9 @@ import { getDb } from "../lib/db";
 import { logger } from "../lib/logger";
 import { sendEmail, SENDERS, TEMPLATES, formatEmailTimestamp } from "../lib/mailer";
 import { generateTicketId } from "../lib/ticketId";
-import { SECURITY_LABELS, securityTypeFromLabel, classifySecurity } from "../lib/issueTypes";
+import { SECURITY_LABELS, securityTypeFromLabel } from "../lib/issueTypes";
+import { inferSecurity } from "../lib/classify";
+import { getTicketContext } from "../lib/ticketContext";
 import type { AppBindings } from "../types";
 
 export const securityRouter = new Hono<AppBindings>();
@@ -35,7 +37,6 @@ const STATUSES = [
   "Resolved", "Closed", "Rejected", "Duplicate", "Unable to Reproduce",
 ] as const;
 
-const classify = classifySecurity;
 
 async function hmacHex(secret: string, raw: string): Promise<string> {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
@@ -70,7 +71,8 @@ securityRouter.post("/inbound", async (c) => {
   const senderIp = (data.sender_ip as string) ?? c.req.header("CF-Connecting-IP") ?? null;
 
   const sql = getDb(c.env.DATABASE_URL);
-  const classification = classify(subject, bodyText);
+  const inf = inferSecurity(subject, bodyText);
+  const classification = inf.label;
   const receivedAt = new Date();
   const gen = generateTicketId("SR", securityTypeFromLabel(classification).code, receivedAt);
 
@@ -78,12 +80,14 @@ securityRouter.post("/inbound", async (c) => {
     INSERT INTO security_tickets (
       sender_email, sender_name, sender_ip, subject, classification, inbound_message_id,
       received_at, ticket_number, ticket_id, case_code, ticket_prefix,
-      encoded_date, encoded_time, issue_type, hex_suffix
+      encoded_date, encoded_time, issue_type, hex_suffix,
+      classification_confidence, classification_signals, auto_classified
     )
     VALUES (
       ${senderEmail}, ${from.name ?? null}, ${senderIp}, ${subject}, ${classification}, ${messageId},
       ${receivedAt.toISOString()}, ${gen.ticketId}, ${gen.ticketId}, ${gen.caseCode}, 'SR',
-      ${gen.encodedDate}, ${gen.encodedTime}, ${gen.issueType}, ${gen.hex}
+      ${gen.encodedDate}, ${gen.encodedTime}, ${gen.issueType}, ${gen.hex},
+      ${inf.confidence}, ${JSON.stringify(inf.signals)}, ${inf.auto}
     )
     RETURNING id, received_at
   `) as Array<{ id: string; received_at: string }>;
@@ -157,6 +161,15 @@ securityRouter.get("/tickets/:id", ...gate, async (c) => {
   if (!t[0]) return c.json({ error: "Not found" }, 404);
   const messages = (await sql`SELECT * FROM security_ticket_messages WHERE ticket_id = ${id} ORDER BY created_at ASC`) as unknown[];
   return c.json({ ticket: t[0], messages, classifications: CLASSIFICATIONS, statuses: STATUSES });
+});
+
+securityRouter.get("/tickets/:id/context", ...gate, async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const id = c.req.param("id");
+  const t = (await sql`SELECT id, sender_email FROM security_tickets WHERE id = ${id} LIMIT 1`) as Array<{ id: string; sender_email: string }>;
+  if (!t[0]) return c.json({ error: "Not found" }, 404);
+  const context = await getTicketContext(sql, t[0].sender_email, { kind: "security", ticketDbId: id });
+  return c.json({ context });
 });
 
 securityRouter.post(

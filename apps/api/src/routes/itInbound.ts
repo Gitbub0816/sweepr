@@ -11,28 +11,11 @@ import { getDb } from "../lib/db";
 import { logger } from "../lib/logger";
 import { sendEmail, SENDERS, TEMPLATES, formatEmailTimestamp } from "../lib/mailer";
 import { generateTicketId } from "../lib/ticketId";
+import { itTypeFromLabel } from "../lib/issueTypes";
+import { inferIT } from "../lib/classify";
 import type { AppBindings } from "../types";
 
 export const itInboundRouter = new Hono<AppBindings>();
-
-/** Classify inbound IT mail → { dbCategory (enum), code (3-letter), label }. */
-function classifyIt(subject: string, body: string): { dbCategory: string; code: string; label: string } {
-  const t = `${subject} ${body}`.toLowerCase();
-  if (/slack/.test(t)) return { dbCategory: "technical", code: "SLK", label: "Slack" };
-  if (/\bvpn\b/.test(t)) return { dbCategory: "technical", code: "VPN", label: "VPN" };
-  if (/email|smtp|mailbox|inbox/.test(t)) return { dbCategory: "technical", code: "EML", label: "Email" };
-  if (/network|wifi|connection|dns/.test(t)) return { dbCategory: "technical", code: "NET", label: "Network" };
-  if (/printer|peripheral/.test(t)) return { dbCategory: "technical", code: "PRN", label: "Printer" };
-  if (/database|\bsql\b|neon/.test(t)) return { dbCategory: "technical", code: "DBA", label: "Database" };
-  if (/\bapi\b|integration|webhook/.test(t)) return { dbCategory: "technical", code: "API", label: "API" };
-  if (/payment|payout|stripe|billing|invoice/.test(t)) return { dbCategory: "billing", code: "PAY", label: "Payments" };
-  if (/login|password|account|2fa|locked|access/.test(t)) return { dbCategory: "account", code: "ACC", label: "Account Access" };
-  if (/auth|sso|token/.test(t)) return { dbCategory: "account", code: "AUT", label: "Authentication" };
-  if (/bug|error|crash|broken|exception/.test(t)) return { dbCategory: "bug", code: "BUG", label: "Bug" };
-  if (/device|laptop|hardware|phone/.test(t)) return { dbCategory: "technical", code: "DEV", label: "Device" };
-  if (/config|setting/.test(t)) return { dbCategory: "technical", code: "CFG", label: "Configuration" };
-  return { dbCategory: "other", code: "OTH", label: "Other" };
-}
 
 async function hmacHex(secret: string, raw: string): Promise<string> {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
@@ -61,16 +44,19 @@ itInboundRouter.post("/inbound", async (c) => {
   const messageId = (data.id as string) ?? (data.message_id as string) ?? null;
 
   const sql = getDb(c.env.DATABASE_URL);
-  const cls = classifyIt(subject, bodyText);
+  const inf = inferIT(subject, bodyText);
+  const cls = itTypeFromLabel(inf.label);
   const receivedAt = new Date();
   const gen = generateTicketId("IT", cls.code, receivedAt);
 
   const rows = (await sql`
     INSERT INTO it_tickets (title, description, category, priority, source, reporter_email,
-      ticket_id, case_code, ticket_prefix, encoded_date, encoded_time, issue_type, hex_suffix, context)
+      ticket_id, case_code, ticket_prefix, encoded_date, encoded_time, issue_type, hex_suffix,
+      classification_confidence, classification_signals, auto_classified, context)
     VALUES (${subject}, ${bodyText}, ${cls.dbCategory}, 'normal', 'user_report', ${senderEmail},
       ${gen.ticketId}, ${gen.caseCode}, 'IT', ${gen.encodedDate}, ${gen.encodedTime}, ${gen.issueType}, ${gen.hex},
-      ${JSON.stringify({ inbound: true, message_id: messageId, classification: cls.label })})
+      ${inf.confidence}, ${JSON.stringify(inf.signals)}, ${inf.auto},
+      ${JSON.stringify({ inbound: true, message_id: messageId, classification: inf.label })})
     RETURNING id
   `) as Array<{ id: string }>;
   const ticketId = rows[0].id;

@@ -1,10 +1,20 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { LifeBuoy, RefreshCw, X, Send, AlertTriangle, Ticket, UserCog, Activity, KeyRound, Link2, Search } from "lucide-react";
+import { LifeBuoy, RefreshCw, X, Send, AlertTriangle, Ticket, UserCog, Activity, KeyRound, Link2, Search, Sparkles } from "lucide-react";
+import { ContextPanel } from "./SecurityPage";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
-type Section = "tickets" | "users" | "telemetry";
+interface TicketContext {
+  user: Record<string, unknown> | null;
+  invites: Array<Record<string, unknown>>;
+  audit: Array<Record<string, unknown>>;
+  relatedTickets: Array<Record<string, unknown>>;
+  error: Record<string, unknown> | null;
+}
+interface Template { id: string; department: string; key: string; name: string; classification: string | null; subject: string | null; body: string; is_active: boolean; }
+
+type Section = "tickets" | "users" | "telemetry" | "templates";
 type View = "open" | "past_due" | "resolved" | "closed";
 
 export function ITPortalPage() {
@@ -13,6 +23,7 @@ export function ITPortalPage() {
     { id: "tickets", label: "Tickets", icon: Ticket },
     { id: "users", label: "User Management", icon: UserCog },
     { id: "telemetry", label: "Telemetry", icon: Activity },
+    { id: "templates", label: "Response Templates", icon: Send },
   ];
   return (
     <div className="space-y-6">
@@ -41,6 +52,126 @@ export function ITPortalPage() {
       {section === "tickets" && <TicketsSection />}
       {section === "users" && <UsersSection />}
       {section === "telemetry" && <TelemetrySection />}
+      {section === "templates" && <TemplatesSection />}
+    </div>
+  );
+}
+
+// ── Response Templates (editable canned replies) ─────────────────────────────
+function TemplatesSection() {
+  const { getToken } = useAuth();
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<Partial<Template> | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API}/admin/response-templates`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setTemplates(((await res.json()) as { templates: Template[] }).templates ?? []);
+    } finally { setLoading(false); }
+  }, [getToken]);
+  useEffect(() => { load(); }, [load]);
+
+  async function save() {
+    if (!editing) return;
+    const token = await getToken();
+    const isNew = !editing.id;
+    const body = isNew
+      ? { department: editing.department ?? "it", key: editing.key, name: editing.name, classification: editing.classification || null, subject: editing.subject || null, body: editing.body, is_active: editing.is_active ?? true }
+      : { name: editing.name, classification: editing.classification || null, subject: editing.subject || null, body: editing.body, is_active: editing.is_active };
+    const res = await fetch(`${API}/admin/response-templates${isNew ? "" : `/${editing.id}`}`, {
+      method: isNew ? "POST" : "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) { setEditing(null); load(); }
+    else alert(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "Save failed.");
+  }
+
+  async function remove(id: string) {
+    if (!confirm("Delete this template?")) return;
+    const token = await getToken();
+    await fetch(`${API}/admin/response-templates/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+    load();
+  }
+
+  const grouped = { it: templates.filter((t) => t.department === "it"), security: templates.filter((t) => t.department === "security") };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-slate-400">Editable canned replies. Placeholders {"{{case_code}}"}, {"{{ticket_id}}"}, {"{{classification}}"} are filled in when applied.</p>
+        <button onClick={() => setEditing({ department: "it", is_active: true })} className="rounded-lg bg-seafoam-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-seafoam-600">New template</button>
+      </div>
+      {loading ? <div className="h-48 animate-pulse rounded-xl bg-slate-100" /> : (
+        (["it", "security"] as const).map((dept) => (
+          <div key={dept}>
+            <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-400">{dept}</h3>
+            <div className="space-y-2">
+              {grouped[dept].length === 0 && <p className="text-xs text-slate-400">No templates.</p>}
+              {grouped[dept].map((t) => (
+                <div key={t.id} className="flex items-start justify-between rounded-xl border border-slate-200 bg-white p-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-charcoal">{t.name} {!t.is_active && <span className="text-xs text-slate-400">(inactive)</span>}</p>
+                    <p className="font-mono text-[10px] text-slate-300">{t.key}{t.classification ? ` · ${t.classification}` : ""}</p>
+                    <p className="mt-1 line-clamp-2 text-xs text-slate-500">{t.body}</p>
+                  </div>
+                  <div className="ml-3 flex shrink-0 gap-2">
+                    <button onClick={() => setEditing(t)} className="rounded-lg border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50">Edit</button>
+                    <button onClick={() => remove(t.id)} className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50">Delete</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))
+      )}
+
+      {editing && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={() => setEditing(null)}>
+          <div className="h-full w-full max-w-lg overflow-y-auto bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-charcoal">{editing.id ? "Edit template" : "New template"}</h2>
+              <button onClick={() => setEditing(null)} className="text-slate-400 hover:text-slate-600"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="mt-4 space-y-3">
+              {!editing.id && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-500">Department</label>
+                    <select value={editing.department ?? "it"} onChange={(e) => setEditing({ ...editing, department: e.target.value })} className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm">
+                      <option value="it">IT</option>
+                      <option value="security">Security</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-500">Key</label>
+                    <input value={editing.key ?? ""} onChange={(e) => setEditing({ ...editing, key: e.target.value })} placeholder="resolved" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+                  </div>
+                </div>
+              )}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-500">Name</label>
+                <input value={editing.name ?? ""} onChange={(e) => setEditing({ ...editing, name: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-500">Classification (optional)</label>
+                <input value={editing.classification ?? ""} onChange={(e) => setEditing({ ...editing, classification: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-500">Body</label>
+                <textarea value={editing.body ?? ""} onChange={(e) => setEditing({ ...editing, body: e.target.value })} rows={8} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+              <label className="flex items-center gap-2 text-sm text-slate-600">
+                <input type="checkbox" checked={editing.is_active ?? true} onChange={(e) => setEditing({ ...editing, is_active: e.target.checked })} /> Active
+              </label>
+              <button onClick={save} disabled={!editing.name || !editing.body || (!editing.id && !editing.key)} className="w-full rounded-lg bg-seafoam-500 px-3 py-2 text-sm font-medium text-white hover:bg-seafoam-600 disabled:opacity-50">Save template</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -62,6 +193,10 @@ interface Ticket {
   assigned_to: string | null;
   due_at: string | null;
   created_at: string;
+  classification_confidence?: number | null;
+  classification_signals?: string[] | null;
+  auto_classified?: boolean | null;
+  context?: Record<string, unknown> | null;
 }
 interface Comment { id: string; author_email: string | null; is_admin: boolean; body: string; created_at: string; }
 interface Counts { open: number; past_due: number; resolved: number; closed: number; }
@@ -195,6 +330,8 @@ function TicketDrawer({ ticketId, onClose, onChanged }: { ticketId: string; onCl
   const [assignTo, setAssignTo] = useState("");
   const [emailBody, setEmailBody] = useState("");
   const [emailStatus, setEmailStatus] = useState("Work In Progress");
+  const [context, setContext] = useState<TicketContext | null>(null);
+  const [templates, setTemplates] = useState<Template[]>([]);
 
   const load = useCallback(async () => {
     const token = await getToken();
@@ -204,8 +341,26 @@ function TicketDrawer({ ticketId, onClose, onChanged }: { ticketId: string; onCl
       setTicket(d.ticket);
       setComments(d.comments ?? []);
     }
+    const ctx = await fetch(`${API}/it-tickets/admin/${ticketId}/context`, { headers: { Authorization: `Bearer ${token}` } });
+    if (ctx.ok) setContext(((await ctx.json()) as { context: TicketContext }).context ?? null);
   }, [getToken, ticketId]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    void (async () => {
+      const token = await getToken();
+      const res = await fetch(`${API}/admin/response-templates?department=it`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setTemplates(((await res.json()) as { templates: Template[] }).templates ?? []);
+    })();
+  }, [getToken]);
+
+  function applyTemplate(body: string) {
+    if (!ticket) return body;
+    return body
+      .replace(/\{\{?\s*case_code\s*\}?\}/gi, ticket.case_code ?? "")
+      .replace(/\{\{?\s*ticket_id\s*\}?\}/gi, ticket.ticket_id ?? "")
+      .replace(/\{\{?\s*classification\s*\}?\}/gi, ticket.category ?? "")
+      .replace(/\{\{?\s*sender_email\s*\}?\}/gi, ticket.reporter_email ?? "");
+  }
 
   async function patch(body: Record<string, unknown>) {
     setBusy(true);
@@ -266,6 +421,15 @@ function TicketDrawer({ ticketId, onClose, onChanged }: { ticketId: string; onCl
         {ticket && (
           <div className="mt-4 space-y-5">
             <p className="whitespace-pre-wrap text-sm text-slate-600">{ticket.description || "No description."}</p>
+            {ticket.classification_confidence != null && (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs">
+                <Sparkles className="h-3.5 w-3.5 text-seafoam-500" />
+                <span className="font-medium text-slate-600">Inferred: {ticket.category}</span>
+                <span className={`rounded-full px-2 py-0.5 font-medium ${ticket.classification_confidence >= 45 ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>{ticket.classification_confidence}% confidence</span>
+                <span className="text-slate-400">{ticket.auto_classified ? "auto-classified" : "needs review"}</span>
+                {ticket.classification_signals?.length ? <span className="text-slate-400">· signals: {ticket.classification_signals.join(", ")}</span> : null}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
               <div>Reporter: <span className="text-slate-700">{ticket.reporter_email ?? "—"}</span></div>
               <div>Submitter: <span className="text-slate-700">{ticket.reporter_clerk_id ? "signed-in user" : "anonymous"}</span></div>
@@ -322,7 +486,22 @@ function TicketDrawer({ ticketId, onClose, onChanged }: { ticketId: string; onCl
             {/* Email the reporter */}
             {ticket.reporter_email && (
               <div className="rounded-xl border border-slate-200 p-3">
-                <h3 className="mb-2 text-sm font-semibold text-charcoal">Email the reporter</h3>
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-charcoal">Email the reporter</h3>
+                  {templates.length > 0 && (
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        const tpl = templates.find((t) => t.id === e.target.value);
+                        if (tpl) setEmailBody(applyTemplate(tpl.body));
+                      }}
+                      className="rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                    >
+                      <option value="">Insert template…</option>
+                      {templates.filter((t) => t.is_active).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  )}
+                </div>
                 <p className="mb-2 text-xs text-slate-400">Sends from IT@getsweepr.com to {ticket.reporter_email} using the IT response template.</p>
                 <textarea
                   value={emailBody}
@@ -365,6 +544,11 @@ function TicketDrawer({ ticketId, onClose, onChanged }: { ticketId: string; onCl
                   <Send className="h-4 w-4" />
                 </button>
               </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 p-3">
+              <h3 className="mb-2 text-sm font-semibold text-charcoal">Reporter context</h3>
+              <ContextPanel context={context} kind="it" />
             </div>
           </div>
         )}
