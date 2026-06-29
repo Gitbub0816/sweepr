@@ -25,6 +25,7 @@ import { requireAuth } from "../middleware/auth";
 import { requireAdminRole } from "../middleware/adminRoles";
 import { getDb } from "../lib/db";
 import { logger } from "../lib/logger";
+import { recordError } from "../lib/errorLog";
 import { isOwnerEmail } from "../lib/owner";
 import {
   getInstallUrl,
@@ -583,14 +584,18 @@ async function userMap(token: string): Promise<Record<string, { name: string; av
 
 slackRouter.get("/workspace/history", ...wsGate, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
-  const token = await userToken(sql, c.get("user").clerkId);
-  if (!token) return c.json({ error: "Slack account not connected" }, 409);
   const channel = c.req.query("channel");
   if (!channel) return c.json({ error: "channel required" }, 400);
 
+  // Use user token if available; bot token as fallback (bot is always in provisioned channels).
+  const uToken = await userToken(sql, c.get("user").clerkId);
+  const ws = await activeWorkspace(sql);
+  const histToken = uToken ?? (ws?.bot_token as string | null);
+  if (!histToken) return c.json({ error: "Slack not connected" }, 409);
+
   const [hist, users, cards] = await Promise.all([
-    conversationsHistory(token, channel, 50),
-    userMap(token),
+    conversationsHistory(histToken, channel, 50),
+    userMap(histToken),
     sql`SELECT message_ts, ref_id FROM slack_messages WHERE channel_id = ${channel} AND ref_type = 'fee_proposal'`,
   ]);
   if (!hist.ok) return c.json({ error: hist.error ?? "slack_error" }, 502);
@@ -616,12 +621,14 @@ slackRouter.get("/workspace/history", ...wsGate, async (c) => {
 
 slackRouter.get("/workspace/replies", ...wsGate, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
-  const token = await userToken(sql, c.get("user").clerkId);
-  if (!token) return c.json({ error: "Slack account not connected" }, 409);
   const channel = c.req.query("channel");
   const ts = c.req.query("ts");
   if (!channel || !ts) return c.json({ error: "channel and ts required" }, 400);
-  const [res, users] = await Promise.all([conversationsReplies(token, channel, ts), userMap(token)]);
+  const uToken = await userToken(sql, c.get("user").clerkId);
+  const ws = await activeWorkspace(sql);
+  const replyToken = uToken ?? (ws?.bot_token as string | null);
+  if (!replyToken) return c.json({ error: "Slack not connected" }, 409);
+  const [res, users] = await Promise.all([conversationsReplies(replyToken, channel, ts), userMap(replyToken)]);
   if (!res.ok) return c.json({ error: res.error ?? "slack_error" }, 502);
   const messages = (((res as Record<string, unknown>).messages ?? []) as Array<Record<string, unknown>>).map((m) => {
     const author = users[m.user as string] ?? { name: (m.username as string) || "Sweepr", avatar: "" };
@@ -636,11 +643,42 @@ slackRouter.post(
   zValidator("json", z.object({ channel: z.string(), text: z.string().min(1).max(4000), thread_ts: z.string().optional() })),
   async (c) => {
     const sql = getDb(c.env.DATABASE_URL);
-    const token = await userToken(sql, c.get("user").clerkId);
-    if (!token) return c.json({ error: "Slack account not connected" }, 409);
     const { channel, text, thread_ts } = c.req.valid("json");
-    const res = await postMessage(token, channel, { text, thread_ts });
-    if (!res.ok) return c.json({ error: res.error ?? "post_failed" }, 502);
+    const clerkId = c.get("user").clerkId;
+
+    // Try the user's personal token first so the message appears under their name.
+    // Fall back to the bot token if: the user hasn't connected a personal account,
+    // or if Slack rejects the token (e.g. not_in_channel for private channels).
+    const uToken = await userToken(sql, clerkId);
+    const ws = await activeWorkspace(sql);
+
+    let res: Awaited<ReturnType<typeof postMessage>> | null = null;
+    if (uToken) {
+      res = await postMessage(uToken, channel, { text, thread_ts });
+      if (!res.ok && (res.error === "not_in_channel" || res.error === "channel_not_found" || res.error === "invalid_auth" || res.error === "token_revoked")) {
+        // User token can't reach this channel — fall through to bot token.
+        res = null;
+      }
+    }
+    if (!res && ws?.bot_token) {
+      res = await postMessage(ws.bot_token as string, channel, { text, thread_ts });
+    }
+    if (!res || !res.ok) {
+      const errMsg = res?.error ?? "post_failed";
+      logger.error("slack.workspace.message failed", undefined, { channel, error: errMsg });
+      await recordError(sql, {
+        source: "server",
+        app: "admin",
+        level: "error",
+        message: `Slack message failed: ${errMsg}`,
+        path: "/slack/workspace/message",
+        method: "POST",
+        statusCode: 502,
+        clerkId,
+        context: { channel, slackError: errMsg },
+      });
+      return c.json({ error: errMsg }, 502);
+    }
     return c.json({ ok: true, ts: res.ts });
   },
 );
@@ -651,10 +689,12 @@ slackRouter.post(
   zValidator("json", z.object({ channel: z.string(), ts: z.string(), name: z.string() })),
   async (c) => {
     const sql = getDb(c.env.DATABASE_URL);
-    const token = await userToken(sql, c.get("user").clerkId);
-    if (!token) return c.json({ error: "Slack account not connected" }, 409);
+    const uToken = await userToken(sql, c.get("user").clerkId);
+    const ws = await activeWorkspace(sql);
+    const reactToken = uToken ?? (ws?.bot_token as string | null);
+    if (!reactToken) return c.json({ error: "Slack not connected" }, 409);
     const { channel, ts, name } = c.req.valid("json");
-    const res = await reactionsAdd(token, channel, ts, name);
+    const res = await reactionsAdd(reactToken, channel, ts, name);
     if (!res.ok) return c.json({ error: res.error ?? "react_failed" }, 502);
     return c.json({ ok: true });
   },
