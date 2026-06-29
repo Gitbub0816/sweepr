@@ -16,10 +16,11 @@ import type {
 // ---------------------------------------------------------------------------
 
 const CLEANING_TYPE_MULTIPLIERS: Record<ServiceType, number> = {
+  light: 0.75,
   standard: 1.0,
   deep: 1.6,
   move_in_out: 1.8,
-  recurring: 0.9, // discount for recurring
+  recurring: 0.9,
   post_construction: 2.0,
   vacation_rental: 1.3,
 };
@@ -30,6 +31,7 @@ const BASE_FEES: Record<HomeType, number> = {
   condo: 80,
   townhouse: 85,
   house: 90,
+  large_house: 110,
 };
 
 function sqftModifier(sqft: number): number {
@@ -228,19 +230,64 @@ export function recurringDisplayPrice(
 }
 
 // ---------------------------------------------------------------------------
-// Legacy quote helpers (still used by the existing booking funnel + admin).
+// Canonical quote helpers — matches SWEEPR_PRICING (server pricingEngine).
+// All values in DOLLARS for UI display. Server always recalculates in cents.
 // ---------------------------------------------------------------------------
 
-export const BASE_PRICES: Record<ServiceType, number> = {
-  standard: 89,
-  deep: 149,
-  move_in_out: 199,
-  recurring: 79,
-  post_construction: 249,
-  vacation_rental: 129,
+// Per-service-type base prices (dollars)
+const SWEEPR_BASE: Partial<Record<ServiceType, number>> = {
+  light:            79,
+  standard:        109,
+  deep:            169,
+  move_in_out:     219,
+  post_construction: 289,
+  recurring:       109, // same as standard; cadence discount applied separately
+  vacation_rental: 109,
 };
 
+// Sqft free allowance per service type
+const SWEEPR_SQFT_INCLUDED: Partial<Record<ServiceType, number>> = {
+  light: 700, standard: 900, deep: 900, move_in_out: 1000, post_construction: 1000,
+  recurring: 900, vacation_rental: 900,
+};
+// Dollars per extra sqft
+const SWEEPR_SQFT_RATE: Partial<Record<ServiceType, number>> = {
+  light: 0.045, standard: 0.06, deep: 0.09, move_in_out: 0.11, post_construction: 0.14,
+  recurring: 0.06, vacation_rental: 0.06,
+};
+// Dollars per extra bedroom (beyond 1 included)
+const SWEEPR_BEDROOM_RATE: Partial<Record<ServiceType, number>> = {
+  light: 12, standard: 18, deep: 28, move_in_out: 34, post_construction: 42,
+  recurring: 18, vacation_rental: 18,
+};
+// Dollars per extra bathroom (beyond 1 included)
+const SWEEPR_BATHROOM_RATE: Partial<Record<ServiceType, number>> = {
+  light: 18, standard: 28, deep: 42, move_in_out: 52, post_construction: 65,
+  recurring: 28, vacation_rental: 28,
+};
+
+const SWEEPR_PROPERTY_MULTIPLIER: Partial<Record<HomeType, number>> = {
+  apartment: 0.95, condo: 1.0, townhouse: 1.05, house: 1.1, large_house: 1.2,
+  studio: 0.90,
+};
+
+const STRIPE_PERCENT = 0.029;
+const STRIPE_FIXED   = 0.30;
+
+function sweeprGrossUp(amount: number): number {
+  return (amount + STRIPE_FIXED) / (1 - STRIPE_PERCENT);
+}
+
+function roundToNextNine(amount: number): number {
+  const rounded = Math.ceil(amount);
+  const rem = rounded % 10;
+  return rem === 9 ? rounded : rounded + (9 - rem);
+}
+
+export const BASE_PRICES: Partial<Record<ServiceType, number>> = SWEEPR_BASE;
+
 export const SERVICE_LABELS: Record<ServiceType, string> = {
+  light: "Light Clean",
   standard: "Standard Clean",
   deep: "Deep Clean",
   move_in_out: "Move-in / Move-out",
@@ -255,16 +302,19 @@ export const SERVICE_FEE_RATE = 0.1;
 export const TAX_RATE = 0.0825;
 
 export const ADD_ONS: AddOn[] = [
-  { id: "fridge", key: "fridge", name: "Inside Fridge", price: 35, createdAt: "", updatedAt: "" },
-  { id: "oven", key: "oven", name: "Inside Oven", price: 25, createdAt: "", updatedAt: "" },
-  { id: "windows", key: "windows", name: "Interior Windows", price: 45, createdAt: "", updatedAt: "" },
-  { id: "cabinets", key: "cabinets", name: "Inside Cabinets", price: 30, createdAt: "", updatedAt: "" },
-  { id: "laundry", key: "laundry", name: "Laundry", price: 25, createdAt: "", updatedAt: "" },
-  { id: "dishes", key: "dishes", name: "Dishes", price: 20, createdAt: "", updatedAt: "" },
-  { id: "baseboards", key: "baseboards", name: "Baseboards", price: 20, createdAt: "", updatedAt: "" },
-  { id: "pet_hair", key: "pet_hair", name: "Pet Hair Treatment", price: 30, createdAt: "", updatedAt: "" },
-  { id: "extra_bathroom", key: "extra_bathroom", name: "Extra Bathroom", price: 20, createdAt: "", updatedAt: "" },
-  { id: "extra_bedroom", key: "extra_bedroom", name: "Extra Bedroom", price: 25, createdAt: "", updatedAt: "" },
+  { id: "inside_fridge",         key: "inside_fridge",         name: "Inside Fridge",          price: 29, createdAt: "", updatedAt: "" },
+  { id: "inside_oven",           key: "inside_oven",           name: "Inside Oven",             price: 34, createdAt: "", updatedAt: "" },
+  { id: "interior_windows",      key: "interior_windows",      name: "Interior Windows",        price: 39, createdAt: "", updatedAt: "" },
+  { id: "inside_cabinets",       key: "inside_cabinets",       name: "Inside Cabinets",         price: 49, createdAt: "", updatedAt: "" },
+  { id: "laundry",               key: "laundry",               name: "Laundry",                 price: 24, createdAt: "", updatedAt: "" },
+  { id: "dishes",                key: "dishes",                name: "Dishes",                  price: 24, createdAt: "", updatedAt: "" },
+  { id: "garage_sweep",          key: "garage_sweep",          name: "Garage Sweep",            price: 29, createdAt: "", updatedAt: "" },
+  { id: "patio_sweep",           key: "patio_sweep",           name: "Patio Sweep",             price: 24, createdAt: "", updatedAt: "" },
+  { id: "baseboards",            key: "baseboards",            name: "Baseboards",              price: 39, createdAt: "", updatedAt: "" },
+  { id: "walls_spot_cleaning",   key: "walls_spot_cleaning",   name: "Wall Spot Cleaning",      price: 34, createdAt: "", updatedAt: "" },
+  { id: "pet_hair_detail",       key: "pet_hair_detail",       name: "Pet Hair Detail",         price: 39, createdAt: "", updatedAt: "" },
+  { id: "extra_bathroom_detail", key: "extra_bathroom_detail", name: "Extra Bathroom Detail",   price: 24, createdAt: "", updatedAt: "" },
+  { id: "organization_light",    key: "organization_light",    name: "Light Organization",      price: 49, createdAt: "", updatedAt: "" },
 ];
 
 export function getAddOn(key: string): AddOn | undefined {
@@ -275,37 +325,39 @@ export interface QuoteInput {
   serviceType: ServiceType;
   home: HomeDetails;
   addOnKeys: string[];
+  hasPets?: boolean;
+  heavySoil?: boolean;
+  lotsOfClutter?: boolean;
+  smokerHome?: boolean;
 }
 
 export function calculateQuote(input: QuoteInput): Quote {
   const { serviceType, home, addOnKeys } = input;
-  const basePrice = BASE_PRICES[serviceType];
+  const basePrice = SWEEPR_BASE[serviceType] ?? SWEEPR_BASE.standard ?? 109;
 
-  const lineItems = [{ label: "Base price", amount: basePrice }];
+  const lineItems: Array<{ label: string; amount: number }> = [
+    { label: "Base price", amount: basePrice },
+  ];
 
-  const bedroomCharge = home.bedrooms * PER_BEDROOM;
-  if (bedroomCharge > 0) {
-    lineItems.push({
-      label: `Bedrooms (${home.bedrooms} × $${PER_BEDROOM})`,
-      amount: bedroomCharge,
-    });
-  }
+  // Sqft charge (per-service-type)
+  const includedSqft = SWEEPR_SQFT_INCLUDED[serviceType] ?? 900;
+  const sqftRate = SWEEPR_SQFT_RATE[serviceType] ?? 0.06;
+  const sqftCharge = Math.round(Math.max(0, (home.sqft ?? 0) - includedSqft) * sqftRate * 100) / 100;
+  if (sqftCharge > 0) lineItems.push({ label: "Square footage", amount: sqftCharge });
 
-  const bathroomCharge = home.bathrooms * PER_BATHROOM;
-  if (bathroomCharge > 0) {
-    lineItems.push({
-      label: `Bathrooms (${home.bathrooms} × $${PER_BATHROOM})`,
-      amount: bathroomCharge,
-    });
-  }
+  // Bedroom charge (per-service-type, first bedroom included)
+  const bedroomRate = SWEEPR_BEDROOM_RATE[serviceType] ?? 18;
+  const extraBedrooms = Math.max(0, (home.bedrooms ?? 1) - 1);
+  const bedroomCharge = extraBedrooms * bedroomRate;
+  if (bedroomCharge > 0) lineItems.push({ label: `Bedrooms (+${extraBedrooms} × $${bedroomRate})`, amount: bedroomCharge });
 
-  if (home.sqft > LARGE_HOME_THRESHOLD) {
-    lineItems.push({
-      label: `Large home (>${LARGE_HOME_THRESHOLD} sqft)`,
-      amount: LARGE_HOME_SURCHARGE,
-    });
-  }
+  // Bathroom charge (per-service-type, first bathroom included)
+  const bathroomRate = SWEEPR_BATHROOM_RATE[serviceType] ?? 28;
+  const extraBathrooms = Math.max(0, (home.bathrooms ?? 1) - 1);
+  const bathroomCharge = extraBathrooms * bathroomRate;
+  if (bathroomCharge > 0) lineItems.push({ label: `Bathrooms (+${extraBathrooms} × $${bathroomRate})`, amount: bathroomCharge });
 
+  // Add-ons
   let addOnTotal = 0;
   for (const key of addOnKeys) {
     const addOn = getAddOn(key);
@@ -315,19 +367,33 @@ export function calculateQuote(input: QuoteInput): Quote {
     }
   }
 
-  const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
-  const serviceFee = Math.round(subtotal * SERVICE_FEE_RATE * 100) / 100;
-  const tax = Math.round((subtotal + serviceFee) * TAX_RATE * 100) / 100;
-  const total = Math.round((subtotal + serviceFee + tax) * 100) / 100;
+  let subtotal = lineItems.reduce((sum, li) => sum + li.amount, 0);
+
+  // Property type multiplier
+  const propMult = SWEEPR_PROPERTY_MULTIPLIER[home.homeType as HomeType] ?? 1.1;
+  subtotal *= propMult;
+
+  // Condition multipliers
+  if (input.hasPets)       subtotal *= 1.08;
+  if (input.heavySoil)     subtotal *= 1.20;
+  if (input.lotsOfClutter) subtotal *= 1.15;
+  if (input.smokerHome)    subtotal *= 1.18;
+
+  // Stripe gross-up (baked into customer price)
+  const grossed = sweeprGrossUp(subtotal);
+
+  // Charm pricing (round to next X9 dollars)
+  const total = roundToNextNine(grossed);
+  const serviceFee = Math.round((total - subtotal) * 100) / 100; // gross-up + rounding delta
 
   return {
     serviceType,
     basePrice,
     lineItems,
     addOnTotal,
-    subtotal,
+    subtotal: Math.round(subtotal * 100) / 100,
     serviceFee,
-    tax,
+    tax: 0, // tax requires address — calculated at checkout
     total,
   };
 }

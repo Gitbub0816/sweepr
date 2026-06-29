@@ -41,7 +41,7 @@ export function ServiceStep() {
             icon={s.icon}
             name={s.name}
             description={s.desc}
-            price={BASE_PRICES[s.type]}
+            price={BASE_PRICES[s.type] ?? 0}
             priceSuffix={s.suffix}
             selected={serviceType === s.type}
             onSelect={() => setService(s.type)}

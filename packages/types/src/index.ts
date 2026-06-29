@@ -24,6 +24,7 @@ export type JobStatus =
 export type UserRole = "customer" | "cleaner" | "admin" | "super_admin";
 
 export type ServiceType =
+  | "light"
   | "standard"
   | "deep"
   | "move_in_out"
@@ -31,7 +32,7 @@ export type ServiceType =
   | "post_construction"
   | "vacation_rental";
 
-export type HomeType = "apartment" | "house" | "condo" | "townhouse" | "studio";
+export type HomeType = "apartment" | "house" | "condo" | "townhouse" | "studio" | "large_house";
 
 export type RecurringCadence = "weekly" | "biweekly" | "monthly" | "none";
 
