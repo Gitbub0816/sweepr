@@ -25,7 +25,14 @@ const requireAdmin = createMiddleware<AppBindings>(async (c, next) => {
   await next();
 });
 
-adminRouter.use("*", requireAuth, requireAdmin);
+// IMPORTANT: Hono flattens mounted sub-app routes into one global router, so a
+// blanket "*" here would also gate sibling routers mounted under /admin/*
+// (e.g. the public /admin/invites/verify endpoint). Scope to this router's
+// own top-level paths instead.
+for (const prefix of ["/stats", "/cleaners", "/customers", "/jobs", "/events", "/applications", "/disputes"]) {
+  adminRouter.use(prefix, requireAuth, requireAdmin);
+  adminRouter.use(`${prefix}/*`, requireAuth, requireAdmin);
+}
 
 adminRouter.get("/stats", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
