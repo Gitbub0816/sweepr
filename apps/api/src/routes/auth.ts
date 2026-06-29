@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
 import { createClerkClient } from "@clerk/backend";
 import { getUserByClerkId, upsertUser } from "@sweepr/db";
 import { getDb } from "../lib/db";
@@ -94,6 +96,26 @@ authRouter.delete("/me", requireAuth, async (c) => {
 // GDPR — right to data portability (Art. 20)
 // Returns a JSON export of all of the user's data.
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Email probe — used by the front-end to hint "looks like you don't have an
+// account" on email blur. Public (no auth). Intentional email enumeration
+// (Clerk error messages already reveal the same information).
+// ---------------------------------------------------------------------------
+authRouter.post(
+  "/probe",
+  zValidator("json", z.object({ email: z.string().email().max(254) })),
+  async (c) => {
+    const { email } = c.req.valid("json");
+    try {
+      const sql = getDb(c.env.DATABASE_URL);
+      const rows = await sql`SELECT 1 FROM users WHERE email = ${email.toLowerCase()} LIMIT 1`;
+      return c.json({ exists: rows.length > 0 });
+    } catch {
+      return c.json({ exists: false });
+    }
+  }
+);
+
 authRouter.get("/export", requireAuth, async (c) => {
   const { clerkId } = c.get("user");
   const sql = getDb(c.env.DATABASE_URL);

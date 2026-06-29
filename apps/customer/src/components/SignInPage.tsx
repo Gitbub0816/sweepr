@@ -1,11 +1,17 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useSignIn } from "@clerk/clerk-react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, UserPlus } from "lucide-react";
 import { SweeprLogo, ThemeToggle } from "@sweepr/ui";
 import { inputCls, ErrorBox, SubmitButton, Divider, MethodTabs, Field, OAuthButton } from "./authHelpers";
 
+const API_URL = import.meta.env.VITE_API_URL ?? "";
+
 type Method = "email" | "phone";
+
+function isValidEmail(s: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s);
+}
 
 export function SignInPage() {
   const { signIn, setActive, isLoaded } = useSignIn();
@@ -22,16 +28,33 @@ export function SignInPage() {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [noAccount, setNoAccount] = useState(false);
+  const probeTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  const probeEmail = useCallback((val: string) => {
+    clearTimeout(probeTimer.current);
+    setNoAccount(false);
+    if (!isValidEmail(val)) return;
+    probeTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`${API_URL}/auth/probe`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: val }),
+        });
+        if (res.ok) {
+          const data = await res.json() as { exists: boolean };
+          if (!data.exists) setNoAccount(true);
+        }
+      } catch { /* non-fatal */ }
+    }, 600);
+  }, []);
 
   async function handleOAuth(provider: "oauth_google" | "oauth_apple") {
     if (!isLoaded) return;
     setError("");
     try {
-      await signIn.authenticateWithRedirect({
-        strategy: provider,
-        redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/book",
-      });
+      await signIn.authenticateWithRedirect({ strategy: provider, redirectUrl: "/sso-callback", redirectUrlComplete: "/book" });
     } catch (err: unknown) {
       setError((err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? "OAuth sign-in failed.");
     }
@@ -48,7 +71,9 @@ export function SignInPage() {
         navigate(redirectTo);
       }
     } catch (err: unknown) {
-      setError((err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? "Sign in failed. Check your credentials.");
+      const clerr = (err as { errors?: { message: string; code?: string }[] })?.errors?.[0];
+      if (clerr?.code === "form_identifier_not_found") setNoAccount(true);
+      setError(clerr?.message ?? "Sign in failed. Check your credentials.");
     } finally { setLoading(false); }
   }
 
@@ -96,18 +121,43 @@ export function SignInPage() {
           <OAuthButton provider="oauth_apple" label="Continue with Apple" onClick={() => void handleOAuth("oauth_apple")} />
         </div>
         <Divider />
-        <MethodTabs method={method} onChange={(m) => { setMethod(m); setError(""); setPhoneStage("form"); }} />
+        <MethodTabs method={method} onChange={(m) => { setMethod(m); setError(""); setNoAccount(false); setPhoneStage("form"); }} />
 
         {method === "email" && (
           <form onSubmit={(e) => void handleEmailSubmit(e)} className="space-y-4">
             <Field label="Email">
-              <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                className={inputCls} placeholder="you@example.com" />
+              <input
+                type="email" autoComplete="email" required value={email}
+                onChange={(e) => { setEmail(e.target.value); setNoAccount(false); setError(""); }}
+                onBlur={(e) => probeEmail(e.target.value)}
+                className={inputCls} placeholder="you@example.com"
+              />
             </Field>
+            {noAccount && (
+              <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800/40 dark:bg-amber-900/20">
+                <UserPlus className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <div>
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">First time sweeping with us?</p>
+                  <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">
+                    We don't have an account for that email.{" "}
+                    <Link
+                      to="/sign-up"
+                      state={{ prefillEmail: email }}
+                      className="font-semibold underline underline-offset-2"
+                    >
+                      Create one instead →
+                    </Link>
+                  </p>
+                </div>
+              </div>
+            )}
             <Field label="Password">
               <div className="relative">
-                <input type={showPassword ? "text" : "password"} autoComplete="current-password" required value={password}
-                  onChange={(e) => setPassword(e.target.value)} className={`${inputCls} pr-11`} placeholder="••••••••" />
+                <input
+                  type={showPassword ? "text" : "password"} autoComplete="current-password" required
+                  value={password} onChange={(e) => setPassword(e.target.value)}
+                  className={`${inputCls} pr-11`} placeholder="••••••••"
+                />
                 <button type="button" onClick={() => setShowPassword(v => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

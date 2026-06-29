@@ -1,22 +1,30 @@
-import { useState } from "react";
-import { useSignUp } from "@clerk/clerk-react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { useSignUp, useSignIn } from "@clerk/clerk-react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, LogIn } from "lucide-react";
 import { SweeprLogo, ThemeToggle, SMSOptIn } from "@sweepr/ui";
 import { inputCls, ErrorBox, SubmitButton, Divider, MethodTabs, Field, OAuthButton } from "./authHelpers";
+
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 type Method = "email" | "phone";
 type Stage = "form" | "code";
 
+function isValidEmail(s: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s);
+}
+
 export function SignUpPage() {
   const { signUp, setActive, isLoaded } = useSignUp();
+  const { signIn } = useSignIn();
   const navigate = useNavigate();
   const location = useLocation();
   const redirectTo = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? "/book";
+  const prefillEmail = (location.state as { prefillEmail?: string } | null)?.prefillEmail ?? "";
 
   const [method, setMethod] = useState<Method>("email");
   const [stage, setStage] = useState<Stage>("form");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(prefillEmail);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [phone, setPhone] = useState("");
@@ -24,16 +32,39 @@ export function SignUpPage() {
   const [smsOpted, setSmsOpted] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [hasAccount, setHasAccount] = useState(false);
+  const probeTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  // If navigated here with a prefill email, probe immediately
+  useEffect(() => {
+    if (prefillEmail) probeEmail(prefillEmail);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const probeEmail = useCallback((val: string) => {
+    clearTimeout(probeTimer.current);
+    setHasAccount(false);
+    if (!isValidEmail(val) || !signIn) return;
+    probeTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`${API_URL}/auth/probe`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: val }),
+        });
+        if (res.ok) {
+          const data = await res.json() as { exists: boolean };
+          if (data.exists) setHasAccount(true);
+        }
+      } catch { /* non-fatal */ }
+    }, 600);
+  }, [signIn]);
 
   async function handleOAuth(provider: "oauth_google" | "oauth_apple") {
     if (!isLoaded) return;
     setError("");
     try {
-      await signUp.authenticateWithRedirect({
-        strategy: provider,
-        redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/book",
-      });
+      await signUp.authenticateWithRedirect({ strategy: provider, redirectUrl: "/sso-callback", redirectUrlComplete: "/book" });
     } catch (err: unknown) {
       setError((err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? "OAuth sign-up failed.");
     }
@@ -48,7 +79,9 @@ export function SignUpPage() {
       await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
       setStage("code");
     } catch (err: unknown) {
-      setError((err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? "Sign up failed.");
+      const clerr = (err as { errors?: { message: string; code?: string }[] })?.errors?.[0];
+      if (clerr?.code === "form_identifier_exists") setHasAccount(true);
+      setError(clerr?.message ?? "Sign up failed.");
     } finally { setLoading(false); }
   }
 
@@ -104,18 +137,43 @@ export function SignUpPage() {
               <OAuthButton provider="oauth_apple" label="Continue with Apple" onClick={() => void handleOAuth("oauth_apple")} />
             </div>
             <Divider />
-            <MethodTabs method={method} onChange={(m) => { setMethod(m); setError(""); }} />
+            <MethodTabs method={method} onChange={(m) => { setMethod(m); setError(""); setHasAccount(false); }} />
 
             {method === "email" ? (
               <form onSubmit={(e) => void handleEmailSubmit(e)} className="space-y-4">
                 <Field label="Email">
-                  <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                    className={inputCls} placeholder="you@example.com" />
+                  <input
+                    type="email" autoComplete="email" required value={email}
+                    onChange={(e) => { setEmail(e.target.value); setHasAccount(false); setError(""); }}
+                    onBlur={(e) => probeEmail(e.target.value)}
+                    className={inputCls} placeholder="you@example.com"
+                  />
                 </Field>
+                {hasAccount && (
+                  <div className="flex items-start gap-3 rounded-xl border border-seafoam-200 bg-seafoam-50 px-4 py-3 dark:border-seafoam-800/40 dark:bg-seafoam-900/20">
+                    <LogIn className="mt-0.5 h-4 w-4 shrink-0 text-seafoam-600 dark:text-seafoam-400" />
+                    <div>
+                      <p className="text-sm font-medium text-seafoam-800 dark:text-seafoam-300">Looks like you've swept with us before!</p>
+                      <p className="mt-0.5 text-xs text-seafoam-700 dark:text-seafoam-400">
+                        That email already has an account.{" "}
+                        <Link
+                          to="/sign-in"
+                          state={{ prefillEmail: email }}
+                          className="font-semibold underline underline-offset-2"
+                        >
+                          Sign in instead →
+                        </Link>
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <Field label="Password">
                   <div className="relative">
-                    <input type={showPassword ? "text" : "password"} autoComplete="new-password" required minLength={8}
-                      value={password} onChange={(e) => setPassword(e.target.value)} className={`${inputCls} pr-11`} placeholder="Min. 8 characters" />
+                    <input
+                      type={showPassword ? "text" : "password"} autoComplete="new-password" required minLength={8}
+                      value={password} onChange={(e) => setPassword(e.target.value)}
+                      className={`${inputCls} pr-11`} placeholder="Min. 8 characters"
+                    />
                     <button type="button" onClick={() => setShowPassword(v => !v)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
