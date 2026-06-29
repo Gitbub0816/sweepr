@@ -48,6 +48,8 @@ export interface Env {
   // MailerSend inbound route signing secrets — one per inbound route.
   MAILERSEND_IT_INBOUND_SECRET?: string;
   MAILERSEND_SECURITY_INBOUND_SECRET?: string;
+  // MailerSend outbound event webhook signing secret.
+  MAILERSEND_WEBHOOK_SECRET?: string;
 }
 
 export interface AuthUser {

@@ -8,7 +8,7 @@
 -- This file is GENERATED. Do not edit by hand — edit the migrations in
 -- src/migrations/ and re-run: node packages/db/build-schema.mjs
 --
--- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql, 034_fee_approval_engine.sql, 035_slack_user_tokens.sql, 036_pricing_engine.sql, 037_security_tickets.sql, 038_compact_ticket_ids.sql, 039_report_submitter.sql, 040_classification_and_templates.sql, 041_fix_security_templates.sql
+-- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql, 034_fee_approval_engine.sql, 035_slack_user_tokens.sql, 036_pricing_engine.sql, 037_security_tickets.sql, 038_compact_ticket_ids.sql, 039_report_submitter.sql, 040_classification_and_templates.sql, 041_fix_security_templates.sql, 042_email_deliverability.sql
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -2629,3 +2629,47 @@ SET
   body = 'Following up on your report ({{case_code}}): our team has reviewed the initial information and is now investigating. We will be in touch if we need any additional details. Please reference your Case Code in all further correspondence.',
   updated_at = NOW()
 WHERE department = 'security' AND key = 'acknowledge';
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 042_email_deliverability.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Migration 042: Email deliverability infrastructure.
+-- Adds email_delivery_log (audit trail for every outbound send) and
+-- email_suppressions (hard bounces, spam complaints, manual blocks).
+
+BEGIN;
+
+-- ── email_delivery_log ────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS email_delivery_log (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  template_name    TEXT,
+  template_id      TEXT,
+  email_category   TEXT NOT NULL DEFAULT 'transactional', -- 'transactional' | 'marketing'
+  recipient        TEXT NOT NULL,
+  "from"           TEXT NOT NULL,
+  reply_to         TEXT,
+  subject          TEXT,
+  provider_message_id TEXT,
+  status           TEXT NOT NULL DEFAULT 'sent',          -- 'sent' | 'failed' | 'suppressed'
+  related_type     TEXT,                                  -- 'security_ticket' | 'it_ticket' | 'booking' | ...
+  related_id       TEXT,
+  error_message    TEXT,
+  sent_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS email_delivery_log_recipient_idx ON email_delivery_log (recipient);
+CREATE INDEX IF NOT EXISTS email_delivery_log_related_idx   ON email_delivery_log (related_type, related_id);
+CREATE INDEX IF NOT EXISTS email_delivery_log_sent_at_idx   ON email_delivery_log (sent_at DESC);
+
+-- ── email_suppressions ────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS email_suppressions (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email            TEXT NOT NULL UNIQUE,
+  reason           TEXT NOT NULL, -- 'hard_bounce' | 'spam_complaint' | 'manual_suppression' | 'invalid_address' | 'unsubscribed_marketing'
+  source           TEXT,          -- 'mailersend_webhook' | 'admin' | 'user'
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS email_suppressions_email_idx ON email_suppressions (LOWER(email));
+
+COMMIT;

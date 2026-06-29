@@ -1,6 +1,10 @@
 /**
- * Thin MailerSend client.
- * Supports both raw HTML sends and template-based sends via template_id.
+ * Thin MailerSend client with deliverability features:
+ * - Suppression check (hard bounces, spam complaints, manual blocks)
+ * - Delivery log (every send attempt recorded)
+ * - plain-text fallback auto-generated from body/html
+ * - List-Unsubscribe header only for marketing emails
+ * - Provider message ID captured from X-Message-Id response header
  */
 
 export const TEMPLATES = {
@@ -23,12 +27,16 @@ export function formatEmailTimestamp(date: Date = new Date(), tz = "UTC"): strin
     `${p(date.getUTCHours())}:${p(date.getUTCMinutes())}:${p(date.getUTCSeconds())} ${tz}`;
 }
 
-/** Known sender identities (must be verified domains/aliases in MailerSend). */
+/** Known sender identities — all must be verified in MailerSend. */
 export const SENDERS = {
-  DEFAULT: { email: "hello@getsweepr.com", name: "Sweepr" },
-  ADMIN: { email: "admin_no-reply@getsweepr.com", name: "Sweepr Admin" },
-  SECURITY: { email: "security@getsweepr.com", name: "Sweepr Security" },
-  IT: { email: "IT@getsweepr.com", name: "Sweepr IT" },
+  DEFAULT:   { email: "hello@getsweepr.com",     name: "Sweepr" },
+  SUPPORT:   { email: "support@getsweepr.com",    name: "Sweepr Support" },
+  ADMIN:     { email: "admin@getsweepr.com",      name: "Sweepr Admin" },
+  SECURITY:  { email: "security@getsweepr.com",   name: "Sweepr Security" },
+  IT:        { email: "it@getsweepr.com",         name: "Sweepr IT" },
+  APPROVALS: { email: "approvals@getsweepr.com",  name: "Sweepr Approvals" },
+  BOOKINGS:  { email: "bookings@getsweepr.com",   name: "Sweepr Bookings" },
+  BILLING:   { email: "billing@getsweepr.com",    name: "Sweepr Billing" },
 } as const;
 
 /**
@@ -53,35 +61,72 @@ export function wrapBodyInTemplate(subject: string, body: string): string {
 </div>`;
 }
 
+/** Strip HTML tags and collapse whitespace for a plain-text alternative. */
+function htmlToPlainText(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<\/h[1-6]>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+export type EmailCategory = "transactional" | "marketing";
+
 export interface SendEmailInput {
   to: string;
   toName?: string;
   subject: string;
   html?: string;
+  text?: string;
   templateId?: string;
   variables?: Record<string, string>;
   /** Sender override (defaults to hello@getsweepr.com). */
   from?: { email: string; name?: string };
   /** Reply-To address (e.g. security@ so replies thread back to the inbox). */
   replyTo?: { email: string; name?: string };
+  /** Transactional (default) or marketing. Marketing emails get List-Unsubscribe. */
+  category?: EmailCategory;
+  /** For delivery log: what entity triggered this send. */
+  relatedType?: string;
+  relatedId?: string;
+  /** Human-readable template name for the delivery log. */
+  templateName?: string;
 }
 
-export async function sendEmail(
+export interface DeliveryResult {
+  status: "sent" | "failed" | "suppressed";
+  providerMessageId: string | null;
+  error?: string;
+}
+
+/** Low-level send; does not log or check suppressions. */
+async function callMailerSend(
   apiKey: string,
-  input: SendEmailInput
-): Promise<void> {
+  input: SendEmailInput,
+): Promise<{ ok: boolean; messageId: string | null; error?: string }> {
   const body: Record<string, unknown> = {
     from: input.from ?? SENDERS.DEFAULT,
     to: [{ email: input.to, name: input.toName ?? input.to }],
     subject: input.subject,
   };
+
   if (input.replyTo) body.reply_to = input.replyTo;
+
+  if (input.category === "marketing") {
+    body.headers = [
+      { name: "List-Unsubscribe", value: `<mailto:unsubscribe@getsweepr.com?subject=unsubscribe>` },
+      { name: "List-Unsubscribe-Post", value: "List-Unsubscribe=One-Click" },
+    ];
+  }
 
   if (input.templateId) {
     body.template_id = input.templateId;
     if (input.variables) {
-      // Send BOTH formats so the values populate whether the template uses
-      // advanced personalization ({{ var }}) or simple variables ({$var}).
       body.personalization = [{ email: input.to, data: input.variables }];
       body.variables = [
         {
@@ -94,7 +139,9 @@ export async function sendEmail(
       ];
     }
   } else {
-    body.html = input.html ?? "";
+    const html = input.html ?? "";
+    body.html = html;
+    body.text = input.text ?? htmlToPlainText(html);
   }
 
   const res = await fetch("https://api.mailersend.com/v1/email", {
@@ -106,10 +153,74 @@ export async function sendEmail(
     body: JSON.stringify(body),
   });
 
+  const messageId = res.headers.get("X-Message-Id") ?? res.headers.get("x-message-id") ?? null;
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`MailerSend failed (${res.status}): ${text}`);
+    return { ok: false, messageId: null, error: `MailerSend ${res.status}: ${text}` };
   }
+  return { ok: true, messageId };
+}
+
+/**
+ * Send an email with suppression check and delivery logging.
+ * Pass `sql` from getDb to enable suppression + logging; omit for fire-and-forget.
+ */
+export async function sendEmail(
+  apiKey: string,
+  input: SendEmailInput,
+  sql?: ReturnType<typeof import("../lib/db").getDb>,
+): Promise<DeliveryResult> {
+  const fromEmail = (input.from ?? SENDERS.DEFAULT).email;
+  const replyToEmail = input.replyTo?.email ?? null;
+  const subject = input.subject;
+
+  // Check suppression list.
+  if (sql) {
+    const rows = (await sql`
+      SELECT reason FROM email_suppressions
+      WHERE LOWER(email) = LOWER(${input.to}) LIMIT 1
+    `) as Array<{ reason: string }>;
+    if (rows[0]) {
+      await sql`
+        INSERT INTO email_delivery_log
+          (template_name, template_id, email_category, recipient, "from", reply_to, subject,
+           status, related_type, related_id, error_message)
+        VALUES (
+          ${input.templateName ?? null}, ${input.templateId ?? null},
+          ${input.category ?? "transactional"}, ${input.to}, ${fromEmail},
+          ${replyToEmail}, ${subject}, 'suppressed',
+          ${input.relatedType ?? null}, ${input.relatedId ?? null},
+          ${`Suppressed: ${rows[0].reason}`}
+        )
+      `;
+      return { status: "suppressed", providerMessageId: null, error: `Suppressed: ${rows[0].reason}` };
+    }
+  }
+
+  // Send.
+  const result = await callMailerSend(apiKey, input);
+
+  // Log outcome.
+  if (sql) {
+    await sql`
+      INSERT INTO email_delivery_log
+        (template_name, template_id, email_category, recipient, "from", reply_to, subject,
+         provider_message_id, status, related_type, related_id, error_message)
+      VALUES (
+        ${input.templateName ?? null}, ${input.templateId ?? null},
+        ${input.category ?? "transactional"}, ${input.to}, ${fromEmail},
+        ${replyToEmail}, ${subject}, ${result.messageId},
+        ${result.ok ? "sent" : "failed"},
+        ${input.relatedType ?? null}, ${input.relatedId ?? null},
+        ${result.error ?? null}
+      )
+    `;
+  }
+
+  if (!result.ok) {
+    throw new Error(result.error ?? "Email delivery failed");
+  }
+  return { status: "sent", providerMessageId: result.messageId };
 }
 
 /**
@@ -121,8 +232,9 @@ export async function sendBulkEmail(
   apiKey: string,
   recipients: Array<{ email: string; name?: string }>,
   subject: string,
-  html: string
+  html: string,
 ): Promise<number> {
+  const text = htmlToPlainText(html);
   const CHUNK = 500;
   let sent = 0;
 
@@ -133,6 +245,7 @@ export async function sendBulkEmail(
       to: [{ email: r.email, name: r.name ?? r.email }],
       subject,
       html,
+      text,
     }));
 
     const res = await fetch("https://api.mailersend.com/v1/bulk-email", {
@@ -145,8 +258,8 @@ export async function sendBulkEmail(
     });
 
     if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`MailerSend bulk failed (${res.status}): ${text}`);
+      const t = await res.text();
+      throw new Error(`MailerSend bulk failed (${res.status}): ${t}`);
     }
     sent += chunk.length;
   }

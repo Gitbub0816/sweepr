@@ -2343,4 +2343,34 @@ SET
   updated_at = NOW()
 WHERE department = 'security' AND key = 'acknowledge';
 
+-- Migration 042: Email deliverability infrastructure.
+CREATE TABLE IF NOT EXISTS email_delivery_log (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  template_name    TEXT,
+  template_id      TEXT,
+  email_category   TEXT NOT NULL DEFAULT 'transactional',
+  recipient        TEXT NOT NULL,
+  "from"           TEXT NOT NULL,
+  reply_to         TEXT,
+  subject          TEXT,
+  provider_message_id TEXT,
+  status           TEXT NOT NULL DEFAULT 'sent',
+  related_type     TEXT,
+  related_id       TEXT,
+  error_message    TEXT,
+  sent_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS email_delivery_log_recipient_idx ON email_delivery_log (recipient);
+CREATE INDEX IF NOT EXISTS email_delivery_log_related_idx   ON email_delivery_log (related_type, related_id);
+CREATE INDEX IF NOT EXISTS email_delivery_log_sent_at_idx   ON email_delivery_log (sent_at DESC);
+
+CREATE TABLE IF NOT EXISTS email_suppressions (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email      TEXT NOT NULL UNIQUE,
+  reason     TEXT NOT NULL,
+  source     TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS email_suppressions_email_idx ON email_suppressions (LOWER(email));
+
 COMMIT;
