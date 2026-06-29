@@ -45,6 +45,8 @@ export interface Env {
   SLACK_CLIENT_ID?: string;
   SLACK_CLIENT_SECRET?: string;
   SLACK_SIGNING_SECRET?: string;
+  // MailerSend inbound route signing secret (security@ inbox).
+  MAILERSEND_INBOUND_SECRET?: string;
 }
 
 export interface AuthUser {

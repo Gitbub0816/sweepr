@@ -40,6 +40,8 @@ import {
   conversationsReplies,
   usersList,
   reactionsAdd,
+  lookupUserByEmail,
+  inviteUsers,
 } from "../lib/slack";
 import {
   approve,
@@ -612,4 +614,83 @@ slackRouter.post("/workspace/disconnect-user", ...wsGate, async (c) => {
     WHERE user_id = (SELECT id FROM users WHERE clerk_id = ${c.get("user").clerkId} LIMIT 1)
   `;
   return c.json({ ok: true });
+});
+
+// ── Provision default org channels + role-based access ────────────────────────
+// Team-Wide is public (everyone). Role channels are PRIVATE so only invited
+// members can see them. Super Admins are in every channel.
+const DEFAULT_CHANNELS: Array<{ name: string; purpose: string; private: boolean; roles: string[] | "all" }> = [
+  { name: "team-wide", purpose: "admin", private: false, roles: "all" },
+  { name: "approvals", purpose: "approvals", private: true, roles: ["super_admin"] },
+  { name: "operations", purpose: "operations", private: true, roles: ["super_admin", "ops"] },
+  { name: "finance", purpose: "finance", private: true, roles: ["super_admin", "finance"] },
+  { name: "it", purpose: "it", private: true, roles: ["super_admin", "it"] },
+  { name: "training", purpose: "training", private: true, roles: ["super_admin", "trainer"] },
+];
+
+slackRouter.post("/admin/provision-defaults", requireAuth, requireAdminRole("super_admin"), async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const ws = await activeWorkspace(sql);
+  if (!ws) return c.json({ error: "No active Slack workspace" }, 400);
+  const token = ws.bot_token as string;
+  const wsId = ws.id as string;
+
+  // Resolve admins → Slack user ids (by email).
+  const admins = (await sql`
+    SELECT email, COALESCE(admin_role, role) AS role FROM users
+    WHERE role IN ('admin','super_admin') AND email IS NOT NULL
+  `) as Array<{ email: string; role: string }>;
+  const slackIdByEmail = new Map<string, string>();
+  for (const a of admins) {
+    try {
+      const r = await lookupUserByEmail(token, a.email);
+      if (r.ok && r.user?.id) slackIdByEmail.set(a.email.toLowerCase(), r.user.id);
+    } catch { /* not in workspace */ }
+  }
+
+  // Existing live channels (to reuse instead of duplicating).
+  const live = await conversationsList(token);
+  const liveByName = new Map<string, { id: string }>();
+  for (const ch of (live.channels ?? [])) liveByName.set((ch.name ?? "").toLowerCase(), { id: ch.id });
+
+  const results: Array<{ name: string; channel_id: string | null; invited: number; error?: string }> = [];
+
+  for (const spec of DEFAULT_CHANNELS) {
+    let channelId = liveByName.get(spec.name)?.id ?? null;
+    if (!channelId) {
+      const created = await createChannel(token, spec.name, spec.private);
+      if (created.ok) {
+        const ch = created.channel as { id?: string } | undefined;
+        channelId = ch?.id ?? null;
+      } else if (created.error === "name_taken") {
+        // Re-list and map.
+        const again = await conversationsList(token);
+        channelId = (again.channels ?? []).find((ch) => (ch.name ?? "").toLowerCase() === spec.name)?.id ?? null;
+      } else {
+        results.push({ name: spec.name, channel_id: null, invited: 0, error: created.error ?? "create_failed" });
+        continue;
+      }
+    }
+    if (!channelId) { results.push({ name: spec.name, channel_id: null, invited: 0, error: "no_channel" }); continue; }
+
+    await sql`
+      INSERT INTO slack_channels (workspace_id, channel_id, channel_name, purpose, is_private)
+      VALUES (${wsId}, ${channelId}, ${spec.name}, ${spec.purpose}, ${spec.private})
+      ON CONFLICT (workspace_id, channel_id) DO UPDATE SET purpose = EXCLUDED.purpose, channel_name = EXCLUDED.channel_name
+    `;
+
+    // Determine members to invite.
+    const eligible = admins.filter((a) =>
+      spec.roles === "all" || spec.roles.includes(a.role) || a.role === "super_admin",
+    );
+    const ids = [...new Set(eligible.map((a) => slackIdByEmail.get(a.email.toLowerCase())).filter(Boolean) as string[])];
+    let invited = 0;
+    if (ids.length) {
+      const inv = await inviteUsers(token, channelId, ids);
+      if (inv.ok || inv.error === "already_in_channel") invited = ids.length;
+    }
+    results.push({ name: spec.name, channel_id: channelId, invited });
+  }
+
+  return c.json({ ok: true, results, resolvedAdmins: slackIdByEmail.size, totalAdmins: admins.length });
 });

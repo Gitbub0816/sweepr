@@ -20,6 +20,7 @@ import { serverTrack } from "../lib/posthog";
 import { logger } from "../lib/logger";
 import { assertBookingAccess } from "../lib/bookingAccess";
 import { calculateBookingPrice, getAddOnCatalogue } from "../lib/pricingEngine";
+import { resolveBookingPricing, storeQuoteSnapshot } from "../lib/resolvePricing";
 import type { AppBindings } from "../types";
 import type { BookingRow, CleanerRow } from "@sweepr/db";
 
@@ -63,23 +64,48 @@ bookingsRouter.post(
   if (!customer) return c.json({ error: "Customer not found" }, 404);
 
   // Server-side price calculation — client values are never trusted.
+  // Prefer the active algorithmic pricing rule; fall back to the legacy
+  // calculator when no rule is active for this market.
   const price = calculateBookingPrice(input);
+  let resolved = null;
+  try {
+    resolved = await resolveBookingPricing(sql, input);
+  } catch (err) {
+    logger.error("resolveBookingPricing failed", err, {});
+  }
+  const totalPrice = resolved ? resolved.breakdown.customer_total_cents : price.totalPrice;
+  const basePrice = resolved ? resolved.breakdown.base_fee_cents : price.basePrice;
+  const addonsTotal = resolved ? resolved.breakdown.add_ons_total_cents : price.addonsTotal;
+  const cleanerPayout = resolved ? resolved.breakdown.estimated_cleaner_payout_cents : null;
 
   const rows = (await sql`
     INSERT INTO bookings (
       customer_id, address_id, status, service_type, bedrooms, bathrooms,
       sqft, home_type, scheduled_at, base_price, addons_total, service_fee,
-      tax, total_price, notes
+      tax, total_price, notes,
+      pricing_rule_id, pricing_rule_version, pricing_line_items_json, estimated_cleaner_payout_cents
     ) VALUES (
       ${customer.id}, ${input.addressId ?? null}, 'booked', ${input.serviceType},
       ${input.bedrooms}, ${input.bathrooms}, ${input.sqft}, ${input.homeType},
-      ${input.scheduledAt}, ${price.basePrice}, ${price.addonsTotal},
-      ${price.serviceFee}, ${price.tax}, ${price.totalPrice}, ${input.notes ?? null}
+      ${input.scheduledAt}, ${basePrice}, ${addonsTotal},
+      ${resolved ? 0 : price.serviceFee}, ${resolved ? 0 : price.tax}, ${totalPrice}, ${input.notes ?? null},
+      ${resolved ? resolved.ruleId : null}, ${resolved ? resolved.ruleVersion : null},
+      ${resolved ? JSON.stringify(resolved.breakdown.line_items) : null}, ${cleanerPayout}
     ) RETURNING *
   `) as BookingRow[];
 
   const created = rows[0];
   if (!created) return c.json({ error: "Failed to create booking" }, 500);
+
+  // Persist the immutable quote snapshot and stamp it on the booking.
+  if (resolved) {
+    try {
+      const quoteId = await storeQuoteSnapshot(sql, resolved, { customerId: customer.id, bookingId: created.id });
+      await sql`UPDATE bookings SET pricing_quote_id = ${quoteId} WHERE id = ${created.id}`;
+    } catch (err) {
+      logger.error("storeQuoteSnapshot failed", err, { bookingId: created.id });
+    }
+  }
 
   // Booking confirmed -> notify customer.
   await sendNotification(sql, user.id, {
@@ -129,9 +155,26 @@ bookingsRouter.get("/", async (c) => {
 /** Quote endpoint — returns server-calculated price without creating a booking. */
 bookingsRouter.post("/quote", zValidator("json", createSchema), async (c) => {
   const input = c.req.valid("json");
-  const price = calculateBookingPrice(input);
+  const sql = getDb(c.env.DATABASE_URL);
   const catalogue = getAddOnCatalogue();
-  return c.json({ price, catalogue });
+  try {
+    const resolved = await resolveBookingPricing(sql, input);
+    if (resolved) {
+      // Algorithmic pricing active: expose only the customer total + line items.
+      return c.json({
+        price: {
+          totalPrice: resolved.breakdown.customer_total_cents,
+          lineItems: resolved.breakdown.line_items,
+          requiresCustomQuote: resolved.breakdown.requires_custom_quote,
+        },
+        catalogue,
+        engine: "rule",
+      });
+    }
+  } catch {
+    /* fall through to legacy */
+  }
+  return c.json({ price: calculateBookingPrice(input), catalogue, engine: "legacy" });
 });
 
 bookingsRouter.get("/:id", async (c) => {

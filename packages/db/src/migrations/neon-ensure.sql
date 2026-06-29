@@ -1960,8 +1960,28 @@ INSERT INTO schema_migrations (filename) VALUES
   ('033_slack_integration.sql'),
   ('034_fee_approval_engine.sql'),
   ('035_slack_user_tokens.sql'),
-  ('036_pricing_engine.sql')
+  ('036_pricing_engine.sql'),
+  ('037_security_tickets.sql')
 ON CONFLICT (filename) DO NOTHING;
+
+-- ── 037: Security inbox ──────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS security_tickets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), seq BIGSERIAL, ticket_number TEXT UNIQUE,
+  sender_email TEXT NOT NULL, sender_name TEXT, sender_ip TEXT, subject TEXT,
+  classification TEXT NOT NULL DEFAULT 'General Inquiry', status TEXT NOT NULL DEFAULT 'Active',
+  case_owner TEXT, assigned_to TEXT, inbound_message_id TEXT,
+  received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), auto_reply_sent_at TIMESTAMPTZ, last_reply_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_security_tickets_status ON security_tickets (status);
+CREATE INDEX IF NOT EXISTS idx_security_tickets_received ON security_tickets (received_at DESC);
+CREATE TABLE IF NOT EXISTS security_ticket_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ticket_id UUID NOT NULL REFERENCES security_tickets(id) ON DELETE CASCADE,
+  direction TEXT NOT NULL, from_email TEXT, to_email TEXT, subject TEXT, body TEXT,
+  message_id TEXT, delivery_status TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_security_messages_ticket ON security_ticket_messages (ticket_id);
 
 -- ── 036: Algorithmic pricing ─────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS pricing_rules (

@@ -43,6 +43,7 @@ import { adminNotificationSettingsRouter } from "./routes/adminNotificationSetti
 import { slackRouter } from "./routes/slack";
 import { feeProposalsRouter, feeActionRouter } from "./routes/feeProposals";
 import { pricingAdminRouter } from "./routes/pricingAdmin";
+import { securityRouter } from "./routes/security";
 import { requestLogger } from "./middleware/requestLogger";
 import { clientErrorsRouter } from "./routes/clientErrors";
 import { AppError, toSafeError } from "./lib/errors";
@@ -130,6 +131,7 @@ app.route("/slack", slackRouter);
 app.route("/admin/fee-proposals", feeProposalsRouter);
 app.route("/fee-action", feeActionRouter);
 app.route("/admin/pricing", pricingAdminRouter);
+app.route("/security", securityRouter);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 

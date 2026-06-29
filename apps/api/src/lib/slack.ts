@@ -221,6 +221,15 @@ export async function lookupUserByEmail(
   return slackApi("users.lookupByEmail", botToken, { email });
 }
 
+export async function inviteUsers(
+  botToken: string,
+  channel: string,
+  slackUserIds: string[],
+): Promise<SlackApiResponse> {
+  if (slackUserIds.length === 0) return { ok: true };
+  return slackApi("conversations.invite", botToken, { channel, users: slackUserIds.join(",") });
+}
+
 export async function getUserInfo(
   botToken: string,
   slackUserId: string,

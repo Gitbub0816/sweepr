@@ -8,6 +8,24 @@ export const TEMPLATES = {
   SUBSCRIBED_UPDATES: "jpzkmgq5v0ng059v",
   WAITLIST: "3z0vklo5wo747qrx",
   STATUS_UPDATE: "yzkq3403wrx4d796",
+  ADMIN_INVITE: "k68zxl23qykgj905",
+  ADMIN_APPROVAL_REQUEST: "0p7kx4x5o27g9yjr",
+  SECURITY_AUTOREPLY: "neqvygmy58zg0p7w",
+  SECURITY_MANUAL_RESPONSE: "vywj2lp512mg7oqz",
+} as const;
+
+/** Format a timestamp as MM/DD/YYYY HH:MM:SS TZ for admin/security emails. */
+export function formatEmailTimestamp(date: Date = new Date(), tz = "UTC"): string {
+  const p = (n: number, w = 2) => String(n).padStart(w, "0");
+  return `${p(date.getUTCMonth() + 1)}/${p(date.getUTCDate())}/${date.getUTCFullYear()} ` +
+    `${p(date.getUTCHours())}:${p(date.getUTCMinutes())}:${p(date.getUTCSeconds())} ${tz}`;
+}
+
+/** Known sender identities (must be verified domains/aliases in MailerSend). */
+export const SENDERS = {
+  DEFAULT: { email: "hello@getsweepr.com", name: "Sweepr" },
+  ADMIN: { email: "admin_no-reply@getsweepr.com", name: "Sweepr Admin" },
+  SECURITY: { email: "security@getsweepr.com", name: "Sweepr Security" },
 } as const;
 
 /**
@@ -39,6 +57,10 @@ export interface SendEmailInput {
   html?: string;
   templateId?: string;
   variables?: Record<string, string>;
+  /** Sender override (defaults to hello@getsweepr.com). */
+  from?: { email: string; name?: string };
+  /** Reply-To address (e.g. security@ so replies thread back to the inbox). */
+  replyTo?: { email: string; name?: string };
 }
 
 export async function sendEmail(
@@ -46,10 +68,11 @@ export async function sendEmail(
   input: SendEmailInput
 ): Promise<void> {
   const body: Record<string, unknown> = {
-    from: { email: "hello@getsweepr.com", name: "Sweepr" },
+    from: input.from ?? SENDERS.DEFAULT,
     to: [{ email: input.to, name: input.toName ?? input.to }],
     subject: input.subject,
   };
+  if (input.replyTo) body.reply_to = input.replyTo;
 
   if (input.templateId) {
     body.template_id = input.templateId;

@@ -7,7 +7,7 @@
 import type { Sql } from "./db";
 import type { Env } from "../types";
 import { logger } from "./logger";
-import { sendEmail, wrapBodyInTemplate } from "./mailer";
+import { sendEmail, SENDERS, TEMPLATES, formatEmailTimestamp } from "./mailer";
 import { sendNotification } from "./notifications";
 import { listSuperAdmins } from "./approvalEngine";
 import { approvalCardBlocks, postMessage, updateMessage } from "./slack";
@@ -97,18 +97,21 @@ export async function notifyProposalCreated(sql: Sql, env: Env, proposal: Propos
 
     if (env.MAILERSEND_API_KEY && a.email) {
       try {
-        const body = [
-          `A fee configuration change has been proposed: ${proposal.title}.`,
-          proposal.reason,
-          `Proposed effective: ${new Date(proposal.proposed_effective_at).toLocaleString()}.`,
-          `You may approve, decline, ignore, or propose a modification. This action link expires in 72 hours unless collaboration begins.`,
-          `Review & act: ${link}`,
-          `One-click action link: ${actionLink}`,
-        ].join("\n\n");
+        const requesterName = admins.find((x) => x.clerk_id === proposal.proposer_clerk_id)?.email ?? "A Sweepr administrator";
         await sendEmail(env.MAILERSEND_API_KEY, {
           to: a.email,
-          subject: "Sweepr — fee change needs your review",
-          html: wrapBodyInTemplate("Fee change proposed", body),
+          subject: `Sweepr Approval Request — ${proposal.title}`,
+          from: SENDERS.ADMIN,
+          replyTo: SENDERS.SECURITY,
+          templateId: TEMPLATES.ADMIN_APPROVAL_REQUEST,
+          variables: {
+            requester_name: requesterName,
+            approval_title: proposal.title,
+            approval_type: "Platform Fees",
+            approval_url: actionLink,
+            approval_expires_at: formatEmailTimestamp(new Date(Date.now() + 72 * 3600_000)),
+            notification_settings_url: `${adminUrl(env)}/settings`,
+          },
         });
         await logNotif(sql, proposal.id, a.clerk_id, "email", a.email, "sent");
       } catch (err) {
@@ -231,16 +234,21 @@ export async function notifyPricingProposalCreated(sql: Sql, env: Env, proposal:
     }
     if (env.MAILERSEND_API_KEY && a.email) {
       try {
-        const body = [
-          `A pricing change has been proposed: ${proposal.title}.`,
-          proposal.reason,
-          `Proposed effective: ${new Date(proposal.proposed_effective_at).toLocaleString()}.`,
-          `Review & act: ${link}`,
-        ].join("\n\n");
+        const requesterName = admins.find((x) => x.clerk_id === proposal.proposer_clerk_id)?.email ?? "A Sweepr administrator";
         await sendEmail(env.MAILERSEND_API_KEY, {
           to: a.email,
-          subject: "Sweepr — pricing change needs your review",
-          html: wrapBodyInTemplate("Pricing change proposed", body),
+          subject: `Sweepr Approval Request — ${proposal.title}`,
+          from: SENDERS.ADMIN,
+          replyTo: SENDERS.SECURITY,
+          templateId: TEMPLATES.ADMIN_APPROVAL_REQUEST,
+          variables: {
+            requester_name: requesterName,
+            approval_title: proposal.title,
+            approval_type: "Cleaning Pricing",
+            approval_url: link,
+            approval_expires_at: formatEmailTimestamp(new Date(Date.now() + 72 * 3600_000)),
+            notification_settings_url: `${adminUrl(env)}/settings`,
+          },
         });
       } catch (err) {
         logger.error("pricing.notify email failed", err, { proposalId: proposal.id });

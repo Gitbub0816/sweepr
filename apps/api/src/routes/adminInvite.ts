@@ -18,7 +18,17 @@ import { z } from "zod";
 import { createClerkClient } from "@clerk/backend";
 import { getUserByClerkId } from "@sweepr/db";
 import { getDb } from "../lib/db";
-import { sendEmail } from "../lib/mailer";
+import { sendEmail, SENDERS, TEMPLATES, formatEmailTimestamp } from "../lib/mailer";
+
+const ROLE_LABELS: Record<string, string> = {
+  super_admin: "Super Admin",
+  admin: "Administrator",
+  finance: "Finance Admin",
+  ops: "Operations Admin",
+  trainer: "Training Admin",
+  it: "IT Administrator",
+  support: "Support",
+};
 import { requireAuth } from "../middleware/auth";
 import { isOwnerClerkId } from "../lib/owner";
 import { audit } from "../lib/audit";
@@ -93,16 +103,25 @@ adminInviteRouter.post(
 
     const link = `${adminOrigin}/accept-invite?token=${token}`;
 
+    // Inviter display name (we store emails, not names).
+    const inviterRows = (await sql`SELECT email FROM users WHERE clerk_id = ${actorClerkId} LIMIT 1`) as Array<{ email: string }>;
+    const inviterName = c.get("user").email ?? inviterRows[0]?.email ?? "A Sweepr administrator";
+    const roleLabel = ROLE_LABELS[adminRole] ?? "Administrator";
+    const expiresAt = formatEmailTimestamp(new Date(Date.now() + 168 * 3600_000)); // generation + 168h
+
     try {
       await sendEmail(c.env.MAILERSEND_API_KEY, {
         to: email,
         subject: "You've been invited to Sweepr Admin",
-        html: `
-          <p>You've been invited to join the Sweepr admin console.</p>
-          <p><a href="${link}">Accept your invitation</a></p>
-          <p>This link expires in 7 days and can only be used once.</p>
-          <p>If you weren't expecting this email you can ignore it.</p>
-        `,
+        from: SENDERS.ADMIN,
+        replyTo: SENDERS.SECURITY,
+        templateId: TEMPLATES.ADMIN_INVITE,
+        variables: {
+          inviter_name: inviterName,
+          admin_role: roleLabel,
+          invite_url: link,
+          invite_expires_at: expiresAt,
+        },
       });
     } catch {
       // Email failure is non-fatal — return the link so the admin can share manually

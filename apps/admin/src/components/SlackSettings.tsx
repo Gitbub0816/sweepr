@@ -90,6 +90,15 @@ export function SlackSettings() {
     if (res.ok) toast.success("Test message sent.");
     else toast.error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "Test failed.");
   }
+  async function provision() {
+    toast("Provisioning channels…");
+    const res = await authed("/slack/admin/provision-defaults", { method: "POST" });
+    if (res.ok) {
+      const d = (await res.json()) as { results: Array<{ name: string; invited: number }>; resolvedAdmins: number; totalAdmins: number };
+      toast.success(`Channels ready. Invited members across ${d.results.length} channels (${d.resolvedAdmins}/${d.totalAdmins} admins matched in Slack).`);
+      void load();
+    } else toast.error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "Provisioning failed.");
+  }
 
   if (loading) return <Card className="max-w-2xl"><div className="h-24 animate-pulse rounded bg-slate-100 dark:bg-slate-800" /></Card>;
 
@@ -126,7 +135,14 @@ export function SlackSettings() {
 
       {connected && (
         <Card className="space-y-3">
-          <h2 className="text-sm font-semibold text-charcoal dark:text-white">Channel routing</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-charcoal dark:text-white">Channel routing</h2>
+            <Button size="sm" variant="secondary" onClick={provision}>Provision default channels</Button>
+          </div>
+          <p className="text-xs text-slate-400">
+            Creates Team-Wide (public) plus private Approvals, Operations, Finance, IT, and Training channels, and
+            invites admins by role. Super Admins join every channel; IT and Training only their channel + Team-Wide.
+          </p>
           {channels.length === 0 ? (
             <p className="text-sm text-slate-400">No channels mapped yet.</p>
           ) : channels.map((ch) => (
