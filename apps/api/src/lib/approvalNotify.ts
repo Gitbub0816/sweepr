@@ -202,3 +202,113 @@ export async function updateProposalCard(sql: Sql, env: Env, proposalId: string)
 }
 
 export { sha256Hex };
+
+// ── Pricing proposals ─────────────────────────────────────────────────────────
+interface PricingProposalRow {
+  id: string;
+  title: string;
+  reason: string;
+  proposer_clerk_id: string;
+  status: string;
+  proposed_effective_at: string;
+  response_deadline_at: string;
+  proposed_pricing_rule_id: string;
+}
+
+export async function notifyPricingProposalCreated(sql: Sql, env: Env, proposal: PricingProposalRow): Promise<void> {
+  const admins = await listSuperAdmins(sql);
+  const link = `${adminUrl(env)}/pricing/approvals/${proposal.id}`;
+  for (const a of admins) {
+    try {
+      await sendNotification(sql, a.user_id, {
+        type: "pricing_proposal",
+        title: "Pricing change proposed",
+        body: proposal.title,
+        data: { proposalId: proposal.id },
+      });
+    } catch (err) {
+      logger.error("pricing.notify in_app failed", err, { proposalId: proposal.id });
+    }
+    if (env.MAILERSEND_API_KEY && a.email) {
+      try {
+        const body = [
+          `A pricing change has been proposed: ${proposal.title}.`,
+          proposal.reason,
+          `Proposed effective: ${new Date(proposal.proposed_effective_at).toLocaleString()}.`,
+          `Review & act: ${link}`,
+        ].join("\n\n");
+        await sendEmail(env.MAILERSEND_API_KEY, {
+          to: a.email,
+          subject: "Sweepr — pricing change needs your review",
+          html: wrapBodyInTemplate("Pricing change proposed", body),
+        });
+      } catch (err) {
+        logger.error("pricing.notify email failed", err, { proposalId: proposal.id });
+      }
+    }
+  }
+  await postPricingCard(sql, env, proposal);
+}
+
+export async function postPricingCard(sql: Sql, env: Env, proposal: PricingProposalRow): Promise<void> {
+  try {
+    const ws = await activeWorkspace(sql);
+    if (!ws) return;
+    const channel = await approvalsChannel(sql, ws.id);
+    if (!channel) return;
+    const rule = (await sql`SELECT name FROM pricing_rules WHERE id = ${proposal.proposed_pricing_rule_id} LIMIT 1`) as Array<{ name: string }>;
+    const blocks = approvalCardBlocks({
+      proposalId: proposal.id,
+      title: proposal.title,
+      kind: "Pricing change",
+      feeType: rule[0]?.name,
+      proposer: proposal.proposer_clerk_id,
+      status: proposal.status,
+      proposedEffectiveAt: new Date(proposal.proposed_effective_at).toLocaleString(),
+      responseDeadline: new Date(proposal.response_deadline_at).toLocaleString(),
+      adminUrl: adminUrl(env),
+      domain: "pricing",
+    });
+    const res = await postMessage(ws.bot_token, channel, { text: `Pricing change proposed: ${proposal.title}`, blocks });
+    if (res.ok && res.ts) {
+      await sql`
+        INSERT INTO slack_messages (workspace_id, channel_id, message_ts, ref_type, ref_id)
+        VALUES (${ws.id}, ${channel}, ${res.ts}, 'pricing_proposal', ${proposal.id})
+      `;
+    }
+  } catch (err) {
+    logger.error("pricing.slack_card failed", err, { proposalId: proposal.id });
+  }
+}
+
+export async function updatePricingCard(sql: Sql, env: Env, proposalId: string): Promise<void> {
+  try {
+    const ws = await activeWorkspace(sql);
+    if (!ws) return;
+    const msgs = (await sql`
+      SELECT channel_id, message_ts FROM slack_messages
+      WHERE ref_type = 'pricing_proposal' AND ref_id = ${proposalId} ORDER BY created_at DESC LIMIT 1
+    `) as Array<{ channel_id: string; message_ts: string }>;
+    const msg = msgs[0];
+    if (!msg) return;
+    const pRows = (await sql`SELECT * FROM pricing_change_proposals WHERE id = ${proposalId} LIMIT 1`) as Array<PricingProposalRow>;
+    const p = pRows[0];
+    if (!p) return;
+    const rule = (await sql`SELECT name FROM pricing_rules WHERE id = ${p.proposed_pricing_rule_id} LIMIT 1`) as Array<{ name: string }>;
+    const blocks = approvalCardBlocks({
+      proposalId: p.id,
+      title: p.title,
+      kind: "Pricing change",
+      feeType: rule[0]?.name,
+      proposer: p.proposer_clerk_id,
+      status: p.status,
+      proposedEffectiveAt: new Date(p.proposed_effective_at).toLocaleString(),
+      responseDeadline: new Date(p.response_deadline_at).toLocaleString(),
+      adminUrl: adminUrl(env),
+      domain: "pricing",
+    });
+    await updateMessage(ws.bot_token, msg.channel_id, msg.message_ts, { text: `Pricing change (${p.status}): ${p.title}`, blocks });
+  } catch (err) {
+    logger.error("pricing.slack_update failed", err, { proposalId });
+  }
+}

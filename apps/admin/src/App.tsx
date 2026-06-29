@@ -61,6 +61,8 @@ import { NotificationsPage } from "./pages/NotificationsPage";
 import { SlackPage } from "./pages/SlackPage";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { ApprovalDetailPage } from "./pages/ApprovalDetailPage";
+import { PricingRulePage } from "./pages/PricingRulePage";
+import { PricingApprovalDetailPage } from "./pages/PricingApprovalDetailPage";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -128,6 +130,8 @@ export default function App() {
         element={<Guarded><ApplicationDetailPage /></Guarded>}
       />
       <Route path="/pricing" element={<Guarded><PricingPage /></Guarded>} />
+      <Route path="/pricing/rules/:id" element={<Guarded><PricingRulePage /></Guarded>} />
+      <Route path="/pricing/approvals/:id" element={<Guarded><PricingApprovalDetailPage /></Guarded>} />
       <Route path="/disputes" element={<Guarded><DisputesPage /></Guarded>} />
       <Route path="/disputes/:id" element={<Guarded><DisputeDetailPage /></Guarded>} />
       <Route path="/insurance" element={<Guarded><InsurancePage /></Guarded>} />

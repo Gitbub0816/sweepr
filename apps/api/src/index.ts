@@ -42,6 +42,7 @@ import { accountRouter } from "./routes/account";
 import { adminNotificationSettingsRouter } from "./routes/adminNotificationSettings";
 import { slackRouter } from "./routes/slack";
 import { feeProposalsRouter, feeActionRouter } from "./routes/feeProposals";
+import { pricingAdminRouter } from "./routes/pricingAdmin";
 import { requestLogger } from "./middleware/requestLogger";
 import { clientErrorsRouter } from "./routes/clientErrors";
 import { AppError, toSafeError } from "./lib/errors";
@@ -128,6 +129,7 @@ app.route("/cleaner-dashboard", cleanerDashboardRouter);
 app.route("/slack", slackRouter);
 app.route("/admin/fee-proposals", feeProposalsRouter);
 app.route("/fee-action", feeActionRouter);
+app.route("/admin/pricing", pricingAdminRouter);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 
@@ -258,6 +260,16 @@ export default {
         const activated = await activateEffective(sql);
         for (const p of [...noticed, ...activated]) {
           await updateProposalCard(sql, env2, p.id as string);
+        }
+
+        // Pricing change engine (parallel transitions).
+        const pricing = await import("./lib/pricingApproval");
+        const { updatePricingCard } = await import("./lib/approvalNotify");
+        await pricing.expirePending(sql);
+        const pNoticed = await pricing.completeCooldowns(sql);
+        const pActivated = await pricing.activateEffective(sql);
+        for (const p of [...pNoticed, ...pActivated]) {
+          await updatePricingCard(sql, env2, p.id as string);
         }
       } catch (err) {
         logger.error("cron.approval_engine failed", err, { cron: event.cron });

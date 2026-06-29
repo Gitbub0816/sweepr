@@ -48,7 +48,13 @@ import {
   proposeModification,
   ApprovalError,
 } from "../lib/approvalEngine";
-import { updateProposalCard } from "../lib/approvalNotify";
+import { updateProposalCard, updatePricingCard } from "../lib/approvalNotify";
+import {
+  approve as pricingApprove,
+  decline as pricingDecline,
+  joinCollaboration as pricingJoin,
+  proposeModification as pricingModify,
+} from "../lib/pricingApproval";
 import type { AppBindings } from "../types";
 
 export const slackRouter = new Hono<AppBindings>();
@@ -271,9 +277,28 @@ slackRouter.post("/interactivity", async (c) => {
     });
   }
 
-  const proposalId = action.value ?? "";
+  // Pricing proposals are prefixed "pricing:"; fee proposals are bare.
+  const rawValue = action.value ?? "";
+  const isPricing = rawValue.startsWith("pricing:");
+  const proposalId = isPricing ? rawValue.slice("pricing:".length) : rawValue;
   const actor = { clerkId, email };
   try {
+    if (isPricing) {
+      switch (action.action_id) {
+        case "approve": await pricingApprove(sql, proposalId, actor); break;
+        case "decline": await pricingDecline(sql, proposalId, actor, "Declined via Slack"); break;
+        case "join_collaboration": await pricingJoin(sql, proposalId, actor); break;
+        case "propose_modification": await pricingModify(sql, proposalId, actor, "Requested changes via Slack"); break;
+        default: return c.json({ response_type: "ephemeral", text: "Unsupported action." });
+      }
+      await updatePricingCard(sql, c.env, proposalId);
+      logger.info("slack.interactivity", { action: action.action_id, proposalId, domain: "pricing", email });
+      return c.json({
+        response_type: "ephemeral",
+        replace_original: false,
+        text: `✅ "${action.action_id}" recorded. View in Sweepr: ${adminUrl(c.env)}/pricing/approvals/${proposalId}`,
+      });
+    }
     switch (action.action_id) {
       case "approve":
         await approve(sql, proposalId, actor);

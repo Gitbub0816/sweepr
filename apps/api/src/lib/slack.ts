@@ -288,8 +288,12 @@ export function approvalCardBlocks(p: {
   proposedEffectiveAt?: string;
   responseDeadline?: string;
   adminUrl: string;
+  domain?: "fee" | "pricing";
 }): unknown[] {
-  const value = p.proposalId;
+  // Interactivity routes by action value; pricing proposals are prefixed so the
+  // handler dispatches to the correct engine. Fee proposals stay bare.
+  const value = p.domain === "pricing" ? `pricing:${p.proposalId}` : p.proposalId;
+  const openPath = p.domain === "pricing" ? "pricing/approvals" : "approvals";
   return [
     {
       type: "header",
@@ -326,7 +330,7 @@ export function approvalCardBlocks(p: {
         { type: "button", style: "danger", text: { type: "plain_text", text: "Decline" }, action_id: "decline", value },
         { type: "button", text: { type: "plain_text", text: "Request Changes" }, action_id: "propose_modification", value },
         { type: "button", text: { type: "plain_text", text: "Join Collaboration" }, action_id: "join_collaboration", value },
-        { type: "button", url: `${p.adminUrl}/approvals/${p.proposalId}`, text: { type: "plain_text", text: "Open in Sweepr" }, action_id: "open_in_sweepr" },
+        { type: "button", url: `${p.adminUrl}/${openPath}/${p.proposalId}`, text: { type: "plain_text", text: "Open in Sweepr" }, action_id: "open_in_sweepr" },
       ],
     },
   ];
