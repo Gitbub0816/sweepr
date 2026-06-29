@@ -234,10 +234,16 @@ adminInviteRouter.post(
     // super_admin uses the dedicated role column; all other admin roles use 'admin'.
     const userRole = grantedRole === "super_admin" ? "super_admin" : "admin";
 
-    // Promote the user in our DB
+    // Promote the user in our DB — UPSERT so first-time Clerk sign-ups
+    // (who have no users row yet) are created with the correct role.
     await sql`
-      UPDATE users SET role = ${userRole}, admin_role = ${grantedRole}
-      WHERE clerk_id = ${clerkId}
+      INSERT INTO users (clerk_id, email, role, admin_role)
+      VALUES (${clerkId}, ${rows[0].email}, ${userRole}, ${grantedRole})
+      ON CONFLICT (clerk_id) DO UPDATE SET
+        role       = EXCLUDED.role,
+        admin_role = EXCLUDED.admin_role,
+        email      = EXCLUDED.email,
+        updated_at = NOW()
     `;
 
     // Sync role to Clerk metadata so frontend can read it from the JWT

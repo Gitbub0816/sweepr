@@ -84,12 +84,12 @@ export default function App() {
         {/* OAuth SSO callback — outside prelaunch gate, handles token exchange */}
         <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback continueSignUpUrl="/sign-up/continue" />} />
 
-        <Route element={<GateLayout />}>
-        {/* Auth */}
+        {/* Auth routes — outside gate so sign-in is always accessible */}
         <Route path="/sign-in" element={<SignInPage />} />
         <Route path="/sign-up" element={<SignUpPage />} />
         <Route path="/sign-up/continue" element={<ContinueSignUp />} />
 
+        <Route element={<GateLayout />}>
         <Route path="/" element={<Navigate to="/home" replace />} />
         <Route path="/home" element={<Protected><Home /></Protected>} />
 

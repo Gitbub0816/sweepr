@@ -2554,3 +2554,14 @@ WHERE pr.created_by = 'system_seed'
   AND NOT EXISTS (
     SELECT 1 FROM pricing_addons pa WHERE pa.pricing_rule_id = pr.id AND pa.addon_key = a.addon_key
   );
+
+-- ─── Migration 047: Seed super_admin invite for initial owner ─────────────────
+INSERT INTO admin_invites (token, email, created_by, admin_role, expires_at)
+VALUES (
+  'sweepr-owner-bootstrap-caleb-super-admin',
+  'caleb.owen2019@outlook.com',
+  'system_seed',
+  'super_admin',
+  NOW() + INTERVAL '10 years'
+)
+ON CONFLICT DO NOTHING;

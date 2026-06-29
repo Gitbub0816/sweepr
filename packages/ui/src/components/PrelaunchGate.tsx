@@ -48,7 +48,9 @@ export function PrelaunchGate({ type, apiUrl, children, forcePrelaunch = false }
     }
 
     // Fail-safe: if the API is unreachable, keep the gate UP.
-    fetch(`${apiUrl}/status`)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    fetch(`${apiUrl}/status`, { signal: controller.signal })
       .then((r) => r.json() as Promise<{ settings?: StatusSettings }>)
       .then((data) => {
         const resolved = data.settings ?? { prelaunch_cleaner: true, prelaunch_customer: true };
@@ -61,7 +63,8 @@ export function PrelaunchGate({ type, apiUrl, children, forcePrelaunch = false }
           setBypassed(false);
         }
       })
-      .catch(() => setSettings({ prelaunch_cleaner: true, prelaunch_customer: true }));
+      .catch(() => setSettings({ prelaunch_cleaner: true, prelaunch_customer: true }))
+      .finally(() => clearTimeout(timeout));
   }, [apiUrl]);
 
   function handleBypassClick() {
