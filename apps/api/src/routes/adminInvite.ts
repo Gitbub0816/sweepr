@@ -198,7 +198,25 @@ adminInviteRouter.post(
     const sql = getDb(c.env.DATABASE_URL);
     const clerkId = c.get("user").clerkId;
 
-    // Validate and consume the invite atomically
+    // Peek at the invite first (without consuming) to validate email match.
+    const peekRows = await sql`
+      SELECT email, admin_role FROM admin_invites
+      WHERE token = ${token} AND used_at IS NULL AND expires_at > NOW()
+      LIMIT 1
+    ` as Array<{ email: string; admin_role: string }>;
+
+    if (!peekRows[0]) {
+      return c.json({ error: "Invalid, expired, or already-used token" }, 410);
+    }
+
+    // Guard: the signed-in user's email must match the invite email.
+    const callerEmail = (c.get("user").email ?? "").toLowerCase();
+    const inviteEmail = peekRows[0].email.toLowerCase();
+    if (callerEmail && callerEmail !== inviteEmail) {
+      return c.json({ error: "This invitation was sent to a different email address." }, 403);
+    }
+
+    // Now consume atomically.
     const rows = await sql`
       UPDATE admin_invites
       SET used_at = NOW()
@@ -213,10 +231,12 @@ adminInviteRouter.post(
     }
 
     const grantedRole = rows[0].admin_role ?? "admin";
+    // super_admin uses the dedicated role column; all other admin roles use 'admin'.
+    const userRole = grantedRole === "super_admin" ? "super_admin" : "admin";
 
     // Promote the user in our DB
     await sql`
-      UPDATE users SET role = 'admin', admin_role = ${grantedRole}
+      UPDATE users SET role = ${userRole}, admin_role = ${grantedRole}
       WHERE clerk_id = ${clerkId}
     `;
 
@@ -224,7 +244,7 @@ adminInviteRouter.post(
     try {
       const clerk = createClerkClient({ secretKey: c.env.CLERK_SECRET_KEY });
       await clerk.users.updateUserMetadata(clerkId, {
-        publicMetadata: { role: "admin", adminRole: grantedRole },
+        publicMetadata: { role: userRole, adminRole: grantedRole },
       });
     } catch {
       // Non-fatal — DB is source of truth

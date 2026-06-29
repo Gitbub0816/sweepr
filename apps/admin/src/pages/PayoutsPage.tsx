@@ -350,7 +350,8 @@ function FeeConfigTab() {
       </div>
 
       <div className="rounded-xl border border-slate-200 p-6 space-y-4">
-        <h3 className="font-semibold text-slate-800">Save Changes</h3>
+        <h3 className="font-semibold text-slate-800">Submit for Approval</h3>
+        <p className="text-xs text-slate-500">Fee configuration changes require Super Admin authorization. Provide a reason before submitting.</p>
         <div>
           <label className="block text-xs font-medium text-slate-500 mb-1">Reason for change (required)</label>
           <input
@@ -361,7 +362,7 @@ function FeeConfigTab() {
             onChange={(e) => setReason(e.target.value)}
           />
         </div>
-        <Button onClick={save} loading={saving}>Save Fee Configuration</Button>
+        <Button onClick={save} loading={saving}>Submit for Approval</Button>
       </div>
     </div>
   );

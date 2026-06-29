@@ -20,6 +20,7 @@ import type { BookingRow, CleanerRow } from "@sweepr/db";
 export const adminPayoutsRouter = new Hono<AppBindings>();
 
 const financeOrAbove = requireAdminRole("finance", "ops");
+const superAdminOnly = requireAdminRole("super_admin");
 const anyAdmin = requireAdminRole();
 
 // ─── Overview ────────────────────────────────────────────────────────────────
@@ -260,7 +261,7 @@ const feeConfigSchema = z.object({
 adminPayoutsRouter.put(
   "/fee-config",
   requireAuth,
-  financeOrAbove,
+  superAdminOnly,
   zValidator("json", feeConfigSchema, (result, c) => {
     if (!result.success) {
       const sql = getDb((c.env as AppBindings["Bindings"]).DATABASE_URL);

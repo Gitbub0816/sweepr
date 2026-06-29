@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
-import { ArrowLeft, Save, Send } from "lucide-react";
+import { ArrowLeft, Send } from "lucide-react";
 import { DashboardShell, Card, Button, Badge, Input, Select, Textarea, Modal, toast } from "@sweepr/ui";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
@@ -183,8 +183,12 @@ export function PricingRulePage() {
 
       {editable && (
         <div className="mt-6 flex gap-2">
-          <Button onClick={save} loading={saving}><Save className="h-4 w-4" /> Save draft</Button>
-          <Button variant="secondary" onClick={() => setSubmitOpen(true)}><Send className="h-4 w-4" /> Submit for approval</Button>
+          <Button
+            onClick={async () => { await save(); setSubmitOpen(true); }}
+            loading={saving}
+          >
+            <Send className="h-4 w-4" /> Submit for approval
+          </Button>
         </div>
       )}
 
