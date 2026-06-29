@@ -25,7 +25,18 @@ function Providers({ children }: { children: React.ReactNode }) {
   );
   // Only mount Clerk when a key is present so keyless dev/preview builds work.
   if (!PUBLISHABLE_KEY) return tree;
-  return <ClerkProvider publishableKey={PUBLISHABLE_KEY}>{tree}</ClerkProvider>;
+  return (
+    <ClerkProvider
+      publishableKey={PUBLISHABLE_KEY}
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
+      signInFallbackRedirectUrl="/book"
+      signUpFallbackRedirectUrl="/book"
+      afterSignOutUrl="/sign-in"
+    >
+      {tree}
+    </ClerkProvider>
+  );
 }
 
 const API_URL = (import.meta.env.VITE_API_URL as string) ?? "";
