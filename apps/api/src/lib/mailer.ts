@@ -12,6 +12,8 @@ export const TEMPLATES = {
   ADMIN_APPROVAL_REQUEST: "0p7kx4x5o27g9yjr",
   SECURITY_AUTOREPLY: "neqvygmy58zg0p7w",
   SECURITY_MANUAL_RESPONSE: "vywj2lp512mg7oqz",
+  IT_AUTOREPLY: "3zxk54v51x6ljy6v",
+  IT_MANUAL_RESPONSE: "o65qngk17yolwr12",
 } as const;
 
 /** Format a timestamp as MM/DD/YYYY HH:MM:SS TZ for admin/security emails. */
@@ -26,6 +28,7 @@ export const SENDERS = {
   DEFAULT: { email: "hello@getsweepr.com", name: "Sweepr" },
   ADMIN: { email: "admin_no-reply@getsweepr.com", name: "Sweepr Admin" },
   SECURITY: { email: "security@getsweepr.com", name: "Sweepr Security" },
+  IT: { email: "IT@getsweepr.com", name: "Sweepr IT" },
 } as const;
 
 /**

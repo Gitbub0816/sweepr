@@ -20,6 +20,8 @@ import { getUserByClerkId } from "@sweepr/db";
 import { getDb } from "../lib/db";
 import { requireAuth } from "../middleware/auth";
 import { isOwnerClerkId } from "../lib/owner";
+import { generateTicketId, itTypeCode } from "../lib/ticketId";
+import { sendEmail, SENDERS, TEMPLATES, formatEmailTimestamp } from "../lib/mailer";
 import type { AppBindings } from "../types";
 
 export const itTicketsRouter = new Hono<AppBindings>();
@@ -54,14 +56,17 @@ itTicketsRouter.post("/", zValidator("json", createSchema), async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const { clerkId, email } = c.get("user");
 
+  const gen = generateTicketId("IT", itTypeCode(body.category));
   const rows = (await sql`
     INSERT INTO it_tickets (title, description, category, priority, source, app,
-                            reporter_clerk_id, reporter_email, context)
+                            reporter_clerk_id, reporter_email, context,
+                            ticket_id, case_code, ticket_prefix, encoded_date, encoded_time, issue_type, hex_suffix)
     VALUES (${body.title}, ${body.description ?? null}, ${body.category},
             ${body.priority ?? "normal"}, 'user_report', ${body.app ?? null},
-            ${clerkId}, ${email ?? null}, ${JSON.stringify(body.context ?? {})})
-    RETURNING id, ticket_number, status
-  `) as Array<{ id: string; ticket_number: number; status: string }>;
+            ${clerkId}, ${email ?? null}, ${JSON.stringify(body.context ?? {})},
+            ${gen.ticketId}, ${gen.caseCode}, 'IT', ${gen.encodedDate}, ${gen.encodedTime}, ${gen.issueType}, ${gen.hex})
+    RETURNING id, ticket_number, case_code, ticket_id, status
+  `) as Array<{ id: string; ticket_number: number; case_code: string; ticket_id: string; status: string }>;
 
   return c.json({ ok: true, ticket: rows[0] });
 });
@@ -70,7 +75,7 @@ itTicketsRouter.get("/mine", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const { clerkId } = c.get("user");
   const rows = await sql`
-    SELECT id, ticket_number, title, category, priority, status, created_at, updated_at
+    SELECT id, ticket_number, case_code, ticket_id, title, category, priority, status, created_at, updated_at
     FROM it_tickets WHERE reporter_clerk_id = ${clerkId}
     ORDER BY created_at DESC LIMIT 100
   `;
@@ -171,6 +176,59 @@ itTicketsRouter.post(
   },
 );
 
+/** Email the reporter a manual IT response (IT_Manual-Reply) + log a comment. */
+itTicketsRouter.post(
+  "/admin/:id/email-reply",
+  requireAdmin,
+  zValidator("json", z.object({
+    body: z.string().min(1).max(8000),
+    caseStatus: z.string().optional(),
+    assignedTo: z.string().optional(),
+  })),
+  async (c) => {
+    const sql = getDb(c.env.DATABASE_URL);
+    const id = c.req.param("id");
+    const { body, caseStatus, assignedTo } = c.req.valid("json");
+    const { clerkId, email } = c.get("user");
+    const [t] = (await sql`SELECT * FROM it_tickets WHERE id = ${id} LIMIT 1`) as Array<Record<string, unknown>>;
+    if (!t) return c.json({ error: "Not found" }, 404);
+    if (!t.reporter_email) return c.json({ error: "Ticket has no reporter email to reply to." }, 400);
+
+    const caseCode = (t.case_code as string) ?? (t.ticket_id as string) ?? `IT_${String(t.ticket_number ?? "")}`;
+    const classification = ((t.context as Record<string, unknown>)?.classification as string) ?? "Other";
+    let delivery = "skipped";
+    if (c.env.MAILERSEND_API_KEY) {
+      try {
+        await sendEmail(c.env.MAILERSEND_API_KEY, {
+          to: t.reporter_email as string,
+          subject: `Sweepr IT Update — ${caseCode}`,
+          from: SENDERS.IT,
+          replyTo: SENDERS.IT,
+          templateId: TEMPLATES.IT_MANUAL_RESPONSE,
+          variables: {
+            case_code: caseCode,
+            ticket_id: (t.ticket_id as string) ?? caseCode,
+            generated_at: formatEmailTimestamp(),
+            it_classification: classification,
+            case_status: caseStatus ?? "Work In Progress",
+            assigned_to: assignedTo ?? (t.assigned_to as string) ?? "IT Operations",
+            response_body: body,
+          },
+        });
+        delivery = "sent";
+      } catch (err) {
+        return c.json({ error: "Email delivery failed." }, 502);
+      }
+    }
+    await sql`
+      INSERT INTO it_ticket_comments (ticket_id, author_clerk_id, author_email, is_admin, body)
+      VALUES (${id}, ${clerkId}, ${email ?? null}, TRUE, ${`[Emailed reporter — ${delivery}]\n${body}`})
+    `;
+    await sql`UPDATE it_tickets SET assigned_to = COALESCE(${assignedTo ?? null}, assigned_to), updated_at = NOW() WHERE id = ${id}`;
+    return c.json({ ok: true });
+  },
+);
+
 itTicketsRouter.post("/admin/from-error/:errorId", requireAdmin, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const errorId = c.req.param("errorId");
@@ -181,17 +239,20 @@ itTicketsRouter.post("/admin/from-error/:errorId", requireAdmin, async (c) => {
   `) as Array<{ id: string; app: string | null; message: string; path: string | null; status_code: number | null }>;
   if (!err) return c.json({ error: "Error not found" }, 404);
 
+  const gen = generateTicketId("IT", "BUG");
   const [row] = (await sql`
     INSERT INTO it_tickets (title, description, category, priority, source, app,
-                            reporter_clerk_id, reporter_email, related_error_id, context)
+                            reporter_clerk_id, reporter_email, related_error_id, context,
+                            ticket_id, case_code, ticket_prefix, encoded_date, encoded_time, issue_type, hex_suffix)
     VALUES (
       ${`Error: ${err.message.slice(0, 160)}`},
       ${`Auto-created from error log.\nPath: ${err.path ?? "—"}\nStatus: ${err.status_code ?? "—"}`},
       'bug', 'high', 'error', ${err.app ?? null}, ${clerkId}, ${email ?? null}, ${err.id},
-      ${JSON.stringify({ errorId: err.id })}
+      ${JSON.stringify({ errorId: err.id })},
+      ${gen.ticketId}, ${gen.caseCode}, 'IT', ${gen.encodedDate}, ${gen.encodedTime}, ${gen.issueType}, ${gen.hex}
     )
-    RETURNING id, ticket_number
-  `) as Array<{ id: string; ticket_number: number }>;
+    RETURNING id, ticket_number, case_code
+  `) as Array<{ id: string; ticket_number: number; case_code: string }>;
 
   // Mark the error resolved now that it's tracked as a ticket.
   await sql`UPDATE error_logs SET resolved = true, resolved_at = NOW(), resolved_by = ${clerkId} WHERE id = ${errorId}`;

@@ -1961,8 +1961,25 @@ INSERT INTO schema_migrations (filename) VALUES
   ('034_fee_approval_engine.sql'),
   ('035_slack_user_tokens.sql'),
   ('036_pricing_engine.sql'),
-  ('037_security_tickets.sql')
+  ('037_security_tickets.sql'),
+  ('038_compact_ticket_ids.sql')
 ON CONFLICT (filename) DO NOTHING;
+
+-- ── 038: compact ticket identifiers (Case Code + Ticket ID) ──────────────────
+ALTER TABLE security_tickets
+  ADD COLUMN IF NOT EXISTS ticket_id TEXT, ADD COLUMN IF NOT EXISTS case_code TEXT,
+  ADD COLUMN IF NOT EXISTS ticket_prefix TEXT, ADD COLUMN IF NOT EXISTS encoded_date TEXT,
+  ADD COLUMN IF NOT EXISTS encoded_time TEXT, ADD COLUMN IF NOT EXISTS issue_type TEXT,
+  ADD COLUMN IF NOT EXISTS hex_suffix TEXT;
+CREATE INDEX IF NOT EXISTS idx_security_tickets_case ON security_tickets (case_code);
+CREATE INDEX IF NOT EXISTS idx_security_tickets_ticketid ON security_tickets (ticket_id);
+ALTER TABLE it_tickets
+  ADD COLUMN IF NOT EXISTS ticket_id TEXT, ADD COLUMN IF NOT EXISTS case_code TEXT,
+  ADD COLUMN IF NOT EXISTS ticket_prefix TEXT, ADD COLUMN IF NOT EXISTS encoded_date TEXT,
+  ADD COLUMN IF NOT EXISTS encoded_time TEXT, ADD COLUMN IF NOT EXISTS issue_type TEXT,
+  ADD COLUMN IF NOT EXISTS hex_suffix TEXT;
+CREATE INDEX IF NOT EXISTS idx_it_tickets_case ON it_tickets (case_code);
+CREATE INDEX IF NOT EXISTS idx_it_tickets_ticketid ON it_tickets (ticket_id);
 
 -- ── 037: Security inbox ──────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS security_tickets (

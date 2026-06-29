@@ -1,12 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { ShieldAlert, RefreshCw, Send } from "lucide-react";
-import { DashboardShell, Card, Button, Badge, Select, Textarea, EmptyState, toast } from "@sweepr/ui";
+import { DashboardShell, Card, Button, Badge, Select, Input, Textarea, EmptyState, toast } from "@sweepr/ui";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
 interface Ticket {
-  id: string; ticket_number: string | null; sender_email: string; sender_name: string | null;
+  id: string; case_code: string | null; ticket_id: string | null; sender_email: string; sender_name: string | null;
   subject: string | null; classification: string; status: string; assigned_to: string | null;
   received_at: string; last_reply_at: string | null; auto_reply_sent_at: string | null;
 }
@@ -24,6 +24,7 @@ export function SecurityPage() {
   const [statuses, setStatuses] = useState<string[]>([]);
   const [classifications, setClassifications] = useState<string[]>([]);
   const [filter, setFilter] = useState("");
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<Ticket | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -40,13 +41,16 @@ export function SecurityPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await authed(`/security/tickets${filter ? `?status=${encodeURIComponent(filter)}` : ""}`);
+      const params = new URLSearchParams();
+      if (filter) params.set("status", filter);
+      if (search) params.set("q", search);
+      const res = await authed(`/security/tickets${params.toString() ? `?${params}` : ""}`);
       if (res.ok) {
         const d = (await res.json()) as { tickets: Ticket[]; statuses: string[]; classifications: string[] };
         setTickets(d.tickets ?? []); setStatuses(d.statuses ?? []); setClassifications(d.classifications ?? []);
       }
     } finally { setLoading(false); }
-  }, [authed, filter]);
+  }, [authed, filter, search]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -72,6 +76,7 @@ export function SecurityPage() {
       description="Inbound security reports (security@getsweepr.com). Replies auto-thread back to the reporter."
       actions={
         <div className="flex items-center gap-2">
+          <div className="w-52"><Input placeholder="Search Case Code / Ticket ID / sender" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
           <div className="w-44"><Select options={[{ value: "", label: "All statuses" }, ...statuses.map((s) => ({ value: s, label: s }))]} value={filter} onChange={(e) => setFilter(e.target.value)} /></div>
           <button onClick={() => void load()} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"><RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh</button>
         </div>
@@ -85,7 +90,7 @@ export function SecurityPage() {
             {tickets.map((t) => (
               <button key={t.id} onClick={() => open(t)} className={`block w-full border-b border-slate-100 p-3 text-left dark:border-slate-800 ${active?.id === t.id ? "bg-seafoam-50 dark:bg-slate-800" : "hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}>
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs text-slate-500">{t.ticket_number ?? "…"}</span>
+                  <span className="font-mono text-xs font-semibold text-seafoam-700">{t.case_code ?? "…"}</span>
                   <Badge variant={STATUS_VARIANT[t.status] ?? "info"}>{t.status}</Badge>
                 </div>
                 <p className="mt-1 truncate text-sm font-medium text-charcoal dark:text-white">{t.subject ?? "(no subject)"}</p>
@@ -100,7 +105,11 @@ export function SecurityPage() {
                 <div className="mb-2 flex items-center justify-between">
                   <div>
                     <h3 className="font-semibold text-charcoal dark:text-white">{active.subject ?? "(no subject)"}</h3>
-                    <p className="text-xs text-slate-400">{active.ticket_number} · from {active.sender_name ? `${active.sender_name} <${active.sender_email}>` : active.sender_email}</p>
+                    <p className="text-xs">
+                      <span className="font-mono font-semibold text-seafoam-700">{active.case_code ?? "—"}</span>
+                      <span className="ml-2 font-mono text-slate-400">Ticket ID: {active.ticket_id ?? "—"}</span>
+                    </p>
+                    <p className="text-xs text-slate-400">from {active.sender_name ? `${active.sender_name} <${active.sender_email}>` : active.sender_email}</p>
                   </div>
                   <Badge variant={STATUS_VARIANT[active.status] ?? "info"}>{active.status}</Badge>
                 </div>

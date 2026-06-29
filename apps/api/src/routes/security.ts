@@ -21,6 +21,7 @@ import { requireAdminRole } from "../middleware/adminRoles";
 import { getDb } from "../lib/db";
 import { logger } from "../lib/logger";
 import { sendEmail, SENDERS, TEMPLATES, formatEmailTimestamp } from "../lib/mailer";
+import { generateTicketId, securityTypeCode } from "../lib/ticketId";
 import type { AppBindings } from "../types";
 
 export const securityRouter = new Hono<AppBindings>();
@@ -84,17 +85,23 @@ securityRouter.post("/inbound", async (c) => {
 
   const sql = getDb(c.env.DATABASE_URL);
   const classification = classify(subject, bodyText);
+  const receivedAt = new Date();
+  const gen = generateTicketId("SR", securityTypeCode(classification), receivedAt);
 
-  // Create the ticket, then stamp a per-year SEC number from the serial.
   const rows = (await sql`
-    INSERT INTO security_tickets (sender_email, sender_name, sender_ip, subject, classification, inbound_message_id)
-    VALUES (${senderEmail}, ${from.name ?? null}, ${senderIp}, ${subject}, ${classification}, ${messageId})
-    RETURNING id, seq, received_at
-  `) as Array<{ id: string; seq: number; received_at: string }>;
+    INSERT INTO security_tickets (
+      sender_email, sender_name, sender_ip, subject, classification, inbound_message_id,
+      received_at, ticket_number, ticket_id, case_code, ticket_prefix,
+      encoded_date, encoded_time, issue_type, hex_suffix
+    )
+    VALUES (
+      ${senderEmail}, ${from.name ?? null}, ${senderIp}, ${subject}, ${classification}, ${messageId},
+      ${receivedAt.toISOString()}, ${gen.ticketId}, ${gen.ticketId}, ${gen.caseCode}, 'SR',
+      ${gen.encodedDate}, ${gen.encodedTime}, ${gen.issueType}, ${gen.hex}
+    )
+    RETURNING id, received_at
+  `) as Array<{ id: string; received_at: string }>;
   const ticket = rows[0];
-  const year = new Date(ticket.received_at).getUTCFullYear();
-  const ticketNumber = `SEC-${year}-${String(ticket.seq).padStart(6, "0")}`;
-  await sql`UPDATE security_tickets SET ticket_number = ${ticketNumber} WHERE id = ${ticket.id}`;
 
   await sql`
     INSERT INTO security_ticket_messages (ticket_id, direction, from_email, to_email, subject, body, message_id)
@@ -106,12 +113,13 @@ securityRouter.post("/inbound", async (c) => {
     try {
       await sendEmail(c.env.MAILERSEND_API_KEY, {
         to: senderEmail,
-        subject: `Sweepr Security — Report Received (${ticketNumber})`,
+        subject: `Sweepr Security — Report Received (${gen.caseCode})`,
         from: SENDERS.SECURITY,
         replyTo: SENDERS.SECURITY,
         templateId: TEMPLATES.SECURITY_AUTOREPLY,
         variables: {
-          security_ticket_number: ticketNumber,
+          // Public-facing Case Code is the primary identifier shown to reporters.
+          security_ticket_number: gen.caseCode,
           received_at: formatEmailTimestamp(new Date(ticket.received_at)),
           security_classification: classification,
         },
@@ -120,13 +128,13 @@ securityRouter.post("/inbound", async (c) => {
       await sql`
         INSERT INTO security_ticket_messages (ticket_id, direction, from_email, to_email, subject, body, delivery_status)
         VALUES (${ticket.id}, 'auto_reply', 'security@getsweepr.com', ${senderEmail},
-                ${`Sweepr Security — Report Received (${ticketNumber})`}, 'Automated acknowledgement sent.', 'sent')
+                ${`Sweepr Security — Report Received (${gen.caseCode})`}, 'Automated acknowledgement sent.', 'sent')
       `;
     } catch (err) {
-      logger.error("security.autoreply failed", err, { ticketNumber });
+      logger.error("security.autoreply failed", err, { caseCode: gen.caseCode });
     }
   }
-  return c.json({ ok: true, ticket_number: ticketNumber });
+  return c.json({ ok: true, case_code: gen.caseCode, ticket_id: gen.ticketId });
 });
 
 // ── Admin (super_admin) ─────────────────────────────────────────────────────────
@@ -135,12 +143,23 @@ const gate = [requireAuth, requireAdminRole("super_admin")] as const;
 securityRouter.get("/tickets", ...gate, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const status = c.req.query("status");
+  const q = c.req.query("q");
+  const conds: string[] = [];
+  const params: unknown[] = [];
+  if (status) { params.push(status); conds.push(`status = $${params.length}`); }
+  if (q) {
+    params.push(`%${q}%`);
+    const p = `$${params.length}`;
+    // Search by Case Code, Ticket ID, hex suffix, classification, or sender.
+    conds.push(`(case_code ILIKE ${p} OR ticket_id ILIKE ${p} OR hex_suffix ILIKE ${p} OR classification ILIKE ${p} OR sender_email ILIKE ${p})`);
+  }
+  const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
   const rows = await sql(
-    `SELECT id, ticket_number, sender_email, sender_name, subject, classification, status,
+    `SELECT id, case_code, ticket_id, sender_email, sender_name, subject, classification, status,
             case_owner, assigned_to, received_at, last_reply_at, auto_reply_sent_at
-     FROM security_tickets ${status ? "WHERE status = $1" : ""}
+     FROM security_tickets ${where}
      ORDER BY received_at DESC LIMIT 300`,
-    status ? [status] : [],
+    params,
   );
   return c.json({ tickets: rows, classifications: CLASSIFICATIONS, statuses: STATUSES });
 });
@@ -177,14 +196,15 @@ securityRouter.post(
     let delivery = "failed";
     if (c.env.MAILERSEND_API_KEY) {
       try {
+        const caseCode = (ticket.case_code as string) ?? (ticket.ticket_id as string);
         await sendEmail(c.env.MAILERSEND_API_KEY, {
           to: ticket.sender_email as string,
-          subject: `Sweepr Security Update — ${ticket.ticket_number}`,
+          subject: `Sweepr Security Update — ${caseCode}`,
           from: SENDERS.SECURITY,
           replyTo: SENDERS.SECURITY,
           templateId: TEMPLATES.SECURITY_MANUAL_RESPONSE,
           variables: {
-            security_ticket_number: ticket.ticket_number as string,
+            security_ticket_number: caseCode, // public Case Code
             generated_at: formatEmailTimestamp(),
             security_classification: newClass,
             case_status: newStatus,
@@ -202,7 +222,7 @@ securityRouter.post(
     await sql`
       INSERT INTO security_ticket_messages (ticket_id, direction, from_email, to_email, subject, body, delivery_status)
       VALUES (${id}, 'outbound', 'security@getsweepr.com', ${ticket.sender_email as string},
-              ${`Sweepr Security Update — ${ticket.ticket_number}`}, ${body}, ${delivery})
+              ${`Sweepr Security Update — ${(ticket.case_code as string) ?? (ticket.ticket_id as string)}`}, ${body}, ${delivery})
     `;
     await sql`
       UPDATE security_tickets SET status = ${newStatus}, classification = ${newClass},
