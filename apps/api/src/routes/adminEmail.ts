@@ -61,12 +61,17 @@ adminEmailRouter.post(
   },
 );
 
-adminEmailRouter.delete("/suppressions/:email", ...gate, async (c) => {
-  const sql = getDb(c.env.DATABASE_URL);
-  const email = decodeURIComponent(c.req.param("email"));
-  await sql`DELETE FROM email_suppressions WHERE LOWER(email) = LOWER(${email})`;
-  return c.json({ ok: true });
-});
+adminEmailRouter.delete(
+  "/suppressions/:email",
+  ...gate,
+  zValidator("param", z.object({ email: z.string().email() })),
+  async (c) => {
+    const sql = getDb(c.env.DATABASE_URL);
+    const { email } = c.req.valid("param");
+    await sql`DELETE FROM email_suppressions WHERE LOWER(email) = LOWER(${email})`;
+    return c.json({ ok: true });
+  },
+);
 
 adminEmailRouter.post(
   "/preview",
@@ -80,12 +85,13 @@ adminEmailRouter.post(
     if (!c.env.MAILERSEND_API_KEY) return c.json({ error: "MAILERSEND_API_KEY not configured" }, 503);
     const sql = getDb(c.env.DATABASE_URL);
     const { to, subject, body } = c.req.valid("json");
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     const html = `<div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
   <p style="font-size:11px;color:#f59e0b;border:1px solid #f59e0b;padding:6px 10px;border-radius:4px;margin-bottom:20px">
-    ⚠ This is a preview / test email sent from the Sweepr admin panel.
+    &#x26A0; This is a preview / test email sent from the Sweepr admin panel.
   </p>
-  <h2 style="margin:0 0 16px;font-size:20px">${subject}</h2>
-  <div style="font-size:15px;line-height:1.7;color:#444;white-space:pre-wrap">${body}</div>
+  <h2 style="margin:0 0 16px;font-size:20px">${esc(subject)}</h2>
+  <div style="font-size:15px;line-height:1.7;color:#444;white-space:pre-wrap">${esc(body)}</div>
 </div>`;
     await sendEmail(
       c.env.MAILERSEND_API_KEY,
@@ -96,51 +102,43 @@ adminEmailRouter.post(
   },
 );
 
-// ── MailerSend webhook (unauthenticated, signature-checked) ───────────────────
+// ── One-click unsubscribe (RFC 8058 — public POST, email in query param) ─────
+export const unsubscribeRouter = new Hono<AppBindings>();
+
+unsubscribeRouter.post("/", async (c) => {
+  const emailParam = c.req.query("email") ?? "";
+  const parsed = z.string().email().safeParse(decodeURIComponent(emailParam));
+  if (!parsed.success) return c.json({ error: "Invalid email" }, 400);
+  const email = parsed.data;
+  const sql = getDb(c.env.DATABASE_URL);
+  await sql`
+    INSERT INTO email_suppressions (email, reason, source)
+    VALUES (${email}, 'unsubscribed_marketing', 'one_click')
+    ON CONFLICT (email) DO UPDATE SET reason = 'unsubscribed_marketing', source = 'one_click', created_at = NOW()
+  `;
+  return c.json({ ok: true });
+});
+
+// ── MailerSend webhook (signature-required) ───────────────────────────────────
 export const mailersendWebhookRouter = new Hono<AppBindings>();
 
 mailersendWebhookRouter.post("/", async (c) => {
   const secret = c.env.MAILERSEND_WEBHOOK_SECRET;
-  if (secret) {
-    const sig = c.req.header("signature") ?? "";
-    const raw = await c.req.text();
-    // MailerSend signs with HMAC-SHA256 over the raw body.
-    const key = await crypto.subtle.importKey(
-      "raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"],
-    );
-    const sigBytes = Uint8Array.from(sig.match(/.{1,2}/g)?.map((b) => parseInt(b, 16)) ?? []);
-    const valid = await crypto.subtle.verify("HMAC", key, sigBytes, new TextEncoder().encode(raw));
-    if (!valid) return c.json({ error: "bad signature" }, 401);
+  // Fail-closed: reject all requests when the secret is not configured.
+  if (!secret) return c.json({ error: "Webhook not configured" }, 503);
 
-    const body = JSON.parse(raw) as { type?: string; data?: { email?: { recipient?: { email?: string } }; reason?: string } };
-    const email = body.data?.email?.recipient?.email;
-    if (!email) return c.json({ ok: true });
+  const sig = c.req.header("signature") ?? "";
+  const raw = await c.req.text();
+  // sig is lowercase hex; parse before timing-safe compare.
+  const sigBytes = Uint8Array.from(sig.match(/[0-9a-f]{2}/gi)?.map((b) => parseInt(b, 16)) ?? []);
+  const key = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"],
+  );
+  const valid = sigBytes.length > 0 &&
+    await crypto.subtle.verify("HMAC", key, sigBytes, new TextEncoder().encode(raw));
+  if (!valid) return c.json({ error: "bad signature" }, 401);
 
-    const sql = getDb(c.env.DATABASE_URL);
-    if (body.type === "activity.hard_bounced") {
-      await sql`
-        INSERT INTO email_suppressions (email, reason, source)
-        VALUES (${email}, 'hard_bounce', 'mailersend_webhook')
-        ON CONFLICT (email) DO UPDATE SET reason = 'hard_bounce', source = 'mailersend_webhook', created_at = NOW()
-      `;
-    } else if (body.type === "activity.spam_complaint") {
-      await sql`
-        INSERT INTO email_suppressions (email, reason, source)
-        VALUES (${email}, 'spam_complaint', 'mailersend_webhook')
-        ON CONFLICT (email) DO UPDATE SET reason = 'spam_complaint', source = 'mailersend_webhook', created_at = NOW()
-      `;
-    } else if (body.type === "activity.unsubscribed") {
-      await sql`
-        INSERT INTO email_suppressions (email, reason, source)
-        VALUES (${email}, 'unsubscribed_marketing', 'mailersend_webhook')
-        ON CONFLICT (email) DO UPDATE SET reason = 'unsubscribed_marketing', source = 'mailersend_webhook', created_at = NOW()
-      `;
-    }
-    return c.json({ ok: true });
-  }
-
-  // No secret configured — parse body without signature verification.
-  const body = await c.req.json() as { type?: string; data?: { email?: { recipient?: { email?: string } } } };
+  const body = JSON.parse(raw) as { type?: string; data?: { email?: { recipient?: { email?: string } }; reason?: string } };
   const email = body.data?.email?.recipient?.email;
   if (!email) return c.json({ ok: true });
 
@@ -156,6 +154,12 @@ mailersendWebhookRouter.post("/", async (c) => {
       INSERT INTO email_suppressions (email, reason, source)
       VALUES (${email}, 'spam_complaint', 'mailersend_webhook')
       ON CONFLICT (email) DO UPDATE SET reason = 'spam_complaint', source = 'mailersend_webhook', created_at = NOW()
+    `;
+  } else if (body.type === "activity.unsubscribed") {
+    await sql`
+      INSERT INTO email_suppressions (email, reason, source)
+      VALUES (${email}, 'unsubscribed_marketing', 'mailersend_webhook')
+      ON CONFLICT (email) DO UPDATE SET reason = 'unsubscribed_marketing', source = 'mailersend_webhook', created_at = NOW()
     `;
   }
   return c.json({ ok: true });

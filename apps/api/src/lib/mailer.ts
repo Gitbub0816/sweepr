@@ -118,8 +118,10 @@ async function callMailerSend(
   if (input.replyTo) body.reply_to = input.replyTo;
 
   if (input.category === "marketing") {
+    // RFC 8058: include both https (for one-click POST) and mailto as fallback.
+    const unsubUrl = `https://api.getsweepr.com/unsubscribe?email=${encodeURIComponent(input.to)}`;
     body.headers = [
-      { name: "List-Unsubscribe", value: `<mailto:unsubscribe@getsweepr.com?subject=unsubscribe>` },
+      { name: "List-Unsubscribe", value: `<${unsubUrl}>, <mailto:unsubscribe@getsweepr.com?subject=unsubscribe>` },
       { name: "List-Unsubscribe-Post", value: "List-Unsubscribe=One-Click" },
     ];
   }

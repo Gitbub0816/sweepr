@@ -54,18 +54,34 @@ adminPayoutsRouter.get("/overview", requireAuth, anyAdmin, async (c) => {
 
 // ─── Transactions (ledger) ───────────────────────────────────────────────────
 
+const PAYOUT_STATUSES = new Set(["pending","eligible","on_hold","transferred","paid","failed","disputed"]);
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T[\d:.Z+-]*)?$/;
+
 adminPayoutsRouter.get("/transactions", requireAuth, anyAdmin, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const { limit = "50", offset = "0", cleaner_id, status, from, to } = c.req.query();
+
+  const limitN = Math.max(1, Math.min(Number(limit) || 50, 500));
+  const offsetN = Math.max(0, Number(offset) || 0);
+  if (!isFinite(limitN) || !isFinite(offsetN)) return c.json({ error: "Invalid pagination" }, 400);
 
   // Build optional filters as positional params ($1..) — nested sql`` fragments
   // are not composable in the Neon HTTP client.
   const conds: string[] = [];
   const params: unknown[] = [];
   if (cleaner_id) { params.push(cleaner_id); conds.push(`AND p.cleaner_id = $${params.length}`); }
-  if (status) { params.push(status); conds.push(`AND p.status = $${params.length}`); }
-  if (from) { params.push(from); conds.push(`AND p.created_at >= $${params.length}`); }
-  if (to) { params.push(to); conds.push(`AND p.created_at <= $${params.length}`); }
+  if (status) {
+    if (!PAYOUT_STATUSES.has(status)) return c.json({ error: "Invalid status" }, 400);
+    params.push(status); conds.push(`AND p.status = $${params.length}`);
+  }
+  if (from) {
+    if (!ISO_DATE_RE.test(from)) return c.json({ error: "Invalid from date" }, 400);
+    params.push(from); conds.push(`AND p.created_at >= $${params.length}`);
+  }
+  if (to) {
+    if (!ISO_DATE_RE.test(to)) return c.json({ error: "Invalid to date" }, 400);
+    params.push(to); conds.push(`AND p.created_at <= $${params.length}`);
+  }
   const filter = conds.join("\n      ");
 
   const limitParam = params.length + 1;
@@ -86,7 +102,7 @@ adminPayoutsRouter.get("/transactions", requireAuth, anyAdmin, async (c) => {
     ORDER BY p.created_at DESC
     LIMIT $${limitParam}
     OFFSET $${offsetParam}`,
-    [...params, Number(limit), Number(offset)]
+    [...params, limitN, offsetN]
   );
 
   const total = await sql(
@@ -140,21 +156,32 @@ adminPayoutsRouter.post(
     const payout = payouts[0];
     if (!payout) return c.json({ error: "Payout not found" }, 404);
     if (!payout.stripe_connect_id) return c.json({ error: "Cleaner has no Stripe account" }, 400);
-    if (payout.status === "paid" || payout.status === "transferred") {
-      return c.json({ error: "Already paid" }, 409);
+
+    // Atomic status lock: only proceed if the row is still in a releasable state.
+    // This prevents double-spend under concurrent admin requests.
+    const locked = (await sql`
+      UPDATE payouts SET status = 'transferred', paid_at = NOW()
+      WHERE id = ${payoutId} AND status NOT IN ('transferred', 'paid')
+      RETURNING id
+    `) as Array<{ id: string }>;
+    if (!locked[0]) return c.json({ error: "Already paid or transfer in progress" }, 409);
+
+    let transfer: { id: string };
+    try {
+      transfer = await stripe.transfers.create({
+        amount: payout.amount as number,
+        currency: "usd",
+        destination: payout.stripe_connect_id as string,
+        transfer_group: `booking_${payout.booking_id}`,
+      });
+    } catch (err) {
+      // Revert the lock if Stripe fails.
+      await sql`UPDATE payouts SET status = ${payout.status as string}, paid_at = NULL WHERE id = ${payoutId}`;
+      throw err;
     }
 
-    const transfer = await stripe.transfers.create({
-      amount: payout.amount as number,
-      currency: "usd",
-      destination: payout.stripe_connect_id as string,
-      transfer_group: `booking_${payout.booking_id}`,
-    });
-
     await sql`
-      UPDATE payouts
-      SET status = 'transferred', stripe_transfer_id = ${transfer.id}, paid_at = NOW()
-      WHERE id = ${payoutId}
+      UPDATE payouts SET stripe_transfer_id = ${transfer.id} WHERE id = ${payoutId}
     `;
 
     await audit(sql, {
