@@ -12,6 +12,8 @@ import {
   getTierMultiplier,
   type FeeSettings,
 } from "../lib/payoutEngine";
+import { recordError } from "../lib/errorLog";
+import { logger } from "../lib/logger";
 import type { AppBindings } from "../types";
 import type { BookingRow, CleanerRow } from "@sweepr/db";
 
@@ -211,15 +213,16 @@ adminPayoutsRouter.get("/fee-config", requireAuth, financeOrAbove, async (c) => 
   return c.json(rows[0] ?? null);
 });
 
+// z.coerce.number() handles Neon returning NUMERIC columns as strings.
 const feeConfigSchema = z.object({
   feeType: z.enum(["percentage", "flat", "hybrid"]),
-  feeValue: z.number().positive(),
-  minimumPlatformFee: z.number().int().min(0),
-  maximumPlatformFee: z.number().int().positive().nullable().optional(),
+  feeValue: z.coerce.number().positive(),
+  minimumPlatformFee: z.coerce.number().int().min(0),
+  maximumPlatformFee: z.coerce.number().int().positive().nullable().optional(),
   processingFeeStrategy: z.enum(["absorb", "pass_through", "split"]),
-  processingFeeSplitPct: z.number().min(0).max(100).optional(),
-  reservePercentage: z.number().min(0).max(100).optional(),
-  payoutDelayDays: z.number().int().min(0).max(30),
+  processingFeeSplitPct: z.coerce.number().min(0).max(100).optional(),
+  reservePercentage: z.coerce.number().min(0).max(100).optional(),
+  payoutDelayDays: z.coerce.number().int().min(0).max(30),
   notes: z.string().optional(),
   reason: z.string().min(1),
 });
@@ -228,7 +231,20 @@ adminPayoutsRouter.put(
   "/fee-config",
   requireAuth,
   financeOrAbove,
-  zValidator("json", feeConfigSchema),
+  zValidator("json", feeConfigSchema, (result, c) => {
+    if (!result.success) {
+      const sql = getDb((c.env as AppBindings["Bindings"]).DATABASE_URL);
+      const issues = result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+      logger.error("fee-config validation failed", undefined, { issues });
+      void recordError(sql, {
+        source: "server", app: "admin", level: "error",
+        message: `PUT /admin/payouts/fee-config validation failed: ${issues}`,
+        path: "/admin/payouts/fee-config", method: "PUT", statusCode: 400,
+        clerkId: null, context: { issues: result.error.issues },
+      });
+      return c.json({ error: "Validation failed", issues: result.error.issues }, 400);
+    }
+  }),
   async (c) => {
     const body = c.req.valid("json");
     const sql = getDb(c.env.DATABASE_URL);
