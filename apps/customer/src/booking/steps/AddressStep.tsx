@@ -1,16 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin } from "lucide-react";
-import { Input } from "@sweepr/ui";
+import { Input, getMapboxToken } from "@sweepr/ui";
 import type { Address } from "@sweepr/types";
 import { useBookingStore } from "../../store/booking";
 import { StepShell } from "../StepShell";
 import { AddressMapPreview } from "../../components/AddressMapPreview";
 
-const MAPBOX_TOKEN =
-  import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN ||
-  import.meta.env.VITE_MAPBOX_TOKEN ||
-  "";
+const MAPBOX_TOKEN = getMapboxToken();
 
 const SERVICE_AREA_STATES = ["CA", "TX", "FL", "NY", "WA", "CO"];
 

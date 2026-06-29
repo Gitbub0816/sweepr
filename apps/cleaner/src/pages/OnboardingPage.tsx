@@ -25,6 +25,7 @@ import {
   toast,
   track,
   Events,
+  getMapboxToken,
 } from "@sweepr/ui";
 import type { ServiceType, AddOn } from "@sweepr/types";
 import { SERVICE_LABELS, ADD_ONS, formatCurrency } from "@sweepr/utils";
@@ -816,10 +817,7 @@ function StepBusinessInfo({ form, set }: { form: FormState; set: SetFn }) {
   );
 }
 
-const MAPBOX_TOKEN =
-  import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN ||
-  import.meta.env.VITE_MAPBOX_TOKEN ||
-  "";
+const MAPBOX_TOKEN = getMapboxToken();
 
 async function geocodeCity(query: string): Promise<[number, number] | null> {
   if (!query.trim()) return null;

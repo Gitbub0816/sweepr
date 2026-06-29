@@ -569,7 +569,7 @@ adminAutomationRouter.get("/dashboard", async (c) => {
 /** Get automation run history. */
 adminAutomationRouter.get("/runs", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "50"), 200);
+  const limit = Math.min(parseInt(c.req.query("limit") ?? "50", 10), 200);
   const rows = await sql`
     SELECT * FROM automation_runs
     ORDER BY started_at DESC

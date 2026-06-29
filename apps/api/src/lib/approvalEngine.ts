@@ -234,7 +234,9 @@ export async function proposeModification(
   assertActionable(proposal);
   await record(sql, id, actor, "proposed_modification", comment, modJson);
   // Enter collaboration; reset cooldown; require collaborators to re-approve final.
-  const beforeDeadline = new Date() <= new Date(proposal.response_deadline_at as string);
+  const beforeDeadline = proposal.response_deadline_at
+    ? new Date() <= new Date(proposal.response_deadline_at as string)
+    : false;
   await sql`
     INSERT INTO fee_change_collaborators (proposal_id, clerk_id, email, must_approve_final)
     VALUES (${id}, ${actor.clerkId}, ${actor.email ?? null}, ${beforeDeadline})
@@ -258,7 +260,9 @@ export async function joinCollaboration(sql: Sql, id: string, actor: Actor): Pro
   const proposal = await getProposal(sql, id);
   if (!proposal) throw new ApprovalError("Proposal not found.", 404);
   assertActionable(proposal);
-  const beforeDeadline = new Date() <= new Date(proposal.response_deadline_at as string);
+  const beforeDeadline = proposal.response_deadline_at
+    ? new Date() <= new Date(proposal.response_deadline_at as string)
+    : false;
   await sql`
     INSERT INTO fee_change_collaborators (proposal_id, clerk_id, email, must_approve_final)
     VALUES (${id}, ${actor.clerkId}, ${actor.email ?? null}, ${beforeDeadline})

@@ -54,6 +54,6 @@ export * from "./hooks/useReducedMotion";
 
 // Lib
 export { SafeText, sanitizeText } from "./lib/sanitize";
-export { MAPBOX_STYLES, getMapStyle } from "./lib/mapStyles";
+export { MAPBOX_STYLES, getMapStyle, getMapboxToken } from "./lib/mapStyles";
 export { initAnalytics, track, identify, resetAnalytics } from "./lib/analytics";
 export { Events } from "./lib/events";

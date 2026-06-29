@@ -10,6 +10,8 @@ import type { AppBindings } from "../types";
 
 export const insuranceRouter = new Hono<AppBindings>();
 
+const INSURANCE_ALLOWED_EXTS = new Set(["jpg", "jpeg", "png", "webp", "pdf"]);
+
 // All routes require auth
 insuranceRouter.use("*", requireAuth);
 
@@ -93,7 +95,8 @@ insuranceRouter.post(
     if (!cleaner) throw new AppError("Cleaner not found", "NOT_FOUND", 404);
 
     const cfg = parseR2Config(c.env as Parameters<typeof parseR2Config>[0]);
-    const ext = input.fileName.split(".").pop()?.toLowerCase() ?? "pdf";
+    const rawExt = input.fileName.split(".").pop()?.toLowerCase() ?? "";
+    const ext = INSURANCE_ALLOWED_EXTS.has(rawExt) ? rawExt : "pdf";
     const objectKey = `insurance/${cleaner.id}/${Date.now()}.${ext}`;
 
     const { uploadUrl, storageKey } = await createPresignedUploadUrl(

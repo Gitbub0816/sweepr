@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { getMapStyle } from "@sweepr/ui";
+import { getMapStyle, getMapboxToken } from "@sweepr/ui";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
-const TOKEN = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN ?? import.meta.env.VITE_MAPBOX_TOKEN ?? "";
+const TOKEN = getMapboxToken();
 
 // Bay Area polygon (9-county approximate boundary)
 const BAY_AREA_COORDS: [number, number][] = [

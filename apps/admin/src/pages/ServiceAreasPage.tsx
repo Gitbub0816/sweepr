@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { DashboardShell, Card, Button, Input, toast, getMapStyle } from "@sweepr/ui";
+import { DashboardShell, Card, Button, Input, toast, getMapStyle, getMapboxToken } from "@sweepr/ui";
 import { Plus, Trash2, MapPin } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
-const TOKEN = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN ?? import.meta.env.VITE_MAPBOX_TOKEN ?? "";
+const TOKEN = getMapboxToken();
 
 interface ServiceArea {
   id: string;

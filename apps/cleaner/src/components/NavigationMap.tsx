@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { getMapStyle } from "@sweepr/ui";
+import { getMapStyle, getMapboxToken } from "@sweepr/ui";
 import { Navigation, ChevronRight, Clock } from "lucide-react";
 
 function isDarkTheme() {
@@ -9,10 +9,7 @@ function isDarkTheme() {
   try { return localStorage.getItem("theme") === "dark"; } catch { return false; }
 }
 
-const TOKEN =
-  import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN ||
-  import.meta.env.VITE_MAPBOX_TOKEN ||
-  "";
+const TOKEN = getMapboxToken();
 
 interface Step {
   instruction: string;

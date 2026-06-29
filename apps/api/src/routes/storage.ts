@@ -9,6 +9,7 @@ import type { AppBindings } from "../types";
 export const storageRouter = new Hono<AppBindings>();
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+const ALLOWED_EXTS = new Set(["jpg", "jpeg", "png", "webp"]);
 
 // Scopes that go to sweepr-legal (WORM bucket, 7-year retention).
 const LEGAL_SCOPES = new Set(["certificate", "insurance"]);
@@ -43,7 +44,8 @@ storageRouter.post(
       insurance: "insurance",
     }[input.scope];
 
-    const ext = input.fileName.split(".").pop()?.toLowerCase() ?? "jpg";
+    const rawExt = input.fileName.split(".").pop()?.toLowerCase() ?? "";
+    const ext = ALLOWED_EXTS.has(rawExt) ? rawExt : "jpg";
     const objectKey = `${prefix}/${input.refId}/${Date.now()}.${ext}`;
 
     // Legal docs (certificates, insurance) go to the WORM-locked sweepr-legal bucket.

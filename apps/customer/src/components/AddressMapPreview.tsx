@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { getMapStyle } from "@sweepr/ui";
+import { getMapStyle, getMapboxToken } from "@sweepr/ui";
 
 function isDarkTheme() {
   if (typeof document !== "undefined" &&
@@ -13,10 +13,7 @@ function isDarkTheme() {
   }
 }
 
-const TOKEN =
-  import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN ||
-  import.meta.env.VITE_MAPBOX_TOKEN ||
-  "";
+const TOKEN = getMapboxToken();
 
 export interface AddressMapPreviewProps {
   lat: number;

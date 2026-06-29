@@ -258,8 +258,8 @@ observabilityRouter.get("/cleaner-ops", async (c) => {
 
 // GET /admin/observability/audit-trail
 observabilityRouter.get("/audit-trail", async (c) => {
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "100"), 500);
-  const offset = parseInt(c.req.query("offset") ?? "0");
+  const limit = Math.min(parseInt(c.req.query("limit") ?? "100", 10), 500);
+  const offset = parseInt(c.req.query("offset") ?? "0", 10);
   const actor = c.req.query("actor");
   const action = c.req.query("action");
   const sql = getDb(c.env.DATABASE_URL);
