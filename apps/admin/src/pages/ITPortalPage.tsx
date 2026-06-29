@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { LifeBuoy, RefreshCw, X, Send, AlertTriangle, Ticket, UserCog, Activity, KeyRound, Link2, Search, Sparkles } from "lucide-react";
+import { LifeBuoy, RefreshCw, X, Send, AlertTriangle, Ticket, UserCog, Activity, KeyRound, Link2, Search, Sparkles, Clock, CheckCircle2, Mail } from "lucide-react";
 import { ContextPanel } from "./SecurityPage";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
@@ -57,125 +57,6 @@ export function ITPortalPage() {
   );
 }
 
-// ── Response Templates (editable canned replies) ─────────────────────────────
-function TemplatesSection() {
-  const { getToken } = useAuth();
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<Partial<Template> | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const token = await getToken();
-      const res = await fetch(`${API}/admin/response-templates`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) setTemplates(((await res.json()) as { templates: Template[] }).templates ?? []);
-    } finally { setLoading(false); }
-  }, [getToken]);
-  useEffect(() => { load(); }, [load]);
-
-  async function save() {
-    if (!editing) return;
-    const token = await getToken();
-    const isNew = !editing.id;
-    const body = isNew
-      ? { department: editing.department ?? "it", key: editing.key, name: editing.name, classification: editing.classification || null, subject: editing.subject || null, body: editing.body, is_active: editing.is_active ?? true }
-      : { name: editing.name, classification: editing.classification || null, subject: editing.subject || null, body: editing.body, is_active: editing.is_active };
-    const res = await fetch(`${API}/admin/response-templates${isNew ? "" : `/${editing.id}`}`, {
-      method: isNew ? "POST" : "PUT",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (res.ok) { setEditing(null); load(); }
-    else alert(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "Save failed.");
-  }
-
-  async function remove(id: string) {
-    if (!confirm("Delete this template?")) return;
-    const token = await getToken();
-    await fetch(`${API}/admin/response-templates/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-    load();
-  }
-
-  const grouped = { it: templates.filter((t) => t.department === "it"), security: templates.filter((t) => t.department === "security") };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-slate-400">Editable canned replies. Placeholders {"{{case_code}}"}, {"{{ticket_id}}"}, {"{{classification}}"} are filled in when applied.</p>
-        <button onClick={() => setEditing({ department: "it", is_active: true })} className="rounded-lg bg-seafoam-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-seafoam-600">New template</button>
-      </div>
-      {loading ? <div className="h-48 animate-pulse rounded-xl bg-slate-100" /> : (
-        (["it", "security"] as const).map((dept) => (
-          <div key={dept}>
-            <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-400">{dept}</h3>
-            <div className="space-y-2">
-              {grouped[dept].length === 0 && <p className="text-xs text-slate-400">No templates.</p>}
-              {grouped[dept].map((t) => (
-                <div key={t.id} className="flex items-start justify-between rounded-xl border border-slate-200 bg-white p-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-charcoal">{t.name} {!t.is_active && <span className="text-xs text-slate-400">(inactive)</span>}</p>
-                    <p className="font-mono text-[10px] text-slate-300">{t.key}{t.classification ? ` · ${t.classification}` : ""}</p>
-                    <p className="mt-1 line-clamp-2 text-xs text-slate-500">{t.body}</p>
-                  </div>
-                  <div className="ml-3 flex shrink-0 gap-2">
-                    <button onClick={() => setEditing(t)} className="rounded-lg border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50">Edit</button>
-                    <button onClick={() => remove(t.id)} className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50">Delete</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))
-      )}
-
-      {editing && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={() => setEditing(null)}>
-          <div className="h-full w-full max-w-lg overflow-y-auto bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-charcoal">{editing.id ? "Edit template" : "New template"}</h2>
-              <button onClick={() => setEditing(null)} className="text-slate-400 hover:text-slate-600"><X className="h-5 w-5" /></button>
-            </div>
-            <div className="mt-4 space-y-3">
-              {!editing.id && (
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-slate-500">Department</label>
-                    <select value={editing.department ?? "it"} onChange={(e) => setEditing({ ...editing, department: e.target.value })} className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm">
-                      <option value="it">IT</option>
-                      <option value="security">Security</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-slate-500">Key</label>
-                    <input value={editing.key ?? ""} onChange={(e) => setEditing({ ...editing, key: e.target.value })} placeholder="resolved" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
-                  </div>
-                </div>
-              )}
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-500">Name</label>
-                <input value={editing.name ?? ""} onChange={(e) => setEditing({ ...editing, name: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-500">Classification (optional)</label>
-                <input value={editing.classification ?? ""} onChange={(e) => setEditing({ ...editing, classification: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-500">Body</label>
-                <textarea value={editing.body ?? ""} onChange={(e) => setEditing({ ...editing, body: e.target.value })} rows={8} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
-              </div>
-              <label className="flex items-center gap-2 text-sm text-slate-600">
-                <input type="checkbox" checked={editing.is_active ?? true} onChange={(e) => setEditing({ ...editing, is_active: e.target.checked })} /> Active
-              </label>
-              <button onClick={save} disabled={!editing.name || !editing.body || (!editing.id && !editing.key)} className="w-full rounded-lg bg-seafoam-500 px-3 py-2 text-sm font-medium text-white hover:bg-seafoam-600 disabled:opacity-50">Save template</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 interface Ticket {
   id: string;
   ticket_number: number;
@@ -193,12 +74,19 @@ interface Ticket {
   assigned_to: string | null;
   due_at: string | null;
   created_at: string;
+  updated_at: string;
   classification_confidence?: number | null;
   classification_signals?: string[] | null;
   auto_classified?: boolean | null;
   context?: Record<string, unknown> | null;
 }
-interface Comment { id: string; author_email: string | null; is_admin: boolean; body: string; created_at: string; }
+interface Comment {
+  id: string;
+  author_email: string | null;
+  is_admin: boolean;
+  body: string;
+  created_at: string;
+}
 interface Counts { open: number; past_due: number; resolved: number; closed: number; }
 
 const PRIORITY_COLOR: Record<string, string> = {
@@ -206,6 +94,12 @@ const PRIORITY_COLOR: Record<string, string> = {
   high: "bg-orange-100 text-orange-700",
   normal: "bg-slate-100 text-slate-600",
   low: "bg-slate-100 text-slate-400",
+};
+const STATUS_COLOR: Record<string, string> = {
+  open: "bg-blue-100 text-blue-700",
+  in_progress: "bg-amber-100 text-amber-700",
+  resolved: "bg-green-100 text-green-700",
+  closed: "bg-slate-100 text-slate-500",
 };
 const SOURCE_COLOR: Record<string, string> = {
   user_report: "bg-indigo-100 text-indigo-700",
@@ -225,7 +119,7 @@ function TicketsSection() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [counts, setCounts] = useState<Counts | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<Ticket | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -286,22 +180,29 @@ function TicketsSection() {
             return (
               <button
                 key={t.id}
-                onClick={() => setSelected(t)}
+                onClick={() => setSelected(t.id)}
                 className="flex w-full items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-slate-300"
               >
-                <span className="mt-0.5 font-mono text-xs font-semibold text-seafoam-700">{t.case_code ?? `#${t.ticket_number}`}</span>
+                <div className="mt-0.5 flex flex-col items-start gap-1">
+                  <span className="font-mono text-xs font-semibold text-seafoam-700">{t.case_code ?? `#${t.ticket_number}`}</span>
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${STATUS_COLOR[t.status]}`}>{t.status.replace("_", " ")}</span>
+                </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${PRIORITY_COLOR[t.priority]}`}>{t.priority}</span>
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${SOURCE_COLOR[t.source]}`}>{t.source.replace("_", " ")}</span>
                     {t.app && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{t.app}</span>}
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{t.category.replace("_", " ")}</span>
+                    {t.classification_confidence != null && (
+                      <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${t.auto_classified ? "bg-seafoam-100 text-seafoam-700" : "bg-slate-100 text-slate-500"}`}>
+                        <Sparkles className="h-3 w-3" />{t.classification_confidence}%
+                      </span>
+                    )}
                     {overdue && <span className="flex items-center gap-1 text-xs font-medium text-red-600"><AlertTriangle className="h-3 w-3" /> overdue</span>}
                   </div>
                   <p className="mt-1 truncate text-sm font-medium text-charcoal">{t.title}</p>
                   <p className="text-xs text-slate-400">
                     {t.reporter_email ?? "—"} · {new Date(t.created_at).toLocaleString()}
-                    {t.status === "in_progress" && " · in progress"}
                   </p>
                 </div>
               </button>
@@ -312,21 +213,23 @@ function TicketsSection() {
 
       {selected && (
         <TicketDrawer
-          ticketId={selected.id}
+          ticketId={selected}
           onClose={() => setSelected(null)}
-          onChanged={() => { setSelected(null); load(); }}
+          onRefreshList={load}
         />
       )}
     </div>
   );
 }
 
-function TicketDrawer({ ticketId, onClose, onChanged }: { ticketId: string; onClose: () => void; onChanged: () => void }) {
+function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; onClose: () => void; onRefreshList: () => void }) {
   const { getToken } = useAuth();
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailSent, setEmailSent] = useState(false);
   const [assignTo, setAssignTo] = useState("");
   const [emailBody, setEmailBody] = useState("");
   const [emailStatus, setEmailStatus] = useState("Work In Progress");
@@ -344,6 +247,7 @@ function TicketDrawer({ ticketId, onClose, onChanged }: { ticketId: string; onCl
     const ctx = await fetch(`${API}/it-tickets/admin/${ticketId}/context`, { headers: { Authorization: `Bearer ${token}` } });
     if (ctx.ok) setContext(((await ctx.json()) as { context: TicketContext }).context ?? null);
   }, [getToken, ticketId]);
+
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     void (async () => {
@@ -371,32 +275,48 @@ function TicketDrawer({ ticketId, onClose, onChanged }: { ticketId: string; onCl
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      onChanged();
+      // Reload in place — do NOT close the drawer so admin can follow up
+      await load();
+      onRefreshList();
     } finally { setBusy(false); }
   }
 
   async function addComment() {
     if (!comment.trim()) return;
-    const token = await getToken();
-    await fetch(`${API}/it-tickets/admin/${ticketId}/comments`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ body: comment }),
-    });
-    setComment("");
-    load();
+    setBusy(true);
+    try {
+      const token = await getToken();
+      await fetch(`${API}/it-tickets/admin/${ticketId}/comments`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ body: comment }),
+      });
+      setComment("");
+      await load();
+    } finally { setBusy(false); }
   }
 
   async function assign() {
     if (!assignTo.trim()) return;
-    await patch({ assigned_to: assignTo.trim() });
-    setAssignTo("");
-    load();
+    setBusy(true);
+    try {
+      const token = await getToken();
+      await fetch(`${API}/it-tickets/admin/${ticketId}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ assigned_to: assignTo.trim() }),
+      });
+      setAssignTo("");
+      await load();
+      onRefreshList();
+    } finally { setBusy(false); }
   }
 
   async function emailReporter() {
     if (!emailBody.trim()) return;
     setBusy(true);
+    setEmailError(null);
+    setEmailSent(false);
     try {
       const token = await getToken();
       const res = await fetch(`${API}/it-tickets/admin/${ticketId}/email-reply`, {
@@ -404,154 +324,212 @@ function TicketDrawer({ ticketId, onClose, onChanged }: { ticketId: string; onCl
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ body: emailBody, caseStatus: emailStatus, assignedTo: assignTo.trim() || undefined }),
       });
-      if (res.ok) { setEmailBody(""); load(); }
+      if (res.ok) {
+        setEmailBody("");
+        setEmailSent(true);
+        await load();
+      } else {
+        const d = await res.json().catch(() => ({})) as { error?: string };
+        setEmailError(d.error ?? `Send failed (${res.status}).`);
+      }
     } finally { setBusy(false); }
+  }
+
+  // Classify the comment body to distinguish system vs human entries
+  function isSystemComment(body: string) {
+    return body.startsWith("[Emailed reporter —") || body.startsWith("[Auto-reply");
   }
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={onClose}>
-      <div className="h-full w-full max-w-lg overflow-y-auto bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-start justify-between">
-          <h2 className="text-lg font-bold text-charcoal">
-            {ticket ? <><span className="font-mono text-seafoam-700">{ticket.case_code ?? `#${ticket.ticket_number}`}</span> · {ticket.title}</> : "Loading…"}
-          </h2>
+      <div className="flex h-full w-full max-w-2xl flex-col bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-start justify-between border-b border-slate-200 px-6 py-4">
+          <div>
+            <h2 className="text-lg font-bold text-charcoal">
+              {ticket ? <><span className="font-mono text-seafoam-700">{ticket.case_code ?? `#${ticket.ticket_number}`}</span> · {ticket.title}</> : "Loading…"}
+            </h2>
+            {ticket && <p className="font-mono text-xs text-slate-400">Ticket ID: {ticket.ticket_id ?? "—"}</p>}
+          </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="h-5 w-5" /></button>
         </div>
 
-        {ticket && (
-          <div className="mt-4 space-y-5">
-            <p className="whitespace-pre-wrap text-sm text-slate-600">{ticket.description || "No description."}</p>
-            {ticket.classification_confidence != null && (
-              <div className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs">
-                <Sparkles className="h-3.5 w-3.5 text-seafoam-500" />
-                <span className="font-medium text-slate-600">Inferred: {ticket.category}</span>
-                <span className={`rounded-full px-2 py-0.5 font-medium ${ticket.classification_confidence >= 45 ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>{ticket.classification_confidence}% confidence</span>
-                <span className="text-slate-400">{ticket.auto_classified ? "auto-classified" : "needs review"}</span>
-                {ticket.classification_signals?.length ? <span className="text-slate-400">· signals: {ticket.classification_signals.join(", ")}</span> : null}
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
-              <div>Reporter: <span className="text-slate-700">{ticket.reporter_email ?? "—"}</span></div>
-              <div>Submitter: <span className="text-slate-700">{ticket.reporter_clerk_id ? "signed-in user" : "anonymous"}</span></div>
-              <div>App: <span className="text-slate-700">{ticket.app ?? "—"}</span></div>
-              <div>Category: <span className="text-slate-700">{ticket.category}</span></div>
-              <div>Assigned: <span className="text-slate-700">{ticket.assigned_to ?? "—"}</span></div>
-              <div className="col-span-2">Ticket ID: <span className="font-mono text-slate-400">{ticket.ticket_id ?? "—"}</span></div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <select
-                value={ticket.status}
-                onChange={(e) => patch({ status: e.target.value })}
-                disabled={busy}
-                className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
-              >
-                <option value="open">Open</option>
-                <option value="in_progress">In progress</option>
-                <option value="resolved">Resolved</option>
-                <option value="closed">Closed</option>
-              </select>
-              <select
-                value={ticket.priority}
-                onChange={(e) => patch({ priority: e.target.value })}
-                disabled={busy}
-                className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
-              >
-                <option value="low">Low</option>
-                <option value="normal">Normal</option>
-                <option value="high">High</option>
-                <option value="urgent">Urgent</option>
-              </select>
-              <input
-                type="date"
-                defaultValue={ticket.due_at ? ticket.due_at.slice(0, 10) : ""}
-                onChange={(e) => patch({ due_at: e.target.value || null })}
-                disabled={busy}
-                className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
-                title="Due date"
-              />
-            </div>
-
-            {/* Assign */}
-            <div className="flex gap-2">
-              <input
-                value={assignTo}
-                onChange={(e) => setAssignTo(e.target.value)}
-                placeholder="Assign to (name or team)…"
-                className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              />
-              <button onClick={assign} disabled={busy || !assignTo.trim()} className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50">Assign</button>
-            </div>
-
-            {/* Email the reporter */}
-            {ticket.reporter_email && (
-              <div className="rounded-xl border border-slate-200 p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-charcoal">Email the reporter</h3>
-                  {templates.length > 0 && (
-                    <select
-                      value=""
-                      onChange={(e) => {
-                        const tpl = templates.find((t) => t.id === e.target.value);
-                        if (tpl) setEmailBody(applyTemplate(tpl.body));
-                      }}
-                      className="rounded-lg border border-slate-200 px-2 py-1 text-xs"
-                    >
-                      <option value="">Insert template…</option>
-                      {templates.filter((t) => t.is_active).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
+        <div className="flex flex-1 overflow-hidden">
+          {/* Main content */}
+          <div className="flex flex-1 flex-col overflow-y-auto p-6 space-y-5">
+            {ticket && (
+              <>
+                {/* Classification / inference badge */}
+                <div className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs">
+                  <Sparkles className="h-3.5 w-3.5 text-seafoam-500" />
+                  <span className="font-medium text-slate-600">
+                    {ticket.classification_confidence != null ? `Inferred: ${ticket.category}` : `Category: ${ticket.category}`}
+                  </span>
+                  {ticket.classification_confidence != null ? (
+                    <>
+                      <span className={`rounded-full px-2 py-0.5 font-medium ${ticket.classification_confidence >= 45 ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                        {ticket.classification_confidence}% confidence
+                      </span>
+                      <span className="text-slate-400">{ticket.auto_classified ? "auto-classified" : "needs review"}</span>
+                      {ticket.classification_signals?.length ? <span className="text-slate-400">· signals: {ticket.classification_signals.join(", ")}</span> : null}
+                    </>
+                  ) : (
+                    <span className="text-slate-400">manually reported</span>
                   )}
                 </div>
-                <p className="mb-2 text-xs text-slate-400">Sends from IT@getsweepr.com to {ticket.reporter_email} using the IT response template.</p>
-                <textarea
-                  value={emailBody}
-                  onChange={(e) => setEmailBody(e.target.value)}
-                  rows={3}
-                  placeholder="Write your response to the reporter…"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                />
-                <div className="mt-2 flex items-center gap-2">
-                  <select value={emailStatus} onChange={(e) => setEmailStatus(e.target.value)} className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm">
-                    {["Pending Review", "Investigating", "Awaiting User Response", "Information Requested", "Work In Progress", "Resolved", "Closed", "Unable to Reproduce", "Duplicate", "Rejected"].map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                  <button onClick={emailReporter} disabled={busy || !emailBody.trim()} className="flex items-center gap-1 rounded-lg bg-seafoam-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-seafoam-600 disabled:opacity-50">
-                    <Send className="h-4 w-4" /> Send email
-                  </button>
+
+                {/* Metadata grid */}
+                <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-100 p-3 text-xs text-slate-500">
+                  <div>Reporter: <span className="text-slate-700">{ticket.reporter_email ?? "—"}</span></div>
+                  <div>Submitted by: <span className="text-slate-700">{ticket.reporter_clerk_id ? "signed-in user" : "anonymous / inbound email"}</span></div>
+                  <div>Source: <span className="text-slate-700">{ticket.source.replace("_", " ")}</span></div>
+                  <div>App: <span className="text-slate-700">{ticket.app ?? "—"}</span></div>
+                  <div>Assigned: <span className="text-slate-700">{ticket.assigned_to ?? "unassigned"}</span></div>
+                  <div>Due: <span className={`${ticket.due_at && new Date(ticket.due_at) < new Date() ? "font-semibold text-red-600" : "text-slate-700"}`}>{ticket.due_at ? new Date(ticket.due_at).toLocaleDateString() : "—"}</span></div>
                 </div>
-              </div>
-            )}
 
-            <div>
-              <h3 className="mb-2 text-sm font-semibold text-charcoal">Activity</h3>
-              <div className="space-y-2">
-                {comments.map((cm) => (
-                  <div key={cm.id} className="rounded-lg bg-slate-50 p-3 text-sm">
-                    <p className="text-xs text-slate-400">{cm.author_email ?? "admin"} · {new Date(cm.created_at).toLocaleString()}</p>
-                    <p className="text-slate-700">{cm.body}</p>
+                {/* Description */}
+                {ticket.description && <p className="whitespace-pre-wrap text-sm text-slate-600">{ticket.description}</p>}
+
+                {/* Action toolbar */}
+                <div className="flex flex-wrap gap-2">
+                  <select
+                    value={ticket.status}
+                    onChange={(e) => patch({ status: e.target.value })}
+                    disabled={busy}
+                    className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
+                  >
+                    <option value="open">Open</option>
+                    <option value="in_progress">In progress</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                  <select
+                    value={ticket.priority}
+                    onChange={(e) => patch({ priority: e.target.value })}
+                    disabled={busy}
+                    className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
+                  >
+                    <option value="low">Low</option>
+                    <option value="normal">Normal</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                  <input
+                    type="date"
+                    defaultValue={ticket.due_at ? ticket.due_at.slice(0, 10) : ""}
+                    onChange={(e) => patch({ due_at: e.target.value || null })}
+                    disabled={busy}
+                    className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
+                    title="Due date"
+                  />
+                </div>
+
+                {/* Assign */}
+                <div className="flex gap-2">
+                  <input
+                    value={assignTo}
+                    onChange={(e) => setAssignTo(e.target.value)}
+                    placeholder="Assign to (name or team)…"
+                    className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  />
+                  <button onClick={assign} disabled={busy || !assignTo.trim()} className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50">Assign</button>
+                </div>
+
+                {/* Email the reporter */}
+                <div className="rounded-xl border border-slate-200 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="flex items-center gap-1.5 text-sm font-semibold text-charcoal"><Mail className="h-4 w-4" /> Email reporter</h3>
+                    {templates.length > 0 && (
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          const tpl = templates.find((t) => t.id === e.target.value);
+                          if (tpl) { setEmailBody(applyTemplate(tpl.body)); setEmailSent(false); setEmailError(null); }
+                        }}
+                        className="rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                      >
+                        <option value="">Insert template…</option>
+                        {templates.filter((t) => t.is_active).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      </select>
+                    )}
                   </div>
-                ))}
-                {comments.length === 0 && <p className="text-xs text-slate-400">No activity yet.</p>}
-              </div>
-              <div className="mt-3 flex gap-2">
-                <input
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder="Add a comment…"
-                  className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                  onKeyDown={(e) => e.key === "Enter" && addComment()}
-                />
-                <button onClick={addComment} className="flex items-center gap-1 rounded-lg bg-seafoam-500 px-3 py-2 text-sm font-medium text-white hover:bg-seafoam-600">
-                  <Send className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
+                  {ticket.reporter_email ? (
+                    <>
+                      <p className="text-xs text-slate-400">Sends from IT@getsweepr.com → {ticket.reporter_email}</p>
+                      <textarea
+                        value={emailBody}
+                        onChange={(e) => { setEmailBody(e.target.value); setEmailSent(false); setEmailError(null); }}
+                        rows={4}
+                        placeholder="Write your response to the reporter…"
+                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                      />
+                      <div className="flex items-center gap-2">
+                        <select value={emailStatus} onChange={(e) => setEmailStatus(e.target.value)} className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm">
+                          {["Pending Review", "Investigating", "Awaiting User Response", "Information Requested", "Work In Progress", "Resolved", "Closed", "Unable to Reproduce", "Duplicate", "Rejected"].map((s) => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                        <button onClick={emailReporter} disabled={busy || !emailBody.trim()} className="flex items-center gap-1 rounded-lg bg-seafoam-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-seafoam-600 disabled:opacity-50">
+                          <Send className="h-4 w-4" /> Send email
+                        </button>
+                      </div>
+                      {emailSent && <p className="flex items-center gap-1 text-xs text-green-600"><CheckCircle2 className="h-3.5 w-3.5" /> Email sent and logged.</p>}
+                      {emailError && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{emailError}</p>}
+                    </>
+                  ) : (
+                    <p className="text-xs text-slate-400">No reporter email on this ticket — this ticket was submitted internally or without an email address.</p>
+                  )}
+                </div>
 
-            <div className="rounded-xl border border-slate-200 p-3">
-              <h3 className="mb-2 text-sm font-semibold text-charcoal">Reporter context</h3>
-              <ContextPanel context={context} kind="it" />
-            </div>
+                {/* Activity / timeline */}
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold text-charcoal">Activity log</h3>
+                  <div className="space-y-2">
+                    {/* Ticket creation */}
+                    <div className="flex gap-2 text-xs">
+                      <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-seafoam-100 text-seafoam-600">
+                        <Clock className="h-3 w-3" />
+                      </div>
+                      <div>
+                        <p className="text-slate-500">Ticket created · {new Date(ticket.created_at).toLocaleString()}</p>
+                        <p className="text-slate-400">Source: {ticket.source.replace("_", " ")}</p>
+                      </div>
+                    </div>
+                    {comments.map((cm) => (
+                      <div key={cm.id} className={`flex gap-2 text-xs ${isSystemComment(cm.body) ? "opacity-80" : ""}`}>
+                        <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${isSystemComment(cm.body) ? "bg-blue-100 text-blue-600" : cm.is_admin ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
+                          {isSystemComment(cm.body) ? <Mail className="h-3 w-3" /> : <Send className="h-3 w-3" />}
+                        </div>
+                        <div className={`flex-1 rounded-lg p-2 ${isSystemComment(cm.body) ? "bg-blue-50/50" : cm.is_admin ? "bg-amber-50" : "bg-slate-50"}`}>
+                          <p className="text-slate-400">{cm.author_email ?? "system"} · {new Date(cm.created_at).toLocaleString()}</p>
+                          <p className="mt-0.5 whitespace-pre-wrap text-slate-700">{cm.body}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {comments.length === 0 && <p className="text-xs text-slate-400">No activity yet.</p>}
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <input
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      placeholder="Add internal note…"
+                      className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void addComment(); } }}
+                    />
+                    <button onClick={addComment} disabled={busy || !comment.trim()} className="flex items-center gap-1 rounded-lg bg-seafoam-500 px-3 py-2 text-sm font-medium text-white hover:bg-seafoam-600 disabled:opacity-50">
+                      <Send className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
-        )}
+
+          {/* Context sidebar */}
+          <div className="hidden w-72 shrink-0 overflow-y-auto border-l border-slate-100 p-4 xl:block">
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Reporter context</h3>
+            <ContextPanel context={context} kind="it" />
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -774,6 +752,125 @@ function TelemetrySection() {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Response Templates (editable canned replies) ─────────────────────────────
+function TemplatesSection() {
+  const { getToken } = useAuth();
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<Partial<Template> | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API}/admin/response-templates`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setTemplates(((await res.json()) as { templates: Template[] }).templates ?? []);
+    } finally { setLoading(false); }
+  }, [getToken]);
+  useEffect(() => { load(); }, [load]);
+
+  async function save() {
+    if (!editing) return;
+    const token = await getToken();
+    const isNew = !editing.id;
+    const body = isNew
+      ? { department: editing.department ?? "it", key: editing.key, name: editing.name, classification: editing.classification || null, subject: editing.subject || null, body: editing.body, is_active: editing.is_active ?? true }
+      : { name: editing.name, classification: editing.classification || null, subject: editing.subject || null, body: editing.body, is_active: editing.is_active };
+    const res = await fetch(`${API}/admin/response-templates${isNew ? "" : `/${editing.id}`}`, {
+      method: isNew ? "POST" : "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) { setEditing(null); load(); }
+    else alert(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "Save failed.");
+  }
+
+  async function remove(id: string) {
+    if (!confirm("Delete this template?")) return;
+    const token = await getToken();
+    await fetch(`${API}/admin/response-templates/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+    load();
+  }
+
+  const grouped = { it: templates.filter((t) => t.department === "it"), security: templates.filter((t) => t.department === "security") };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-slate-400">Editable canned replies. Placeholders {"{{case_code}}"}, {"{{ticket_id}}"}, {"{{classification}}"}, {"{{sender_email}}"} are substituted when inserted.</p>
+        <button onClick={() => setEditing({ department: "it", is_active: true })} className="rounded-lg bg-seafoam-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-seafoam-600">New template</button>
+      </div>
+      {loading ? <div className="h-48 animate-pulse rounded-xl bg-slate-100" /> : (
+        (["it", "security"] as const).map((dept) => (
+          <div key={dept}>
+            <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-400">{dept === "it" ? "IT" : "Security"}</h3>
+            <div className="space-y-2">
+              {grouped[dept].length === 0 && <p className="text-xs text-slate-400">No templates.</p>}
+              {grouped[dept].map((t) => (
+                <div key={t.id} className="flex items-start justify-between rounded-xl border border-slate-200 bg-white p-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-charcoal">{t.name} {!t.is_active && <span className="text-xs text-slate-400">(inactive)</span>}</p>
+                    <p className="font-mono text-[10px] text-slate-300">{t.key}{t.classification ? ` · ${t.classification}` : ""}</p>
+                    <p className="mt-1 line-clamp-2 text-xs text-slate-500">{t.body}</p>
+                  </div>
+                  <div className="ml-3 flex shrink-0 gap-2">
+                    <button onClick={() => setEditing(t)} className="rounded-lg border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50">Edit</button>
+                    <button onClick={() => remove(t.id)} className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50">Delete</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))
+      )}
+
+      {editing && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={() => setEditing(null)}>
+          <div className="h-full w-full max-w-lg overflow-y-auto bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-charcoal">{editing.id ? "Edit template" : "New template"}</h2>
+              <button onClick={() => setEditing(null)} className="text-slate-400 hover:text-slate-600"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="mt-4 space-y-3">
+              {!editing.id && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-500">Department</label>
+                    <select value={editing.department ?? "it"} onChange={(e) => setEditing({ ...editing, department: e.target.value })} className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm">
+                      <option value="it">IT</option>
+                      <option value="security">Security</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-500">Key</label>
+                    <input value={editing.key ?? ""} onChange={(e) => setEditing({ ...editing, key: e.target.value })} placeholder="resolved" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+                  </div>
+                </div>
+              )}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-500">Name</label>
+                <input value={editing.name ?? ""} onChange={(e) => setEditing({ ...editing, name: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-500">Classification (optional — suggest for a specific issue type)</label>
+                <input value={editing.classification ?? ""} onChange={(e) => setEditing({ ...editing, classification: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-500">Body <span className="text-slate-300 font-normal">({"{{case_code}} {{ticket_id}} {{classification}} {{sender_email}}"})</span></label>
+                <textarea value={editing.body ?? ""} onChange={(e) => setEditing({ ...editing, body: e.target.value })} rows={10} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono" />
+              </div>
+              <label className="flex items-center gap-2 text-sm text-slate-600">
+                <input type="checkbox" checked={editing.is_active ?? true} onChange={(e) => setEditing({ ...editing, is_active: e.target.checked })} /> Active
+              </label>
+              <button onClick={save} disabled={!editing.name || !editing.body || (!editing.id && !editing.key)} className="w-full rounded-lg bg-seafoam-500 px-3 py-2 text-sm font-medium text-white hover:bg-seafoam-600 disabled:opacity-50">Save template</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

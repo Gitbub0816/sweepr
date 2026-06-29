@@ -2335,4 +2335,12 @@ INSERT INTO response_templates (department, key, name, body) VALUES
    'Thank you for practicing responsible disclosure. We''ve received your submission and our security team is reviewing it. We''ll be in touch regarding next steps.')
 ON CONFLICT (department, key) DO NOTHING;
 
+-- Migration 041: Fix security/acknowledge template — was a duplicate of the auto-reply.
+UPDATE response_templates
+SET
+  name = 'Initial update (post auto-reply)',
+  body = 'Following up on your report ({{case_code}}): our team has reviewed the initial information and is now investigating. We will be in touch if we need any additional details. Please reference your Case Code in all further correspondence.',
+  updated_at = NOW()
+WHERE department = 'security' AND key = 'acknowledge';
+
 COMMIT;

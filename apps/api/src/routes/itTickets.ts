@@ -23,6 +23,7 @@ import { isOwnerClerkId } from "../lib/owner";
 import { generateTicketId, itTypeCode } from "../lib/ticketId";
 import { sendEmail, SENDERS, TEMPLATES, formatEmailTimestamp } from "../lib/mailer";
 import { getTicketContext } from "../lib/ticketContext";
+import { inferIT } from "../lib/classify";
 import type { AppBindings } from "../types";
 
 export const itTicketsRouter = new Hono<AppBindings>();
@@ -57,15 +58,18 @@ itTicketsRouter.post("/", zValidator("json", createSchema), async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const { clerkId, email } = c.get("user");
 
+  const inf = inferIT(body.title, body.description ?? "");
   const gen = generateTicketId("IT", itTypeCode(body.category));
   const rows = (await sql`
     INSERT INTO it_tickets (title, description, category, priority, source, app,
                             reporter_clerk_id, reporter_email, context,
-                            ticket_id, case_code, ticket_prefix, encoded_date, encoded_time, issue_type, hex_suffix)
+                            ticket_id, case_code, ticket_prefix, encoded_date, encoded_time, issue_type, hex_suffix,
+                            classification_confidence, classification_signals, auto_classified)
     VALUES (${body.title}, ${body.description ?? null}, ${body.category},
             ${body.priority ?? "normal"}, 'user_report', ${body.app ?? null},
             ${clerkId}, ${email ?? null}, ${JSON.stringify(body.context ?? {})},
-            ${gen.ticketId}, ${gen.caseCode}, 'IT', ${gen.encodedDate}, ${gen.encodedTime}, ${gen.issueType}, ${gen.hex})
+            ${gen.ticketId}, ${gen.caseCode}, 'IT', ${gen.encodedDate}, ${gen.encodedTime}, ${gen.issueType}, ${gen.hex},
+            ${inf.confidence}, ${JSON.stringify(inf.signals)}, ${inf.auto})
     RETURNING id, ticket_number, case_code, ticket_id, status
   `) as Array<{ id: string; ticket_number: number; case_code: string; ticket_id: string; status: string }>;
 
@@ -205,8 +209,9 @@ itTicketsRouter.post(
     if (!t.reporter_email) return c.json({ error: "Ticket has no reporter email to reply to." }, 400);
 
     const caseCode = (t.case_code as string) ?? (t.ticket_id as string) ?? `IT_${String(t.ticket_number ?? "")}`;
-    const classification = ((t.context as Record<string, unknown>)?.classification as string) ?? "Other";
-    let delivery = "skipped";
+    const classification = (t.category as string) ?? "Other";
+    if (!c.env.MAILERSEND_API_KEY) return c.json({ error: "Email not configured — MAILERSEND_API_KEY is missing." }, 502);
+    let delivery = "failed";
     if (c.env.MAILERSEND_API_KEY) {
       try {
         await sendEmail(c.env.MAILERSEND_API_KEY, {

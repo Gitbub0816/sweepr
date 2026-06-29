@@ -146,7 +146,8 @@ securityRouter.get("/tickets", ...gate, async (c) => {
   const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
   const rows = await sql(
     `SELECT id, case_code, ticket_id, sender_email, sender_name, subject, classification, status,
-            case_owner, assigned_to, received_at, last_reply_at, auto_reply_sent_at
+            case_owner, assigned_to, received_at, last_reply_at, auto_reply_sent_at,
+            classification_confidence, classification_signals, auto_classified
      FROM security_tickets ${where}
      ORDER BY received_at DESC LIMIT 300`,
     params,
