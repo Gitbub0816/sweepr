@@ -297,13 +297,13 @@ slackRouter.post("/interactivity", async (c) => {
       if (isOwnerEmail(email, c.env)) {
         isSuperAdmin = true;
       }
-      // Require both email AND slack_user_id to match a linked Sweepr user.
+      // Require both email AND slack_user_id to match — this prevents a
+      // compromised Slack workspace from impersonating admins via email alone.
       const u = (await sql`
         SELECT u.clerk_id, u.role, u.admin_role
         FROM users u
-        LEFT JOIN slack_user_links sul ON sul.user_id = u.id AND sul.slack_user_id = ${slackUserId}
+        INNER JOIN slack_user_links sul ON sul.user_id = u.id AND sul.slack_user_id = ${slackUserId}
         WHERE LOWER(u.email) = LOWER(${email})
-          AND (sul.slack_user_id IS NOT NULL OR u.role = 'super_admin')
         LIMIT 1
       `) as Array<{ clerk_id: string; role: string; admin_role: string | null }>;
       if (u[0]) {

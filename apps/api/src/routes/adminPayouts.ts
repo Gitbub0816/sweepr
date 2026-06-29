@@ -119,6 +119,9 @@ adminPayoutsRouter.get("/transactions", requireAuth, anyAdmin, async (c) => {
 adminPayoutsRouter.get("/payouts", requireAuth, anyAdmin, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const { limit = "50", offset = "0", status } = c.req.query();
+  if (status && !PAYOUT_STATUSES.has(status)) return c.json({ error: "Invalid status" }, 400);
+  const limitN = Math.max(1, Math.min(Number(limit) || 50, 500));
+  const offsetN = Math.max(0, Number(offset) || 0);
 
   const rows = await sql(
     `SELECT p.*, cl.first_name || ' ' || cl.last_name AS cleaner_name
@@ -127,7 +130,7 @@ adminPayoutsRouter.get("/payouts", requireAuth, anyAdmin, async (c) => {
     ${status ? "WHERE p.status = $1" : ""}
     ORDER BY p.created_at DESC
     LIMIT ${status ? "$2" : "$1"} OFFSET ${status ? "$3" : "$2"}`,
-    status ? [status, Number(limit), Number(offset)] : [Number(limit), Number(offset)]
+    status ? [status, limitN, offsetN] : [limitN, offsetN]
   );
 
   return c.json({ rows });
@@ -382,11 +385,19 @@ adminPayoutsRouter.put(
 adminPayoutsRouter.get("/contractor-earnings", requireAuth, anyAdmin, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const { limit = "50", offset = "0", from, to } = c.req.query();
+  const limitN = Math.max(1, Math.min(Number(limit) || 50, 500));
+  const offsetN = Math.max(0, Number(offset) || 0);
 
   const conds: string[] = [];
   const params: unknown[] = [];
-  if (from) { params.push(from); conds.push(`AND p.paid_at >= $${params.length}`); }
-  if (to) { params.push(to); conds.push(`AND p.paid_at <= $${params.length}`); }
+  if (from) {
+    if (!ISO_DATE_RE.test(from)) return c.json({ error: "Invalid from date" }, 400);
+    params.push(from); conds.push(`AND p.paid_at >= $${params.length}`);
+  }
+  if (to) {
+    if (!ISO_DATE_RE.test(to)) return c.json({ error: "Invalid to date" }, 400);
+    params.push(to); conds.push(`AND p.paid_at <= $${params.length}`);
+  }
   const filter = conds.join("\n      ");
 
   const rows = await sql(
@@ -405,7 +416,7 @@ adminPayoutsRouter.get("/contractor-earnings", requireAuth, anyAdmin, async (c) 
     GROUP BY cl.id, cl.first_name, cl.last_name, cl.tier, cl.stripe_connect_id
     ORDER BY total_paid DESC
     LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
-    [...params, Number(limit), Number(offset)]
+    [...params, limitN, offsetN]
   );
 
   return c.json({ rows });
@@ -487,13 +498,15 @@ adminPayoutsRouter.post(
 adminPayoutsRouter.get("/settings-audit", requireAuth, financeOrAbove, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const { limit = "50", offset = "0" } = c.req.query();
+  const limitN = Math.max(1, Math.min(Number(limit) || 50, 500));
+  const offsetN = Math.max(0, Number(offset) || 0);
 
   const rows = await sql`
     SELECT pa.*, u.email AS actor_name
     FROM payout_settings_audit pa
     JOIN users u ON u.id = pa.actor_id
     ORDER BY pa.created_at DESC
-    LIMIT ${Number(limit)} OFFSET ${Number(offset)}
+    LIMIT ${limitN} OFFSET ${offsetN}
   `;
 
   return c.json({ rows });
@@ -501,9 +514,12 @@ adminPayoutsRouter.get("/settings-audit", requireAuth, financeOrAbove, async (c)
 
 // ─── Connected Account status ─────────────────────────────────────────────────
 
+const STRIPE_ACCOUNT_STATUSES = new Set(["pending","active","restricted","rejected","deauthorized"]);
+
 adminPayoutsRouter.get("/connected-accounts", requireAuth, anyAdmin, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const { status } = c.req.query();
+  if (status && !STRIPE_ACCOUNT_STATUSES.has(status)) return c.json({ error: "Invalid status" }, 400);
 
   const rows = await sql(
     `SELECT sa.*, cl.first_name || ' ' || cl.last_name AS cleaner_name
