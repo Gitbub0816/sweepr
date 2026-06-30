@@ -76,7 +76,10 @@ export function SlackPage() {
     if (!active || !draft.trim()) return;
     const res = await authed("/slack/workspace/message", { method: "POST", body: JSON.stringify({ channel: active.id, text: draft }) });
     if (res.ok) { setDraft(""); void loadMessages(active); }
-    else toast.error("Could not send message.");
+    else {
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      toast.error(`Could not send message${body.error ? `: ${body.error}` : ""}.`);
+    }
   }
 
   async function openThread(m: Message) {
