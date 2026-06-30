@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { getDb } from "../lib/db";
-import { sendEmail, TEMPLATES } from "../lib/mailer";
+import { sendEmail, wrapBodyInTemplate } from "../lib/mailer";
+import { et } from "../lib/emailI18n";
 import type { AppBindings } from "../types";
 
 export const statusRouter = new Hono<AppBindings>();
@@ -163,10 +164,15 @@ statusRouter.post(
     // Send confirmation only for new subscribers (not duplicate sign-ups)
     if (rows.length > 0) {
       try {
+        const [langRow] = await sql`
+          SELECT preferred_language FROM users WHERE LOWER(email) = LOWER(${email}) LIMIT 1
+        ` as Array<{ preferred_language: string | null }>;
+        const lang = langRow?.preferred_language ?? "en";
+        const subject = et(lang, "newsletter.confirm.subject");
         await sendEmail(c.env.MAILERSEND_API_KEY, {
           to: email,
-          subject: "You're subscribed to Sweepr updates",
-          templateId: TEMPLATES.NEWSLETTER_CONFIRM,
+          subject,
+          html: wrapBodyInTemplate(subject, et(lang, "newsletter.confirm.body"), lang),
         });
       } catch {
         // Non-fatal — subscriber is saved, email failure shouldn't fail the request
@@ -211,11 +217,15 @@ statusRouter.post(
 
       if (rows.length > 0) {
         try {
+          const [langRow] = await sql`
+            SELECT preferred_language FROM users WHERE LOWER(email) = LOWER(${email}) LIMIT 1
+          ` as Array<{ preferred_language: string | null }>;
+          const lang = langRow?.preferred_language ?? "en";
+          const subject = et(lang, "cityUpdates.subject");
           await sendEmail(c.env.MAILERSEND_API_KEY, {
             to: email,
-            subject: "We'll let you know when Sweepr comes to your area",
-            templateId: TEMPLATES.SUBSCRIBED_UPDATES,
-            variables: { subscriber_email: email },
+            subject,
+            html: wrapBodyInTemplate(subject, et(lang, "cityUpdates.body"), lang),
           });
         } catch { /* non-fatal */ }
       }
@@ -246,16 +256,17 @@ statusRouter.post(
     `;
 
     try {
+      const [langRow] = await sql`
+        SELECT preferred_language FROM users WHERE LOWER(email) = LOWER(${email}) LIMIT 1
+      ` as Array<{ preferred_language: string | null }>;
+      const lang = langRow?.preferred_language ?? "en";
+      const subject = et(lang, "waitlist.subject");
+      const bodyKey = type === "cleaner" ? "waitlist.body.cleaner" : "waitlist.body.customer";
       await sendEmail(c.env.MAILERSEND_API_KEY, {
         to: email,
         toName: name,
-        subject: "You're on the Sweepr waitlist!",
-        templateId: TEMPLATES.WAITLIST,
-        variables: {
-          waitlist_status: "Pending",
-          subscriber_email: email,
-          service_area: zipCode ?? "Your area",
-        },
+        subject,
+        html: wrapBodyInTemplate(subject, et(lang, bodyKey), lang),
       });
     } catch { /* non-fatal */ }
 
