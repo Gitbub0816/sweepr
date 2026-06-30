@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { MapPin, Navigation, Home, Clock, CheckCircle2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Card, Button, track, Events } from "@sweepr/ui";
-import { SERVICE_LABELS, formatCurrency, cn } from "@sweepr/utils";
+import { formatCurrency, cn } from "@sweepr/utils";
 import type { ServiceType } from "@sweepr/types";
 
 export interface AvailableJob {
@@ -92,7 +92,7 @@ export function JobCard({
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-seafoam-600">
-            {SERVICE_LABELS[job.serviceType]}
+            {t(`serviceTypes.${job.serviceType}`)}
           </p>
           <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
             <MapPin className="h-4 w-4" /> {job.area}

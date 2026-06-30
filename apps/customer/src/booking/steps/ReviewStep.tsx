@@ -5,7 +5,6 @@ import { useAuth } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
 import { Card, Textarea, toast } from "@sweepr/ui";
 import {
-  SERVICE_LABELS,
   formatDateTime,
   formatCurrency,
   getAddOn,
@@ -177,7 +176,7 @@ export function ReviewStep() {
         <Row
           icon={Sparkles}
           label={t("booking.review.service")}
-          value={SERVICE_LABELS[serviceType]}
+          value={t(`serviceTypes.${serviceType}`)}
         />
         <Row
           icon={CalendarClock}

@@ -9,7 +9,6 @@ import {
   EmptyState,
 } from "@sweepr/ui";
 import {
-  SERVICE_LABELS,
   formatDateTime,
   formatCurrency,
 } from "@sweepr/utils";
@@ -102,7 +101,7 @@ function Section({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-charcoal dark:text-white">
-                  {SERVICE_LABELS[b.serviceType]}
+                  {t(`serviceTypes.${b.serviceType}`)}
                 </p>
                 <p className="text-sm text-slate-500">
                   {formatDateTime(b.scheduledFor)} · {b.address.city}

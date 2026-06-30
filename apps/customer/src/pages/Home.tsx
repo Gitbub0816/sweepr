@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, CalendarClock, Repeat, Sparkles, Home as HomeIcon, Truck, RotateCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { StatusBadge } from "@sweepr/ui";
-import { formatCurrency, formatDateTime, SERVICE_LABELS } from "@sweepr/utils";
+import { formatCurrency, formatDateTime } from "@sweepr/utils";
 import { useBookings } from "../data/bookings";
 import { useBookingStore } from "../store/booking";
 
@@ -54,7 +54,7 @@ export function Home() {
               {t("home.pickUpWhereYouLeftOff")}
             </p>
             <p className="text-xs text-seafoam-600 dark:text-seafoam-400 truncate">
-              {SERVICE_LABELS[draft.serviceType!]} · {t("home.savedDraft")}
+              {t(`serviceTypes.${draft.serviceType!}`)} · {t("home.savedDraft")}
             </p>
           </div>
           <ArrowRight className="h-5 w-5 text-seafoam-500 flex-shrink-0" />
@@ -73,7 +73,7 @@ export function Home() {
               <StatusBadge status={upcoming.status} />
             </div>
             <h2 className="mt-2 text-xl font-black text-charcoal dark:text-white">
-              {SERVICE_LABELS[upcoming.serviceType]}
+              {t(`serviceTypes.${upcoming.serviceType}`)}
             </h2>
             <p className="mt-1 flex items-center gap-2 text-sm text-slate-500">
               <CalendarClock className="h-4 w-4" />
@@ -97,7 +97,7 @@ export function Home() {
               {t("home.bookAgain")}
             </p>
             <p className="text-sm text-slate-500">
-              {SERVICE_LABELS[last.serviceType]} · {formatCurrency(last.quote.total)}
+              {t(`serviceTypes.${last.serviceType}`)} · {formatCurrency(last.quote.total)}
             </p>
           </div>
           <Link
@@ -126,7 +126,7 @@ export function Home() {
             </div>
             <div className="flex-1">
               <p className="font-black text-charcoal dark:text-white">
-                {SERVICE_LABELS[s.type]}
+                {t(`serviceTypes.${s.type}`)}
               </p>
               <p className="text-sm text-slate-500">{t("home.getAnInstantQuote")}</p>
             </div>

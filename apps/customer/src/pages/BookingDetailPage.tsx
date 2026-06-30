@@ -15,7 +15,6 @@ import {
   toast,
 } from "@sweepr/ui";
 import {
-  SERVICE_LABELS,
   formatDateTime,
   getAddOn,
   TRACKING_STEPS,
@@ -258,7 +257,7 @@ export function BookingDetailPage() {
 
   return (
     <DashboardShell
-      title={SERVICE_LABELS[booking.serviceType]}
+      title={t(`serviceTypes.${booking.serviceType}`)}
       description={`Booking ${booking.id}`}
       actions={
         <div className="flex items-center gap-2">

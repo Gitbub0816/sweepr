@@ -5,8 +5,9 @@ import {
   ArrowRight, ShieldCheck, Lock, AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
+import { useTranslation } from "react-i18next";
 import { DashboardShell, Card, Button, ErrorState, toast } from "@sweepr/ui";
-import { SERVICE_LABELS, formatCurrency } from "@sweepr/utils";
+import { formatCurrency } from "@sweepr/utils";
 import { NavigationMap } from "../components/NavigationMap";
 
 const API = import.meta.env.VITE_API_URL ?? "";
@@ -49,16 +50,8 @@ const STEP_ORDER: DayStatus[] = [
   "completed",
 ];
 
-const STEP_LABELS: Record<DayStatus, string> = {
-  confirmed: "Confirmed",
-  en_route: "En Route",
-  arrived: "Arrived",
-  in_progress: "In Progress",
-  awaiting_checkout: "Finishing Up",
-  completed: "Completed",
-};
-
 export function JobDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const { getToken } = useAuth();
   const [job, setJob] = useState<JobLive | null>(null);
@@ -236,7 +229,7 @@ export function JobDetailPage() {
 
   return (
     <DashboardShell
-      title={(SERVICE_LABELS as Record<string, string>)[job.service_type] ?? job.service_type}
+      title={t(`serviceTypes.${job.service_type}`, { defaultValue: job.service_type })}
       description={`Job ${job.id.slice(0, 8).toUpperCase()}`}
       actions={
         <span className="text-2xl font-bold text-charcoal dark:text-white">
@@ -265,7 +258,7 @@ export function JobDetailPage() {
                     {done ? "✓" : i + 1}
                   </div>
                   <span className={`text-[10px] text-center leading-tight ${active ? "text-seafoam-600 font-semibold" : "text-slate-400"}`}>
-                    {STEP_LABELS[step]}
+                    {t(`cleaner.jobs.steps.${step}`, { defaultValue: step })}
                   </span>
                 </div>
                 {i < STEP_ORDER.length - 1 && (

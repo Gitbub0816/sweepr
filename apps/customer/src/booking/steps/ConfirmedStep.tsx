@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { CheckCircle2, MapPin, CalendarClock, UserCheck, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button, Card } from "@sweepr/ui";
-import { SERVICE_LABELS, formatDateTime } from "@sweepr/utils";
+import { formatDateTime } from "@sweepr/utils";
 import { useAuth } from "@clerk/clerk-react";
 import { useBookingStore } from "../../store/booking";
 import { fetchBooking } from "../../data/bookings";
@@ -74,7 +74,7 @@ export function ConfirmedStep() {
         {(serviceType || dbBooking) && (scheduledFor || dbBooking) && (
           <Card className="mt-8 text-left">
             <p className="text-sm font-semibold text-charcoal dark:text-white">
-              {SERVICE_LABELS[(dbBooking?.serviceType ?? serviceType)!]}
+              {t(`serviceTypes.${dbBooking?.serviceType ?? serviceType ?? "standard"}`)}
             </p>
             <div className="mt-3 space-y-2 text-sm text-slate-500">
               <p className="flex items-center gap-2">

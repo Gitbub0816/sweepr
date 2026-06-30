@@ -785,7 +785,7 @@ function SettingsTab() {
   return (
     <div className="space-y-6 max-w-xl">
       <div className="rounded-xl border border-slate-200 p-6 space-y-4">
-        <h3 className="font-semibold text-slate-800">Job Preferences</h3>
+        <h3 className="font-semibold text-slate-800">{t("cleaner.dashboard.jobPreferences")}</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1">{t("cleaner.dashboard.maxJobsPerDay")}</label>

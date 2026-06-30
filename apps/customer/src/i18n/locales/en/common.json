@@ -176,8 +176,51 @@
     },
     "payment": {
       "title": "Payment",
-      "secure": "Your payment is secured by Stripe."
+      "subtitle": "All prices are all-inclusive. No surprise fees.",
+      "secure": "Your payment is secured by Stripe.",
+      "orderSummary": "Order summary",
+      "included": "Included",
+      "firstCleanTotal": "First cleaning total",
+      "total": "Total",
+      "satisfactionGuarantee": "Satisfaction guarantee",
+      "securedByStripe": "Secured by Stripe",
+      "billingAddress": "Billing address",
+      "demoMode": "Demo mode",
+      "detailsSecure": "Payment details collected securely via Stripe Elements",
+      "payButton": "Pay {{amount}}",
+      "cardNotCharged": "Your card won't be charged until your cleaning is confirmed by a cleaner. Cancel free up to 24 hours before your appointment.",
+      "subscription": "{{cadence}} subscription",
+      "subscriptionPrice": "{{price}} / cleaning — save {{savings}} each time",
+      "recurringCadence": "Recurring {{cadence}}"
     }
+  },
+  "subscriptions": {
+    "title": "Subscriptions",
+    "description": "Manage your recurring cleans.",
+    "noSubsTitle": "No subscriptions yet",
+    "noSubsDesc": "Set up a recurring clean and save on every visit.",
+    "bookRecurring": "Book a recurring clean",
+    "cadence": {
+      "weekly": "Weekly",
+      "biweekly": "Biweekly",
+      "monthly": "Monthly"
+    },
+    "statusActive": "Active",
+    "statusPaused": "Paused",
+    "nextCleaning": "Next cleaning",
+    "pause": "Pause",
+    "resume": "Resume",
+    "skipNext": "Skip next",
+    "cancel": "Cancel",
+    "pauseSuccess": "Subscription paused",
+    "resumeSuccess": "Subscription resumed",
+    "skipSuccess": "Next cleaning skipped",
+    "cancelSuccess": "Subscription cancelled",
+    "couldNotLoad": "Couldn't load subscriptions.",
+    "couldNotPause": "Couldn't pause subscription.",
+    "couldNotResume": "Couldn't resume subscription.",
+    "couldNotSkip": "Couldn't skip cleaning.",
+    "couldNotCancel": "Couldn't cancel subscription."
   },
   "bookings": {
     "title": "My Bookings",
@@ -278,7 +321,8 @@
       "maxJobsPerDay": "Max jobs / day",
       "maxDistance": "Max distance (miles)",
       "preferredServiceTypes": "Preferred Service Types",
-      "acceptLastMinute": "Accept last-minute bookings"
+      "acceptLastMinute": "Accept last-minute bookings",
+      "jobPreferences": "Job Preferences"
     },
     "notifications": {
       "title": "Notifications",
@@ -301,7 +345,15 @@
       "checkIn": "Check In",
       "checkOut": "Check Out",
       "beforePhotos": "Before Photos",
-      "afterPhotos": "After Photos"
+      "afterPhotos": "After Photos",
+      "steps": {
+        "confirmed": "Confirmed",
+        "en_route": "En Route",
+        "arrived": "Arrived",
+        "in_progress": "In Progress",
+        "awaiting_checkout": "Finishing Up",
+        "completed": "Completed"
+      }
     },
     "earnings": {
       "title": "Earnings",
@@ -359,6 +411,15 @@
       "title": "Profile",
       "description": "Manage your profile, contact details, and data."
     }
+  },
+  "serviceTypes": {
+    "light": "Light Clean",
+    "standard": "Standard Clean",
+    "deep": "Deep Clean",
+    "move_in_out": "Move-in / Move-out",
+    "recurring": "Recurring Clean",
+    "post_construction": "Post-Construction Clean",
+    "vacation_rental": "Vacation Rental Turnover"
   },
   "onboarding": {
     "individual": "Individual",

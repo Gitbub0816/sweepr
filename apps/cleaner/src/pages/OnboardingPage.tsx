@@ -29,7 +29,7 @@ import {
   getMapboxToken,
 } from "@sweepr/ui";
 import type { ServiceType, AddOn } from "@sweepr/types";
-import { SERVICE_LABELS, ADD_ONS, formatCurrency } from "@sweepr/utils";
+import { ADD_ONS, formatCurrency } from "@sweepr/utils";
 import { ServiceAreaMap } from "../components/ServiceAreaMap";
 import {
   BusinessVerificationStep,
@@ -956,7 +956,7 @@ function StepServices({
                     : "border-slate-200 text-charcoal hover:border-seafoam-300 dark:border-slate-700 dark:text-white"
                 }`}
               >
-                {SERVICE_LABELS[svc]}
+                {t(`serviceTypes.${svc}`)}
               </button>
             );
           })}
@@ -1074,6 +1074,7 @@ function StepReview({
   mode: OnboardingMode;
   stepNumber: number;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-5">
       <StepTitle
@@ -1120,7 +1121,7 @@ function StepReview({
         <Row label="Service radius" value={`${form.radiusMi} mi`} />
         <Row
           label="Services"
-          value={form.services.map((s) => SERVICE_LABELS[s]).join(", ") || "—"}
+          value={form.services.map((s) => t(`serviceTypes.${s}`)).join(", ") || "—"}
         />
         <Row
           label="Add-ons"

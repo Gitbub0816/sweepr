@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Repeat, Pause, Play, SkipForward, X, Sparkles, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Card, Button, Badge, toast } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
 import { useAuth } from "@clerk/clerk-react";
@@ -16,13 +17,8 @@ interface SubRow {
   next_cleaning_date: string | null;
 }
 
-const CADENCE_LABEL = {
-  weekly: "Weekly",
-  biweekly: "Biweekly",
-  monthly: "Monthly",
-} as const;
-
 export function SubscriptionsPage() {
+  const { t } = useTranslation();
   const { getToken } = useAuth();
   const [subs, setSubs] = useState<SubRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +33,7 @@ export function SubscriptionsPage() {
       const data = (await res.json()) as { subscriptions: SubRow[] };
       setSubs(data.subscriptions ?? []);
     } catch {
-      toast.error("Couldn't load subscriptions.");
+      toast.error(t("subscriptions.couldNotLoad"));
     } finally {
       setLoading(false);
     }
@@ -58,32 +54,32 @@ export function SubscriptionsPage() {
     try {
       await callApi(`${id}/pause`);
       setSubs((s) => s.map((x) => (x.id === id ? { ...x, status: "paused" } : x)));
-      toast.success("Subscription paused");
-    } catch { toast.error("Couldn't pause subscription."); }
+      toast.success(t("subscriptions.pauseSuccess"));
+    } catch { toast.error(t("subscriptions.couldNotPause")); }
   }
 
   async function resume(id: string) {
     try {
       await callApi(`${id}/resume`);
       setSubs((s) => s.map((x) => (x.id === id ? { ...x, status: "active" } : x)));
-      toast.success("Subscription resumed");
-    } catch { toast.error("Couldn't resume subscription."); }
+      toast.success(t("subscriptions.resumeSuccess"));
+    } catch { toast.error(t("subscriptions.couldNotResume")); }
   }
 
   async function skipNext(id: string) {
     try {
       await callApi(`${id}/skip-next`);
-      toast.success("Next cleaning skipped");
+      toast.success(t("subscriptions.skipSuccess"));
       load();
-    } catch { toast.error("Couldn't skip cleaning."); }
+    } catch { toast.error(t("subscriptions.couldNotSkip")); }
   }
 
   async function cancel(id: string) {
     try {
       await callApi(id, "DELETE");
       setSubs((s) => s.filter((x) => x.id !== id));
-      toast.success("Subscription cancelled");
-    } catch { toast.error("Couldn't cancel subscription."); }
+      toast.success(t("subscriptions.cancelSuccess"));
+    } catch { toast.error(t("subscriptions.couldNotCancel")); }
   }
 
   if (loading) {
@@ -99,13 +95,13 @@ export function SubscriptionsPage() {
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
         <Sparkles className="mx-auto h-10 w-10 text-seafoam-400" />
         <h1 className="mt-4 text-xl font-bold text-charcoal dark:text-white">
-          No subscriptions yet
+          {t("subscriptions.noSubsTitle")}
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Set up a recurring clean and save on every visit.
+          {t("subscriptions.noSubsDesc")}
         </p>
         <Link to="/book" className="mt-6 inline-block">
-          <Button>Book a recurring clean</Button>
+          <Button>{t("subscriptions.bookRecurring")}</Button>
         </Link>
       </div>
     );
@@ -113,8 +109,8 @@ export function SubscriptionsPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="text-2xl font-bold text-charcoal dark:text-white">Subscriptions</h1>
-      <p className="mt-1 text-sm text-slate-500">Manage your recurring cleans.</p>
+      <h1 className="text-2xl font-bold text-charcoal dark:text-white">{t("subscriptions.title")}</h1>
+      <p className="mt-1 text-sm text-slate-500">{t("subscriptions.description")}</p>
 
       <div className="mt-6 space-y-4">
         {subs.map((sub) => (
@@ -126,14 +122,14 @@ export function SubscriptionsPage() {
                 </span>
                 <div>
                   <p className="font-semibold capitalize text-charcoal dark:text-white">
-                    {sub.service_type.replace(/_/g, " ")} Clean
+                    {t(`serviceTypes.${sub.service_type}`, { defaultValue: sub.service_type.replace(/_/g, " ") })}
                   </p>
                   <p className="text-sm text-slate-500">
-                    {CADENCE_LABEL[sub.cadence]} · {formatCurrency(sub.display_price / 100)}/visit
+                    {t(`subscriptions.cadence.${sub.cadence}`)} · {formatCurrency(sub.display_price / 100)}/visit
                   </p>
                   {sub.next_cleaning_date && (
                     <p className="mt-1 text-xs text-slate-400">
-                      Next cleaning:{" "}
+                      {t("subscriptions.nextCleaning")}:{" "}
                       {new Date(sub.next_cleaning_date).toLocaleDateString("en-US", {
                         weekday: "short",
                         month: "short",
@@ -144,25 +140,25 @@ export function SubscriptionsPage() {
                 </div>
               </div>
               <Badge variant={sub.status === "active" ? "success" : "default"}>
-                {sub.status === "active" ? "Active" : "Paused"}
+                {sub.status === "active" ? t("subscriptions.statusActive") : t("subscriptions.statusPaused")}
               </Badge>
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
               {sub.status === "active" ? (
                 <Button variant="secondary" onClick={() => pause(sub.id)}>
-                  <Pause className="mr-1 h-4 w-4" /> Pause
+                  <Pause className="mr-1 h-4 w-4" /> {t("subscriptions.pause")}
                 </Button>
               ) : (
                 <Button variant="secondary" onClick={() => resume(sub.id)}>
-                  <Play className="mr-1 h-4 w-4" /> Resume
+                  <Play className="mr-1 h-4 w-4" /> {t("subscriptions.resume")}
                 </Button>
               )}
               <Button variant="ghost" onClick={() => skipNext(sub.id)}>
-                <SkipForward className="mr-1 h-4 w-4" /> Skip next
+                <SkipForward className="mr-1 h-4 w-4" /> {t("subscriptions.skipNext")}
               </Button>
               <Button variant="ghost" onClick={() => cancel(sub.id)}>
-                <X className="mr-1 h-4 w-4" /> Cancel
+                <X className="mr-1 h-4 w-4" /> {t("subscriptions.cancel")}
               </Button>
             </div>
           </Card>

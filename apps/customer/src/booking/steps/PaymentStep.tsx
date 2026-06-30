@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Lock, ShieldCheck, RefreshCw, Tag, Sparkles } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -27,6 +28,7 @@ function isDarkMode() {
 // ─── Order Summary ────────────────────────────────────────────────────────────
 
 function OrderSummary() {
+  const { t } = useTranslation();
   const serviceType = useBookingStore((s) => s.serviceType);
   const home = useBookingStore((s) => s.home);
   const addOnKeys = useBookingStore((s) => s.addOnKeys);
@@ -45,14 +47,6 @@ function OrderSummary() {
     activeCadence ? recurringDisplayPrice(displayPrice, activeCadence) : null;
   const savings = recurringPrice !== null ? displayPrice - recurringPrice : 0;
 
-  const serviceLabel: Record<string, string> = {
-    standard: "Standard Clean",
-    deep: "Deep Clean",
-    move_in_out: "Move In/Out Clean",
-    recurring: "Recurring Clean",
-    post_construction: "Post-Construction Clean",
-    vacation_rental: "Vacation Rental Turnover",
-  };
 
   return (
     <Card className="space-y-4 border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
@@ -60,7 +54,7 @@ function OrderSummary() {
       <div className="flex items-center justify-between">
         <SweeprLogo size="lg" />
         <span className="rounded-full bg-seafoam-50 px-3 py-1 text-xs font-semibold text-seafoam-700 dark:bg-seafoam-900/30 dark:text-seafoam-300">
-          Order summary
+          {t("booking.payment.orderSummary")}
         </span>
       </div>
 
@@ -69,7 +63,7 @@ function OrderSummary() {
       {/* Service line */}
       <div className="flex items-center justify-between text-sm">
         <span className="text-slate-600 dark:text-slate-400">
-          {serviceLabel[serviceType ?? "standard"] ?? "Cleaning service"}
+          {t(`serviceTypes.${serviceType ?? "standard"}`, { defaultValue: t("serviceTypes.standard") })}
         </span>
         <span className="font-semibold text-charcoal dark:text-white">
           {formatCurrency(displayPrice)}
@@ -85,7 +79,7 @@ function OrderSummary() {
                 <Sparkles className="h-3 w-3 text-seafoam-400" />
                 {key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
               </span>
-              <span>Included</span>
+              <span>{t("booking.payment.included")}</span>
             </div>
           ))}
         </div>
@@ -99,11 +93,10 @@ function OrderSummary() {
             <RefreshCw className="h-4 w-4 shrink-0 text-seafoam-500" />
             <div className="flex-1">
               <p className="text-xs font-semibold text-seafoam-800 dark:text-seafoam-200">
-                {activeCadence.charAt(0).toUpperCase() + activeCadence.slice(1)} subscription
+                {t("booking.payment.subscription", { cadence: activeCadence.charAt(0).toUpperCase() + activeCadence.slice(1) })}
               </p>
               <p className="text-xs text-seafoam-600 dark:text-seafoam-400">
-                {formatCurrency(recurringPrice)} / cleaning — save{" "}
-                {formatCurrency(savings)} each time
+                {t("booking.payment.subscriptionPrice", { price: formatCurrency(recurringPrice), savings: formatCurrency(savings) })}
               </p>
             </div>
             <Tag className="h-4 w-4 shrink-0 text-seafoam-500" />
@@ -116,14 +109,14 @@ function OrderSummary() {
       {/* Total */}
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-          {activeCadence ? "First cleaning total" : "Total"}
+          {activeCadence ? t("booking.payment.firstCleanTotal") : t("booking.payment.total")}
         </span>
         <div className="text-right">
           <span className="text-xl font-bold text-charcoal dark:text-white">
             {formatCurrency(activeCadence && recurringPrice !== null ? recurringPrice : displayPrice)}
           </span>
           {cadence !== "none" && cadence && !isSubscription && (
-            <p className="text-xs text-slate-400">Recurring {cadence}</p>
+            <p className="text-xs text-slate-400">{t("booking.payment.recurringCadence", { cadence })}</p>
           )}
         </div>
       </div>
@@ -132,11 +125,11 @@ function OrderSummary() {
       <div className="flex items-center gap-3 pt-1">
         <div className="flex items-center gap-1.5 text-xs text-slate-400">
           <ShieldCheck className="h-3.5 w-3.5 text-seafoam-400" />
-          Satisfaction guarantee
+          {t("booking.payment.satisfactionGuarantee")}
         </div>
         <div className="flex items-center gap-1.5 text-xs text-slate-400">
           <Lock className="h-3.5 w-3.5 text-seafoam-400" />
-          Secured by Stripe
+          {t("booking.payment.securedByStripe")}
         </div>
       </div>
     </Card>
@@ -146,6 +139,7 @@ function OrderSummary() {
 // ─── Checkout form (inside <Elements>) ────────────────────────────────────────
 
 function CheckoutForm({ total }: { total: number }) {
+  const { t } = useTranslation();
   const stripe = useStripe();
   const elements = useElements();
   const navigate = useNavigate();
@@ -198,7 +192,7 @@ function CheckoutForm({ total }: { total: number }) {
       {/* Billing address — separate so it gets our label styling via Stripe rules */}
       <div>
         <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-400">
-          Billing address
+          {t("booking.payment.billingAddress")}
         </p>
         <AddressElement
           options={{
@@ -223,12 +217,11 @@ function CheckoutForm({ total }: { total: number }) {
         className="h-14 text-base tracking-wide"
       >
         <Lock className="mr-2 h-4 w-4" />
-        Pay {formatCurrency(total)}
+        {t("booking.payment.payButton", { amount: formatCurrency(total) })}
       </Button>
 
       <p className="text-center text-xs text-slate-400 dark:text-slate-500">
-        Your card won't be charged until your cleaning is confirmed by a cleaner.
-        Cancel free up to 24 hours before your appointment.
+        {t("booking.payment.cardNotCharged")}
       </p>
     </form>
   );
@@ -237,6 +230,7 @@ function CheckoutForm({ total }: { total: number }) {
 // ─── Demo fallback (no Stripe key) ───────────────────────────────────────────
 
 function DemoCheckout({ total }: { total: number }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const confirmPayment = useBookingStore((s) => s.confirmPayment);
   const [processing, setProcessing] = useState(false);
@@ -244,7 +238,7 @@ function DemoCheckout({ total }: { total: number }) {
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-300">
-        <strong>Demo mode</strong> — set{" "}
+        <strong>{t("booking.payment.demoMode")}</strong> — set{" "}
         <code className="text-xs">VITE_STRIPE_PUBLISHABLE_KEY</code> to enable
         live Stripe Elements.
       </div>
@@ -253,7 +247,7 @@ function DemoCheckout({ total }: { total: number }) {
       <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-900">
         <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
           <Lock className="h-3.5 w-3.5 text-seafoam-400" />
-          Payment details collected securely via Stripe Elements
+          {t("booking.payment.detailsSecure")}
         </div>
         <div className="grid gap-3">
           <div className="h-11 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
@@ -280,7 +274,7 @@ function DemoCheckout({ total }: { total: number }) {
         }}
       >
         <Lock className="mr-2 h-4 w-4" />
-        Pay {formatCurrency(total)}
+        {t("booking.payment.payButton", { amount: formatCurrency(total) })}
       </Button>
     </div>
   );
@@ -289,6 +283,7 @@ function DemoCheckout({ total }: { total: number }) {
 // ─── Root export ──────────────────────────────────────────────────────────────
 
 export function PaymentStep() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { getToken } = useAuth();
   const serviceType = useBookingStore((s) => s.serviceType);
@@ -363,8 +358,8 @@ export function PaymentStep() {
 
   return (
     <StepShell
-      title="Payment"
-      subtitle="All prices are all-inclusive. No surprise fees."
+      title={t("booking.payment.title")}
+      subtitle={t("booking.payment.subtitle")}
       onBack={() => navigate("/book/review")}
     >
       <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
