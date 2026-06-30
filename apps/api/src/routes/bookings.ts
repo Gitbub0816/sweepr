@@ -60,7 +60,8 @@ bookingsRouter.post(
   const input = c.req.valid("json");
   const sql = getDb(c.env.DATABASE_URL);
   const authUser = c.get("user");
-  const user = await upsertUser(sql, { clerkId: authUser.clerkId, email: authUser.email ?? "", role: "customer" });
+  const user = (await getUserByClerkId(sql, authUser.clerkId)) ??
+    await upsertUser(sql, { clerkId: authUser.clerkId, email: authUser.email || `${authUser.clerkId}@noemail.sweepr.local`, role: "customer" });
   await sql`INSERT INTO customers (user_id) SELECT ${user.id} WHERE NOT EXISTS (SELECT 1 FROM customers WHERE user_id = ${user.id})`;
   const customer = await getCustomerByUserId(sql, user.id);
   if (!customer) return c.json({ error: "Customer not found" }, 404);

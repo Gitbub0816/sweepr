@@ -5,28 +5,34 @@ import { getUserByClerkId, upsertUser } from "@sweepr/db";
 import { getDb } from "../lib/db";
 import { requireAuth } from "../middleware/auth";
 import type { AppBindings } from "../types";
+import type { Sql } from "../lib/db";
+import type { UserRow } from "@sweepr/db";
 
 export const customerProfileRouter = new Hono<AppBindings>();
 
 customerProfileRouter.use("*", requireAuth);
 
+// requireAuth already provisions the user row. Use the existing row when
+// possible; only call upsertUser if the row is somehow missing (e.g. very
+// first request before requireAuth had a resolvable email). Passing an empty
+// string to upsertUser would corrupt the email column and collide with other
+// users that also lack an email claim in their JWT.
+async function resolveUser(sql: Sql, clerkId: string, email?: string): Promise<UserRow> {
+  const existing = await getUserByClerkId(sql, clerkId);
+  if (existing) return existing;
+  return upsertUser(sql, { clerkId, email: email || `${clerkId}@noemail.sweepr.local`, role: "customer" });
+}
+
+async function ensureCustomer(sql: Sql, userId: string): Promise<void> {
+  await sql`INSERT INTO customers (user_id) SELECT ${userId} WHERE NOT EXISTS (SELECT 1 FROM customers WHERE user_id = ${userId})`;
+}
+
 // ─── GET /customer-profile ────────────────────────────────────────────────────
 customerProfileRouter.get("/", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const authUser = c.get("user");
-
-  // Lazy-provision: upsert user + customer rows on first API call.
-  // This handles cases where the Clerk webhook hasn't fired yet.
-  const user = await upsertUser(sql, {
-    clerkId: authUser.clerkId,
-    email: authUser.email ?? "",
-    role: "customer",
-  });
-
-  // Ensure the customer row exists.
-  await sql`
-    INSERT INTO customers (user_id) SELECT ${user.id} WHERE NOT EXISTS (SELECT 1 FROM customers WHERE user_id = ${user.id})
-  `;
+  const user = await resolveUser(sql, authUser.clerkId, authUser.email);
+  await ensureCustomer(sql, user.id);
 
   const rows = (await sql`
     SELECT c.home_bedrooms, c.home_bathrooms, c.home_sqft, c.home_type,
@@ -106,8 +112,8 @@ const patchSchema = z.object({
 customerProfileRouter.patch("/", zValidator("json", patchSchema), async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const authUser = c.get("user");
-  const user = await upsertUser(sql, { clerkId: authUser.clerkId, email: authUser.email ?? "", role: "customer" });
-  await sql`INSERT INTO customers (user_id) VALUES (${user.id}) ON CONFLICT (user_id) DO NOTHING`;
+  const user = await resolveUser(sql, authUser.clerkId, authUser.email);
+  await ensureCustomer(sql, user.id);
 
   const input = c.req.valid("json");
 
@@ -182,8 +188,8 @@ const addressSchema = z.object({
 customerProfileRouter.post("/addresses", zValidator("json", addressSchema), async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const authUser = c.get("user");
-  const user = await upsertUser(sql, { clerkId: authUser.clerkId, email: authUser.email ?? "", role: "customer" });
-  await sql`INSERT INTO customers (user_id) VALUES (${user.id}) ON CONFLICT (user_id) DO NOTHING`;
+  const user = await resolveUser(sql, authUser.clerkId, authUser.email);
+  await ensureCustomer(sql, user.id);
 
   const input = c.req.valid("json");
   const makeDefault = input.makeDefault ?? false;
