@@ -31,6 +31,7 @@ import {
   getInstallUrl,
   getUserConnectUrl,
   exchangeOAuthCode,
+  conversationsJoin,
   verifySlackSignature,
   postMessage,
   listChannels,
@@ -625,8 +626,11 @@ slackRouter.get("/workspace/history", ...wsGate, async (c) => {
   // Use user token if available; bot token as fallback (bot is always in provisioned channels).
   const uToken = await userToken(sql, c.get("user").clerkId);
   const ws = await activeWorkspace(sql);
-  const histToken = uToken ?? (ws?.bot_token as string | null);
+  const botToken = ws?.bot_token as string | null;
+  const histToken = uToken ?? botToken;
   if (!histToken) return c.json({ error: "Slack not connected" }, 409);
+  // If using bot token, ensure it's in the channel.
+  if (!uToken && botToken) await conversationsJoin(botToken, channel).catch(() => null);
 
   const [hist, users, cards] = await Promise.all([
     conversationsHistory(histToken, channel, 50),
@@ -696,7 +700,10 @@ slackRouter.post(
       }
     }
     if (!res && ws?.bot_token) {
-      res = await postMessage(ws.bot_token as string, channel, { text, thread_ts });
+      const botToken = ws.bot_token as string;
+      // Auto-join public channels so the bot can always post.
+      await conversationsJoin(botToken, channel).catch(() => null);
+      res = await postMessage(botToken, channel, { text, thread_ts });
     }
     if (!res || !res.ok) {
       const errMsg = res?.error ?? "post_failed";

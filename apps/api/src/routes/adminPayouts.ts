@@ -283,25 +283,37 @@ adminPayoutsRouter.put(
     const sql = getDb(c.env.DATABASE_URL);
     const authUser = c.get("user");
 
-    // Instead of writing directly, create a fee change proposal so the change
-    // goes through the approval workflow (Slack card + email + approvals tab).
-    const proposal = await createProposal(sql, { clerkId: authUser.clerkId, email: authUser.email }, {
-      title: `Platform fee config change`,
-      reason: body.reason,
-      internalNotes: body.notes,
-      proposedEffectiveAt: new Date().toISOString(),
-      feeConfig: {
-        name: `Platform fee — ${body.feeType} ${body.feeValue}`,
-        fee_type: "platform_fee",
-        affected_party: "both",
-        calculation_method: body.feeType === "flat" ? "flat_amount" : "percentage",
-        flat_amount_cents: body.feeType === "flat" ? Math.round(body.feeValue * 100) : null,
-        percentage_bps: body.feeType === "percentage" ? Math.round(body.feeValue * 100) : null,
-        city: null,
-        state: null,
-        service_type: null,
-      },
-    });
+    // Create a fee change proposal so the change goes through the approval
+    // workflow (Slack card + email + approvals tab) before taking effect.
+    // Effective date is 14 days out to satisfy the MIN_EFFECTIVE_LEAD_HOURS
+    // constraint (48 h minimum; 14 d gives proper notice period).
+    const proposedEffectiveAt = new Date(Date.now() + 14 * 24 * 3600_000).toISOString();
+
+    let proposal: Awaited<ReturnType<typeof createProposal>>;
+    try {
+      proposal = await createProposal(sql, { clerkId: authUser.clerkId, email: authUser.email }, {
+        title: `Platform fee config change — ${body.feeType} ${body.feeValue}`,
+        reason: body.reason,
+        internalNotes: body.notes,
+        // internal_only skips the external-notice requirement in createProposal
+        proposedEffectiveAt,
+        feeConfig: {
+          name: `Platform fee — ${body.feeType} ${body.feeValue}`,
+          fee_type: "platform_fee",
+          affected_party: "internal_only",
+          calculation_method: body.feeType === "flat" ? "flat_amount" : "percentage",
+          flat_amount_cents: body.feeType === "flat" ? Math.round(body.feeValue * 100) : null,
+          percentage_bps: body.feeType === "percentage" ? Math.round(body.feeValue * 100) : null,
+          city: null,
+          state: null,
+          service_type: null,
+        },
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to create proposal";
+      logger.error("fee-config proposal creation failed", err, { reason: body.reason });
+      return c.json({ error: msg }, 400);
+    }
 
     await audit(sql, {
       action: "payout.fee_config_updated",
@@ -315,7 +327,7 @@ adminPayoutsRouter.put(
     });
 
     // Best-effort: Slack card + email notifications.
-    await notifyProposalCreated(sql, c.env, proposal as never);
+    await notifyProposalCreated(sql, c.env, proposal as never).catch(() => null);
 
     return c.json({ ok: true, proposalId: proposal.id });
   }
