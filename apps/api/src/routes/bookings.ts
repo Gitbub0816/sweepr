@@ -187,7 +187,17 @@ bookingsRouter.get("/:id", async (c) => {
   if (!access.allowed) return c.json({ error: "Forbidden" }, 403);
   const booking = await getBooking(sql, bookingId);
   if (!booking) return c.json({ error: "Not found" }, 404);
-  return c.json({ booking });
+
+  // Join address fields so the customer app can display the address.
+  const addrRows = booking.address_id
+    ? (await sql`
+        SELECT street AS address_line1, city AS address_city, state AS address_state, zip AS address_zip
+        FROM addresses WHERE id = ${booking.address_id} LIMIT 1
+      `) as { address_line1: string; address_city: string; address_state: string; address_zip: string }[]
+    : [];
+  const addr = addrRows[0] ?? {};
+
+  return c.json({ booking: { ...booking, ...addr } });
 });
 
 bookingsRouter.patch(
