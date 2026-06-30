@@ -273,9 +273,13 @@ function FeeConfigTab() {
         }),
       });
       if (!res.ok) throw new Error();
-      toast.success("Fee config updated.");
+      const body = await res.json() as { proposalId?: string };
+      toast.success("Fee change proposal submitted — pending approval.");
       setReason("");
       reload();
+      if (body.proposalId) {
+        window.location.href = `/approvals/${body.proposalId}`;
+      }
     } catch { toast.error("Save failed."); }
     finally { setSaving(false); }
   }

@@ -12,6 +12,8 @@ import {
   getTierMultiplier,
   type FeeSettings,
 } from "../lib/payoutEngine";
+import { createProposal } from "../lib/approvalEngine";
+import { notifyProposalCreated } from "../lib/approvalNotify";
 import { recordError } from "../lib/errorLog";
 import { logger } from "../lib/logger";
 import type { AppBindings } from "../types";
@@ -279,58 +281,43 @@ adminPayoutsRouter.put(
   async (c) => {
     const body = c.req.valid("json");
     const sql = getDb(c.env.DATABASE_URL);
+    const authUser = c.get("user");
 
-    const actorRows = await sql`SELECT id FROM users WHERE clerk_id = ${c.get("user").clerkId} LIMIT 1` as Array<{ id: string }>;
-    const actorId = actorRows[0]?.id;
-
-    // Get old settings for audit
-    const old = await loadFeeSettings(sql);
-
-    // Deactivate current
-    await sql`UPDATE platform_fee_settings SET active = FALSE WHERE active = TRUE`;
-
-    // Insert new
-    await sql`
-      INSERT INTO platform_fee_settings (
-        fee_type, fee_value, minimum_platform_fee, maximum_platform_fee,
-        processing_fee_strategy, processing_fee_split_pct, reserve_percentage,
-        payout_delay_days, active, effective_from, created_by, notes
-      ) VALUES (
-        ${body.feeType}, ${body.feeValue}, ${body.minimumPlatformFee},
-        ${body.maximumPlatformFee ?? null}, ${body.processingFeeStrategy},
-        ${body.processingFeeSplitPct ?? 0}, ${body.reservePercentage ?? 0},
-        ${body.payoutDelayDays}, TRUE, NOW(), ${actorId ?? null}, ${body.notes ?? null}
-      )
-    `;
-
-    // Audit each changed field
-    const fields: Array<keyof FeeSettings> = [
-      "feeType", "feeValue", "minimumPlatformFee", "maximumPlatformFee",
-      "processingFeeStrategy", "processingFeeSplitPct", "reservePercentage", "payoutDelayDays",
-    ];
-    for (const field of fields) {
-      const oldVal = String(old[field] ?? "");
-      const newVal = String((body as Record<string, unknown>)[field] ?? "");
-      if (oldVal !== newVal && actorId) {
-        await sql`
-          INSERT INTO payout_settings_audit (actor_id, setting_name, old_value, new_value, reason)
-          VALUES (${actorId}, ${field}, ${oldVal}, ${newVal}, ${body.reason})
-        `;
-      }
-    }
+    // Instead of writing directly, create a fee change proposal so the change
+    // goes through the approval workflow (Slack card + email + approvals tab).
+    const proposal = await createProposal(sql, { clerkId: authUser.clerkId, email: authUser.email }, {
+      title: `Platform fee config change`,
+      reason: body.reason,
+      internalNotes: body.notes,
+      proposedEffectiveAt: new Date().toISOString(),
+      feeConfig: {
+        name: `Platform fee — ${body.feeType} ${body.feeValue}`,
+        fee_type: "platform_fee",
+        affected_party: "both",
+        calculation_method: body.feeType === "flat" ? "flat_amount" : "percentage",
+        flat_amount_cents: body.feeType === "flat" ? Math.round(body.feeValue * 100) : null,
+        percentage_bps: body.feeType === "percentage" ? Math.round(body.feeValue * 100) : null,
+        city: null,
+        state: null,
+        service_type: null,
+      },
+    });
 
     await audit(sql, {
       action: "payout.fee_config_updated",
-      actorClerkId: c.get("user").clerkId,
-      targetType: "platform",
-      targetId: "fee_settings",
-      metadata: { reason: body.reason },
+      actorClerkId: authUser.clerkId,
+      targetType: "fee_proposal",
+      targetId: proposal.id as string,
+      metadata: { reason: body.reason, proposalId: proposal.id },
       ipAddress: c.req.header("CF-Connecting-IP"),
       userAgent: c.req.header("User-Agent"),
       timestamp: new Date().toISOString(),
     });
 
-    return c.json({ ok: true });
+    // Best-effort: Slack card + email notifications.
+    await notifyProposalCreated(sql, c.env, proposal as never);
+
+    return c.json({ ok: true, proposalId: proposal.id });
   }
 );
 
