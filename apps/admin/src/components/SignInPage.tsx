@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useSignIn } from "@clerk/clerk-react";
+import { useState, useEffect } from "react";
+import { useSignIn, useAuth } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 import { Loader2, ArrowRight, ShieldX } from "lucide-react";
 import { ThemeToggle, SweeprLogo } from "@sweepr/ui";
@@ -14,7 +14,12 @@ function ErrorBox({ message }: { message: string }) {
 
 export function SignInPage() {
   const { signIn, setActive, isLoaded } = useSignIn();
+  const { isSignedIn } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isSignedIn) navigate("/", { replace: true });
+  }, [isSignedIn, navigate]);
 
   const [stage, setStage] = useState<Stage>("email");
   const [email, setEmail] = useState("");
