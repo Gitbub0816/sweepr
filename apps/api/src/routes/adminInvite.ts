@@ -234,6 +234,14 @@ adminInviteRouter.post(
     // super_admin uses the dedicated role column; all other admin roles use 'admin'.
     const userRole = grantedRole === "super_admin" ? "super_admin" : "admin";
 
+    // If a stale users row exists with this email but a different clerk_id
+    // (e.g. from a failed previous sign-up), retarget it so the email UNIQUE
+    // constraint doesn't block the upsert below.
+    await sql`
+      UPDATE users SET clerk_id = ${clerkId}, updated_at = NOW()
+      WHERE email = ${rows[0].email} AND clerk_id != ${clerkId}
+    `;
+
     // Promote the user in our DB — UPSERT so first-time Clerk sign-ups
     // (who have no users row yet) are created with the correct role.
     await sql`
