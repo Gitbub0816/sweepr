@@ -20,7 +20,7 @@
     "@sweepr/utils": "workspace:*",
     "date-fns": "^4.4.0",
     "dompurify": "^3.4.11",
-    "framer-motion": "^11.15.0",
+    "framer-motion": "^12.40.0",
     "lucide-react": "^0.469.0",
     "sonner": "^1.7.1"
   },
