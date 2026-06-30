@@ -1,4 +1,4 @@
-import { useClerk, useUser } from "@clerk/clerk-react";
+import { useAuth, useClerk } from "@clerk/clerk-react";
 import { useEffect, useState } from "react";
 import { LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -7,18 +7,22 @@ const CLERK_ENABLED = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
 export function NavAuth() {
-  const { signOut } = useClerk();
-  const { isSignedIn } = useUser();
+  const { signOut, isSignedIn, getToken } = useAuth();
+  const { signOut: clerkSignOut } = useClerk();
   const navigate = useNavigate();
   const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isSignedIn) return;
-    fetch(`${API_BASE}/auth/me`, { credentials: "include" })
-      .then((r) => r.ok ? r.json() : null)
+    getToken().then((token) => {
+      if (!token) return;
+      return fetch(`${API_BASE}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    }).then((r) => r?.ok ? r.json() : null)
       .then((d) => { if (d?.user?.email) setEmail(d.user.email); })
       .catch(() => null);
-  }, [isSignedIn]);
+  }, [isSignedIn, getToken]);
 
   if (!CLERK_ENABLED || !isSignedIn) return null;
 
@@ -28,7 +32,7 @@ export function NavAuth() {
         {email ?? ""}
       </span>
       <button
-        onClick={() => void signOut(() => navigate("/sign-in"))}
+        onClick={() => void clerkSignOut(() => navigate("/sign-in"))}
         className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-white"
       >
         <LogOut className="h-3.5 w-3.5" />

@@ -11,7 +11,7 @@ import { recordError } from "./errorLog";
 import { sendEmail, SENDERS, TEMPLATES, formatEmailTimestamp } from "./mailer";
 import { sendNotification } from "./notifications";
 import { listSuperAdmins } from "./approvalEngine";
-import { approvalCardBlocks, postMessage, updateMessage, conversationsJoin } from "./slack";
+import { approvalCardBlocks, postMessage, updateMessage, conversationsJoin, inviteUsers } from "./slack";
 
 function adminUrl(env: Env): string {
   return env.ADMIN_URL ?? "https://admin.getsweepr.com";
@@ -35,8 +35,8 @@ interface ProposalRow {
 
 async function activeWorkspace(sql: Sql) {
   const rows = (await sql`
-    SELECT id, bot_token FROM slack_workspaces WHERE status = 'active' ORDER BY created_at DESC LIMIT 1
-  `) as Array<{ id: string; bot_token: string }>;
+    SELECT id, bot_token, bot_user_id FROM slack_workspaces WHERE status = 'active' ORDER BY created_at DESC LIMIT 1
+  `) as Array<{ id: string; bot_token: string; bot_user_id: string | null }>;
   return rows[0] ?? null;
 }
 
@@ -149,7 +149,9 @@ export async function postProposalCard(sql: Sql, env: Env, proposal: ProposalRow
       responseDeadline: new Date(proposal.response_deadline_at).toLocaleString(),
       adminUrl: adminUrl(env),
     });
+    // Public channels: join directly. Private channels: must be invited via bot_user_id.
     await conversationsJoin(ws.bot_token, channel).catch(() => null);
+    if (ws.bot_user_id) await inviteUsers(ws.bot_token, channel, [ws.bot_user_id]).catch(() => null);
     const res = await postMessage(ws.bot_token, channel, {
       text: `Fee change proposed: ${proposal.title}`,
       blocks,
@@ -286,6 +288,7 @@ export async function postPricingCard(sql: Sql, env: Env, proposal: PricingPropo
       domain: "pricing",
     });
     await conversationsJoin(ws.bot_token, channel).catch(() => null);
+    if (ws.bot_user_id) await inviteUsers(ws.bot_token, channel, [ws.bot_user_id]).catch(() => null);
     const res = await postMessage(ws.bot_token, channel, { text: `Pricing change proposed: ${proposal.title}`, blocks });
     if (res.ok && res.ts) {
       await sql`
