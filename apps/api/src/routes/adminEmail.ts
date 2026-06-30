@@ -16,6 +16,7 @@ import { requireAuth } from "../middleware/auth";
 import { requireAdminRole } from "../middleware/adminRoles";
 import { getDb } from "../lib/db";
 import { sendEmail, SENDERS } from "../lib/mailer";
+import { translateToEnglish } from "../lib/translate";
 import type { AppBindings } from "../types";
 
 export const adminEmailRouter = new Hono<AppBindings>();
@@ -99,6 +100,19 @@ adminEmailRouter.post(
       sql,
     );
     return c.json({ ok: true });
+  },
+);
+
+/** Translate arbitrary text to English — used by admin console for inbound emails. */
+adminEmailRouter.post(
+  "/translate",
+  ...gate,
+  zValidator("json", z.object({ text: z.string().min(1).max(20000) })),
+  async (c) => {
+    if (!c.env.ANTHROPIC_API_KEY) return c.json({ error: "ANTHROPIC_API_KEY not configured" }, 503);
+    const { text } = c.req.valid("json");
+    const translated = await translateToEnglish(c.env.ANTHROPIC_API_KEY, text);
+    return c.json({ translated });
   },
 );
 

@@ -14,7 +14,8 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { getUserByClerkId } from "@sweepr/db";
 import { getDb } from "../lib/db";
-import { sendBulkEmail, wrapBodyInTemplate } from "../lib/mailer";
+import { sendBulkEmail, sendEmail, wrapBodyInTemplate } from "../lib/mailer";
+import { translateText, langName } from "../lib/translate";
 import { requireAuth } from "../middleware/auth";
 import { isOwnerClerkId } from "../lib/owner";
 import type { AppBindings } from "../types";
@@ -109,10 +110,69 @@ adminBroadcastsRouter.post("/send", zValidator("json", sendSchema), async (c) =>
     await addList(rows);
   }
 
-  const recipients = [...emails].map((e) => ({ email: e }));
-  if (recipients.length === 0) return c.json({ ok: true, sent: 0 });
+  const emailSet = [...emails];
+  if (emailSet.length === 0) return c.json({ ok: true, sent: 0 });
 
-  const sent = await sendBulkEmail(c.env.MAILERSEND_API_KEY, recipients, subject, html);
+  // Look up preferred_language for every recipient.
+  const langRows = await sql`
+    SELECT LOWER(email) AS email, preferred_language
+    FROM users
+    WHERE LOWER(email) = ANY(${emailSet.map((e) => e.toLowerCase())})
+      AND preferred_language IS NOT NULL
+      AND preferred_language != 'en'
+  ` as Array<{ email: string; preferred_language: string }>;
+
+  const langByEmail = new Map(langRows.map((r) => [r.email, r.preferred_language]));
+
+  // Group recipients: "en" (default) vs each non-English language.
+  const groups = new Map<string, string[]>(); // lang -> emails
+  for (const email of emailSet) {
+    const lang = langByEmail.get(email.toLowerCase()) ?? "en";
+    if (!groups.has(lang)) groups.set(lang, []);
+    groups.get(lang)!.push(email);
+  }
+
+  // Pre-translate for each non-English language (in parallel).
+  const nonEnglishLangs = [...groups.keys()].filter((l) => l !== "en");
+  const translations = new Map<string, { subject: string; html: string }>();
+
+  if (nonEnglishLangs.length > 0 && c.env.ANTHROPIC_API_KEY) {
+    await Promise.all(
+      nonEnglishLangs.map(async (lang) => {
+        const tSubject = await translateText(c.env.ANTHROPIC_API_KEY!, subject, langName(lang));
+        const tBody = await translateText(c.env.ANTHROPIC_API_KEY!, body, langName(lang));
+        translations.set(lang, {
+          subject: tSubject,
+          html: wrapBodyInTemplate(tSubject, tBody, lang),
+        });
+      }),
+    );
+  }
+
+  let sent = 0;
+
+  // Send English group via bulk endpoint (fast path).
+  const englishEmails = groups.get("en") ?? [];
+  if (englishEmails.length > 0) {
+    sent += await sendBulkEmail(
+      c.env.MAILERSEND_API_KEY,
+      englishEmails.map((e) => ({ email: e })),
+      subject,
+      html,
+    );
+  }
+
+  // Send each non-English group. Fall back to English if translation failed.
+  for (const [lang, langEmails] of groups) {
+    if (lang === "en") continue;
+    const t = translations.get(lang) ?? { subject, html };
+    sent += await sendBulkEmail(
+      c.env.MAILERSEND_API_KEY,
+      langEmails.map((e) => ({ email: e })),
+      t.subject,
+      t.html,
+    );
+  }
 
   await sql`
     INSERT INTO broadcast_sends (audience, broadcast_type, area_slug, subject, html, sent_count, sent_by)

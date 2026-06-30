@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { LifeBuoy, RefreshCw, X, Send, AlertTriangle, Ticket, UserCog, Activity, KeyRound, Link2, Search, Sparkles, Clock, CheckCircle2, Mail } from "lucide-react";
+import { LifeBuoy, RefreshCw, X, Send, AlertTriangle, Ticket, UserCog, Activity, KeyRound, Link2, Search, Sparkles, Clock, CheckCircle2, Mail, Languages } from "lucide-react";
 import { ContextPanel } from "./SecurityPage";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
@@ -235,6 +235,32 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
   const [emailStatus, setEmailStatus] = useState("Work In Progress");
   const [context, setContext] = useState<TicketContext | null>(null);
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [translations, setTranslations] = useState<Record<string, string>>({});
+  const [translating, setTranslating] = useState<Record<string, boolean>>({});
+  const [showTranslated, setShowTranslated] = useState<Record<string, boolean>>({});
+
+  async function handleTranslate(id: string, text: string) {
+    if (translations[id]) {
+      setShowTranslated((s) => ({ ...s, [id]: !s[id] }));
+      return;
+    }
+    setTranslating((s) => ({ ...s, [id]: true }));
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API}/admin/email/translate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text }),
+      });
+      const data = (await res.json()) as { translated?: string };
+      if (data.translated) {
+        setTranslations((s) => ({ ...s, [id]: data.translated! }));
+        setShowTranslated((s) => ({ ...s, [id]: true }));
+      }
+    } finally {
+      setTranslating((s) => ({ ...s, [id]: false }));
+    }
+  }
 
   const load = useCallback(async () => {
     const token = await getToken();
@@ -494,17 +520,42 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
                         <p className="text-slate-400">Source: {ticket.source.replace("_", " ")}</p>
                       </div>
                     </div>
-                    {comments.map((cm) => (
-                      <div key={cm.id} className={`flex gap-2 text-xs ${isSystemComment(cm.body) ? "opacity-80" : ""}`}>
-                        <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${isSystemComment(cm.body) ? "bg-blue-100 text-blue-600" : cm.is_admin ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
-                          {isSystemComment(cm.body) ? <Mail className="h-3 w-3" /> : <Send className="h-3 w-3" />}
+                    {comments.map((cm) => {
+                      const canTranslate = !isSystemComment(cm.body) && !cm.is_admin;
+                      const translated = translations[cm.id];
+                      const showing = showTranslated[cm.id];
+                      return (
+                        <div key={cm.id} className={`flex gap-2 text-xs ${isSystemComment(cm.body) ? "opacity-80" : ""}`}>
+                          <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${isSystemComment(cm.body) ? "bg-blue-100 text-blue-600" : cm.is_admin ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
+                            {isSystemComment(cm.body) ? <Mail className="h-3 w-3" /> : <Send className="h-3 w-3" />}
+                          </div>
+                          <div className={`flex-1 rounded-lg p-2 ${isSystemComment(cm.body) ? "bg-blue-50/50" : cm.is_admin ? "bg-amber-50" : "bg-slate-50"}`}>
+                            <div className="flex items-center gap-1">
+                              <p className="flex-1 text-slate-400">{cm.author_email ?? "system"} · {new Date(cm.created_at).toLocaleString()}</p>
+                              {canTranslate && (
+                                <button
+                                  onClick={() => handleTranslate(cm.id, cm.body)}
+                                  disabled={translating[cm.id]}
+                                  className="flex items-center gap-1 rounded px-1 py-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-600 disabled:opacity-50"
+                                  title={showing ? "Show original" : "Translate to English"}
+                                >
+                                  <Languages className="h-3 w-3" />
+                                  {translating[cm.id] ? "…" : showing ? "Original" : "Translate"}
+                                </button>
+                              )}
+                            </div>
+                            {showing && translated ? (
+                              <div>
+                                <p className="mt-0.5 whitespace-pre-wrap text-slate-700">{translated}</p>
+                                <p className="mt-1 border-t border-slate-200 pt-1 italic text-slate-400">Original: {cm.body}</p>
+                              </div>
+                            ) : (
+                              <p className="mt-0.5 whitespace-pre-wrap text-slate-700">{cm.body}</p>
+                            )}
+                          </div>
                         </div>
-                        <div className={`flex-1 rounded-lg p-2 ${isSystemComment(cm.body) ? "bg-blue-50/50" : cm.is_admin ? "bg-amber-50" : "bg-slate-50"}`}>
-                          <p className="text-slate-400">{cm.author_email ?? "system"} · {new Date(cm.created_at).toLocaleString()}</p>
-                          <p className="mt-0.5 whitespace-pre-wrap text-slate-700">{cm.body}</p>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     {comments.length === 0 && <p className="text-xs text-slate-400">No activity yet.</p>}
                   </div>
                   <div className="mt-3 flex gap-2">

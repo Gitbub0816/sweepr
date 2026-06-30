@@ -50,6 +50,7 @@ export interface Env {
   MAILERSEND_SECURITY_INBOUND_SECRET?: string;
   // MailerSend outbound event webhook signing secret.
   MAILERSEND_WEBHOOK_SECRET?: string;
+  ANTHROPIC_API_KEY?: string;
 }
 
 export interface AuthUser {

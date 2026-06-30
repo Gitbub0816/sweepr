@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { ShieldAlert, RefreshCw, Send, User, Mail, History, Link2, Sparkles, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { ShieldAlert, RefreshCw, Send, User, Mail, History, Link2, Sparkles, CheckCircle2, Clock, AlertCircle, Languages } from "lucide-react";
 import { DashboardShell, Card, Button, Badge, Select, Input, Textarea, EmptyState, toast } from "@sweepr/ui";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
@@ -54,11 +54,32 @@ export function SecurityPage() {
   const [replyStatus, setReplyStatus] = useState("Awaiting Response");
   const [replyClass, setReplyClass] = useState("");
   const [sending, setSending] = useState(false);
+  const [translations, setTranslations] = useState<Record<string, string>>({});
+  const [translating, setTranslating] = useState<Record<string, boolean>>({});
+  const [showTranslated, setShowTranslated] = useState<Record<string, boolean>>({});
 
   const authed = useCallback(async (path: string, init?: RequestInit) => {
     const token = await getToken();
     return fetch(`${API}${path}`, { ...init, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(init?.headers ?? {}) } });
   }, [getToken]);
+
+  async function handleTranslate(msgId: string, text: string) {
+    if (translations[msgId]) {
+      setShowTranslated((s) => ({ ...s, [msgId]: !s[msgId] }));
+      return;
+    }
+    setTranslating((s) => ({ ...s, [msgId]: true }));
+    try {
+      const res = await authed("/admin/email/translate", { method: "POST", body: JSON.stringify({ text }) });
+      const data = (await res.json()) as { translated?: string };
+      if (data.translated) {
+        setTranslations((s) => ({ ...s, [msgId]: data.translated! }));
+        setShowTranslated((s) => ({ ...s, [msgId]: true }));
+      }
+    } finally {
+      setTranslating((s) => ({ ...s, [msgId]: false }));
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -205,6 +226,9 @@ export function SecurityPage() {
                   {messages.map((m) => {
                     const isInbound = m.direction === "inbound";
                     const isAutoReply = m.direction === "auto_reply";
+                    const body = m.body ?? "";
+                    const translated = translations[m.id];
+                    const showing = showTranslated[m.id];
                     return (
                       <div key={m.id} className={`rounded-xl border p-3 text-sm ${
                         isInbound ? "border-slate-200 dark:border-slate-700"
@@ -217,8 +241,26 @@ export function SecurityPage() {
                           <span>·</span>
                           <span>{new Date(m.created_at).toLocaleString()}</span>
                           {m.delivery_status && <span className="rounded-full bg-slate-100 px-1.5">{m.delivery_status}</span>}
+                          {body && (
+                            <button
+                              onClick={() => handleTranslate(m.id, body)}
+                              disabled={translating[m.id]}
+                              className="ml-auto flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50 dark:hover:bg-slate-700"
+                              title={showing ? "Show original" : "Translate to English"}
+                            >
+                              <Languages className="h-3 w-3" />
+                              {translating[m.id] ? "Translating…" : showing ? "Original" : "Translate"}
+                            </button>
+                          )}
                         </div>
-                        <p className="whitespace-pre-wrap break-words text-slate-700 dark:text-slate-200">{m.body}</p>
+                        {showing && translated ? (
+                          <div>
+                            <p className="whitespace-pre-wrap break-words text-slate-700 dark:text-slate-200">{translated}</p>
+                            <p className="mt-2 border-t border-slate-100 pt-2 text-xs italic text-slate-400 dark:border-slate-700">Original: {body}</p>
+                          </div>
+                        ) : (
+                          <p className="whitespace-pre-wrap break-words text-slate-700 dark:text-slate-200">{body}</p>
+                        )}
                       </div>
                     );
                   })}
