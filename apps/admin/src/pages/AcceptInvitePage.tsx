@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useSignIn, useSignUp, useAuth } from "@clerk/clerk-react";
+import { Loader2, ArrowRight } from "lucide-react";
+import { SweeprLogo } from "@sweepr/ui";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
-type Stage = "loading" | "invalid" | "auth" | "accepting" | "done" | "error";
+type Stage = "loading" | "invalid" | "send_code" | "enter_code" | "accepting" | "done" | "error";
 
 export function AcceptInvitePage() {
   const [params] = useSearchParams();
@@ -13,16 +15,15 @@ export function AcceptInvitePage() {
 
   const [stage, setStage] = useState<Stage>("loading");
   const [inviteEmail, setInviteEmail] = useState("");
+  const [code, setCode] = useState("");
   const [errMsg, setErrMsg] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // Auth form state
-  const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-up");
-  const [password, setPassword] = useState("");
-  const [verifyCode, setVerifyCode] = useState("");
-  const [needsCode, setNeedsCode] = useState(false);
+  // Track whether we're doing a sign-up or sign-in flow
+  const [flow, setFlow] = useState<"sign-up" | "sign-in" | null>(null);
 
-  const { signIn, setActive: setSignInActive } = useSignIn();
-  const { signUp, setActive: setSignUpActive } = useSignUp();
+  const { signIn, setActive: setSignInActive, isLoaded: signInLoaded } = useSignIn();
+  const { signUp, setActive: setSignUpActive, isLoaded: signUpLoaded } = useSignUp();
   const { isSignedIn, getToken } = useAuth();
 
   // Step 1 — verify token
@@ -31,183 +32,225 @@ export function AcceptInvitePage() {
     fetch(`${API}/admin/invites/verify?token=${encodeURIComponent(token)}`)
       .then((r) => r.json())
       .then((d: { valid: boolean; email?: string; error?: string }) => {
-        if (!d.valid) { setErrMsg(d.error ?? "Invalid token"); setStage("invalid"); return; }
+        if (!d.valid) { setErrMsg(d.error ?? "Invalid or expired invite link."); setStage("invalid"); return; }
         setInviteEmail(d.email ?? "");
-        if (isSignedIn) {
-          setStage("accepting");
-        } else {
-          setStage("auth");
-        }
+        setStage(isSignedIn ? "accepting" : "send_code");
       })
-      .catch(() => { setErrMsg("Network error"); setStage("invalid"); });
+      .catch(() => { setErrMsg("Network error verifying invite."); setStage("invalid"); });
   }, [token, isSignedIn]);
 
   // Step 3 — accept once signed in
   useEffect(() => {
     if (stage !== "accepting") return;
     (async () => {
-      const bearer = await getToken();
-      const resp = await fetch(`${API}/admin/invites/accept`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${bearer}` },
-        body: JSON.stringify({ token }),
-      });
-      if (resp.ok) {
-        setStage("done");
-        setTimeout(() => navigate("/"), 2000);
-      } else {
-        const d = await resp.json() as { error?: string };
-        setErrMsg(d.error ?? "Failed to accept invite");
+      try {
+        const bearer = await getToken();
+        const resp = await fetch(`${API}/admin/invites/accept`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${bearer}` },
+          body: JSON.stringify({ token }),
+        });
+        if (resp.ok) {
+          setStage("done");
+          setTimeout(() => navigate("/"), 2000);
+        } else {
+          const d = await resp.json() as { error?: string };
+          setErrMsg(d.error ?? "Failed to activate your admin account.");
+          setStage("error");
+        }
+      } catch {
+        setErrMsg("Network error while activating account.");
         setStage("error");
       }
     })();
   }, [stage, token, getToken, navigate]);
 
-  // Auth submit
-  async function handleAuth(e: React.FormEvent) {
+  async function sendCode(e: React.FormEvent) {
     e.preventDefault();
+    if (!signInLoaded || !signUpLoaded) return;
+    setLoading(true);
+    setErrMsg("");
     try {
-      if (mode === "sign-up" && signUp) {
-        const res = await signUp.create({ emailAddress: inviteEmail, password });
-        if (res.status === "missing_requirements") {
-          await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
-          setNeedsCode(true);
-          return;
-        }
+      // Try sign-up first (new user path).
+      const su = await signUp!.create({ emailAddress: inviteEmail });
+      if (su.status === "missing_requirements") {
+        await signUp!.prepareEmailAddressVerification({ strategy: "email_code" });
+        setFlow("sign-up");
+        setStage("enter_code");
+        return;
+      }
+      // Already complete (shouldn't normally happen on first code send).
+      if (su.status === "complete") {
+        await setSignUpActive!({ session: su.createdSessionId });
+        setStage("accepting");
+        return;
+      }
+    } catch {
+      // User already exists — fall through to sign-in.
+    }
+
+    try {
+      // Sign-in path (existing Clerk user).
+      await signIn!.create({ identifier: inviteEmail });
+      const emailFactor = signIn!.supportedFirstFactors?.find((f) => f.strategy === "email_code");
+      if (!emailFactor) {
+        setErrMsg("Email code sign-in is not enabled. Contact your administrator.");
+        setLoading(false);
+        return;
+      }
+      await signIn!.prepareFirstFactor({
+        strategy: "email_code",
+        emailAddressId: (emailFactor as { emailAddressId: string }).emailAddressId,
+      });
+      setFlow("sign-in");
+      setStage("enter_code");
+    } catch (err: unknown) {
+      setErrMsg(
+        (err as { errors?: { message: string }[] })?.errors?.[0]?.message ??
+          "Could not send code. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function verifyCode(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setErrMsg("");
+    try {
+      if (flow === "sign-up") {
+        const res = await signUp!.attemptEmailAddressVerification({ code });
         if (res.status === "complete") {
           await setSignUpActive!({ session: res.createdSessionId });
           setStage("accepting");
         }
-      } else if (mode === "sign-in" && signIn) {
-        const res = await signIn.create({ identifier: inviteEmail, password });
+      } else {
+        const res = await signIn!.attemptFirstFactor({ strategy: "email_code", code });
         if (res.status === "complete") {
           await setSignInActive!({ session: res.createdSessionId });
           setStage("accepting");
         }
       }
     } catch (err: unknown) {
-      setErrMsg((err as { errors?: Array<{ message: string }> })?.errors?.[0]?.message ?? "Auth failed");
-    }
-  }
-
-  async function handleVerifyCode(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-      const res = await signUp!.attemptEmailAddressVerification({ code: verifyCode });
-      if (res.status === "complete") {
-        await setSignUpActive!({ session: res.createdSessionId });
-        setStage("accepting");
-      }
-    } catch (err: unknown) {
-      setErrMsg((err as { errors?: Array<{ message: string }> })?.errors?.[0]?.message ?? "Invalid code");
+      setErrMsg(
+        (err as { errors?: { message: string }[] })?.errors?.[0]?.message ??
+          "Invalid code. Please try again."
+      );
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Sweepr Admin</h1>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-seafoam-50 via-offwhite to-seafoam-100 px-4 py-12 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      <div className="mb-8 flex flex-col items-center text-center">
+        <SweeprLogo size="md" />
+        <p className="mt-1 text-sm font-semibold uppercase tracking-wide text-seafoam-600 dark:text-seafoam-400">Ops Console</p>
+        <h1 className="mt-4 text-2xl font-bold text-charcoal dark:text-white">
+          {stage === "enter_code" ? "Check your email" : "Admin Invitation"}
+        </h1>
+        <p className="mt-1 text-sm text-slate-500">
+          {stage === "enter_code"
+            ? `We sent a 6-digit code to ${inviteEmail}`
+            : stage === "send_code"
+              ? "You've been invited to join as an admin"
+              : ""}
+        </p>
+      </div>
 
+      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-xl dark:border-slate-700 dark:bg-slate-900">
         {stage === "loading" && (
-          <p className="text-gray-500 mt-4">Verifying your invitation…</p>
-        )}
-
-        {stage === "invalid" && (
-          <div className="mt-4">
-            <p className="text-red-600 font-medium">This invite link is invalid or has expired.</p>
-            {errMsg && <p className="text-sm text-gray-500 mt-1">{errMsg}</p>}
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-seafoam-500" />
           </div>
         )}
 
-        {stage === "auth" && (
-          <>
-            <p className="text-gray-500 mb-6">
-              You've been invited to join as an admin.{" "}
-              {mode === "sign-up" ? "Create your account" : "Sign in"} to continue.
-            </p>
+        {stage === "invalid" && (
+          <div className="py-4 text-center">
+            <p className="font-semibold text-red-600 dark:text-red-400">Invite invalid or expired</p>
+            {errMsg && <p className="mt-1 text-sm text-slate-500">{errMsg}</p>}
+          </div>
+        )}
 
+        {stage === "send_code" && (
+          <form onSubmit={(e) => void sendCode(e)} className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-charcoal dark:text-white">Email address</label>
+              <input
+                type="email"
+                value={inviteEmail}
+                readOnly
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400"
+              />
+            </div>
             {errMsg && (
-              <p className="mb-4 text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{errMsg}</p>
+              <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">{errMsg}</p>
             )}
+            <button
+              type="submit"
+              disabled={loading || !signInLoaded || !signUpLoaded}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-seafoam-500 py-3 text-sm font-semibold text-white shadow-md shadow-seafoam-500/30 transition hover:bg-seafoam-600 disabled:opacity-60"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+              {loading ? "Sending…" : "Send sign-in code"}
+            </button>
+          </form>
+        )}
 
-            {!needsCode ? (
-              <form onSubmit={handleAuth} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={inviteEmail}
-                    readOnly
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 text-gray-500 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="w-full bg-teal-600 text-white rounded-lg py-2 font-medium hover:bg-teal-700 transition"
-                >
-                  {mode === "sign-up" ? "Create account" : "Sign in"}
-                </button>
-                <p className="text-center text-sm text-gray-500">
-                  {mode === "sign-up" ? "Already have an account?" : "Don't have an account?"}{" "}
-                  <button
-                    type="button"
-                    className="text-teal-600 hover:underline"
-                    onClick={() => { setMode(mode === "sign-up" ? "sign-in" : "sign-up"); setErrMsg(""); }}
-                  >
-                    {mode === "sign-up" ? "Sign in" : "Create one"}
-                  </button>
-                </p>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifyCode} className="space-y-4">
-                <p className="text-sm text-gray-600">
-                  We sent a verification code to <strong>{inviteEmail}</strong>. Enter it below.
-                </p>
-                <input
-                  type="text"
-                  value={verifyCode}
-                  onChange={(e) => setVerifyCode(e.target.value)}
-                  placeholder="6-digit code"
-                  maxLength={6}
-                  required
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-center text-2xl tracking-widest focus:outline-none focus:ring-2 focus:ring-teal-500"
-                />
-                <button
-                  type="submit"
-                  className="w-full bg-teal-600 text-white rounded-lg py-2 font-medium hover:bg-teal-700 transition"
-                >
-                  Verify
-                </button>
-              </form>
+        {stage === "enter_code" && (
+          <form onSubmit={(e) => void verifyCode(e)} className="space-y-4">
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              required
+              autoFocus
+              maxLength={6}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-2xl tracking-[0.5em] text-charcoal outline-none transition focus:border-seafoam-400 focus:ring-2 focus:ring-seafoam-400/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+              placeholder="······"
+            />
+            {errMsg && (
+              <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">{errMsg}</p>
             )}
-          </>
+            <button
+              type="submit"
+              disabled={loading || code.length < 6}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-seafoam-500 py-3 text-sm font-semibold text-white shadow-md shadow-seafoam-500/30 transition hover:bg-seafoam-600 disabled:opacity-60"
+            >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {loading ? "Verifying…" : "Activate account"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setStage("send_code"); setCode(""); setErrMsg(""); }}
+              className="w-full text-center text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+            >
+              ← Resend code
+            </button>
+          </form>
         )}
 
         {stage === "accepting" && (
-          <p className="text-gray-500 mt-4">Activating your admin account…</p>
+          <div className="flex items-center justify-center gap-3 py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-seafoam-500" />
+            <p className="text-sm text-slate-500">Activating your admin account…</p>
+          </div>
         )}
 
         {stage === "done" && (
-          <div className="mt-4 text-center">
-            <p className="text-teal-700 font-semibold text-lg">You're in!</p>
-            <p className="text-gray-500 text-sm mt-1">Redirecting to the dashboard…</p>
+          <div className="py-4 text-center">
+            <p className="text-lg font-semibold text-seafoam-700 dark:text-seafoam-300">You're in!</p>
+            <p className="mt-1 text-sm text-slate-500">Redirecting to the dashboard…</p>
           </div>
         )}
 
         {stage === "error" && (
-          <div className="mt-4">
-            <p className="text-red-600 font-medium">Something went wrong.</p>
-            <p className="text-sm text-gray-500 mt-1">{errMsg}</p>
+          <div className="py-4 text-center">
+            <p className="font-semibold text-red-600 dark:text-red-400">Something went wrong</p>
+            <p className="mt-1 text-sm text-slate-500">{errMsg}</p>
           </div>
         )}
       </div>
