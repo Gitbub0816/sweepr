@@ -1,8 +1,11 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, CalendarClock, Repeat, Sparkles, Home as HomeIcon, Truck } from "lucide-react";
+import { ArrowRight, CalendarClock, Repeat, Sparkles, Home as HomeIcon, Truck, RotateCcw } from "lucide-react";
 import { StatusBadge } from "@sweepr/ui";
 import { formatCurrency, formatDateTime, SERVICE_LABELS } from "@sweepr/utils";
 import { useBookings } from "../data/bookings";
+import { useBookingStore } from "../store/booking";
+
+const DRAFT_TTL_MS = 48 * 60 * 60 * 1000;
 
 const suggested = [
   { type: "standard" as const, icon: HomeIcon },
@@ -20,6 +23,13 @@ function greeting(): string {
 
 export function Home() {
   const { bookings } = useBookings();
+  const draft = useBookingStore();
+  const hasDraft =
+    !!draft.serviceType &&
+    !draft.bookingId &&
+    !!draft.draftSavedAt &&
+    Date.now() - new Date(draft.draftSavedAt).getTime() < DRAFT_TTL_MS;
+
   const upcoming = bookings.find((b) =>
     ["confirmed", "booked", "cleaner_on_the_way", "in_progress", "cleaner_accepted", "arrived"].includes(b.status)
   );
@@ -31,6 +41,27 @@ export function Home() {
         {greeting()}! 👋
       </h1>
       <p className="mt-1 text-slate-500">Ready for a spotless home?</p>
+
+      {/* Resume in-progress booking draft */}
+      {hasDraft && (
+        <Link
+          to="/book/service"
+          className="mt-6 flex items-center gap-4 rounded-3xl border-2 border-seafoam-400 bg-seafoam-50 px-5 py-4 shadow-sm transition hover:bg-seafoam-100 dark:bg-seafoam-900/20 dark:border-seafoam-600 dark:hover:bg-seafoam-900/30"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-seafoam-500 text-white flex-shrink-0">
+            <RotateCcw className="h-5 w-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-black text-seafoam-800 dark:text-seafoam-200">
+              Pick up where you left off
+            </p>
+            <p className="text-xs text-seafoam-600 dark:text-seafoam-400 truncate">
+              {SERVICE_LABELS[draft.serviceType!]} · saved draft
+            </p>
+          </div>
+          <ArrowRight className="h-5 w-5 text-seafoam-500 flex-shrink-0" />
+        </Link>
+      )}
 
       {/* Upcoming booking */}
       {upcoming && (

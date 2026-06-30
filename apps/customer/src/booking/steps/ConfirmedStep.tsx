@@ -96,13 +96,16 @@ export function ConfirmedStep() {
           </p>
         )}
 
-        <div className="mt-8 flex justify-center gap-3">
+        <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+          <Button onClick={() => { reset(); navigate("/"); }}>
+            Go to dashboard
+          </Button>
           {bookingId ? (
             <Link to={`/bookings/${bookingId}`}>
-              <Button onClick={reset}>View booking details</Button>
+              <Button variant="secondary" onClick={reset}>View booking details</Button>
             </Link>
           ) : (
-            <Button onClick={() => { reset(); navigate("/bookings"); }}>
+            <Button variant="secondary" onClick={() => { reset(); navigate("/bookings"); }}>
               View my bookings
             </Button>
           )}

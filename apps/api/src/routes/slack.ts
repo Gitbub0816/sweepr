@@ -63,13 +63,14 @@ import type { AppBindings } from "../types";
 export const slackRouter = new Hono<AppBindings>();
 
 // Role → which channel purposes that role can access.
-// Empty array for super_admin = allow all (checked separately).
+// super_admin/owner = all channels (handled by isSuperAdmin check).
 const PURPOSE_FOR_ROLE: Record<string, string[]> = {
-  super_admin: [],
+  super_admin: ["admin", "approvals", "operations", "finance", "it", "training", "security"],
   it: ["it", "admin"],
   trainer: ["training", "admin"],
   ops: ["operations", "admin"],
   finance: ["finance", "admin"],
+  support: ["admin"],
   admin: ["admin"],
 };
 
@@ -583,12 +584,12 @@ slackRouter.get("/workspace/my-channels", ...wsGate, async (c) => {
     ORDER BY purpose
   `) as Array<{ channel_id: string; channel_name: string | null; purpose: string; is_private: boolean }>;
 
-  const allowed = isSuperAdmin
-    ? allChannels
-    : allChannels.filter((ch) => {
-        const purposes = PURPOSE_FOR_ROLE[role] ?? ["admin"];
-        return purposes.includes(ch.purpose);
-      });
+  // The embedded Slack tab uses the bot token as its backbone — the bot has
+  // super_admin-level access to all provisioned channels. Every admin can
+  // message/read any channel through the bot regardless of their role.
+  // (Personal Slack account scope still respects role restrictions in the
+  // native Slack app.)
+  const allowed = allChannels;
 
   return c.json({
     channels: allowed.map((ch) => ({
@@ -806,6 +807,14 @@ slackRouter.post("/admin/provision-defaults", requireAuth, requireAdminRole("sup
       VALUES (${wsId}, ${channelId}, ${spec.name}, ${spec.purpose}, ${spec.private})
       ON CONFLICT (workspace_id, channel_id) DO UPDATE SET purpose = EXCLUDED.purpose, channel_name = EXCLUDED.channel_name
     `;
+
+    // Ensure the bot is a member of every provisioned channel so it can read
+    // history and send messages via the embedded Slack tab.
+    const botUserId = ws.bot_user_id as string | undefined;
+    if (botUserId && spec.private) {
+      // For private channels the bot may not have joined automatically.
+      await inviteUsers(token, channelId, [botUserId]).catch(() => null);
+    }
 
     // Determine members to invite.
     const eligible = admins.filter((a) =>

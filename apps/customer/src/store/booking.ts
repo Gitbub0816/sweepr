@@ -27,6 +27,8 @@ export interface BookingState {
   rebookedFromDate: string | null;
   /** DB booking ID after the booking is created in the API. */
   bookingId: string | null;
+  /** ISO timestamp of last meaningful draft change; used to expire drafts after 48 h. */
+  draftSavedAt: string | null;
 
   setAddress: (address: Address) => void;
   setTimeWindow: (window: "morning" | "afternoon" | "evening" | null) => void;
@@ -76,8 +78,9 @@ export const useBookingStore = create<BookingState>()(
   isRebook: false,
   rebookedFromDate: null,
   bookingId: null,
+  draftSavedAt: null,
 
-  setAddress: (address) => set({ address }),
+  setAddress: (address) => set({ address, draftSavedAt: new Date().toISOString() }),
   setTimeWindow: (timeWindow) => set({ timeWindow }),
   setSubscription: (isSubscription, cadence = null) =>
     set({
@@ -98,8 +101,8 @@ export const useBookingStore = create<BookingState>()(
       isRebook: true,
       rebookedFromDate: prev.scheduledFor,
     }),
-  setHome: (home) => set((s) => ({ home: { ...s.home, ...home } })),
-  setService: (serviceType) => set({ serviceType }),
+  setHome: (home) => set((s) => ({ home: { ...s.home, ...home }, draftSavedAt: new Date().toISOString() })),
+  setService: (serviceType) => set({ serviceType, draftSavedAt: new Date().toISOString() }),
   toggleAddOn: (key) =>
     set((s) => ({
       addOnKeys: s.addOnKeys.includes(key)
@@ -122,7 +125,7 @@ export const useBookingStore = create<BookingState>()(
     });
   },
   setNotes: (notes) => set({ notes }),
-  setBookingId: (bookingId) => set({ bookingId }),
+  setBookingId: (bookingId) => set({ bookingId, draftSavedAt: null }),
   confirmPayment: () => set({ paymentConfirmed: true }),
   reset: () =>
     set({
@@ -142,6 +145,7 @@ export const useBookingStore = create<BookingState>()(
       isRebook: false,
       rebookedFromDate: null,
       bookingId: null,
+      draftSavedAt: null,
     }),
 
   getQuote: () => {
@@ -167,6 +171,7 @@ export const useBookingStore = create<BookingState>()(
         subscriptionCadence: s.subscriptionCadence,
         isEmergency: s.isEmergency,
         notes: s.notes,
+        draftSavedAt: s.draftSavedAt,
       }),
     }
   )
