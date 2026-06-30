@@ -70,40 +70,37 @@ export function AcceptInvitePage() {
     if (!signInLoaded || !signUpLoaded) return;
     setLoading(true);
     setErrMsg("");
+
+    // Try sign-in first (existing Clerk account). If the account doesn't exist
+    // yet, Clerk returns a "couldn't find your account" error and we fall through
+    // to sign-up, which is the right path for a brand-new invited admin.
     try {
-      // Try sign-up first (new user path).
+      await signIn!.create({ identifier: inviteEmail });
+      const emailFactor = signIn!.supportedFirstFactors?.find((f) => f.strategy === "email_code");
+      if (emailFactor) {
+        await signIn!.prepareFirstFactor({
+          strategy: "email_code",
+          emailAddressId: (emailFactor as { emailAddressId: string }).emailAddressId,
+        });
+        setFlow("sign-in");
+        setStage("enter_code");
+        setLoading(false);
+        return;
+      }
+    } catch {
+      // Account doesn't exist yet — fall through to sign-up.
+    }
+
+    try {
       const su = await signUp!.create({ emailAddress: inviteEmail });
       if (su.status === "missing_requirements") {
         await signUp!.prepareEmailAddressVerification({ strategy: "email_code" });
         setFlow("sign-up");
         setStage("enter_code");
-        return;
-      }
-      // Already complete (shouldn't normally happen on first code send).
-      if (su.status === "complete") {
+      } else if (su.status === "complete") {
         await setSignUpActive!({ session: su.createdSessionId });
         setStage("accepting");
-        return;
       }
-    } catch {
-      // User already exists — fall through to sign-in.
-    }
-
-    try {
-      // Sign-in path (existing Clerk user).
-      await signIn!.create({ identifier: inviteEmail });
-      const emailFactor = signIn!.supportedFirstFactors?.find((f) => f.strategy === "email_code");
-      if (!emailFactor) {
-        setErrMsg("Email code sign-in is not enabled. Contact your administrator.");
-        setLoading(false);
-        return;
-      }
-      await signIn!.prepareFirstFactor({
-        strategy: "email_code",
-        emailAddressId: (emailFactor as { emailAddressId: string }).emailAddressId,
-      });
-      setFlow("sign-in");
-      setStage("enter_code");
     } catch (err: unknown) {
       setErrMsg(
         (err as { errors?: { message: string }[] })?.errors?.[0]?.message ??
@@ -184,6 +181,8 @@ export function AcceptInvitePage() {
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400"
               />
             </div>
+            {/* Required by Clerk bot-protection for custom sign-up flows */}
+            <div id="clerk-captcha" />
             {errMsg && (
               <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">{errMsg}</p>
             )}
