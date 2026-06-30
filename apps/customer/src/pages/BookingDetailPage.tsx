@@ -11,6 +11,7 @@ import {
   Button,
   Modal,
   Textarea,
+  toast,
 } from "@sweepr/ui";
 import {
   SERVICE_LABELS,
@@ -34,30 +35,68 @@ const REVIEW_TAGS = [
   "Friendly",
 ];
 
+const TAG_MAP: Record<string, "on_time" | "thorough" | "communication" | "spotless" | "friendly"> = {
+  "Arrived on time": "on_time",
+  "Very thorough": "thorough",
+  "Great communication": "communication",
+  "Left home spotless": "spotless",
+  "Friendly": "friendly",
+};
+
 function ReviewModal({
   open,
   onOpenChange,
   cleanerName,
+  bookingId,
+  cleanerId,
+  getToken,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   cleanerName: string;
+  bookingId: string;
+  cleanerId: string | undefined;
+  getToken: () => Promise<string | null>;
 }) {
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [tags, setTags] = useState<string[]>([]);
   const [comment, setComment] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const toggleTag = (t: string) =>
     setTags((prev) =>
       prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]
     );
 
-  const submit = () => {
-    // POST /api/reviews would go here.
-    setSubmitted(true);
-    setTimeout(() => onOpenChange(false), 1200);
+  const submit = async () => {
+    if (!cleanerId) { toast.error("No cleaner assigned to this booking."); return; }
+    setSubmitting(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API}/reviews`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          bookingId,
+          cleanerId,
+          rating,
+          comment: comment.trim() || undefined,
+          tags: tags.map((t) => TAG_MAP[t]).filter(Boolean),
+        }),
+      });
+      if (!res.ok) throw new Error();
+      setSubmitted(true);
+      setTimeout(() => onOpenChange(false), 1200);
+    } catch {
+      toast.error("Couldn't submit your review. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -68,8 +107,8 @@ function ReviewModal({
       description={submitted ? undefined : `How did ${cleanerName} do?`}
       footer={
         submitted ? undefined : (
-          <Button onClick={submit} disabled={rating === 0} className="w-full">
-            Submit review
+          <Button onClick={submit} disabled={rating === 0 || submitting} className="w-full">
+            {submitting ? "Submitting…" : "Submit review"}
           </Button>
         )
       }
@@ -375,6 +414,9 @@ export function BookingDetailPage() {
         open={reviewOpen}
         onOpenChange={setReviewOpen}
         cleanerName="your cleaner"
+        bookingId={booking.id}
+        cleanerId={booking.cleanerId}
+        getToken={getToken}
       />
     </DashboardShell>
   );

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "@clerk/clerk-react";
 import {
   DashboardShell,
   Button,
@@ -10,55 +11,105 @@ import {
 import { Zap } from "lucide-react";
 import { cn } from "@sweepr/utils";
 
-// Day-of-week helper: build the next date matching a weekday for display.
+const API = import.meta.env.VITE_API_URL ?? "";
+
 function nextDateForDay(dow: number): Date {
   const d = new Date();
   while (d.getDay() !== dow) d.setDate(d.getDate() + 1);
   return d;
 }
 
-const initialSlots: CalendarSlot[] = [
-  {
-    id: "r-mon",
-    date: nextDateForDay(1),
-    startTime: "08:00",
-    endTime: "16:00",
-    type: "recurring",
-  },
-  {
-    id: "r-wed",
-    date: nextDateForDay(3),
-    startTime: "08:00",
-    endTime: "16:00",
-    type: "recurring",
-  },
-  {
-    id: "b-1",
-    date: nextDateForDay(5),
-    startTime: "10:00",
-    endTime: "13:00",
-    type: "booked",
-    label: "Deep clean — confirmed",
-  },
-];
+interface ApiSlot {
+  id: string;
+  slot_type: "recurring" | "flexible" | "available_now";
+  day_of_week: number | null;
+  start_time: string | null;
+  end_time: string | null;
+  specific_date: string | null;
+}
+
+function apiSlotToCalendar(s: ApiSlot): CalendarSlot | null {
+  if (s.slot_type === "available_now") return null;
+  const date =
+    s.slot_type === "flexible" && s.specific_date
+      ? new Date(s.specific_date + "T00:00:00")
+      : s.day_of_week != null
+        ? nextDateForDay(s.day_of_week)
+        : null;
+  if (!date) return null;
+  return {
+    id: s.id,
+    date,
+    startTime: s.start_time ?? "08:00",
+    endTime: s.end_time ?? "17:00",
+    type: s.slot_type === "recurring" ? "recurring" : "flexible",
+  };
+}
 
 export function SchedulePage() {
-  const [slots, setSlots] = useState<CalendarSlot[]>(initialSlots);
+  const { getToken } = useAuth();
+  const [slots, setSlots] = useState<CalendarSlot[]>([]);
   const [availableNow, setAvailableNow] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
 
-  const toggleAvailableNow = () => {
+  const load = useCallback(async () => {
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API}/schedule/me`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error();
+      const data = (await res.json()) as { slots: ApiSlot[]; availableNow: boolean };
+      setAvailableNow(data.availableNow);
+      setSlots(data.slots.map(apiSlotToCalendar).filter(Boolean) as CalendarSlot[]);
+    } catch {
+      toast.error("Couldn't load your schedule.");
+    }
+  }, [getToken]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function authFetch(path: string, method: string, body?: object) {
+    const token = await getToken();
+    const res = await fetch(`${API}/schedule/${path}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!res.ok) throw new Error();
+    return res.json();
+  }
+
+  const toggleAvailableNow = async () => {
     const next = !availableNow;
     setAvailableNow(next);
-    // POST /schedule/available-now { available: next }
-    toast.success(
-      next ? "You're available now — accepting same-day jobs" : "Available Now off"
-    );
+    try {
+      await authFetch("available-now", "POST", { available: next });
+      toast.success(next ? "You're available now — accepting same-day jobs" : "Available Now off");
+    } catch {
+      setAvailableNow(!next);
+      toast.error("Couldn't update availability.");
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     setSlots((s) => s.filter((x) => x.id !== id));
-    toast.success("Slot removed");
+    try {
+      await authFetch(`cleaner/${id}`, "DELETE");
+      toast.success("Slot removed");
+    } catch {
+      toast.error("Couldn't remove slot.");
+      load();
+    }
+  };
+
+  const addSlots = async (newSlots: Omit<CalendarSlot, "id">[]) => {
+    await load();
+    // Optimistic: already shown via load
+    toast.success(newSlots.length > 1 ? "Availability saved" : "Slot added");
   };
 
   return (
@@ -116,18 +167,19 @@ export function SchedulePage() {
       <SweeprCalendar
         mode="cleaner-availability"
         slots={slots}
-        onSlotCreate={(date, startTime, endTime) => {
-          setSlots((s) => [
-            ...s,
-            {
-              id: crypto.randomUUID(),
-              date,
+        onSlotCreate={async (date, startTime, endTime) => {
+          try {
+            await authFetch("cleaner", "POST", {
+              slotType: "flexible",
+              specificDate: date.toISOString().slice(0, 10),
               startTime,
               endTime,
-              type: "flexible",
-            },
-          ]);
-          toast.success("Slot added");
+            });
+            await load();
+            toast.success("Slot added");
+          } catch {
+            toast.error("Couldn't add slot.");
+          }
         }}
         onSlotDelete={handleDelete}
       />
@@ -135,32 +187,39 @@ export function SchedulePage() {
       <AddSlotModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        onCreate={({ type, daysOfWeek, startTime, endTime, date }) => {
+        onCreate={async ({ type, daysOfWeek, startTime, endTime, date }) => {
           if (type === "available_now") {
             setAvailableNow(true);
-            toast.success("You're available now");
+            try {
+              await authFetch("available-now", "POST", { available: true });
+              toast.success("You're available now");
+            } catch {
+              setAvailableNow(false);
+              toast.error("Couldn't update availability.");
+            }
             return;
           }
-          const newSlots: CalendarSlot[] =
-            type === "recurring"
-              ? daysOfWeek.map((dow) => ({
-                  id: crypto.randomUUID(),
-                  date: nextDateForDay(dow),
-                  startTime,
-                  endTime,
-                  type: "recurring" as const,
-                }))
-              : [
-                  {
-                    id: crypto.randomUUID(),
-                    date: date ?? new Date(),
-                    startTime,
-                    endTime,
-                    type: "flexible" as const,
-                  },
-                ];
-          setSlots((s) => [...s, ...newSlots]);
-          toast.success("Availability saved");
+          try {
+            if (type === "recurring") {
+              await authFetch("cleaner", "POST", {
+                slotType: "recurring",
+                daysOfWeek,
+                startTime,
+                endTime,
+              });
+            } else {
+              await authFetch("cleaner", "POST", {
+                slotType: "flexible",
+                specificDate: (date ?? new Date()).toISOString().slice(0, 10),
+                startTime,
+                endTime,
+              });
+            }
+            await load();
+            addSlots([]);
+          } catch {
+            toast.error("Couldn't save availability.");
+          }
         }}
       />
     </DashboardShell>

@@ -15,6 +15,26 @@ scheduleRouter.use("*", requireAuth);
 // Cleaner schedule management
 // ---------------------------------------------------------------------------
 
+scheduleRouter.get("/me", async (c) => {
+  const { sql, cleanerId } = await currentCleanerId(c);
+  if (!cleanerId) return c.json({ slots: [], availableNow: false });
+  const rows = await sql`
+    SELECT id, cleaner_id, slot_type, day_of_week,
+           start_time::text AS start_time, end_time::text AS end_time,
+           specific_date::text AS specific_date, is_active
+    FROM cleaner_schedule
+    WHERE cleaner_id = ${cleanerId} AND is_active = true
+    ORDER BY day_of_week NULLS LAST, start_time
+  `;
+  const availableNow = (rows as Array<{ slot_type: string }>).some(
+    (r) => r.slot_type === "available_now"
+  );
+  return c.json({
+    slots: (rows as Array<{ slot_type: string }>).filter((r) => r.slot_type !== "available_now"),
+    availableNow,
+  });
+});
+
 scheduleRouter.get("/cleaner/:cleanerId", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const cleanerId = c.req.param("cleanerId");

@@ -1,36 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Repeat, Pause, Play, SkipForward, X, Sparkles } from "lucide-react";
+import { Repeat, Pause, Play, SkipForward, X, Sparkles, Loader2 } from "lucide-react";
 import { Card, Button, Badge, toast } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
+import { useAuth } from "@clerk/clerk-react";
 
-interface SubCard {
+const API = import.meta.env.VITE_API_URL ?? "";
+
+interface SubRow {
   id: string;
-  serviceType: string;
+  service_type: string;
   cadence: "weekly" | "biweekly" | "monthly";
-  nextDate: string;
-  pricePerVisit: number; // dollars
-  status: "active" | "paused";
+  display_price: number; // cents
+  status: "active" | "paused" | "cancelled";
+  next_cleaning_date: string | null;
 }
-
-const MOCK: SubCard[] = [
-  {
-    id: "sub_1",
-    serviceType: "Standard Clean",
-    cadence: "weekly",
-    nextDate: "2026-06-28",
-    pricePerVisit: 143,
-    status: "active",
-  },
-  {
-    id: "sub_2",
-    serviceType: "Deep Clean",
-    cadence: "monthly",
-    nextDate: "2026-07-10",
-    pricePerVisit: 219,
-    status: "paused",
-  },
-];
 
 const CADENCE_LABEL = {
   weekly: "Weekly",
@@ -39,11 +23,76 @@ const CADENCE_LABEL = {
 } as const;
 
 export function SubscriptionsPage() {
-  const [subs, setSubs] = useState<SubCard[]>(MOCK);
+  const { getToken } = useAuth();
+  const [subs, setSubs] = useState<SubRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const update = (id: string, status: "active" | "paused") => {
-    setSubs((s) => s.map((x) => (x.id === id ? { ...x, status } : x)));
-  };
+  const load = useCallback(async () => {
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API}/subscriptions`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error();
+      const data = (await res.json()) as { subscriptions: SubRow[] };
+      setSubs(data.subscriptions ?? []);
+    } catch {
+      toast.error("Couldn't load subscriptions.");
+    } finally {
+      setLoading(false);
+    }
+  }, [getToken]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function callApi(path: string, method = "PATCH") {
+    const token = await getToken();
+    const res = await fetch(`${API}/subscriptions/${path}`, {
+      method,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error();
+  }
+
+  async function pause(id: string) {
+    try {
+      await callApi(`${id}/pause`);
+      setSubs((s) => s.map((x) => (x.id === id ? { ...x, status: "paused" } : x)));
+      toast.success("Subscription paused");
+    } catch { toast.error("Couldn't pause subscription."); }
+  }
+
+  async function resume(id: string) {
+    try {
+      await callApi(`${id}/resume`);
+      setSubs((s) => s.map((x) => (x.id === id ? { ...x, status: "active" } : x)));
+      toast.success("Subscription resumed");
+    } catch { toast.error("Couldn't resume subscription."); }
+  }
+
+  async function skipNext(id: string) {
+    try {
+      await callApi(`${id}/skip-next`);
+      toast.success("Next cleaning skipped");
+      load();
+    } catch { toast.error("Couldn't skip cleaning."); }
+  }
+
+  async function cancel(id: string) {
+    try {
+      await callApi(id, "DELETE");
+      setSubs((s) => s.filter((x) => x.id !== id));
+      toast.success("Subscription cancelled");
+    } catch { toast.error("Couldn't cancel subscription."); }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-seafoam-500" />
+      </div>
+    );
+  }
 
   if (subs.length === 0) {
     return (
@@ -64,12 +113,8 @@ export function SubscriptionsPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="text-2xl font-bold text-charcoal dark:text-white">
-        Subscriptions
-      </h1>
-      <p className="mt-1 text-sm text-slate-500">
-        Manage your recurring cleans.
-      </p>
+      <h1 className="text-2xl font-bold text-charcoal dark:text-white">Subscriptions</h1>
+      <p className="mt-1 text-sm text-slate-500">Manage your recurring cleans.</p>
 
       <div className="mt-6 space-y-4">
         {subs.map((sub) => (
@@ -80,65 +125,43 @@ export function SubscriptionsPage() {
                   <Repeat className="h-5 w-5" />
                 </span>
                 <div>
-                  <p className="font-semibold text-charcoal dark:text-white">
-                    {sub.serviceType}
+                  <p className="font-semibold capitalize text-charcoal dark:text-white">
+                    {sub.service_type.replace(/_/g, " ")} Clean
                   </p>
                   <p className="text-sm text-slate-500">
-                    {CADENCE_LABEL[sub.cadence]} ·{" "}
-                    {formatCurrency(sub.pricePerVisit)}/visit
+                    {CADENCE_LABEL[sub.cadence]} · {formatCurrency(sub.display_price / 100)}/visit
                   </p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    Next cleaning:{" "}
-                    {new Date(sub.nextDate).toLocaleDateString("en-US", {
-                      weekday: "short",
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </p>
+                  {sub.next_cleaning_date && (
+                    <p className="mt-1 text-xs text-slate-400">
+                      Next cleaning:{" "}
+                      {new Date(sub.next_cleaning_date).toLocaleDateString("en-US", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </p>
+                  )}
                 </div>
               </div>
-              <Badge
-                variant={sub.status === "active" ? "success" : "default"}
-              >
+              <Badge variant={sub.status === "active" ? "success" : "default"}>
                 {sub.status === "active" ? "Active" : "Paused"}
               </Badge>
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
               {sub.status === "active" ? (
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    update(sub.id, "paused");
-                    toast.success("Subscription paused");
-                  }}
-                >
+                <Button variant="secondary" onClick={() => pause(sub.id)}>
                   <Pause className="mr-1 h-4 w-4" /> Pause
                 </Button>
               ) : (
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    update(sub.id, "active");
-                    toast.success("Subscription resumed");
-                  }}
-                >
+                <Button variant="secondary" onClick={() => resume(sub.id)}>
                   <Play className="mr-1 h-4 w-4" /> Resume
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                onClick={() => toast.success("Next cleaning skipped")}
-              >
+              <Button variant="ghost" onClick={() => skipNext(sub.id)}>
                 <SkipForward className="mr-1 h-4 w-4" /> Skip next
               </Button>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setSubs((s) => s.filter((x) => x.id !== sub.id));
-                  toast.success("Subscription cancelled");
-                }}
-              >
+              <Button variant="ghost" onClick={() => cancel(sub.id)}>
                 <X className="mr-1 h-4 w-4" /> Cancel
               </Button>
             </div>

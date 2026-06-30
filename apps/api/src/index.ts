@@ -52,6 +52,7 @@ import { adminEmailRouter, mailersendWebhookRouter, unsubscribeRouter } from "./
 import { requestLogger } from "./middleware/requestLogger";
 import { clientErrorsRouter } from "./routes/clientErrors";
 import { customerProfileRouter } from "./routes/customerProfile";
+import { adminSettingsRouter } from "./routes/adminSettings";
 import { AppError, toSafeError } from "./lib/errors";
 import { logger } from "./lib/logger";
 import { recordError } from "./lib/errorLog";
@@ -145,6 +146,7 @@ app.route("/it-mail", itInboundRouter);
 app.route("/report", reportRouter);
 app.route("/admin/response-templates", responseTemplatesRouter);
 app.route("/admin/email", adminEmailRouter);
+app.route("/admin/settings", adminSettingsRouter);
 app.route("/webhooks/mailersend", mailersendWebhookRouter);
 app.route("/unsubscribe", unsubscribeRouter);
 
