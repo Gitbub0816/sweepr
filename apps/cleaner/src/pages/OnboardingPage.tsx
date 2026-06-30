@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useUser, useAuth } from "@clerk/clerk-react";
+import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -80,13 +81,6 @@ const SERVICE_TYPES: ServiceType[] = [
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 type DayAvail = "unavailable" | "morning" | "afternoon" | "evening" | "all_day";
-const AVAIL_OPTIONS: { value: DayAvail; label: string }[] = [
-  { value: "unavailable", label: "Off" },
-  { value: "morning", label: "AM" },
-  { value: "afternoon", label: "PM" },
-  { value: "evening", label: "Eve" },
-  { value: "all_day", label: "All" },
-];
 
 // Approximate hours each availability band contributes per day.
 const BAND_HOURS: Record<DayAvail, number> = {
@@ -183,6 +177,7 @@ function clearDraft(userId: string) {
 }
 
 export function OnboardingPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useUser();
   const { getToken } = useAuth();
@@ -468,7 +463,7 @@ export function OnboardingPage() {
             onClick={() => navigate("/")}
             className="flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-seafoam-600"
           >
-            <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+            <ArrowLeft className="h-4 w-4" /> {t("nav.dashboard")}
           </button>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
@@ -491,7 +486,7 @@ export function OnboardingPage() {
             }`}
             aria-pressed={mode === "individual"}
           >
-            🧹 I'm a Cleaner
+            🧹 {t("onboarding.individual")}
           </button>
           <button
             type="button"
@@ -503,7 +498,7 @@ export function OnboardingPage() {
             }`}
             aria-pressed={mode === "business"}
           >
-            🏢 I Have a Business
+            🏢 {t("onboarding.business")}
           </button>
         </div>
 
@@ -611,11 +606,11 @@ export function OnboardingPage() {
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
           {step === 0 ? (
             <Button variant="ghost" onClick={() => navigate("/")}>
-              <ArrowLeft className="h-4 w-4" /> Dashboard
+              <ArrowLeft className="h-4 w-4" /> {t("nav.dashboard")}
             </Button>
           ) : (
             <Button variant="ghost" onClick={goBack} aria-label="Previous step">
-              <ArrowLeft className="h-4 w-4" /> Previous
+              <ArrowLeft className="h-4 w-4" /> {t("common.back")}
             </Button>
           )}
           {step === STEPS.length - 1 ? (
@@ -624,11 +619,11 @@ export function OnboardingPage() {
               loading={submitting}
               disabled={!canContinue()}
             >
-              Submit application
+              {t("common.submit")}
             </Button>
           ) : (
             <Button onClick={goNext} disabled={!canContinue()}>
-              Next Step <ArrowRight className="h-4 w-4" />
+              {t("common.next")} <ArrowRight className="h-4 w-4" />
             </Button>
           )}
         </div>
@@ -909,12 +904,29 @@ function StepServices({
   set: SetFn;
   stepNumber: number;
 }) {
-  const toggleService = (t: ServiceType) =>
+  const { t } = useTranslation();
+  const AVAIL_OPTIONS: { value: DayAvail; label: string }[] = [
+    { value: "unavailable", label: t("onboarding.off") },
+    { value: "morning", label: t("onboarding.AM") },
+    { value: "afternoon", label: t("onboarding.PM") },
+    { value: "evening", label: t("onboarding.eve") },
+    { value: "all_day", label: t("onboarding.all") },
+  ];
+  const DAYS_LABELS: Record<string, string> = {
+    Mon: t("onboarding.monday"),
+    Tue: t("onboarding.tuesday"),
+    Wed: t("onboarding.wednesday"),
+    Thu: t("onboarding.thursday"),
+    Fri: t("onboarding.friday"),
+    Sat: t("onboarding.saturday"),
+    Sun: t("onboarding.sunday"),
+  };
+  const toggleService = (svc: ServiceType) =>
     set(
       "services",
-      form.services.includes(t)
-        ? form.services.filter((x) => x !== t)
-        : [...form.services, t]
+      form.services.includes(svc)
+        ? form.services.filter((x) => x !== svc)
+        : [...form.services, svc]
     );
   const toggleAddOn = (key: string) =>
     set(
@@ -931,20 +943,20 @@ function StepServices({
           Services you offer
         </p>
         <div className="grid grid-cols-2 gap-3">
-          {SERVICE_TYPES.map((t) => {
-            const active = form.services.includes(t);
+          {SERVICE_TYPES.map((svc) => {
+            const active = form.services.includes(svc);
             return (
               <button
-                key={t}
+                key={svc}
                 type="button"
-                onClick={() => toggleService(t)}
+                onClick={() => toggleService(svc)}
                 className={`rounded-xl border p-3 text-left text-sm font-medium transition-all ${
                   active
                     ? "border-seafoam-400 bg-seafoam-50 text-seafoam-700 ring-1 ring-seafoam-400 dark:bg-seafoam-900/20"
                     : "border-slate-200 text-charcoal hover:border-seafoam-300 dark:border-slate-700 dark:text-white"
                 }`}
               >
-                {SERVICE_LABELS[t]}
+                {SERVICE_LABELS[svc]}
               </button>
             );
           })}
@@ -967,7 +979,7 @@ function StepServices({
         <div className="space-y-2">
           {DAYS.map((d) => (
             <div key={d} className="flex items-center gap-2">
-              <span className="w-10 text-sm font-medium text-slate-500">{d}</span>
+              <span className="w-10 text-sm font-medium text-slate-500">{DAYS_LABELS[d] ?? d}</span>
               <div className="flex flex-1 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
                 {AVAIL_OPTIONS.map((opt) => {
                   const active = form.availability[d] === opt.value;

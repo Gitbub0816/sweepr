@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { MapPin, Navigation, Home, Clock, CheckCircle2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Card, Button, track, Events } from "@sweepr/ui";
 import { SERVICE_LABELS, formatCurrency, cn } from "@sweepr/utils";
 import type { ServiceType } from "@sweepr/types";
@@ -38,6 +39,7 @@ export function JobCard({
   onExpire?: () => void;
   expiresInSec?: number;
 }) {
+  const { t } = useTranslation();
   const [remaining, setRemaining] = useState(expiresInSec);
   const expired = remaining <= 0;
 
@@ -78,9 +80,9 @@ export function JobCard({
       <Card className="flex h-full flex-col items-center justify-center gap-2 border-seafoam-400 bg-seafoam-50 text-center dark:bg-seafoam-900/20">
         <CheckCircle2 className="h-10 w-10 text-seafoam-500" />
         <p className="text-base font-semibold text-seafoam-700 dark:text-seafoam-300">
-          Accepted
+          {t("cleaner.jobs.accept")}
         </p>
-        <p className="text-xs text-slate-500">Opening job details…</p>
+        <p className="text-xs text-slate-500">{t("common.loading")}</p>
       </Card>
     );
   }
@@ -127,9 +129,9 @@ export function JobCard({
 
       {expired ? (
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-red-500">Offer expired</span>
+          <span className="text-xs font-medium text-red-500">{t("cleaner.jobs.decline")}</span>
           <Button variant="ghost" size="sm" onClick={onPass}>
-            Dismiss
+            {t("common.close")}
           </Button>
         </div>
       ) : (
@@ -144,10 +146,10 @@ export function JobCard({
           </p>
           <div className="flex gap-3">
             <Button variant="ghost" fullWidth onClick={handlePass}>
-              Pass
+              {t("cleaner.jobs.decline")}
             </Button>
             <Button fullWidth onClick={handleAccept}>
-              Accept
+              {t("cleaner.jobs.accept")}
             </Button>
           </div>
         </>

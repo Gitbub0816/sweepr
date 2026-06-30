@@ -163,16 +163,16 @@ export function SignUpPage() {
                   <div className="flex items-start gap-3 rounded-xl border border-seafoam-200 bg-seafoam-50 px-4 py-3 dark:border-seafoam-800/40 dark:bg-seafoam-900/20">
                     <LogIn className="mt-0.5 h-4 w-4 shrink-0 text-seafoam-600 dark:text-seafoam-400" />
                     <div>
-                      <p className="text-sm font-medium text-seafoam-800 dark:text-seafoam-300">Already part of the crew!</p>
+                      <p className="text-sm font-medium text-seafoam-800 dark:text-seafoam-300">{t("auth.alreadyHaveAccount")}</p>
                       <p className="mt-0.5 text-xs text-seafoam-700 dark:text-seafoam-400">
-                        That email already has a Pro account.{" "}
-                        <Link to="/sign-in" state={{ prefillEmail: email }} className="font-semibold underline underline-offset-2">Sign in instead →</Link>
+                        {t("auth.noAccountFound")}{" "}
+                        <Link to="/sign-in" state={{ prefillEmail: email }} className="font-semibold underline underline-offset-2">{t("auth.signInInstead")}</Link>
                       </p>
                     </div>
                   </div>
                 )}
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-charcoal dark:text-white">Password</label>
+                  <label className="mb-1.5 block text-sm font-medium text-charcoal dark:text-white">{t("auth.password")}</label>
                   <div className="relative">
                     <input type={showPassword ? "text" : "password"} autoComplete="new-password" required minLength={8}
                       value={password} onChange={(e) => setPassword(e.target.value)}
@@ -185,24 +185,24 @@ export function SignUpPage() {
                 </div>
                 {error && <ErrorBox message={error} />}
                 <div id="clerk-captcha" />
-                <SubmitButton loading={loading} disabled={!isLoaded} label="Create account" />
+                <SubmitButton loading={loading} disabled={!isLoaded} label={t("auth.createAccount")} />
               </form>
             ) : (
               <form onSubmit={(e) => void handlePhoneSubmit(e)} className="space-y-4">
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-charcoal dark:text-white">Phone number</label>
+                  <label className="mb-1.5 block text-sm font-medium text-charcoal dark:text-white">{t("auth.phone")}</label>
                   <input type="tel" autoComplete="tel" required value={phone} onChange={(e) => setPhone(e.target.value)}
                     className={inputCls} placeholder="+1 (555) 000-0000" />
                 </div>
                 {error && <ErrorBox message={error} />}
                 <div id="clerk-captcha" />
-                <SubmitButton loading={loading} disabled={!isLoaded} label="Send code" />
+                <SubmitButton loading={loading} disabled={!isLoaded} label={t("auth.sendCode")} />
               </form>
             )}
 
             <p className="mt-6 text-center text-sm text-slate-500">
-              Already have an account?{" "}
-              <Link to="/sign-in" className="font-medium text-seafoam-600 hover:underline dark:text-seafoam-400">Sign in</Link>
+              {t("auth.alreadyHaveAccount")}{" "}
+              <Link to="/sign-in" className="font-medium text-seafoam-600 hover:underline dark:text-seafoam-400">{t("auth.signIn")}</Link>
             </p>
           </>
         ) : (
@@ -215,7 +215,7 @@ export function SignUpPage() {
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-2xl tracking-[0.5em] text-charcoal outline-none transition focus:border-seafoam-400 focus:ring-2 focus:ring-seafoam-400/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
               placeholder="······" />
             {error && <ErrorBox message={error} />}
-            <SubmitButton loading={loading} disabled={!isLoaded} label="Verify & create account" />
+            <SubmitButton loading={loading} disabled={!isLoaded} label={t("auth.verify")} />
             <button type="button" onClick={() => { setStage("form"); setCode(""); setError(""); }}
               className="w-full text-center text-sm text-slate-500 hover:text-slate-700">← Back</button>
           </form>
