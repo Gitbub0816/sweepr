@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { getUserByClerkId } from "@sweepr/db";
+import { getUserByClerkId, upsertUser } from "@sweepr/db";
 import { getDb } from "../lib/db";
 import { requireAuth } from "../middleware/auth";
 import type { AppBindings } from "../types";
@@ -13,8 +13,21 @@ customerProfileRouter.use("*", requireAuth);
 // ─── GET /customer-profile ────────────────────────────────────────────────────
 customerProfileRouter.get("/", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
-  const user = await getUserByClerkId(sql, c.get("user").clerkId);
-  if (!user) return c.json({ error: "User not found" }, 404);
+  const authUser = c.get("user");
+
+  // Lazy-provision: upsert user + customer rows on first API call.
+  // This handles cases where the Clerk webhook hasn't fired yet.
+  const user = await upsertUser(sql, {
+    clerkId: authUser.clerkId,
+    email: authUser.email ?? "",
+    role: "customer",
+  });
+
+  // Ensure the customer row exists.
+  await sql`
+    INSERT INTO customers (user_id) VALUES (${user.id})
+    ON CONFLICT (user_id) DO NOTHING
+  `;
 
   const rows = (await sql`
     SELECT c.home_bedrooms, c.home_bathrooms, c.home_sqft, c.home_type,
@@ -32,8 +45,10 @@ customerProfileRouter.get("/", async (c) => {
     default_address_id: string | null;
   }>;
 
-  const p = rows[0];
-  if (!p) return c.json({ error: "Customer not found" }, 404);
+  const p = rows[0] ?? {
+    home_bedrooms: null, home_bathrooms: null, home_sqft: null,
+    home_type: null, has_pets: false, onboarded: false, default_address_id: null,
+  };
 
   const addresses = (await sql`
     SELECT id, label, street AS line1, unit, city, state, zip, lat, lng, is_default
@@ -91,8 +106,9 @@ const patchSchema = z.object({
 
 customerProfileRouter.patch("/", zValidator("json", patchSchema), async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
-  const user = await getUserByClerkId(sql, c.get("user").clerkId);
-  if (!user) return c.json({ error: "User not found" }, 404);
+  const authUser = c.get("user");
+  const user = await upsertUser(sql, { clerkId: authUser.clerkId, email: authUser.email ?? "", role: "customer" });
+  await sql`INSERT INTO customers (user_id) VALUES (${user.id}) ON CONFLICT (user_id) DO NOTHING`;
 
   const input = c.req.valid("json");
 
@@ -166,8 +182,9 @@ const addressSchema = z.object({
 
 customerProfileRouter.post("/addresses", zValidator("json", addressSchema), async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
-  const user = await getUserByClerkId(sql, c.get("user").clerkId);
-  if (!user) return c.json({ error: "User not found" }, 404);
+  const authUser = c.get("user");
+  const user = await upsertUser(sql, { clerkId: authUser.clerkId, email: authUser.email ?? "", role: "customer" });
+  await sql`INSERT INTO customers (user_id) VALUES (${user.id}) ON CONFLICT (user_id) DO NOTHING`;
 
   const input = c.req.valid("json");
   const makeDefault = input.makeDefault ?? false;

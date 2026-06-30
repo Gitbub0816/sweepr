@@ -5,6 +5,7 @@ import {
   getBooking,
   getCustomerByUserId,
   getUserByClerkId,
+  upsertUser,
   listBookingsForCustomer,
   updateBookingStatus,
 } from "@sweepr/db";
@@ -58,8 +59,9 @@ bookingsRouter.post(
   async (c) => {
   const input = c.req.valid("json");
   const sql = getDb(c.env.DATABASE_URL);
-  const user = await getUserByClerkId(sql, c.get("user").clerkId);
-  if (!user) return c.json({ error: "User not found" }, 404);
+  const authUser = c.get("user");
+  const user = await upsertUser(sql, { clerkId: authUser.clerkId, email: authUser.email ?? "", role: "customer" });
+  await sql`INSERT INTO customers (user_id) VALUES (${user.id}) ON CONFLICT (user_id) DO NOTHING`;
   const customer = await getCustomerByUserId(sql, user.id);
   if (!customer) return c.json({ error: "Customer not found" }, 404);
 
