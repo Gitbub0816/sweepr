@@ -5,7 +5,8 @@ import { z } from "zod";
 import { getUserByClerkId } from "@sweepr/db";
 import { getStripe } from "../lib/stripe";
 import { getDb } from "../lib/db";
-import { sendEmail } from "../lib/mailer";
+import { sendEmail, wrapBodyInTemplate } from "../lib/mailer";
+import { et } from "../lib/emailI18n";
 import { sendNotification } from "../lib/notifications";
 import { requireAuth } from "../middleware/auth";
 import { isOwnerClerkId } from "../lib/owner";
@@ -312,10 +313,19 @@ paymentsRouter.post(
 
     if (email) {
       try {
+        const [langRow] = await sql`
+          SELECT preferred_language FROM users WHERE LOWER(email) = LOWER(${email}) LIMIT 1
+        ` as Array<{ preferred_language: string | null }>;
+        const lang = langRow?.preferred_language ?? "en";
+        const subject = et(lang, "refund.subject");
         await sendEmail(c.env.MAILERSEND_API_KEY, {
           to: email,
-          subject: "Your Sweepr refund has been processed",
-          html: `<p>Your refund for booking ${bookingId} has been processed and will appear on your statement within 5–10 business days.</p>`,
+          subject,
+          html: wrapBodyInTemplate(
+            subject,
+            et(lang, "refund.body", { bookingId }),
+            lang,
+          ),
         });
       } catch {
         // Non-fatal: refund already succeeded.

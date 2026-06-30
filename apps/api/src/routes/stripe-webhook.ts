@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { getStripe } from "../lib/stripe";
 import { getDb } from "../lib/db";
-import { sendEmail } from "../lib/mailer";
+import { sendEmail, wrapBodyInTemplate } from "../lib/mailer";
+import { et } from "../lib/emailI18n";
 import { logger } from "../lib/logger";
 import { audit } from "../lib/audit";
 import { serverTrack } from "../lib/posthog";
@@ -113,10 +114,15 @@ stripeWebhookRouter.post("/", async (c) => {
       const email = intent.receipt_email ?? undefined;
       if (email) {
         try {
+          const [langRow] = await sql`
+            SELECT preferred_language FROM users WHERE LOWER(email) = LOWER(${email}) LIMIT 1
+          ` as Array<{ preferred_language: string | null }>;
+          const lang = langRow?.preferred_language ?? "en";
+          const subject = et(lang, "booking.confirmed.subject");
           await sendEmail(c.env.MAILERSEND_API_KEY, {
             to: email,
-            subject: "Your Sweepr booking is confirmed",
-            html: `<p>Your payment was received and your clean is booked. We'll match you with a top-rated cleaner shortly.</p>`,
+            subject,
+            html: wrapBodyInTemplate(subject, et(lang, "booking.confirmed.body"), lang),
           });
         } catch {
           // Non-fatal.
@@ -145,10 +151,15 @@ stripeWebhookRouter.post("/", async (c) => {
       const email = intent.receipt_email ?? undefined;
       if (email) {
         try {
+          const [langRow] = await sql`
+            SELECT preferred_language FROM users WHERE LOWER(email) = LOWER(${email}) LIMIT 1
+          ` as Array<{ preferred_language: string | null }>;
+          const lang = langRow?.preferred_language ?? "en";
+          const subject = et(lang, "payment.failed.subject");
           await sendEmail(c.env.MAILERSEND_API_KEY, {
             to: email,
-            subject: "Payment failed — action needed",
-            html: `<p>We couldn't process your payment. Please update your payment method to confirm your booking.</p>`,
+            subject,
+            html: wrapBodyInTemplate(subject, et(lang, "payment.failed.body"), lang),
           });
         } catch {
           // Non-fatal.
