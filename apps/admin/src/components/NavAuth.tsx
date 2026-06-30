@@ -1,20 +1,31 @@
 import { useClerk, useUser } from "@clerk/clerk-react";
+import { useEffect, useState } from "react";
 import { LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const CLERK_ENABLED = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
+const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
 export function NavAuth() {
   const { signOut } = useClerk();
-  const { isSignedIn, user } = useUser();
+  const { isSignedIn } = useUser();
   const navigate = useNavigate();
+  const [email, setEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isSignedIn) return;
+    fetch(`${API_BASE}/auth/me`, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d?.user?.email) setEmail(d.user.email); })
+      .catch(() => null);
+  }, [isSignedIn]);
 
   if (!CLERK_ENABLED || !isSignedIn) return null;
 
   return (
     <div className="flex items-center gap-3">
       <span className="hidden text-xs text-slate-500 sm:block">
-        {user?.primaryEmailAddress?.emailAddress}
+        {email ?? ""}
       </span>
       <button
         onClick={() => void signOut(() => navigate("/sign-in"))}
