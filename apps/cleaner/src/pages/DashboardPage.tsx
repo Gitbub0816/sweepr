@@ -3,6 +3,8 @@
  * Tabs: Overview · Jobs · Schedule · Earnings · Performance · Settings
  */
 import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { LanguageSelector } from "../i18n/LanguageSelector";
 import {
   DashboardShell,
   StatCard,
@@ -111,6 +113,7 @@ interface OnboardingProgress {
 }
 
 function OnboardingChecklist({ status }: { status: string | undefined }) {
+  const { t } = useTranslation();
   const { data: progress } = useApi<OnboardingProgress>("/cleaners/onboarding-progress");
   const { data: training } = useApi<{ summary: { totalPassed: number; totalRequired: number } }>(
     "/training/progress",
@@ -124,11 +127,11 @@ function OnboardingChecklist({ status }: { status: string | undefined }) {
 
   // Individual-cleaner steps (mirrors INDIVIDUAL_STEPS in OnboardingPage).
   const steps: OnboardingStep[] = [
-    { label: "Profile & services", desc: "Name, photo, area & services", step: 0, done: p?.profile ?? false },
-    { label: "Training", desc: `${passed}/${total} required modules`, step: -1, done: p?.training ?? false },
-    { label: "Background check", desc: "Verify your record", step: 3, done: p?.background ?? false },
-    { label: "Identity verification", desc: "Confirm who you are", step: 4, done: p?.identity ?? false },
-    { label: "Review & submit", desc: "Send your application", step: 5, done: p?.submitted ?? false },
+    { label: t("cleaner.dashboard.onboarding.profile"), desc: "Name, photo, area & services", step: 0, done: p?.profile ?? false },
+    { label: t("cleaner.dashboard.onboarding.training"), desc: `${passed}/${total} required modules`, step: -1, done: p?.training ?? false },
+    { label: t("cleaner.dashboard.onboarding.backgroundCheck"), desc: "Verify your record", step: 3, done: p?.background ?? false },
+    { label: t("cleaner.dashboard.onboarding.identity"), desc: "Confirm who you are", step: 4, done: p?.identity ?? false },
+    { label: t("cleaner.dashboard.onboarding.review"), desc: "Send your application", step: 5, done: p?.submitted ?? false },
   ];
 
   const doneCount = steps.filter((s) => s.done).length;
@@ -143,13 +146,13 @@ function OnboardingChecklist({ status }: { status: string | undefined }) {
         <div className="flex-1">
           <p className="font-semibold text-amber-900">
             {status === "pending_review"
-              ? "Application under review"
-              : "Finish setting up your account"}
+              ? t("cleaner.dashboard.underReview")
+              : t("cleaner.dashboard.finishSetup")}
           </p>
           <p className="text-sm text-amber-700 mt-0.5">
             {status === "pending_review"
-              ? "We're reviewing your application — we'll email you when you're approved. You can still update your profile and finish training below."
-              : "Complete these steps to unlock the job board and start accepting bookings. You can do them in any order."}
+              ? t("cleaner.dashboard.reviewingApplication")
+              : t("cleaner.dashboard.completeSteps")}
           </p>
         </div>
       </div>
@@ -186,6 +189,7 @@ function OnboardingChecklist({ status }: { status: string | undefined }) {
 }
 
 function OverviewTab() {
+  const { t } = useTranslation();
   const { data, loading } = useApi<DashboardStats>("/cleaner-dashboard/dashboard");
   const { user } = useUser();
   const status = user?.publicMetadata?.cleanerStatus as string | undefined;
@@ -208,14 +212,14 @@ function OverviewTab() {
 
       {/* Welcome */}
       <div className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 p-6 text-white">
-        <h2 className="text-xl font-semibold">Welcome back, {user?.firstName ?? "Pro"}</h2>
+        <h2 className="text-xl font-semibold">{t("cleaner.dashboard.welcomeBack", { name: user?.firstName ?? t("cleaner.dashboard.pro") })}</h2>
         <p className="text-indigo-100 text-sm mt-1">
           {data.upcomingJobs > 0
-            ? `You have ${data.upcomingJobs} upcoming job${data.upcomingJobs > 1 ? "s" : ""}.`
-            : "No upcoming jobs — check the Job Board to pick up a new booking."}
+            ? data.upcomingJobs === 1 ? t("cleaner.dashboard.upcomingJob", { count: data.upcomingJobs }) : t("cleaner.dashboard.upcomingJobs", { count: data.upcomingJobs })
+            : t("cleaner.dashboard.noUpcomingJobs")}
         </p>
         <div className="mt-3 flex items-center gap-2">
-          <Badge variant="info">{data.tier ? data.tier.charAt(0).toUpperCase() + data.tier.slice(1) : "Standard"} Pro</Badge>
+          <Badge variant="info">{data.tier ? data.tier.charAt(0).toUpperCase() + data.tier.slice(1) : "Standard"} {t("cleaner.dashboard.pro")}</Badge>
           {data.rating > 0 && (
             <span className="flex items-center gap-1 text-sm text-indigo-100">
               <Star size={14} className="fill-yellow-300 text-yellow-300" />
@@ -227,10 +231,10 @@ function OverviewTab() {
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Upcoming Jobs"       value={String(data.upcomingJobs)}              icon={Briefcase} />
-        <StatCard label="Completed This Month" value={String(data.completedThisMonth)}        icon={CheckCircle2} />
-        <StatCard label="Earned This Month"   value={formatCurrency(data.earningsThisMonth / 100)} icon={DollarSign} />
-        <StatCard label="Pending Payout"      value={formatCurrency(data.pendingPayout / 100)} icon={Wallet} />
+        <StatCard label={t("cleaner.dashboard.stats.upcomingJobs")}       value={String(data.upcomingJobs)}              icon={Briefcase} />
+        <StatCard label={t("cleaner.dashboard.stats.completedThisMonth")} value={String(data.completedThisMonth)}        icon={CheckCircle2} />
+        <StatCard label={t("cleaner.dashboard.stats.earnedThisMonth")}   value={formatCurrency(data.earningsThisMonth / 100)} icon={DollarSign} />
+        <StatCard label={t("cleaner.dashboard.stats.pendingPayout")}      value={formatCurrency(data.pendingPayout / 100)} icon={Wallet} />
       </div>
 
       {/* Next Job Card */}
@@ -240,7 +244,7 @@ function OverviewTab() {
             <MapPin size={18} className="text-indigo-600" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-indigo-800">Next Job</p>
+            <p className="text-sm font-semibold text-indigo-800">{t("cleaner.dashboard.nextJob")}</p>
             <p className="text-sm text-indigo-700">
               {new Date(data.nextJobAt).toLocaleString()}
             </p>
@@ -259,9 +263,9 @@ function OverviewTab() {
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 flex items-start gap-4">
           <AlertCircle size={20} className="text-amber-600 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="font-semibold text-amber-800">Set up payouts</p>
+            <p className="font-semibold text-amber-800">{t("cleaner.dashboard.setupPayouts")}</p>
             <p className="text-sm text-amber-700 mt-0.5">
-              Connect your bank account to receive payments for completed jobs.
+              {t("cleaner.dashboard.setupPayoutsDesc")}
             </p>
           </div>
           <a href="/earnings" className="text-sm font-medium text-amber-700 underline">
@@ -384,6 +388,7 @@ interface BlockedDate {
 }
 
 function ScheduleTab() {
+  const { t } = useTranslation();
   const { getToken } = useAuth();
   const { data: avail, loading: loadingAvail, reload: reloadAvail } =
     useApi<{ slots: AvailabilitySlot[] }>("/cleaner-dashboard/availability");
@@ -490,7 +495,7 @@ function ScheduleTab() {
             </div>
           ))}
         </div>
-        <Button onClick={saveAvailability} loading={saving}>Save Availability</Button>
+        <Button onClick={saveAvailability} loading={saving}>{t("common.save")}</Button>
       </div>
 
       {/* Blocked Dates */}
@@ -543,6 +548,7 @@ interface EarningSummary {
 }
 
 function EarningsTab() {
+  const { t } = useTranslation();
   const { getToken } = useAuth();
   const { data, loading } = useApi<EarningSummary>("/cleaner-dashboard/earnings");
   const [connecting, setConnecting] = useState(false);
@@ -570,30 +576,30 @@ function EarningsTab() {
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 flex items-start gap-4">
           <Shield size={20} className="text-amber-600 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="font-semibold text-amber-800">Connect your bank account</p>
-            <p className="text-sm text-amber-700 mt-1">You need a Stripe Express account to receive payouts.</p>
+            <p className="font-semibold text-amber-800">{t("cleaner.earnings.setupPayouts")}</p>
+            <p className="text-sm text-amber-700 mt-1">{t("cleaner.earnings.connectBank")}</p>
           </div>
-          <Button size="sm" onClick={setupPayouts} loading={connecting}>Set up payouts</Button>
+          <Button size="sm" onClick={setupPayouts} loading={connecting}>{t("cleaner.earnings.setupPayouts")}</Button>
         </div>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="This Week"    value={formatCurrency(data.thisWeek / 100)}    icon={Wallet} />
-        <StatCard label="This Month"   value={formatCurrency(data.thisMonth / 100)}   icon={TrendingUp} />
-        <StatCard label="Last Month"   value={formatCurrency(data.lastMonth / 100)}   icon={BarChart3} />
-        <StatCard label="All Time"     value={formatCurrency(data.allTime / 100)}     icon={DollarSign} />
+        <StatCard label={t("cleaner.earnings.thisWeek")}  value={formatCurrency(data.thisWeek / 100)}  icon={Wallet} />
+        <StatCard label={t("cleaner.earnings.thisMonth")} value={formatCurrency(data.thisMonth / 100)} icon={TrendingUp} />
+        <StatCard label={t("cleaner.earnings.lastMonth")} value={formatCurrency(data.lastMonth / 100)} icon={BarChart3} />
+        <StatCard label={t("cleaner.earnings.allTime")}   value={formatCurrency(data.allTime / 100)}   icon={DollarSign} />
       </div>
 
       {data.pendingPayout > 0 && (
         <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
-          <strong>{formatCurrency(data.pendingPayout / 100)}</strong> pending payout
-          {data.nextPayoutDate && ` — expected ${new Date(data.nextPayoutDate).toLocaleDateString()}`}.
+          <strong>{formatCurrency(data.pendingPayout / 100)}</strong> {t("cleaner.earnings.pendingPayout")}
+          {data.nextPayoutDate && ` — ${t("cleaner.earnings.expected")} ${new Date(data.nextPayoutDate).toLocaleDateString()}`}.
         </div>
       )}
 
       {data.recent.length > 0 && (
         <div className="rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-100 text-sm font-medium text-slate-700">Recent Payouts</div>
+          <div className="px-4 py-3 border-b border-slate-100 text-sm font-medium text-slate-700">{t("cleaner.earnings.recentPayouts")}</div>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-50 text-xs text-slate-500">
@@ -732,6 +738,7 @@ interface CleanerSettings {
 }
 
 function SettingsTab() {
+  const { t } = useTranslation();
   const { getToken } = useAuth();
   const { data, loading } = useApi<CleanerSettings>("/cleaner-dashboard/settings");
   const [form, setForm] = useState<CleanerSettings | null>(null);
@@ -781,7 +788,7 @@ function SettingsTab() {
         <h3 className="font-semibold text-slate-800">Job Preferences</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Max jobs / day</label>
+            <label className="block text-xs font-medium text-slate-500 mb-1">{t("cleaner.dashboard.maxJobsPerDay")}</label>
             <input
               type="number" min={1} max={10}
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
@@ -790,7 +797,7 @@ function SettingsTab() {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Max distance (miles)</label>
+            <label className="block text-xs font-medium text-slate-500 mb-1">{t("cleaner.dashboard.maxDistance")}</label>
             <input
               type="number" min={1} max={100}
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
@@ -801,7 +808,7 @@ function SettingsTab() {
         </div>
 
         <div className="space-y-2">
-          <label className="block text-xs font-medium text-slate-500">Preferred Service Types</label>
+          <label className="block text-xs font-medium text-slate-500">{t("cleaner.dashboard.preferredServiceTypes")}</label>
           <div className="flex flex-wrap gap-2">
             {SERVICE_TYPES.map((st) => (
               <button
@@ -820,7 +827,7 @@ function SettingsTab() {
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-sm text-slate-700">Accept last-minute bookings</span>
+          <span className="text-sm text-slate-700">{t("cleaner.dashboard.acceptLastMinute")}</span>
           <button onClick={() => toggle("accepts_last_minute")}>
             {form.accepts_last_minute
               ? <ToggleRight size={24} className="text-indigo-600" />
@@ -830,13 +837,13 @@ function SettingsTab() {
       </div>
 
       <div className="rounded-xl border border-slate-200 p-6 space-y-4">
-        <h3 className="font-semibold text-slate-800 flex items-center gap-2"><Bell size={16} /> Notifications</h3>
+        <h3 className="font-semibold text-slate-800 flex items-center gap-2"><Bell size={16} /> {t("cleaner.notifications.title")}</h3>
         {(
           [
-            ["notification_job_offer",  "New job offers"],
-            ["notification_reminder",   "Job reminders"],
-            ["notification_payout",     "Payout updates"],
-            ["notification_marketing",  "Tips & promotions"],
+            ["notification_job_offer",  t("cleaner.notifications.newJobOffers")],
+            ["notification_reminder",   t("cleaner.notifications.jobReminders")],
+            ["notification_payout",     t("cleaner.notifications.payoutUpdates")],
+            ["notification_marketing",  t("cleaner.notifications.tipsPromotions")],
           ] as const
         ).map(([key, label]) => (
           <div key={key} className="flex items-center justify-between">
@@ -850,7 +857,12 @@ function SettingsTab() {
         ))}
       </div>
 
-      <Button onClick={save} loading={saving}>Save Settings</Button>
+      <div className="rounded-xl border border-slate-200 p-6 space-y-3">
+        <h3 className="font-semibold text-slate-800">{t("settings.language")}</h3>
+        <LanguageSelector />
+      </div>
+
+      <Button onClick={save} loading={saving}>{t("common.save")}</Button>
     </div>
   );
 }
@@ -859,22 +871,23 @@ function SettingsTab() {
 
 type DashTab = "overview" | "jobs" | "schedule" | "earnings" | "performance" | "settings";
 
-const TABS: { id: DashTab; label: string; icon: React.ElementType }[] = [
-  { id: "overview",     label: "Overview",     icon: LayoutDashboard },
-  { id: "jobs",         label: "My Jobs",      icon: Briefcase },
-  { id: "schedule",     label: "Schedule",     icon: CalendarDays },
-  { id: "earnings",     label: "Earnings",     icon: Wallet },
-  { id: "performance",  label: "Performance",  icon: BarChart3 },
-  { id: "settings",     label: "Settings",     icon: Settings },
-];
-
 import { LayoutDashboard } from "lucide-react";
 
 export function DashboardPage() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<DashTab>("overview");
 
+  const TABS: { id: DashTab; label: string; icon: React.ElementType }[] = [
+    { id: "overview",     label: t("cleaner.dashboard.tabs.overview"),     icon: LayoutDashboard },
+    { id: "jobs",         label: t("cleaner.dashboard.tabs.myJobs"),       icon: Briefcase },
+    { id: "schedule",     label: t("cleaner.dashboard.tabs.schedule"),     icon: CalendarDays },
+    { id: "earnings",     label: t("cleaner.dashboard.tabs.earnings"),     icon: Wallet },
+    { id: "performance",  label: t("cleaner.dashboard.tabs.performance"),  icon: BarChart3 },
+    { id: "settings",     label: t("cleaner.dashboard.tabs.settings"),     icon: Settings },
+  ];
+
   return (
-    <DashboardShell title="My Dashboard" description="Your jobs, earnings, schedule & performance at a glance.">
+    <DashboardShell title={t("cleaner.dashboard.title")} description={t("cleaner.dashboard.description")}>
       <div className="flex flex-wrap gap-1 border-b border-slate-200 -mb-px pb-0">
         {TABS.map((t) => {
           const Icon = t.icon;

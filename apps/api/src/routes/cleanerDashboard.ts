@@ -298,6 +298,8 @@ cleanerDashboardRouter.delete("/blocked-dates/:id", async (c) => {
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
+const LANG_CODES = ["en","es","vi","zh-Hans","zh-Hant","fil","ko","ar","pt","hi"] as const;
+
 const settingsSchema = z.object({
   max_jobs_per_day:           z.number().int().min(1).max(10).optional(),
   max_distance_miles:         z.number().min(1).max(200).optional(),
@@ -307,6 +309,7 @@ const settingsSchema = z.object({
   notification_payout:        z.boolean().optional(),
   notification_marketing:     z.boolean().optional(),
   preferred_service_types:    z.array(z.string()).optional(),
+  preferred_language:         z.enum(LANG_CODES).optional(),
 });
 
 cleanerDashboardRouter.get("/settings", async (c) => {
@@ -352,6 +355,9 @@ cleanerDashboardRouter.put("/settings", zValidator("json", settingsSchema), asyn
       updated_at = NOW()
     WHERE id = ${ctx.cleaner_id}
   `;
+  if (body.preferred_language) {
+    await sql`UPDATE users SET preferred_language = ${body.preferred_language} WHERE id = ${ctx.user_id}`;
+  }
   return c.json({ ok: true });
 });
 

@@ -99,6 +99,8 @@ customerProfileRouter.get("/", async (c) => {
 });
 
 // ─── PATCH /customer-profile ──────────────────────────────────────────────────
+const LANG_CODES = ["en","es","vi","zh-Hans","zh-Hant","fil","ko","ar","pt","hi"] as const;
+
 const patchSchema = z.object({
   homeBedrooms: z.number().int().min(0).max(20).optional(),
   homeBathrooms: z.number().int().min(0).max(20).optional(),
@@ -107,6 +109,7 @@ const patchSchema = z.object({
   hasPets: z.boolean().optional(),
   defaultAddressId: z.string().uuid().optional().nullable(),
   onboarded: z.boolean().optional(),
+  preferredLanguage: z.enum(LANG_CODES).optional(),
 });
 
 customerProfileRouter.patch("/", zValidator("json", patchSchema), async (c) => {
@@ -128,6 +131,9 @@ customerProfileRouter.patch("/", zValidator("json", patchSchema), async (c) => {
       onboarded        = COALESCE(${input.onboarded ?? null}, onboarded)
     WHERE user_id = ${user.id}
   `;
+  if (input.preferredLanguage) {
+    await sql`UPDATE users SET preferred_language = ${input.preferredLanguage} WHERE id = ${user.id}`;
+  }
 
   return c.json({ ok: true });
 });

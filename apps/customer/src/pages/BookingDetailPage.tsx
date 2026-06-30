@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { MapPin, CalendarClock, Check, Star } from "lucide-react";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import {
   DashboardShell,
   Card,
@@ -27,20 +28,20 @@ import { CleanerTracker } from "../components/CleanerTracker";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 
-const REVIEW_TAGS = [
-  "Arrived on time",
-  "Very thorough",
-  "Great communication",
-  "Left home spotless",
-  "Friendly",
-];
+const TAG_KEYS = [
+  "bookingDetail.tags.arrivedOnTime",
+  "bookingDetail.tags.veryThorough",
+  "bookingDetail.tags.greatCommunication",
+  "bookingDetail.tags.leftHomeSpotless",
+  "bookingDetail.tags.friendly",
+] as const;
 
 const TAG_MAP: Record<string, "on_time" | "thorough" | "communication" | "spotless" | "friendly"> = {
-  "Arrived on time": "on_time",
-  "Very thorough": "thorough",
-  "Great communication": "communication",
-  "Left home spotless": "spotless",
-  "Friendly": "friendly",
+  "bookingDetail.tags.arrivedOnTime": "on_time",
+  "bookingDetail.tags.veryThorough": "thorough",
+  "bookingDetail.tags.greatCommunication": "communication",
+  "bookingDetail.tags.leftHomeSpotless": "spotless",
+  "bookingDetail.tags.friendly": "friendly",
 };
 
 function ReviewModal({
@@ -58,6 +59,7 @@ function ReviewModal({
   cleanerId: string | undefined;
   getToken: () => Promise<string | null>;
 }) {
+  const { t } = useTranslation();
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [tags, setTags] = useState<string[]>([]);
@@ -65,13 +67,13 @@ function ReviewModal({
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const toggleTag = (t: string) =>
+  const toggleTag = (tagKey: string) =>
     setTags((prev) =>
-      prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]
+      prev.includes(tagKey) ? prev.filter((x) => x !== tagKey) : [...prev, tagKey]
     );
 
   const submit = async () => {
-    if (!cleanerId) { toast.error("No cleaner assigned to this booking."); return; }
+    if (!cleanerId) { toast.error(t("bookingDetail.noCleanerAssigned")); return; }
     setSubmitting(true);
     try {
       const token = await getToken();
@@ -86,14 +88,14 @@ function ReviewModal({
           cleanerId,
           rating,
           comment: comment.trim() || undefined,
-          tags: tags.map((t) => TAG_MAP[t]).filter(Boolean),
+          tags: tags.map((tagKey) => TAG_MAP[tagKey]).filter(Boolean),
         }),
       });
       if (!res.ok) throw new Error();
       setSubmitted(true);
       setTimeout(() => onOpenChange(false), 1200);
     } catch {
-      toast.error("Couldn't submit your review. Please try again.");
+      toast.error(t("bookingDetail.couldNotSubmitReview"));
     } finally {
       setSubmitting(false);
     }
@@ -103,26 +105,26 @@ function ReviewModal({
     <Modal
       open={open}
       onOpenChange={onOpenChange}
-      title="Rate your clean"
-      description={submitted ? undefined : `How did ${cleanerName} do?`}
+      title={t("bookingDetail.reviewTitle")}
+      description={submitted ? undefined : t("bookingDetail.howDidItGo", { name: cleanerName })}
       footer={
         submitted ? undefined : (
           <Button onClick={submit} disabled={rating === 0 || submitting} className="w-full">
-            {submitting ? "Submitting…" : "Submit review"}
+            {submitting ? t("bookingDetail.submitting") : t("bookingDetail.submitReview")}
           </Button>
         )
       }
     >
       {submitted ? (
         <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-          Thanks for your feedback!
+          {t("bookingDetail.thanksFeedback")}
         </p>
       ) : (
         <div className="space-y-5">
           <div
             className="flex justify-center gap-2"
             role="radiogroup"
-            aria-label="Star rating"
+            aria-label={t("bookingDetail.starRating")}
           >
             {[1, 2, 3, 4, 5].map((n) => (
               <button
@@ -130,7 +132,7 @@ function ReviewModal({
                 type="button"
                 role="radio"
                 aria-checked={rating === n}
-                aria-label={`${n} star${n > 1 ? "s" : ""}`}
+                aria-label={n > 1 ? t("bookingDetail.starsLabel", { n }) : t("bookingDetail.starLabel", { n })}
                 onClick={() => setRating(n)}
                 onMouseEnter={() => setHover(n)}
                 onMouseLeave={() => setHover(0)}
@@ -152,19 +154,19 @@ function ReviewModal({
               What did {cleanerName} do great?
             </p>
             <div className="flex flex-wrap gap-2">
-              {REVIEW_TAGS.map((t) => (
+              {TAG_KEYS.map((tagKey) => (
                 <button
-                  key={t}
+                  key={tagKey}
                   type="button"
-                  aria-pressed={tags.includes(t)}
-                  onClick={() => toggleTag(t)}
+                  aria-pressed={tags.includes(tagKey)}
+                  onClick={() => toggleTag(tagKey)}
                   className={`rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-seafoam-500 ${
-                    tags.includes(t)
+                    tags.includes(tagKey)
                       ? "border-seafoam-500 bg-seafoam-50 text-seafoam-700 dark:bg-seafoam-900/40 dark:text-seafoam-300"
                       : "border-slate-200 text-slate-500 dark:border-slate-700 dark:text-slate-400"
                   }`}
                 >
-                  {t}
+                  {t(tagKey)}
                 </button>
               ))}
             </div>
@@ -191,6 +193,7 @@ function ReviewModal({
 }
 
 export function BookingDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const { getToken } = useAuth();
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -199,7 +202,7 @@ export function BookingDetailPage() {
   const [authToken, setAuthToken] = useState<string | null>(null);
 
   useEffect(() => {
-    getToken().then((t) => setAuthToken(t ?? null)).catch(() => {});
+    getToken().then((tk) => setAuthToken(tk ?? null)).catch(() => {});
   }, [getToken]);
 
   useEffect(() => {
@@ -229,7 +232,7 @@ export function BookingDetailPage() {
         description="We couldn't find that booking."
         action={
           <Link to="/bookings">
-            <Button variant="secondary">Back to bookings</Button>
+            <Button variant="secondary">{t("common.back")}</Button>
           </Link>
         }
       />
@@ -400,7 +403,7 @@ export function BookingDetailPage() {
             </p>
             {booking.addOnKeys.length > 0 && (
               <p className="text-sm text-slate-500">
-                Add-ons:{" "}
+                {t("booking.review.addOns")}:{" "}
                 {booking.addOnKeys.map((k) => getAddOn(k)?.name).join(", ")}
               </p>
             )}

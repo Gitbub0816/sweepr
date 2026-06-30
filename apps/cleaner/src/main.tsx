@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ClerkProvider } from "@clerk/clerk-react";
 import { ToastProvider, ErrorBoundary, installGlobalErrorHandlers, initAnalytics } from "@sweepr/ui";
 import App from "./App";
+import "./i18n/index";
 import "./index.css";
 
 initAnalytics();

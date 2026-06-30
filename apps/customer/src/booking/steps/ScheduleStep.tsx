@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Zap, Repeat } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { SweeprCalendar, type CalendarSlot } from "@sweepr/ui";
 import { cn } from "@sweepr/utils";
 import { useBookingStore } from "../../store/booking";
@@ -29,13 +30,14 @@ function buildAvailability(): Record<string, CalendarSlot[]> {
   return data;
 }
 
-const CADENCES = [
-  { value: "weekly", label: "Weekly", discount: 10 },
-  { value: "biweekly", label: "Biweekly", discount: 8 },
-  { value: "monthly", label: "Monthly", discount: 5 },
-] as const;
+const CADENCE_VALUES = [
+  { value: "weekly" as const, discount: 10 },
+  { value: "biweekly" as const, discount: 8 },
+  { value: "monthly" as const, discount: 5 },
+];
 
 export function ScheduleStep() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const {
     scheduledAt,
@@ -57,6 +59,12 @@ export function ScheduleStep() {
   const quote = getQuote();
   const baseTotal = quote?.total ?? 0;
 
+  const cadences = [
+    { value: "weekly" as const, label: t("booking.schedule.weekly"), discount: 10 },
+    { value: "biweekly" as const, label: t("booking.schedule.biweekly"), discount: 8 },
+    { value: "monthly" as const, label: t("booking.schedule.monthly"), discount: 5 },
+  ];
+
   const onSelect = (slot: CalendarSlot) => {
     const window =
       slot.startTime === "08:00"
@@ -73,8 +81,8 @@ export function ScheduleStep() {
 
   return (
     <StepShell
-      title="Pick a date & time"
-      subtitle="Choose a day, then a time window that works for you."
+      title={t("booking.schedule.title")}
+      subtitle={t("booking.schedule.subtitle")}
       onBack={() => navigate("/book/service")}
       onNext={() => navigate("/book/review")}
       nextDisabled={!scheduledAt || !timeWindow}
@@ -95,11 +103,11 @@ export function ScheduleStep() {
               month: "short",
               day: "numeric",
             })}
-            {timeWindow ? ` · ${timeWindow}` : ""}
+            {timeWindow ? ` · ${t(`booking.schedule.${timeWindow}`)}` : ""}
           </span>
           {isEmergency && (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-              <Zap className="h-3 w-3" /> Rush Fee Applied (+15%)
+              <Zap className="h-3 w-3" /> {t("booking.schedule.rushFeeApplied")}
             </span>
           )}
         </div>
@@ -114,7 +122,7 @@ export function ScheduleStep() {
           <span className="flex items-center gap-2">
             <Repeat className="h-4 w-4 text-seafoam-500" />
             <span className="text-sm font-semibold text-charcoal dark:text-white">
-              Make this a subscription
+              {t("booking.schedule.makeSubscription")}
             </span>
           </span>
           <span
@@ -134,7 +142,7 @@ export function ScheduleStep() {
 
         {isSubscription && (
           <div className="mt-4 grid grid-cols-3 gap-2">
-            {CADENCES.map((c) => {
+            {cadences.map((c) => {
               const price = Math.round(baseTotal * (1 - c.discount / 100));
               const savings = Math.round(baseTotal - price);
               const active = subscriptionCadence === c.value;
@@ -152,10 +160,10 @@ export function ScheduleStep() {
                   <p className="text-sm font-semibold text-charcoal dark:text-white">
                     {c.label}
                   </p>
-                  <p className="text-xs text-seafoam-600">${price}/visit</p>
+                  <p className="text-xs text-seafoam-600">${price}{t("booking.schedule.perVisit")}</p>
                   {savings > 0 && (
                     <p className="mt-1 text-[10px] font-medium text-amber-600">
-                      Save ${savings}
+                      {t("booking.schedule.save", { amount: savings })}
                     </p>
                   )}
                 </button>

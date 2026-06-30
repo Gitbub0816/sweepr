@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { CalendarClock, ChevronRight, RotateCcw } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   DashboardShell,
   Card,
@@ -17,17 +18,18 @@ import { useBookings } from "../data/bookings";
 import { useBookingStore } from "../store/booking";
 
 export function BookingsPage() {
+  const { t } = useTranslation();
   const { bookings, loading } = useBookings();
   const upcoming = bookings.filter((b) => new Date(b.scheduledFor) > new Date());
   const past = bookings.filter((b) => new Date(b.scheduledFor) <= new Date());
 
   return (
     <DashboardShell
-      title="My Bookings"
-      description="Track upcoming cleanings and revisit past ones."
+      title={t("bookings.title")}
+      description={t("bookings.description")}
       actions={
         <Link to="/book/address">
-          <Button>Book a cleaning</Button>
+          <Button>{t("bookings.bookACleaning")}</Button>
         </Link>
       }
     >
@@ -35,8 +37,8 @@ export function BookingsPage() {
         <div className="h-40 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
       ) : (
         <>
-          <Section title="Upcoming" bookings={upcoming} />
-          <Section title="Past" bookings={past} empty showRebook />
+          <Section title={t("bookings.upcoming")} bookings={upcoming} />
+          <Section title={t("bookings.past")} bookings={past} empty showRebook />
         </>
       )}
     </DashboardShell>
@@ -54,6 +56,7 @@ function Section({
   empty?: boolean;
   showRebook?: boolean;
 }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const rebookFrom = useBookingStore((s) => s.rebookFrom);
 
@@ -81,11 +84,11 @@ function Section({
         empty ? null : (
           <EmptyState
             icon={broom}
-            title="No bookings yet"
-            description="Your upcoming cleanings will appear here."
+            title={t("bookings.noBookingsTitle")}
+            description={t("bookings.noBookingsDesc")}
             action={
               <Link to="/book/address">
-                <Button>Book your first clean</Button>
+                <Button>{t("bookings.bookFirstClean")}</Button>
               </Link>
             }
           />
@@ -122,7 +125,7 @@ function Section({
                   }}
                 >
                   <RotateCcw className="mr-1 h-4 w-4" />
-                  Rebook
+                  {t("bookings.rebook")}
                 </Button>
               ) : (
                 <ChevronRight className="h-4 w-4 text-slate-300" />

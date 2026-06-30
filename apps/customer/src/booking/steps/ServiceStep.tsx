@@ -1,35 +1,37 @@
 import { useNavigate } from "react-router-dom";
 import { Home, Sparkles, Truck, Repeat } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { ServiceCard, AddOnGrid } from "@sweepr/ui";
 import { ADD_ONS, BASE_PRICES } from "@sweepr/utils";
 import type { ServiceType } from "@sweepr/types";
 import { useBookingStore } from "../../store/booking";
 import { StepShell } from "../StepShell";
 
-const services: {
-  type: ServiceType;
-  name: string;
-  desc: string;
-  icon: typeof Home;
-  suffix?: string;
-}[] = [
-  { type: "standard", name: "Standard Clean", desc: "Routine top-to-bottom tidy.", icon: Home },
-  { type: "deep", name: "Deep Clean", desc: "Detailed, intensive reset.", icon: Sparkles },
-  { type: "move_in_out", name: "Move-in / Move-out", desc: "Empty-home spotless clean.", icon: Truck },
-  { type: "recurring", name: "Recurring Clean", desc: "Save with weekly or biweekly.", icon: Repeat, suffix: "/visit" },
-];
-
 export function ServiceStep() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const serviceType = useBookingStore((s) => s.serviceType);
   const setService = useBookingStore((s) => s.setService);
   const addOnKeys = useBookingStore((s) => s.addOnKeys);
   const toggleAddOn = useBookingStore((s) => s.toggleAddOn);
 
+  const services: {
+    type: ServiceType;
+    name: string;
+    desc: string;
+    icon: typeof Home;
+    suffix?: string;
+  }[] = [
+    { type: "standard", name: t("booking.service.standard"), desc: t("booking.service.standardDesc"), icon: Home },
+    { type: "deep", name: t("booking.service.deep"), desc: t("booking.service.deepDesc"), icon: Sparkles },
+    { type: "move_in_out", name: t("booking.service.moveInOut"), desc: t("booking.service.moveInOutDesc"), icon: Truck },
+    { type: "recurring", name: t("booking.service.recurring"), desc: t("booking.service.recurringDesc"), icon: Repeat, suffix: t("booking.service.perVisit") },
+  ];
+
   return (
     <StepShell
-      title="Choose your service"
-      subtitle="Pick the clean that fits, then add any extras."
+      title={t("booking.service.title")}
+      subtitle={t("booking.service.subtitle")}
       onBack={() => navigate("/book/home")}
       onNext={() => navigate("/book/schedule")}
       nextDisabled={!serviceType}
@@ -50,7 +52,7 @@ export function ServiceStep() {
       </div>
 
       <h2 className="mb-3 mt-8 text-sm font-semibold text-charcoal dark:text-white">
-        Add-ons
+        {t("booking.service.addOns")}
       </h2>
       <AddOnGrid addOns={ADD_ONS} selected={addOnKeys} onToggle={toggleAddOn} />
     </StepShell>

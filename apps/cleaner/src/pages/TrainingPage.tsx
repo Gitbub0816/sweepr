@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
+import { useTranslation } from "react-i18next";
 import {
   GraduationCap,
   ChevronRight,
@@ -86,18 +87,18 @@ type View = "list" | "lessons" | "quiz" | "quiz-result";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
-function statusBadge(progress: ModuleProgress | null) {
+function statusBadge(progress: ModuleProgress | null, t: (key: string) => string) {
   if (!progress || progress.status === "not_started") {
-    return <Badge variant="default">Not started</Badge>;
+    return <Badge variant="default">{t("cleaner.training.notStarted")}</Badge>;
   }
   if (progress.status === "passed") {
-    return <Badge variant="success">Passed</Badge>;
+    return <Badge variant="success">{t("cleaner.training.passed")}</Badge>;
   }
   if (progress.status === "failed") {
-    return <Badge variant="error">Failed</Badge>;
+    return <Badge variant="error">{t("cleaner.training.failed")}</Badge>;
   }
   if (progress.status === "in_progress") {
-    return <Badge variant="info">In progress</Badge>;
+    return <Badge variant="info">{t("cleaner.training.inProgress")}</Badge>;
   }
   return <Badge variant="default">{progress.status}</Badge>;
 }
@@ -144,6 +145,7 @@ function ModuleCard({
   locked: boolean;
   onSelect: (m: TrainingModule) => void;
 }) {
+  const { t } = useTranslation();
   const status = module.progress?.status ?? "not_started";
   const passed = status === "passed";
   const inProgress = status === "in_progress";
@@ -186,7 +188,7 @@ function ModuleCard({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {locked ? <Badge variant="default">Locked</Badge> : statusBadge(module.progress)}
+        {locked ? <Badge variant="default">{t("cleaner.training.locked")}</Badge> : statusBadge(module.progress, t)}
         {module.estimated_minutes ? (
           <span className="flex items-center gap-1 text-xs text-slate-500">
             <Clock className="h-3 w-3" /> {module.estimated_minutes} min
@@ -207,7 +209,7 @@ function ModuleCard({
 
       {!locked && (
         <span className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-seafoam-600 group-hover:gap-2">
-          {passed ? "Review" : inProgress ? "Continue" : "Start"}
+          {passed ? t("common.edit") : inProgress ? t("common.continue") : t("common.getStarted")}
           <ChevronRight className="h-4 w-4 transition-all" />
         </span>
       )}
@@ -224,6 +226,7 @@ function ModuleList({
   summary: ProgressSummary;
   onSelect: (m: TrainingModule) => void;
 }) {
+  const { t } = useTranslation();
   const baseModules = modules
     .filter((m) => m.required_type === "base")
     .sort((a, b) => a.sort_order - b.sort_order);
@@ -256,9 +259,9 @@ function ModuleList({
               <GraduationCap className="h-7 w-7" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold sm:text-3xl">Sweepr Cleaner Academy</h1>
+              <h1 className="text-2xl font-bold sm:text-3xl">{t("cleaner.training.title")}</h1>
               <p className="text-sm text-seafoam-50">
-                Complete your training to activate your account and start earning.
+                {t("cleaner.training.subtitle")}
               </p>
             </div>
           </div>
@@ -301,7 +304,7 @@ function ModuleList({
       {/* Required modules */}
       <div>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Required Modules
+          {t("cleaner.training.requiredModules")}
         </h2>
         <div className="grid gap-3 sm:grid-cols-2">
           {baseModules.map((m, i) => (
@@ -320,7 +323,7 @@ function ModuleList({
       {serviceModules.length > 0 && (
         <div>
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Service Modules
+            {t("cleaner.training.serviceModules")}
           </h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {serviceModules.map((m, i) => (
@@ -360,6 +363,7 @@ function LessonViewer({
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
   const [marking, setMarking] = useState(false);
   const [canComplete, setCanComplete] = useState(false);
+  const { t } = useTranslation();
   const contentRef = useRef<HTMLDivElement>(null);
 
   const lesson = lessons[currentLesson];
@@ -436,10 +440,10 @@ function LessonViewer({
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" size="sm" onClick={onBack}>
-          <ChevronLeft className="h-4 w-4" /> Academy
+          <ChevronLeft className="h-4 w-4" /> {t("cleaner.training.backToAcademy")}
         </Button>
         <span className="text-xs font-medium text-slate-500">
-          Lesson {currentLesson + 1} of {lessons.length}
+          {t("cleaner.training.lesson", { current: currentLesson + 1, total: lessons.length })}
         </span>
       </div>
 
@@ -536,7 +540,7 @@ function LessonViewer({
             <div className="flex flex-col items-end gap-2">
               {currentLesson < lessons.length - 1 ? (
                 <Button onClick={() => void completeAndAdvance()} loading={marking} disabled={!showComplete}>
-                  {showComplete ? "Next lesson" : "Keep reading…"}
+                  {showComplete ? t("cleaner.training.nextLesson") : t("cleaner.training.keepReading")}
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               ) : (
@@ -547,13 +551,13 @@ function LessonViewer({
                       loading={marking}
                       disabled={!showComplete}
                     >
-                      {showComplete ? "Mark complete" : "Keep reading…"}
+                      {showComplete ? t("cleaner.training.markComplete") : t("cleaner.training.keepReading")}
                       <CheckCircle2 className="h-4 w-4" />
                     </Button>
                   )}
                   {(allComplete || passed) && module.requires_quiz && (
                     <Button onClick={onStartQuiz} disabled={passed}>
-                      {passed ? "Quiz passed ✓" : "Take the quiz"}
+                      {passed ? t("cleaner.training.quizPassed") : t("cleaner.training.takeQuiz")}
                       <ArrowRight className="h-4 w-4" />
                     </Button>
                   )}
@@ -593,6 +597,7 @@ function Quiz({
   onComplete: (results: QuizResult[], score: number, passed: boolean) => void;
   getToken: () => Promise<string | null>;
 }) {
+  const { t } = useTranslation();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [current, setCurrent] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -638,17 +643,17 @@ function Quiz({
     <div className="mx-auto max-w-2xl space-y-5">
       <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" size="sm" onClick={onBack}>
-          <ChevronLeft className="h-4 w-4" /> Lessons
+          <ChevronLeft className="h-4 w-4" /> {t("cleaner.training.backToAcademy")}
         </Button>
         <span className="text-xs font-medium text-slate-500">
-          Pass: {passingScore}% · Attempt {attemptCount + 1} of {maxAttempts}
+          {t("cleaner.training.passAttempt", { score: passingScore, current: attemptCount + 1, total: maxAttempts })}
         </span>
       </div>
 
       <div>
         <div className="mb-2 flex items-center justify-between text-sm font-medium text-charcoal dark:text-white">
           <span>
-            Question {current + 1} of {questions.length}
+            {t("cleaner.training.questionOf", { current: current + 1, total: questions.length })}
           </span>
           <span className="text-seafoam-600">{pct}%</span>
         </div>
@@ -706,7 +711,7 @@ function Quiz({
             disabled={!allAnswered}
             loading={submitting}
           >
-            Submit quiz <CheckCircle2 className="h-4 w-4" />
+            {t("cleaner.training.submitQuiz")} <CheckCircle2 className="h-4 w-4" />
           </Button>
         ) : (
           <Button onClick={() => setCurrent((i) => i + 1)} disabled={!answers[question.id]}>
@@ -743,6 +748,7 @@ function QuizResultView({
   onNext: () => void;
   hasNext: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       {passed && <Confetti />}
@@ -759,14 +765,14 @@ function QuizResultView({
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/20 backdrop-blur">
             {passed ? <Trophy className="h-9 w-9" /> : <AlertCircle className="h-9 w-9" />}
           </div>
-          <h1 className="text-2xl font-bold">{passed ? "Module Complete!" : "Not quite there"}</h1>
+          <h1 className="text-2xl font-bold">{passed ? t("cleaner.training.moduleComplete") : t("cleaner.training.notQuiteTitle")}</h1>
           <p className="text-5xl font-black tabular-nums">{score}%</p>
           <p className="text-sm text-white/80">
             {passed
-              ? `You passed ${module.title}.`
-              : `You need ${passingScore}% to pass. ${
+              ? t("cleaner.training.youPassed", { title: module.title })
+              : `${t("cleaner.training.needScore", { score: passingScore })} ${
                   attemptsRemaining > 0
-                    ? `${attemptsRemaining} attempt${attemptsRemaining !== 1 ? "s" : ""} remaining.`
+                    ? `${attemptsRemaining} ${t("cleaner.training.attemptsRemaining")}.`
                     : "You have used all your attempts — please contact Sweepr support."
                 }`}
           </p>
@@ -774,17 +780,17 @@ function QuizResultView({
           <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
             {passed && hasNext && (
               <Button variant="secondary" onClick={onNext}>
-                Next module <ArrowRight className="h-4 w-4" />
+                {t("common.next")} <ArrowRight className="h-4 w-4" />
               </Button>
             )}
             {passed && !hasNext && (
               <Button variant="secondary" onClick={onBack}>
-                Back to Academy <ArrowRight className="h-4 w-4" />
+                {t("cleaner.training.backToAcademy")} <ArrowRight className="h-4 w-4" />
               </Button>
             )}
             {!passed && attemptsRemaining > 0 && (
               <Button variant="secondary" onClick={onRetry}>
-                <RefreshCw className="h-4 w-4" /> Retry quiz
+                <RefreshCw className="h-4 w-4" /> {t("cleaner.training.retryQuiz")}
               </Button>
             )}
           </div>
@@ -794,7 +800,7 @@ function QuizResultView({
       {/* Per-question review */}
       <div>
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Review your answers
+          {t("cleaner.training.reviewAnswers")}
         </h3>
         <div className="space-y-3">
           {results.map((r, idx) => (
@@ -823,10 +829,10 @@ function QuizResultView({
                         : "text-red-600 dark:text-red-400"
                     }
                   >
-                    Your answer: {r.submittedAnswer ?? "Not answered"}
+                    {t("cleaner.training.yourAnswer")} {r.submittedAnswer ?? "Not answered"}
                   </p>
                   {!r.isCorrect && (
-                    <p className="text-emerald-700 dark:text-emerald-300">Correct: {r.correctAnswer}</p>
+                    <p className="text-emerald-700 dark:text-emerald-300">{t("cleaner.training.correct")} {r.correctAnswer}</p>
                   )}
                   {r.explanation && (
                     <p className="mt-1 text-slate-600 dark:text-slate-400">{r.explanation}</p>
@@ -840,7 +846,7 @@ function QuizResultView({
 
       <div className="flex justify-center">
         <Button variant="secondary" onClick={onBack}>
-          Back to Academy
+          {t("cleaner.training.backToAcademy")}
         </Button>
       </div>
     </div>
@@ -850,6 +856,7 @@ function QuizResultView({
 // ─── Main TrainingPage ─────────────────────────────────────────────────────────
 
 export function TrainingPage() {
+  const { t } = useTranslation();
   const { moduleId: urlModuleId } = useParams<{ moduleId: string }>();
   const navigate = useNavigate();
   const { getToken } = useAuth();
@@ -1008,7 +1015,7 @@ export function TrainingPage() {
 
   if (loading) {
     return (
-      <DashboardShell title="Cleaner Academy" description="Loading your training…">
+      <DashboardShell title={t("cleaner.training.title")} description={t("common.loading")}>
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="h-24 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />

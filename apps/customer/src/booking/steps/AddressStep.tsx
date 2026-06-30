@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Input, getMapboxToken } from "@sweepr/ui";
 import type { Address } from "@sweepr/types";
 import { useBookingStore } from "../../store/booking";
@@ -75,6 +76,7 @@ function parseFeature(f: GeoFeature): Address | null {
 const ZIP_RE = /^\d{5}$/;
 
 export function AddressStep() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const address = useBookingStore((s) => s.address);
   const setAddress = useBookingStore((s) => s.setAddress);
@@ -154,15 +156,15 @@ export function AddressStep() {
 
   return (
     <StepShell
-      title="Where should we clean?"
-      subtitle="Search by address, city, or ZIP code to check availability near you."
+      title={t("booking.address.title")}
+      subtitle={t("booking.address.subtitle")}
       onNext={() => navigate("/book/home")}
       nextDisabled={!address || outOfArea}
     >
       <div ref={wrapperRef} className="relative">
         <Input
-          label="Address, city, or ZIP code"
-          placeholder="e.g. 123 Main St, Austin TX, or 94541"
+          label={t("booking.address.label")}
+          placeholder={t("booking.address.placeholder")}
           value={query}
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => suggestions.length > 0 && setShowDropdown(true)}
@@ -193,11 +195,8 @@ export function AddressStep() {
 
       {outOfArea && (
         <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          <p className="font-bold">We're not in your area yet.</p>
-          <p className="mt-1">
-            Sweepr is currently available in CA, TX, FL, NY, WA and CO. Leave us
-            your email and we'll notify you the moment we launch near you.
-          </p>
+          <p className="font-bold">{t("booking.address.outOfAreaTitle")}</p>
+          <p className="mt-1">{t("booking.address.outOfAreaBody")}</p>
         </div>
       )}
 

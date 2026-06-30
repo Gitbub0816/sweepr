@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
+import { useTranslation } from "react-i18next";
 import {
   DashboardShell,
   Button,
@@ -47,6 +48,7 @@ function apiSlotToCalendar(s: ApiSlot): CalendarSlot | null {
 }
 
 export function SchedulePage() {
+  const { t } = useTranslation();
   const { getToken } = useAuth();
   const [slots, setSlots] = useState<CalendarSlot[]>([]);
   const [availableNow, setAvailableNow] = useState(false);
@@ -114,8 +116,8 @@ export function SchedulePage() {
 
   return (
     <DashboardShell
-      title="Availability"
-      description="Set when you're available so we can match you with jobs."
+      title={t("cleaner.schedule.title")}
+      description={t("cleaner.schedule.description")}
       actions={<Button onClick={() => setModalOpen(true)}>Add Availability</Button>}
     >
       <button

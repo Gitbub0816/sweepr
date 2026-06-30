@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Radio, WifiOff } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
+import { useTranslation } from "react-i18next";
 import { DashboardShell, EmptyState, toast, useReducedMotion } from "@sweepr/ui";
 import type { ServiceType } from "@sweepr/types";
 import { JobCard, type AvailableJob } from "../components/JobCard";
@@ -40,6 +41,7 @@ function toAvailableJob(j: JobRow): AvailableJob {
 }
 
 export function JobsPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const reduced = useReducedMotion();
   const { getToken } = useAuth();
@@ -109,14 +111,14 @@ export function JobsPage() {
   if (!online) {
     return (
       <DashboardShell
-        title="Job Board"
-        description="Toggle online to start receiving job offers."
+        title={t("cleaner.jobs.title")}
+        description={t("cleaner.jobs.description")}
         actions={<OnlineToggle online={online} onChange={setOnline} />}
       >
         <EmptyState
           icon={<WifiOff className="h-10 w-10" />}
-          title="You're offline"
-          description="Go online to see jobs available near you."
+          title={t("cleaner.jobs.youreOffline")}
+          description={t("cleaner.jobs.goOnlineToSeeJobs")}
         />
       </DashboardShell>
     );
@@ -124,8 +126,8 @@ export function JobsPage() {
 
   return (
     <DashboardShell
-      title="Job Board"
-      description="Accept the jobs that work for you. Full address unlocks on accept."
+      title={t("cleaner.jobs.title")}
+      description={t("cleaner.jobs.description")}
       actions={<OnlineToggle online={online} onChange={setOnline} />}
     >
       <div className="mb-4 flex items-center gap-2 text-sm font-medium text-seafoam-600">
@@ -135,15 +137,15 @@ export function JobsPage() {
           )}
           <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-seafoam-500" />
         </span>
-        Looking for jobs near you…
+        {t("cleaner.jobs.lookingForJobs")}
       </div>
 
       {loading ? (
         <div className="h-48 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />
       ) : jobs.length === 0 ? (
         <EmptyState
-          title="No jobs available right now"
-          description="Check back soon — new offers appear throughout the day."
+          title={t("cleaner.jobs.noJobsTitle")}
+          description={t("cleaner.jobs.noJobsDesc")}
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -180,6 +182,7 @@ function OnlineToggle({
   online: boolean;
   onChange: (v: boolean) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <button
       type="button"
@@ -193,7 +196,7 @@ function OnlineToggle({
       }`}
     >
       {online ? <Radio className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
-      {online ? "You're Online" : "You're Offline"}
+      {online ? t("cleaner.jobs.youreOnline") : t("cleaner.jobs.youreOffline")}
     </button>
   );
 }

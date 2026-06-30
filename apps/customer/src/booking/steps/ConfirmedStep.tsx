@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { CheckCircle2, MapPin, CalendarClock, UserCheck, Clock } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button, Card } from "@sweepr/ui";
 import { SERVICE_LABELS, formatDateTime } from "@sweepr/utils";
 import { useAuth } from "@clerk/clerk-react";
@@ -10,6 +11,7 @@ import { fetchBooking } from "../../data/bookings";
 import type { Booking } from "@sweepr/types";
 
 export function ConfirmedStep() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { getToken } = useAuth();
   const state = useBookingStore();
@@ -38,12 +40,12 @@ export function ConfirmedStep() {
           <CheckCircle2 className="h-9 w-9" />
         </motion.div>
         <h1 className="mt-6 text-3xl font-bold text-charcoal dark:text-white">
-          You're booked!
+          {t("booking.confirmed.title")}
         </h1>
         <p className="mt-2 text-slate-500">
           {cleanerAssigned
-            ? "A trusted cleaner has been assigned to your booking."
-            : "We're finding your perfect cleaner. You'll be notified as soon as one is assigned."}
+            ? t("booking.confirmed.cleanerAssigned")
+            : t("booking.confirmed.findingCleaner")}
         </p>
 
         {/* Cleaner assignment status */}
@@ -56,14 +58,14 @@ export function ConfirmedStep() {
             <>
               <UserCheck className="h-5 w-5 text-seafoam-600" />
               <span className="text-sm font-semibold text-seafoam-800 dark:text-seafoam-200">
-                Cleaner assigned
+                {t("booking.confirmed.cleanerAssignedBadge")}
               </span>
             </>
           ) : (
             <>
               <Clock className="h-5 w-5 text-amber-600 animate-pulse" />
               <span className="text-sm font-semibold text-amber-800 dark:text-amber-200">
-                Matching you with a cleaner…
+                {t("booking.confirmed.matchingCleaner")}
               </span>
             </>
           )}
@@ -92,21 +94,21 @@ export function ConfirmedStep() {
 
         {bookingId && (
           <p className="mt-4 text-xs text-slate-400">
-            Booking ref: <span className="font-mono">{bookingId.slice(0, 8).toUpperCase()}</span>
+            {t("booking.confirmed.bookingRef")} <span className="font-mono">{bookingId.slice(0, 8).toUpperCase()}</span>
           </p>
         )}
 
         <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
           <Button onClick={() => { reset(); navigate("/"); }}>
-            Go to dashboard
+            {t("booking.confirmed.goToDashboard")}
           </Button>
           {bookingId ? (
             <Link to={`/bookings/${bookingId}`}>
-              <Button variant="secondary" onClick={reset}>View booking details</Button>
+              <Button variant="secondary" onClick={reset}>{t("booking.confirmed.viewBookingDetails")}</Button>
             </Link>
           ) : (
             <Button variant="secondary" onClick={() => { reset(); navigate("/bookings"); }}>
-              View my bookings
+              {t("booking.confirmed.viewMyBookings")}
             </Button>
           )}
           <Button
@@ -116,7 +118,7 @@ export function ConfirmedStep() {
               navigate("/book/address");
             }}
           >
-            Book another
+            {t("booking.confirmed.bookAnother")}
           </Button>
         </div>
       </div>

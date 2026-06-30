@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { ArrowRight, CalendarClock, Repeat, Sparkles, Home as HomeIcon, Truck, RotateCcw } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { StatusBadge } from "@sweepr/ui";
 import { formatCurrency, formatDateTime, SERVICE_LABELS } from "@sweepr/utils";
 import { useBookings } from "../data/bookings";
@@ -14,14 +15,8 @@ const suggested = [
   { type: "recurring" as const, icon: Repeat },
 ];
 
-function greeting(): string {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
-}
-
 export function Home() {
+  const { t } = useTranslation();
   const { bookings } = useBookings();
   const draft = useBookingStore();
   const hasDraft =
@@ -35,12 +30,15 @@ export function Home() {
   );
   const last = bookings[0];
 
+  const hour = new Date().getHours();
+  const greetingKey = hour < 12 ? "home.goodMorning" : hour < 18 ? "home.goodAfternoon" : "home.goodEvening";
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       <h1 className="text-3xl font-black text-charcoal dark:text-white">
-        {greeting()}! 👋
+        {t(greetingKey)}! 👋
       </h1>
-      <p className="mt-1 text-slate-500">Ready for a spotless home?</p>
+      <p className="mt-1 text-slate-500">{t("home.readyForSpotless")}</p>
 
       {/* Resume in-progress booking draft */}
       {hasDraft && (
@@ -53,10 +51,10 @@ export function Home() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-black text-seafoam-800 dark:text-seafoam-200">
-              Pick up where you left off
+              {t("home.pickUpWhereYouLeftOff")}
             </p>
             <p className="text-xs text-seafoam-600 dark:text-seafoam-400 truncate">
-              {SERVICE_LABELS[draft.serviceType!]} · saved draft
+              {SERVICE_LABELS[draft.serviceType!]} · {t("home.savedDraft")}
             </p>
           </div>
           <ArrowRight className="h-5 w-5 text-seafoam-500 flex-shrink-0" />
@@ -70,7 +68,7 @@ export function Home() {
           <div className="p-6">
             <div className="flex items-center justify-between">
               <p className="text-xs font-bold uppercase tracking-wide text-seafoam-600">
-                Upcoming clean
+                {t("home.upcomingClean")}
               </p>
               <StatusBadge status={upcoming.status} />
             </div>
@@ -85,7 +83,7 @@ export function Home() {
               to={`/bookings/${upcoming.id}`}
               className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-seafoam-600 hover:text-seafoam-700"
             >
-              View details <ArrowRight className="h-4 w-4" />
+              {t("home.viewDetails")} <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </div>
@@ -96,7 +94,7 @@ export function Home() {
         <div className="mt-4 flex items-center justify-between rounded-3xl border border-slate-200 bg-offwhite p-5 dark:border-slate-700 dark:bg-slate-900">
           <div>
             <p className="text-sm font-bold text-charcoal dark:text-white">
-              Book again
+              {t("home.bookAgain")}
             </p>
             <p className="text-sm text-slate-500">
               {SERVICE_LABELS[last.serviceType]} · {formatCurrency(last.quote.total)}
@@ -106,14 +104,14 @@ export function Home() {
             to="/book/address"
             className="rounded-2xl bg-seafoam-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-seafoam-600"
           >
-            Rebook
+            {t("home.rebook")}
           </Link>
         </div>
       )}
 
       {/* Suggested services */}
       <h2 className="mt-10 text-lg font-black text-charcoal dark:text-white">
-        Book a cleaning
+        {t("home.bookACleaning")}
       </h2>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         {suggested.map((s) => (
@@ -130,7 +128,7 @@ export function Home() {
               <p className="font-black text-charcoal dark:text-white">
                 {SERVICE_LABELS[s.type]}
               </p>
-              <p className="text-sm text-slate-500">Get an instant quote</p>
+              <p className="text-sm text-slate-500">{t("home.getAnInstantQuote")}</p>
             </div>
             <ArrowRight className="h-5 w-5 text-slate-300" />
           </Link>

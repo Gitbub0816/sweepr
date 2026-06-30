@@ -1,26 +1,28 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Input, Select } from "@sweepr/ui";
 import type { HomeType } from "@sweepr/types";
 import { useBookingStore } from "../../store/booking";
 import { StepShell } from "../StepShell";
 import { useCustomerProfile } from "../../data/profile";
 
-const homeTypes: { label: string; value: HomeType }[] = [
-  { label: "Apartment", value: "apartment" },
-  { label: "House", value: "house" },
-  { label: "Condo", value: "condo" },
-  { label: "Townhouse", value: "townhouse" },
-  { label: "Studio", value: "studio" },
-];
-
 const DEFAULTS = { bedrooms: 2, bathrooms: 1, sqft: 1200, homeType: "apartment" as HomeType };
 
 export function HomeStep() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const home = useBookingStore((s) => s.home);
   const setHome = useBookingStore((s) => s.setHome);
   const { data: profileData } = useCustomerProfile();
+
+  const homeTypes: { label: string; value: HomeType }[] = [
+    { label: t("booking.home.apartment"), value: "apartment" },
+    { label: t("booking.home.house"), value: "house" },
+    { label: t("booking.home.condo"), value: "condo" },
+    { label: t("booking.home.townhouse"), value: "townhouse" },
+    { label: t("booking.home.studio"), value: "studio" },
+  ];
 
   useEffect(() => {
     const p = profileData?.profile;
@@ -45,8 +47,8 @@ export function HomeStep() {
 
   return (
     <StepShell
-      title="Tell us about your home"
-      subtitle="This helps us match the right cleaner and quote accurately."
+      title={t("booking.home.title")}
+      subtitle={t("booking.home.subtitle")}
       onBack={() => navigate("/book/address")}
       onNext={() => navigate("/book/service")}
     >
@@ -55,7 +57,7 @@ export function HomeStep() {
           type="number"
           min={0}
           max={10}
-          label="Bedrooms"
+          label={t("booking.home.bedrooms")}
           value={home.bedrooms}
           onChange={(e) => setHome({ bedrooms: Number(e.target.value) })}
         />
@@ -63,7 +65,7 @@ export function HomeStep() {
           type="number"
           min={1}
           max={10}
-          label="Bathrooms"
+          label={t("booking.home.bathrooms")}
           value={home.bathrooms}
           onChange={(e) => setHome({ bathrooms: Number(e.target.value) })}
         />
@@ -71,12 +73,12 @@ export function HomeStep() {
           type="number"
           min={200}
           step={100}
-          label="Square footage"
+          label={t("booking.home.sqft")}
           value={home.sqft}
           onChange={(e) => setHome({ sqft: Number(e.target.value) })}
         />
         <Select
-          label="Home type"
+          label={t("booking.home.homeType")}
           options={homeTypes}
           value={home.homeType}
           onChange={(e) => setHome({ homeType: e.target.value as HomeType })}
@@ -91,7 +93,7 @@ export function HomeStep() {
           className="h-4 w-4 accent-seafoam-500"
         />
         <span className="text-sm text-charcoal dark:text-white">
-          I have pets at home
+          {t("booking.home.hasPets")}
         </span>
       </label>
     </StepShell>

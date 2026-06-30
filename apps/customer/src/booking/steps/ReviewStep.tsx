@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin, Home, CalendarClock, Sparkles, Zap, Repeat } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
+import { useTranslation } from "react-i18next";
 import { Card, Textarea, toast } from "@sweepr/ui";
 import {
   SERVICE_LABELS,
@@ -39,6 +40,7 @@ function Row({
 }
 
 export function ReviewStep() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { getToken } = useAuth();
   const state = useBookingStore();
@@ -146,7 +148,7 @@ export function ReviewStep() {
 
       navigate("/book/payment");
     } catch (err) {
-      toast.error((err as Error).message || "Could not create booking. Please try again.");
+      toast.error((err as Error).message || t("errors.couldNotCreateBooking"));
     } finally {
       setSubmitting(false);
     }
@@ -154,37 +156,37 @@ export function ReviewStep() {
 
   return (
     <StepShell
-      title="Review your booking"
-      subtitle="Make sure everything looks right before payment."
+      title={t("booking.review.title")}
+      subtitle={t("booking.review.subtitle")}
       onBack={() => navigate("/book/schedule")}
       onNext={handleContinueToPayment}
-      nextLabel={submitting ? "Creating booking…" : "Continue to payment"}
+      nextLabel={submitting ? t("booking.review.creatingBooking") : t("booking.review.continueToPayment")}
       nextDisabled={submitting}
     >
       <Card className="divide-y divide-slate-100 dark:divide-slate-800">
         <Row
           icon={MapPin}
-          label="Address"
+          label={t("booking.review.address")}
           value={`${address.line1}, ${address.city}, ${address.state} ${address.zip}`}
         />
         <Row
           icon={Home}
-          label="Home"
+          label={t("booking.review.home")}
           value={`${home.bedrooms} bd · ${home.bathrooms} ba · ${home.sqft} sqft · ${home.homeType}`}
         />
         <Row
           icon={Sparkles}
-          label="Service"
+          label={t("booking.review.service")}
           value={SERVICE_LABELS[serviceType]}
         />
         <Row
           icon={CalendarClock}
-          label="Scheduled for"
+          label={t("booking.review.scheduledFor")}
           value={formatDateTime(scheduledFor)}
         />
         {addOnKeys.length > 0 && (
           <div className="py-2">
-            <p className="text-xs text-slate-400">Add-ons</p>
+            <p className="text-xs text-slate-400">{t("booking.review.addOns")}</p>
             <p className="text-sm font-medium text-charcoal dark:text-white">
               {addOnKeys.map((k) => getAddOn(k)?.name).join(", ")}
             </p>
@@ -195,33 +197,33 @@ export function ReviewStep() {
       <Card className="mt-4">
         {isEmergency && (
           <span className="mb-3 inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-            <Zap className="h-3 w-3" /> Rush booking
+            <Zap className="h-3 w-3" /> {t("booking.review.rushBooking")}
           </span>
         )}
         {subPrice != null ? (
           <div>
-            <p className="text-sm text-slate-500">First clean</p>
+            <p className="text-sm text-slate-500">{t("booking.review.firstClean")}</p>
             <p className="text-3xl font-bold text-charcoal dark:text-white">
               {formatCurrency(total)}
             </p>
             <p className="mt-2 flex items-center gap-1 text-sm font-medium text-seafoam-700">
               <Repeat className="h-4 w-4" />
-              Then {formatCurrency(subPrice)} every {subscriptionCadence}
+              {t("booking.review.then")} {formatCurrency(subPrice)} {t("booking.review.every")} {subscriptionCadence}
             </p>
             {total - subPrice > 0 && (
               <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
-                Save {formatCurrency(total - subPrice)} per visit
+                {t("booking.review.savePerVisit", { amount: formatCurrency(total - subPrice) })}
               </span>
             )}
           </div>
         ) : (
           <div>
-            <p className="text-sm text-slate-500">Your clean</p>
+            <p className="text-sm text-slate-500">{t("booking.review.yourClean")}</p>
             <p className="text-3xl font-bold text-charcoal dark:text-white">
               {formatCurrency(total)}
             </p>
             <p className="mt-1 text-xs text-slate-400">
-              Includes everything — supplies, service, tax
+              {t("booking.review.includesEverything")}
             </p>
           </div>
         )}
@@ -229,8 +231,8 @@ export function ReviewStep() {
 
       <div className="mt-4">
         <Textarea
-          label="Notes for your cleaner (optional)"
-          placeholder="Gate code, parking, pets, areas to focus on…"
+          label={t("booking.review.notesLabel")}
+          placeholder={t("booking.review.notesPlaceholder")}
           value={notes}
           onChange={(e) => state.setNotes(e.target.value)}
         />

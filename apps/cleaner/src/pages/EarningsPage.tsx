@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Wallet, TrendingUp, BarChart3, DollarSign, Building2, ArrowRight } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
+import { useTranslation } from "react-i18next";
 import { DashboardShell, StatCard, Card, Button, toast } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
 
@@ -18,6 +19,7 @@ interface EarningSummary {
 }
 
 export function EarningsPage() {
+  const { t } = useTranslation();
   const { getToken } = useAuth();
   const [data, setData] = useState<EarningSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,12 +61,12 @@ export function EarningsPage() {
   }
 
   return (
-    <DashboardShell title="Earnings" description="Track your payouts and performance.">
+    <DashboardShell title={t("cleaner.earnings.title")} description={t("cleaner.earnings.description")}>
       {loading ? (
         <div className="h-64 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
       ) : !data ? (
         <Card>
-          <p className="text-sm text-slate-500">Could not load earnings right now.</p>
+          <p className="text-sm text-slate-500">{t("errors.couldNotLoad")}</p>
         </Card>
       ) : (
         <div className="space-y-6">
@@ -75,36 +77,36 @@ export function EarningsPage() {
                   <Building2 className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-charcoal dark:text-white">Set up payouts</p>
+                  <p className="font-semibold text-charcoal dark:text-white">{t("cleaner.earnings.setupPayouts")}</p>
                   <p className="text-sm text-slate-500">
-                    Connect your bank with Stripe to start receiving payments.
+                    {t("cleaner.earnings.connectBank")}
                   </p>
                 </div>
               </div>
               <Button onClick={setupPayouts} loading={connecting}>
-                Set up payouts with Stripe <ArrowRight className="h-4 w-4" />
+                {t("cleaner.earnings.setupPayouts")} <ArrowRight className="h-4 w-4" />
               </Button>
             </Card>
           )}
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="This Week"  value={formatCurrency(data.thisWeek / 100)}  icon={Wallet} />
-            <StatCard label="This Month" value={formatCurrency(data.thisMonth / 100)} icon={TrendingUp} />
-            <StatCard label="Last Month" value={formatCurrency(data.lastMonth / 100)} icon={BarChart3} />
-            <StatCard label="All Time"   value={formatCurrency(data.allTime / 100)}   icon={DollarSign} />
+            <StatCard label={t("cleaner.earnings.thisWeek")}  value={formatCurrency(data.thisWeek / 100)}  icon={Wallet} />
+            <StatCard label={t("cleaner.earnings.thisMonth")} value={formatCurrency(data.thisMonth / 100)} icon={TrendingUp} />
+            <StatCard label={t("cleaner.earnings.lastMonth")} value={formatCurrency(data.lastMonth / 100)} icon={BarChart3} />
+            <StatCard label={t("cleaner.earnings.allTime")}   value={formatCurrency(data.allTime / 100)}   icon={DollarSign} />
           </div>
 
           {data.pendingPayout > 0 && (
             <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
-              <strong>{formatCurrency(data.pendingPayout / 100)}</strong> pending payout
-              {data.nextPayoutDate && ` — expected ${new Date(data.nextPayoutDate).toLocaleDateString()}`}.
+              <strong>{formatCurrency(data.pendingPayout / 100)}</strong> {t("cleaner.earnings.pendingPayout")}
+              {data.nextPayoutDate && ` — ${t("cleaner.earnings.expected")} ${new Date(data.nextPayoutDate).toLocaleDateString()}`}.
             </div>
           )}
 
           {data.recent.length > 0 ? (
             <Card className="overflow-hidden p-0">
               <div className="px-4 py-3 border-b border-slate-100 text-sm font-medium text-slate-700 dark:border-slate-800 dark:text-slate-200">
-                Recent Payouts
+                {t("cleaner.earnings.recentPayouts")}
               </div>
               <table className="w-full text-sm">
                 <thead>
@@ -131,7 +133,7 @@ export function EarningsPage() {
             </Card>
           ) : (
             <Card>
-              <p className="text-sm text-slate-500">No payouts yet. Completed jobs will show up here.</p>
+              <p className="text-sm text-slate-500">{t("cleaner.earnings.noPayoutsYet")}</p>
             </Card>
           )}
         </div>

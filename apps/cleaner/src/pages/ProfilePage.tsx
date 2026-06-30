@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth, useUser, useClerk } from "@clerk/clerk-react";
+import { useTranslation } from "react-i18next";
 import { BadgeCheck, ShieldCheck, Star } from "lucide-react";
 import {
   DashboardShell, Card, Badge, Input, Textarea, Button, toast, AccountPrivacy,
@@ -19,13 +20,14 @@ interface Cleaner {
   didit_status: string | null;
 }
 
-function statusBadge(ok: boolean, pending: boolean) {
-  if (ok) return <Badge variant="success">Verified</Badge>;
-  if (pending) return <Badge variant="warning">Pending</Badge>;
-  return <Badge variant="warning">Not started</Badge>;
+function statusBadge(ok: boolean, pending: boolean, t: (key: string) => string) {
+  if (ok) return <Badge variant="success">{t("profile.verified")}</Badge>;
+  if (pending) return <Badge variant="warning">{t("profile.pending")}</Badge>;
+  return <Badge variant="warning">{t("profile.notStarted")}</Badge>;
 }
 
 export function ProfilePage() {
+  const { t } = useTranslation();
   const { user } = useUser();
   const { getToken } = useAuth();
   const { signOut } = useClerk();
@@ -72,7 +74,7 @@ export function ProfilePage() {
     email[0]?.toUpperCase() || "U";
 
   return (
-    <DashboardShell title="Profile" description="Manage your profile, contact details, and data.">
+    <DashboardShell title={t("cleaner.profile.title")} description={t("cleaner.profile.description")}>
       <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
         <Card className="space-y-4">
           <div className="flex items-center gap-4">
@@ -87,20 +89,20 @@ export function ProfilePage() {
               </p>
             </div>
           </div>
-          <Input label="Display name" value={name} onChange={(e) => setName(e.target.value)} />
-          <Textarea label="Bio" value={bio} onChange={(e) => setBio(e.target.value)} />
-          <Button onClick={save} loading={saving}>Save changes</Button>
+          <Input label={t("profile.displayName")} value={name} onChange={(e) => setName(e.target.value)} />
+          <Textarea label={t("profile.bio")} value={bio} onChange={(e) => setBio(e.target.value)} />
+          <Button onClick={save} loading={saving}>{t("profile.saveChanges")}</Button>
         </Card>
 
         <Card className="space-y-3">
-          <h2 className="font-semibold text-charcoal dark:text-white">Verification status</h2>
+          <h2 className="font-semibold text-charcoal dark:text-white">{t("profile.verificationStatus")}</h2>
           <div className="flex items-center justify-between">
-            <span className="flex items-center gap-2 text-sm text-slate-500"><BadgeCheck className="h-4 w-4 text-emerald-500" /> Identity</span>
-            {statusBadge(cleaner?.didit_status === "approved", cleaner?.didit_status === "pending" || cleaner?.didit_status === "in_review")}
+            <span className="flex items-center gap-2 text-sm text-slate-500"><BadgeCheck className="h-4 w-4 text-emerald-500" /> {t("profile.identity")}</span>
+            {statusBadge(cleaner?.didit_status === "approved", cleaner?.didit_status === "pending" || cleaner?.didit_status === "in_review", t)}
           </div>
           <div className="flex items-center justify-between">
-            <span className="flex items-center gap-2 text-sm text-slate-500"><ShieldCheck className="h-4 w-4 text-emerald-500" /> Background check</span>
-            {statusBadge(cleaner?.checkr_status === "clear", cleaner?.checkr_status === "pending" || cleaner?.checkr_status === "consider")}
+            <span className="flex items-center gap-2 text-sm text-slate-500"><ShieldCheck className="h-4 w-4 text-emerald-500" /> {t("profile.backgroundCheck")}</span>
+            {statusBadge(cleaner?.checkr_status === "clear", cleaner?.checkr_status === "pending" || cleaner?.checkr_status === "consider", t)}
           </div>
         </Card>
       </div>

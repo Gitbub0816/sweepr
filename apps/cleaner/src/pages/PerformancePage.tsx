@@ -1,4 +1,5 @@
 import { Star, TrendingUp } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { DashboardShell, Card } from "@sweepr/ui";
 
 const perf = {
@@ -96,13 +97,14 @@ function CircularProgress({
 }
 
 export function PerformancePage() {
+  const { t } = useTranslation();
   const isElite = perf.tier === "elite";
   const next = perf.tier === "standard" ? tierThresholds.preferred : tierThresholds.elite;
 
   return (
     <DashboardShell
-      title="Performance"
-      description="Your ratings, reliability, and how to level up."
+      title={t("cleaner.performance.title")}
+      description={t("cleaner.performance.description")}
     >
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="flex flex-col items-center justify-center text-center">

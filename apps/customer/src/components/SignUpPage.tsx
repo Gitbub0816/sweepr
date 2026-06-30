@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useSignUp, useSignIn } from "@clerk/clerk-react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { Eye, EyeOff, LogIn } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { SweeprLogo, ThemeToggle, SMSOptIn } from "@sweepr/ui";
 import { inputCls, ErrorBox, SubmitButton, Divider, MethodTabs, Field, OAuthButton } from "./authHelpers";
 
@@ -15,6 +16,7 @@ function isValidEmail(s: string) {
 }
 
 export function SignUpPage() {
+  const { t } = useTranslation();
   const { signUp, setActive, isLoaded } = useSignUp();
   const { signIn } = useSignIn();
   const navigate = useNavigate();
@@ -65,7 +67,7 @@ export function SignUpPage() {
     try {
       await signUp.authenticateWithRedirect({ strategy: provider, redirectUrl: "/sso-callback", redirectUrlComplete: "/book" });
     } catch (err: unknown) {
-      setError((err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? "OAuth sign-up failed.");
+      setError((err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? t("auth.oauthFailed"));
     }
   }
 
@@ -93,7 +95,7 @@ export function SignUpPage() {
       await signUp.preparePhoneNumberVerification({ strategy: "phone_code" });
       setStage("code");
     } catch (err: unknown) {
-      setError((err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? "Could not send code.");
+      setError((err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? t("auth.couldNotSendCode"));
     } finally { setLoading(false); }
   }
 
@@ -110,7 +112,7 @@ export function SignUpPage() {
         navigate(redirectTo);
       }
     } catch (err: unknown) {
-      setError((err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? "Invalid code.");
+      setError((err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? t("auth.invalidCode"));
     } finally { setLoading(false); }
   }
 
@@ -122,25 +124,25 @@ export function SignUpPage() {
       <div className="mb-8 flex flex-col items-center text-center">
         <SweeprLogo size="md" />
         <h1 className="mt-4 text-2xl font-bold text-charcoal dark:text-white">
-          {stage === "form" ? "Create your account" : `Verify your ${method}`}
+          {stage === "form" ? t("auth.createAccount") : `Verify your ${method}`}
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          {stage === "form" ? "Book your first clean in minutes" : `We sent a code to ${identifier}`}
+          {stage === "form" ? t("auth.firstTimeSweeping") : t("auth.codeSentTo", { phone: identifier })}
         </p>
       </div>
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-xl dark:border-slate-700 dark:bg-slate-900">
         {stage === "form" ? (
           <>
             <div className="space-y-3">
-              <OAuthButton provider="oauth_google" label="Continue with Google" onClick={() => void handleOAuth("oauth_google")} />
-              <OAuthButton provider="oauth_apple" label="Continue with Apple" onClick={() => void handleOAuth("oauth_apple")} />
+              <OAuthButton provider="oauth_google" label={t("auth.continueWithGoogle")} onClick={() => void handleOAuth("oauth_google")} />
+              <OAuthButton provider="oauth_apple" label={t("auth.continueWithApple")} onClick={() => void handleOAuth("oauth_apple")} />
             </div>
             <Divider />
             <MethodTabs method={method} onChange={(m) => { setMethod(m); setError(""); setHasAccount(false); }} />
 
             {method === "email" ? (
               <form onSubmit={(e) => void handleEmailSubmit(e)} className="space-y-4">
-                <Field label="Email">
+                <Field label={t("auth.email")}>
                   <input
                     type="email" autoComplete="email" required value={email}
                     onChange={(e) => { setEmail(e.target.value); setHasAccount(false); setError(""); }}
@@ -152,21 +154,21 @@ export function SignUpPage() {
                   <div className="flex items-start gap-3 rounded-xl border border-seafoam-200 bg-seafoam-50 px-4 py-3 dark:border-seafoam-800/40 dark:bg-seafoam-900/20">
                     <LogIn className="mt-0.5 h-4 w-4 shrink-0 text-seafoam-600 dark:text-seafoam-400" />
                     <div>
-                      <p className="text-sm font-medium text-seafoam-800 dark:text-seafoam-300">Looks like you've swept with us before!</p>
+                      <p className="text-sm font-medium text-seafoam-800 dark:text-seafoam-300">{t("auth.readyToJoin")}</p>
                       <p className="mt-0.5 text-xs text-seafoam-700 dark:text-seafoam-400">
-                        That email already has an account.{" "}
+                        {t("auth.alreadyHaveAccount")}{" "}
                         <Link
                           to="/sign-in"
                           state={{ prefillEmail: email }}
                           className="font-semibold underline underline-offset-2"
                         >
-                          Sign in instead →
+                          {t("auth.signInInstead")}
                         </Link>
                       </p>
                     </div>
                   </div>
                 )}
-                <Field label="Password">
+                <Field label={t("auth.password")}>
                   <div className="relative">
                     <input
                       type={showPassword ? "text" : "password"} autoComplete="new-password" required minLength={8}
@@ -181,17 +183,17 @@ export function SignUpPage() {
                 </Field>
                 {error && <ErrorBox message={error} />}
                 <div id="clerk-captcha" />
-                <SubmitButton loading={loading} disabled={!isLoaded} label="Create account" />
+                <SubmitButton loading={loading} disabled={!isLoaded} label={t("auth.createAccount")} />
               </form>
             ) : (
               <form onSubmit={(e) => void handlePhoneSubmit(e)} className="space-y-4">
-                <Field label="Phone number">
+                <Field label={t("auth.phone")}>
                   <input type="tel" autoComplete="tel" required value={phone} onChange={(e) => setPhone(e.target.value)}
                     className={inputCls} placeholder="+1 (555) 000-0000" />
                 </Field>
                 {error && <ErrorBox message={error} />}
                 <div id="clerk-captcha" />
-                <SubmitButton loading={loading} disabled={!isLoaded} label="Send code" />
+                <SubmitButton loading={loading} disabled={!isLoaded} label={t("auth.sendCode")} />
               </form>
             )}
 
@@ -200,23 +202,23 @@ export function SignUpPage() {
             </div>
 
             <p className="mt-4 text-center text-sm text-slate-500">
-              Already have an account?{" "}
-              <Link to="/sign-in" className="font-medium text-seafoam-600 hover:underline dark:text-seafoam-400">Sign in</Link>
+              {t("auth.alreadyHaveAccount")}{" "}
+              <Link to="/sign-in" className="font-medium text-seafoam-600 hover:underline dark:text-seafoam-400">{t("auth.signIn")}</Link>
             </p>
           </>
         ) : (
           <form onSubmit={(e) => void handleVerify(e)} className="space-y-5">
             <p className="text-center text-sm text-slate-500">
-              Code sent to <span className="font-medium text-charcoal dark:text-white">{identifier}</span>
+              {t("auth.codeSentTo", { phone: identifier })} <span className="font-medium text-charcoal dark:text-white">{identifier}</span>
             </p>
             <input type="text" inputMode="numeric" autoComplete="one-time-code" required maxLength={6} value={code}
               onChange={(e) => setCode(e.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-2xl tracking-[0.5em] text-charcoal outline-none transition focus:border-seafoam-400 focus:ring-2 focus:ring-seafoam-400/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
               placeholder="······" />
             {error && <ErrorBox message={error} />}
-            <SubmitButton loading={loading} disabled={!isLoaded} label="Verify & create account" />
+            <SubmitButton loading={loading} disabled={!isLoaded} label={t("auth.verify")} />
             <button type="button" onClick={() => { setStage("form"); setCode(""); setError(""); }}
-              className="w-full text-center text-sm text-slate-500 hover:text-slate-700">← Back</button>
+              className="w-full text-center text-sm text-slate-500 hover:text-slate-700">← {t("common.back")}</button>
           </form>
         )}
       </div>

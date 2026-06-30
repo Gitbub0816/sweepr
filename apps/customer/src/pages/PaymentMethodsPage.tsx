@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { CreditCard } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
+import { useTranslation } from "react-i18next";
 import { DashboardShell, Card, Badge, EmptyState } from "@sweepr/ui";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -15,6 +16,7 @@ interface Method {
 }
 
 export function PaymentMethodsPage() {
+  const { t } = useTranslation();
   const { getToken } = useAuth();
   const [methods, setMethods] = useState<Method[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,14 +32,14 @@ export function PaymentMethodsPage() {
   useEffect(() => { load(); }, [load]);
 
   return (
-    <DashboardShell title="Payment Methods" description="Cards saved with our payment processor (Stripe).">
+    <DashboardShell title={t("payment.title")} description={t("payment.description")}>
       {loading ? (
         <div className="h-32 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
       ) : methods.length === 0 ? (
         <EmptyState
           icon={<CreditCard className="h-10 w-10 text-slate-300" />}
-          title="No saved cards yet"
-          description="A card is saved securely with Stripe the first time you book. We never store full card numbers."
+          title={t("payment.noCardsTitle")}
+          description={t("payment.noCardsDesc")}
         />
       ) : (
         <div className="space-y-3">
@@ -52,7 +54,7 @@ export function PaymentMethodsPage() {
                 </p>
                 {pm.expMonth && pm.expYear && (
                   <p className="text-sm text-slate-500">
-                    Expires {String(pm.expMonth).padStart(2, "0")}/{pm.expYear}
+                    {t("payment.expires")} {String(pm.expMonth).padStart(2, "0")}/{pm.expYear}
                   </p>
                 )}
               </div>
