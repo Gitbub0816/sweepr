@@ -11,7 +11,7 @@ import { recordError } from "./errorLog";
 import { sendEmail, SENDERS, TEMPLATES, formatEmailTimestamp } from "./mailer";
 import { sendNotification } from "./notifications";
 import { listSuperAdmins } from "./approvalEngine";
-import { approvalCardBlocks, postMessage, updateMessage } from "./slack";
+import { approvalCardBlocks, postMessage, updateMessage, conversationsJoin } from "./slack";
 
 function adminUrl(env: Env): string {
   return env.ADMIN_URL ?? "https://admin.getsweepr.com";
@@ -149,6 +149,7 @@ export async function postProposalCard(sql: Sql, env: Env, proposal: ProposalRow
       responseDeadline: new Date(proposal.response_deadline_at).toLocaleString(),
       adminUrl: adminUrl(env),
     });
+    await conversationsJoin(ws.bot_token, channel).catch(() => null);
     const res = await postMessage(ws.bot_token, channel, {
       text: `Fee change proposed: ${proposal.title}`,
       blocks,
@@ -284,6 +285,7 @@ export async function postPricingCard(sql: Sql, env: Env, proposal: PricingPropo
       adminUrl: adminUrl(env),
       domain: "pricing",
     });
+    await conversationsJoin(ws.bot_token, channel).catch(() => null);
     const res = await postMessage(ws.bot_token, channel, { text: `Pricing change proposed: ${proposal.title}`, blocks });
     if (res.ok && res.ts) {
       await sql`
