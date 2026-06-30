@@ -234,11 +234,13 @@ adminInviteRouter.post(
     // super_admin uses the dedicated role column; all other admin roles use 'admin'.
     const userRole = grantedRole === "super_admin" ? "super_admin" : "admin";
 
-    // If a stale users row exists with this email but a different clerk_id
-    // (e.g. from a failed previous sign-up), retarget it so the email UNIQUE
-    // constraint doesn't block the upsert below.
+    // If a stale users row owns the invite email (e.g. from a failed previous
+    // sign-up that created a DB row but no Clerk account), free up the email
+    // by giving the stale row a synthetic address. This avoids a UNIQUE
+    // constraint violation when we set the real email on the current row below.
     await sql`
-      UPDATE users SET clerk_id = ${clerkId}, updated_at = NOW()
+      UPDATE users
+      SET email = clerk_id || '@stale.sweepr.local', updated_at = NOW()
       WHERE email = ${rows[0].email} AND clerk_id != ${clerkId}
     `;
 

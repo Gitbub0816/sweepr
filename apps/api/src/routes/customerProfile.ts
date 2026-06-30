@@ -25,8 +25,7 @@ customerProfileRouter.get("/", async (c) => {
 
   // Ensure the customer row exists.
   await sql`
-    INSERT INTO customers (user_id) VALUES (${user.id})
-    ON CONFLICT (user_id) DO NOTHING
+    INSERT INTO customers (user_id) SELECT ${user.id} WHERE NOT EXISTS (SELECT 1 FROM customers WHERE user_id = ${user.id})
   `;
 
   const rows = (await sql`
