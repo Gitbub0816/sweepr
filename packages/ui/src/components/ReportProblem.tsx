@@ -121,13 +121,15 @@ export function ReportProblem({ app, apiUrl, getToken }: Props) {
 
   return (
     <>
+      {/* Desktop: full pill label. Mobile: icon-only at bottom-left to stay clear of scroll gestures. */}
       <button
         type="button"
         onClick={openModal}
-        className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full bg-charcoal px-4 py-2.5 text-sm font-medium text-white shadow-lg hover:bg-slate-800 dark:bg-slate-700"
+        className="fixed bottom-16 right-3 z-40 flex h-10 w-10 items-center justify-center rounded-full bg-charcoal shadow-lg hover:bg-slate-800 dark:bg-slate-700 sm:bottom-4 sm:right-4 sm:h-auto sm:w-auto sm:gap-2 sm:rounded-full sm:px-4 sm:py-2.5"
         aria-label="Report a problem"
       >
-        <LifeBuoy className="h-4 w-4" /> Report a problem
+        <LifeBuoy className="h-5 w-5 text-white sm:h-4 sm:w-4" />
+        <span className="hidden text-sm font-medium text-white sm:inline">Report a problem</span>
       </button>
 
       {open && (

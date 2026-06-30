@@ -25,6 +25,8 @@ export interface BookingState {
   paymentConfirmed: boolean;
   isRebook: boolean;
   rebookedFromDate: string | null;
+  /** DB booking ID after the booking is created in the API. */
+  bookingId: string | null;
 
   setAddress: (address: Address) => void;
   setTimeWindow: (window: "morning" | "afternoon" | "evening" | null) => void;
@@ -40,6 +42,7 @@ export interface BookingState {
   setCadence: (cadence: RecurringCadence) => void;
   setSchedule: (iso: string) => void;
   setNotes: (notes: string) => void;
+  setBookingId: (id: string) => void;
   confirmPayment: () => void;
   reset: () => void;
 
@@ -72,6 +75,7 @@ export const useBookingStore = create<BookingState>()(
   paymentConfirmed: false,
   isRebook: false,
   rebookedFromDate: null,
+  bookingId: null,
 
   setAddress: (address) => set({ address }),
   setTimeWindow: (timeWindow) => set({ timeWindow }),
@@ -118,6 +122,7 @@ export const useBookingStore = create<BookingState>()(
     });
   },
   setNotes: (notes) => set({ notes }),
+  setBookingId: (bookingId) => set({ bookingId }),
   confirmPayment: () => set({ paymentConfirmed: true }),
   reset: () =>
     set({
@@ -136,6 +141,7 @@ export const useBookingStore = create<BookingState>()(
       paymentConfirmed: false,
       isRebook: false,
       rebookedFromDate: null,
+      bookingId: null,
     }),
 
   getQuote: () => {

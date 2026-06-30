@@ -34,6 +34,25 @@ body,
   font-family: var(--legal-font);
 }
 
+/* Mobile: prevent monospace text overflow */
+.legal-content {
+  overflow-wrap: break-word;
+  word-break: break-word;
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  :root {
+    font-size: 14px;
+  }
+  .legal-content pre,
+  .legal-content code {
+    white-space: pre-wrap;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+}
+
 /* Print-friendly styles */
 @media print {
   .no-print {

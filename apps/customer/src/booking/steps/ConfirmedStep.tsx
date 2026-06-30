@@ -1,19 +1,30 @@
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { CheckCircle2, MapPin, CalendarClock } from "lucide-react";
+import { CheckCircle2, MapPin, CalendarClock, UserCheck, Clock } from "lucide-react";
 import { Button, Card } from "@sweepr/ui";
-import {
-  SERVICE_LABELS,
-  formatDateTime,
-  TRACKING_STEPS,
-  JOB_STATUS_LABELS,
-} from "@sweepr/utils";
+import { SERVICE_LABELS, formatDateTime } from "@sweepr/utils";
+import { useAuth } from "@clerk/clerk-react";
 import { useBookingStore } from "../../store/booking";
+import { fetchBooking } from "../../data/bookings";
+import type { Booking } from "@sweepr/types";
 
 export function ConfirmedStep() {
   const navigate = useNavigate();
+  const { getToken } = useAuth();
   const state = useBookingStore();
-  const { address, serviceType, scheduledFor, reset } = state;
+  const { address, serviceType, scheduledFor, bookingId, reset } = state;
+  const [dbBooking, setDbBooking] = useState<Booking | null>(null);
+
+  // Load the real booking from the DB so we can show cleaner assignment status.
+  useEffect(() => {
+    if (!bookingId) return;
+    fetchBooking(getToken, bookingId).then((b) => {
+      if (b) setDbBooking(b);
+    });
+  }, [bookingId, getToken]);
+
+  const cleanerAssigned = !!dbBooking?.cleanerId;
 
   return (
     <div className="min-h-screen bg-offwhite px-4 py-16 dark:bg-slate-950">
@@ -30,69 +41,71 @@ export function ConfirmedStep() {
           You're booked!
         </h1>
         <p className="mt-2 text-slate-500">
-          We're matching you with a trusted cleaner. You'll get updates as your
-          appointment approaches.
+          {cleanerAssigned
+            ? "A trusted cleaner has been assigned to your booking."
+            : "We're finding your perfect cleaner. You'll be notified as soon as one is assigned."}
         </p>
 
-        {serviceType && scheduledFor && (
+        {/* Cleaner assignment status */}
+        <div className={`mt-6 flex items-center justify-center gap-3 rounded-2xl px-5 py-4 ${
+          cleanerAssigned
+            ? "bg-seafoam-50 dark:bg-seafoam-900/20"
+            : "bg-amber-50 dark:bg-amber-900/20"
+        }`}>
+          {cleanerAssigned ? (
+            <>
+              <UserCheck className="h-5 w-5 text-seafoam-600" />
+              <span className="text-sm font-semibold text-seafoam-800 dark:text-seafoam-200">
+                Cleaner assigned
+              </span>
+            </>
+          ) : (
+            <>
+              <Clock className="h-5 w-5 text-amber-600 animate-pulse" />
+              <span className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+                Matching you with a cleaner…
+              </span>
+            </>
+          )}
+        </div>
+
+        {(serviceType || dbBooking) && (scheduledFor || dbBooking) && (
           <Card className="mt-8 text-left">
             <p className="text-sm font-semibold text-charcoal dark:text-white">
-              {SERVICE_LABELS[serviceType]}
+              {SERVICE_LABELS[(dbBooking?.serviceType ?? serviceType)!]}
             </p>
             <div className="mt-3 space-y-2 text-sm text-slate-500">
               <p className="flex items-center gap-2">
                 <CalendarClock className="h-4 w-4 text-seafoam-500" />
-                {formatDateTime(scheduledFor)}
+                {formatDateTime((dbBooking?.scheduledFor ?? scheduledFor)!)}
               </p>
-              {address && (
+              {(dbBooking?.address?.line1 ?? address) && (
                 <p className="flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-seafoam-500" />
-                  {address.line1}, {address.city}
+                  {dbBooking?.address?.line1 ?? address?.line1},{" "}
+                  {dbBooking?.address?.city ?? address?.city}
                 </p>
               )}
-            </div>
-
-            <div className="mt-5">
-              <p className="mb-2 text-xs font-semibold uppercase text-slate-400">
-                Tracking preview
-              </p>
-              <ol className="space-y-2">
-                {TRACKING_STEPS.map((s, i) => (
-                  <li key={s} className="flex items-center gap-3 text-sm">
-                    <span
-                      className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${
-                        i === 0
-                          ? "bg-seafoam-500 text-white"
-                          : "bg-slate-100 text-slate-400 dark:bg-slate-800"
-                      }`}
-                    >
-                      {i + 1}
-                    </span>
-                    <span
-                      className={
-                        i === 0
-                          ? "font-medium text-charcoal dark:text-white"
-                          : "text-slate-400"
-                      }
-                    >
-                      {JOB_STATUS_LABELS[s]}
-                    </span>
-                  </li>
-                ))}
-              </ol>
             </div>
           </Card>
         )}
 
+        {bookingId && (
+          <p className="mt-4 text-xs text-slate-400">
+            Booking ref: <span className="font-mono">{bookingId.slice(0, 8).toUpperCase()}</span>
+          </p>
+        )}
+
         <div className="mt-8 flex justify-center gap-3">
-          <Button
-            onClick={() => {
-              reset();
-              navigate("/bookings");
-            }}
-          >
-            View my bookings
-          </Button>
+          {bookingId ? (
+            <Link to={`/bookings/${bookingId}`}>
+              <Button onClick={reset}>View booking details</Button>
+            </Link>
+          ) : (
+            <Button onClick={() => { reset(); navigate("/bookings"); }}>
+              View my bookings
+            </Button>
+          )}
           <Button
             variant="secondary"
             onClick={() => {

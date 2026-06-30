@@ -51,6 +51,7 @@ import { responseTemplatesRouter } from "./routes/responseTemplates";
 import { adminEmailRouter, mailersendWebhookRouter, unsubscribeRouter } from "./routes/adminEmail";
 import { requestLogger } from "./middleware/requestLogger";
 import { clientErrorsRouter } from "./routes/clientErrors";
+import { customerProfileRouter } from "./routes/customerProfile";
 import { AppError, toSafeError } from "./lib/errors";
 import { logger } from "./lib/logger";
 import { recordError } from "./lib/errorLog";
@@ -85,6 +86,7 @@ app.get("/health", (c) => c.json({ ok: true }));
 
 app.route("/auth", authRouter);
 app.route("/client-errors", clientErrorsRouter);
+app.route("/customer-profile", customerProfileRouter);
 app.route("/bookings", bookingsRouter);
 app.route("/pricing", pricingRouter);
 app.route("/payments", paymentsRouter);

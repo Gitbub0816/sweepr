@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, Outlet } from "react-router-dom";
+import { Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { AuthenticateWithRedirectCallback } from "@clerk/clerk-react";
 import { SignInPage } from "./components/SignInPage";
 import { SignUpPage } from "./components/SignUpPage";
@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { AppShell, PrelaunchGate, ReportProblem } from "@sweepr/ui";
 import { useAuth } from "@clerk/clerk-react";
+import { OnboardingPage } from "./pages/OnboardingPage";
+import { useCustomerProfile } from "./data/profile";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -21,6 +23,7 @@ function ReportProblemMount() {
   if (!isSignedIn) return null;
   return <ReportProblem app="customer" apiUrl={API_URL} getToken={getToken} />;
 }
+
 import { BookingLayout } from "./booking/BookingLayout";
 import { SubscriptionsPage } from "./pages/SubscriptionsPage";
 import { AddressStep } from "./booking/steps/AddressStep";
@@ -65,12 +68,32 @@ function Protected({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Checks if the user has completed onboarding; if not, redirects to /onboarding. */
+function OnboardingGate({ children }: { children: React.ReactNode }) {
+  const { isSignedIn, isLoaded } = useAuth();
+  const { data, loading } = useCustomerProfile();
+  const location = useLocation();
+
+  if (!isLoaded || (isSignedIn && loading)) return null;
+  if (!isSignedIn) return <>{children}</>;
+
+  // After profile loads, if not yet onboarded, redirect to onboarding.
+  // Exempts /onboarding itself to avoid redirect loops.
+  if (data && !data.profile.onboarded && location.pathname !== "/onboarding") {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 const FORCE_PRELAUNCH = import.meta.env.VITE_PRELAUNCH_FORCE === "true";
 
 function GateLayout() {
   return (
     <PrelaunchGate type="customer" apiUrl={API_URL} forcePrelaunch={FORCE_PRELAUNCH}>
-      <Outlet />
+      <OnboardingGate>
+        <Outlet />
+      </OnboardingGate>
     </PrelaunchGate>
   );
 }
@@ -89,41 +112,44 @@ export default function App() {
         <Route path="/sign-up" element={<SignUpPage />} />
         <Route path="/sign-up/continue" element={<ContinueSignUp />} />
 
+        {/* Onboarding — protected but outside prelaunch gate */}
+        <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
+
         <Route element={<GateLayout />}>
-        <Route path="/" element={<Navigate to="/home" replace />} />
-        <Route path="/home" element={<Protected><Home /></Protected>} />
+          <Route path="/" element={<Navigate to="/home" replace />} />
+          <Route path="/home" element={<Protected><Home /></Protected>} />
 
-        {/* Booking flow (no sidebar — focused funnel) — auth required */}
-        <Route element={<ProtectedRoute><BookingLayout /></ProtectedRoute>}>
-          <Route path="/book" element={<Navigate to="/book/address" replace />} />
-          <Route path="/book/address" element={<AddressStep />} />
-          <Route path="/book/home" element={<HomeStep />} />
-          <Route path="/book/service" element={<ServiceStep />} />
-          <Route path="/book/schedule" element={<ScheduleStep />} />
-          <Route path="/book/review" element={<ReviewStep />} />
-          <Route path="/book/payment" element={<PaymentStep />} />
+          {/* Booking flow (no sidebar — focused funnel) — auth required */}
+          <Route element={<ProtectedRoute><BookingLayout /></ProtectedRoute>}>
+            <Route path="/book" element={<Navigate to="/book/address" replace />} />
+            <Route path="/book/address" element={<AddressStep />} />
+            <Route path="/book/home" element={<HomeStep />} />
+            <Route path="/book/service" element={<ServiceStep />} />
+            <Route path="/book/schedule" element={<ScheduleStep />} />
+            <Route path="/book/review" element={<ReviewStep />} />
+            <Route path="/book/payment" element={<PaymentStep />} />
+          </Route>
+          <Route
+            path="/book/confirmed"
+            element={<ProtectedRoute><ConfirmedStep /></ProtectedRoute>}
+          />
+
+          {/* Account area — auth required */}
+          <Route path="/bookings" element={<Protected><BookingsPage /></Protected>} />
+          <Route
+            path="/bookings/:id"
+            element={<Protected><BookingDetailPage /></Protected>}
+          />
+          <Route
+            path="/subscriptions"
+            element={<Protected><SubscriptionsPage /></Protected>}
+          />
+          <Route path="/profile" element={<Protected><ProfilePage /></Protected>} />
+          <Route
+            path="/payment-methods"
+            element={<Protected><PaymentMethodsPage /></Protected>}
+          />
         </Route>
-        <Route
-          path="/book/confirmed"
-          element={<ProtectedRoute><ConfirmedStep /></ProtectedRoute>}
-        />
-
-        {/* Account area — auth required */}
-        <Route path="/bookings" element={<Protected><BookingsPage /></Protected>} />
-        <Route
-          path="/bookings/:id"
-          element={<Protected><BookingDetailPage /></Protected>}
-        />
-        <Route
-          path="/subscriptions"
-          element={<Protected><SubscriptionsPage /></Protected>}
-        />
-        <Route path="/profile" element={<Protected><ProfilePage /></Protected>} />
-        <Route
-          path="/payment-methods"
-          element={<Protected><PaymentMethodsPage /></Protected>}
-        />
-        </Route>{/* end GateLayout */}
       </Routes>
     </ErrorBoundary>
   );

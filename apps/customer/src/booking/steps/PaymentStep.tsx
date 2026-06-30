@@ -294,6 +294,7 @@ export function PaymentStep() {
   const serviceType = useBookingStore((s) => s.serviceType);
   const home = useBookingStore((s) => s.home);
   const addOnKeys = useBookingStore((s) => s.addOnKeys);
+  const bookingId = useBookingStore((s) => s.bookingId);
   const quote = serviceType ? calculateQuote({ serviceType, home, addOnKeys }) : null;
   const isSubscription = useBookingStore((s) => s.isSubscription);
   const subscriptionCadence = useBookingStore((s) => s.subscriptionCadence);
@@ -305,7 +306,6 @@ export function PaymentStep() {
     isSubscription && subscriptionCadence
       ? recurringDisplayPrice(displayPrice, subscriptionCadence)
       : displayPrice;
-  const amountCents = Math.round(chargedPrice * 100);
 
   // Track dark-mode changes so the Stripe appearance updates live.
   useEffect(() => {
@@ -319,8 +319,9 @@ export function PaymentStep() {
     return () => observer.disconnect();
   }, []);
 
+  // Create Stripe payment intent using the DB booking ID set by ReviewStep.
   useEffect(() => {
-    if (amountCents <= 0) return;
+    if (!bookingId) return;
     getToken().then((token) => {
       fetch(`${API_URL}/payments/create-intent`, {
         method: "POST",
@@ -328,7 +329,7 @@ export function PaymentStep() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ amount: amountCents, currency: "usd" }),
+        body: JSON.stringify({ bookingId }),
       })
         .then((r) => (r.ok ? r.json() : null))
         .then((data: { clientSecret?: string } | null) => {
@@ -336,7 +337,7 @@ export function PaymentStep() {
         })
         .catch(() => {/* demo mode: no clientSecret, DemoCheckout renders */});
     });
-  }, [amountCents, getToken]);
+  }, [bookingId, getToken]);
 
   const options = useMemo(
     () =>

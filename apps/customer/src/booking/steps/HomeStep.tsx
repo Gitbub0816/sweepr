@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input, Select } from "@sweepr/ui";
 import type { HomeType } from "@sweepr/types";
 import { useBookingStore } from "../../store/booking";
 import { StepShell } from "../StepShell";
+import { useCustomerProfile } from "../../data/profile";
 
 const homeTypes: { label: string; value: HomeType }[] = [
   { label: "Apartment", value: "apartment" },
@@ -12,10 +14,34 @@ const homeTypes: { label: string; value: HomeType }[] = [
   { label: "Studio", value: "studio" },
 ];
 
+const DEFAULTS = { bedrooms: 2, bathrooms: 1, sqft: 1200, homeType: "apartment" as HomeType };
+
 export function HomeStep() {
   const navigate = useNavigate();
   const home = useBookingStore((s) => s.home);
   const setHome = useBookingStore((s) => s.setHome);
+  const { data: profileData } = useCustomerProfile();
+
+  useEffect(() => {
+    const p = profileData?.profile;
+    if (!p?.homeBedrooms) return;
+    // Only pre-fill if the store still holds the initial defaults (user hasn't customised yet).
+    if (
+      home.bedrooms === DEFAULTS.bedrooms &&
+      home.bathrooms === DEFAULTS.bathrooms &&
+      home.sqft === DEFAULTS.sqft &&
+      home.homeType === DEFAULTS.homeType
+    ) {
+      setHome({
+        bedrooms: p.homeBedrooms ?? DEFAULTS.bedrooms,
+        bathrooms: p.homeBathrooms ?? DEFAULTS.bathrooms,
+        sqft: p.homeSqft ?? DEFAULTS.sqft,
+        homeType: (p.homeType as HomeType) ?? DEFAULTS.homeType,
+        pets: p.hasPets ?? false,
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileData]);
 
   return (
     <StepShell

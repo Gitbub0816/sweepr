@@ -12,6 +12,7 @@ interface BookingRow {
   id: string;
   status: string;
   service_type: string;
+  cleaner_id: string | null;
   bedrooms: number | null;
   bathrooms: number | null;
   sqft: number | null;
@@ -38,6 +39,7 @@ export function toBooking(r: BookingRow): Booking {
   return {
     id: r.id,
     customerId: "",
+    cleanerId: r.cleaner_id ?? undefined,
     status: (r.status as JobStatus) ?? "booked",
     serviceType: (r.service_type as ServiceType) ?? "standard",
     home: {

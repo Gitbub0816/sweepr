@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin, Home, CalendarClock, Sparkles, Zap, Repeat } from "lucide-react";
-import { Card, Textarea } from "@sweepr/ui";
+import { useAuth } from "@clerk/clerk-react";
+import { Card, Textarea, toast } from "@sweepr/ui";
 import {
   SERVICE_LABELS,
   formatDateTime,
@@ -9,6 +11,8 @@ import {
 } from "@sweepr/utils";
 import { useBookingStore } from "../../store/booking";
 import { StepShell } from "../StepShell";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8787";
 
 function Row({
   icon: Icon,
@@ -36,6 +40,7 @@ function Row({
 
 export function ReviewStep() {
   const navigate = useNavigate();
+  const { getToken } = useAuth();
   const state = useBookingStore();
   const {
     address,
@@ -48,7 +53,9 @@ export function ReviewStep() {
     isSubscription,
     subscriptionCadence,
     getQuote,
+    setBookingId,
   } = state;
+  const [submitting, setSubmitting] = useState(false);
 
   if (!address || !serviceType || !scheduledFor) {
     navigate("/book/address");
@@ -63,13 +70,96 @@ export function ReviewStep() {
       ? Math.round(total * (1 - discounts[subscriptionCadence]))
       : null;
 
+  async function handleContinueToPayment() {
+    setSubmitting(true);
+    try {
+      const token = await getToken();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      // Save address to DB first, get addressId back.
+      let addressId: string | undefined;
+      try {
+        const addrRes = await fetch(`${API_URL}/customer-profile/addresses`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            street: address!.line1,
+            city: address!.city,
+            state: address!.state,
+            zip: address!.zip,
+            lat: address!.lat,
+            lng: address!.lng,
+            makeDefault: true,
+          }),
+        });
+        if (addrRes.ok) {
+          const data = (await addrRes.json()) as { id: string };
+          addressId = data.id;
+        }
+      } catch {
+        // Non-fatal: booking can be created without an addressId.
+      }
+
+      // Create the booking in the database.
+      const res = await fetch(`${API_URL}/bookings`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          serviceType,
+          bedrooms: home.bedrooms,
+          bathrooms: home.bathrooms,
+          sqft: home.sqft,
+          homeType: home.homeType,
+          hasPets: home.pets,
+          addOnKeys,
+          scheduledAt: scheduledFor,
+          notes: notes || undefined,
+          ...(addressId ? { addressId } : {}),
+        }),
+      });
+
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(err.error ?? "Failed to create booking");
+      }
+
+      const data = (await res.json()) as { booking: { id: string } };
+      setBookingId(data.booking.id);
+
+      // Also update the customer's home profile defaults for future pre-fills.
+      try {
+        await fetch(`${API_URL}/customer-profile`, {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify({
+            homeBedrooms: home.bedrooms,
+            homeBathrooms: home.bathrooms,
+            homeSqft: home.sqft,
+            homeType: home.homeType,
+            hasPets: home.pets,
+          }),
+        });
+      } catch {
+        // Non-fatal.
+      }
+
+      navigate("/book/payment");
+    } catch (err) {
+      toast.error((err as Error).message || "Could not create booking. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <StepShell
       title="Review your booking"
       subtitle="Make sure everything looks right before payment."
       onBack={() => navigate("/book/schedule")}
-      onNext={() => navigate("/book/payment")}
-      nextLabel="Continue to payment"
+      onNext={handleContinueToPayment}
+      nextLabel={submitting ? "Creating booking…" : "Continue to payment"}
+      nextDisabled={submitting}
     >
       <Card className="divide-y divide-slate-100 dark:divide-slate-800">
         <Row
@@ -102,7 +192,6 @@ export function ReviewStep() {
         )}
       </Card>
 
-      {/* Single, all-inclusive price — no fee breakdowns shown to customer. */}
       <Card className="mt-4">
         {isEmergency && (
           <span className="mb-3 inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
