@@ -25,4 +25,8 @@ export const securityHeaders = createMiddleware<AppBindings>(async (c, next) => 
   c.header("Server", "");
   // CSP for API (no HTML, so strict)
   c.header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
+  // Authenticated responses carry user data — keep them out of shared caches.
+  if (c.req.header("Authorization") && !c.res.headers.get("Cache-Control")) {
+    c.header("Cache-Control", "no-store");
+  }
 });

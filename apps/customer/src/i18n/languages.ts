@@ -10,7 +10,7 @@ export const SUPPORTED_LANGUAGES: Language[] = [
   { code: "vi",      name: "Tiếng Việt", dir: "ltr" },
   { code: "zh-Hans", name: "简体中文",    dir: "ltr" },
   { code: "zh-Hant", name: "繁體中文",    dir: "ltr" },
-  { code: "fil",     name: "Filipino",   dir: "ltr" },
+  { code: "fil",     name: "Tagalog",    dir: "ltr" },
   { code: "ko",      name: "한국어",      dir: "ltr" },
   { code: "ar",      name: "العربية",    dir: "rtl" },
   { code: "pt",      name: "Português",  dir: "ltr" },

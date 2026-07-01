@@ -12,7 +12,7 @@
     "title": "Paglilinis ng tahanan na talagang mapagkakatiwalaan.",
     "subtitle": "Ang bawat Sweepr ay sinuri ang background, na-verify ang identidad, at nasanay bago pa man makapasok sa iyong tahanan. Malinaw na presyo mula sa una, may liability coverage sa bawat booking, at garantiya sa kasiyahan — para hindi ka na mag-alala.",
     "cta": "Mag-book ng Paglilinis",
-    "ctaSub": "Walang pangako. Kanselahin kahit kailan."
+    "ctaSub": "Walang pangako. I-cancel kahit kailan."
   },
   "howItWorks": {
     "title": "Mag-book nang may kumpiyansa. Umuwi sa malinis na tahanan.",
@@ -90,7 +90,7 @@
     "q2": "Paano sinusuri ang mga Sweepr?",
     "a2": "Ang bawat Sweepr ay dumadaan sa identity verification, third-party background check, at training bago sila makatanggap ng trabaho sa platform. Patuloy naming sinusuri ang kasaysayan ng trabaho at rating nila. Kung bumagal ang kalidad ng isang Sweepr, hindi sila nananatiling aktibo.",
     "q3": "Maaari ko bang kanselahin o baguhin ang oras?",
-    "a3": "Oo. Kanselahin o baguhin ang oras nang libre hanggang 24 oras bago ang iyong appointment. Ang mga pagbabago sa loob ng oras na ito ay maaaring magdulot ng maliit na bayad.",
+    "a3": "Oo. I-cancel o baguhin ang oras nang libre hanggang 24 oras bago ang iyong appointment. Ang mga pagbabago sa loob ng oras na ito ay maaaring magdulot ng maliit na bayad.",
     "q4": "Ano kung hindi naayos nang tama ang trabaho?",
     "a4": "I-report ito sa loob ng 48 oras at ipapabalik namin ang iyong Sweepr para ayusin ito — o irerefund namin ang booking. Hindi kami interesadong makipagtalo tungkol dito.",
     "q5": "Nagdadala ba ng sariling gamit ang mga Sweepr?",
@@ -129,7 +129,7 @@
     "label": "Wika"
   },
   "cleanWithUs": {
-    "badge": "Sumali sa Sweepr community",
+    "badge": "Sali na sa Sweepr community",
     "heroTitle": "Alamin kung paano babagay ang Sweepr sa iyo",
     "heroSubtitle": "Sa Sweepr, ang mga naglilinis ay hindi lang basta cleaner — sila ay mga Sweepr: pinagkakatiwalaan at sanay na propesyonal na binu-book ng mga customer sa pangalan. Piliin ang iyong landas para magsimula.",
     "tabIndividual": "Individual cleaner ako",
@@ -148,7 +148,7 @@
     "ind3Body": "Pinapanatiling ligtas ng background check at identity verification ang buong komunidad. Direktang napupunta ang iyong mga dokumento sa aming verification partners — hindi kailanman iniimbak ng Sweepr.",
     "ind4Title": "Itakda ang iyong availability",
     "ind4Body": "Ikaw ang magpapasya kung kailan ka magtatrabaho at gaano kalayo ang byabyahehin mo. Lalabas sa iyong board ang mga trabahong tugma sa iyong schedule at kakayahan.",
-    "ind5Title": "Masuwelduhan",
+    "ind5Title": "Sumweldo",
     "ind5Body": "Tanggapin ang mga trabahong gusto mo, gawin nang mahusay, at direktang matanggap ang bayad sa iyong bangko. Subaybayan ang bawat payout mula sa dashboard.",
     "biz1Title": "Irehistro ang iyong negosyo",
     "biz1Body": "Dalhin ang iyong kasalukuyang cleaning company sa Sweepr. Idagdag ang iyong legal na detalye at ang mga miyembro ng team na naglilinis sa ilalim ng iyong pangalan.",
@@ -180,11 +180,11 @@
     "differenceBody": "Ang pangalan ay isang pangako: sanay, na-verify, at pinagkakatiwalaan. Bawat Sweepr ay itinutugma sa mga trabaho ayon sa pinakaangkop — lokasyon, availability, kakayahan, at rating — para makilala at magantimpalaan ang mahusay na trabaho.",
     "coverageTitle": "Saan nagtatrabaho ang mga Sweepr",
     "coverageSubtitle": "Mabilis kaming lumalago. Tingnan kung saan live ang Sweepr at kung ano ang susunod.",
-    "finalTitle": "Handa ka na bang maging Sweepr?",
+    "finalTitle": "Ready ka na bang maging Sweepr?",
     "finalSubtitle": "Gumawa ng profile ngayon at simulan ang iyong journey. Puwede mong tapusin ang bawat hakbang sa sarili mong bilis mula sa dashboard."
   },
   "cookies": {
-    "title": "Pinahahalagahan namin ang iyong privacy",
+    "title": "Mahalaga sa amin ang privacy mo",
     "body": "Gumagamit kami ng mga essential na cookie para patakbuhin ang Sweepr at, kapag pumayag ka, ng analytics at marketing na cookie. Tingnan ang aming",
     "essential": "Essential (laging naka-on)",
     "analytics": "Analytics",
