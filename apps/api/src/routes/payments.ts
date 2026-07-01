@@ -12,6 +12,7 @@ import { requireAdmin } from "../middleware/adminRoles";
 import { loadFeeSettings, calculatePayout, getTierMultiplier } from "../lib/payoutEngine";
 import { audit } from "../lib/audit";
 import { serverTrack } from "../lib/posthog";
+import { isValidTransition } from "../lib/statusMachine";
 import type { AppBindings } from "../types";
 import type { BookingRow, CleanerRow } from "@sweepr/db";
 
@@ -295,15 +296,15 @@ paymentsRouter.post(
     if (!booking.stripe_payment_intent_id) {
       return c.json({ error: "No payment to refund" }, 400);
     }
-    if (booking.status === "refunded") {
-      return c.json({ error: "Booking has already been refunded" }, 409);
+    if (!isValidTransition(booking.status, "refunded")) {
+      return c.json({ error: `Cannot refund a booking in '${booking.status}' status` }, 409);
     }
 
     // Atomic lock before calling Stripe so a concurrent/retried request can't
     // also pass the check above and issue a second refund.
     const claimed = (await sql`
       UPDATE bookings SET status = 'refunded', updated_at = NOW()
-      WHERE id = ${bookingId} AND status != 'refunded'
+      WHERE id = ${bookingId} AND status = ${booking.status}
       RETURNING id
     `) as Array<{ id: string }>;
     if (!claimed[0]) {

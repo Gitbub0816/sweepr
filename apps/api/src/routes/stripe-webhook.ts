@@ -9,6 +9,7 @@ import { serverTrack } from "../lib/posthog";
 import { initiateAssignment } from "../lib/assignment";
 import { nextOccurrenceDate } from "../lib/subscriptions";
 import { recordPaymentEvent } from "../lib/paymentObservability";
+import { isValidTransition } from "../lib/statusMachine";
 import type { AppBindings } from "../types";
 import type { BookingRow } from "@sweepr/db";
 
@@ -73,12 +74,24 @@ stripeWebhookRouter.post("/", async (c) => {
         success: true,
       });
       if (bookingId) {
-        await sql`
-          UPDATE bookings
-          SET status = 'booked', stripe_payment_intent_id = ${intent.id},
-              updated_at = NOW()
-          WHERE id = ${bookingId}
-        `;
+        const [current] = await sql`
+          SELECT status FROM bookings WHERE id = ${bookingId} LIMIT 1
+        ` as Array<{ status: string }>;
+        // A duplicate/delayed webhook for an already-'booked' booking is a
+        // harmless no-op; anything further along (e.g. already completed or
+        // disputed) must not be reverted backward to 'booked'.
+        if (current && (current.status === "booked" || isValidTransition(current.status, "booked"))) {
+          await sql`
+            UPDATE bookings
+            SET status = 'booked', stripe_payment_intent_id = ${intent.id},
+                updated_at = NOW()
+            WHERE id = ${bookingId}
+          `;
+        } else if (current) {
+          logger.warn("payment_intent.succeeded: skipping invalid status transition", {
+            bookingId, from: current.status, to: "booked",
+          });
+        }
         // Create payout_ledger row so automated payout engine can track it.
         await sql`
           INSERT INTO payout_ledger (
@@ -143,10 +156,22 @@ stripeWebhookRouter.post("/", async (c) => {
         errorMessage: intent.last_payment_error?.message ?? null,
       });
       if (bookingId) {
-        await sql`
-          UPDATE bookings SET status = 'payment_pending', updated_at = NOW()
-          WHERE id = ${bookingId}
-        `;
+        const [current] = await sql`
+          SELECT status FROM bookings WHERE id = ${bookingId} LIMIT 1
+        ` as Array<{ status: string }>;
+        // Only revert if the booking is still awaiting its first payment —
+        // a delayed failure event must not regress a booking that has
+        // already progressed (e.g. via a later successful retry).
+        if (current && current.status === "payment_pending") {
+          await sql`
+            UPDATE bookings SET status = 'payment_pending', updated_at = NOW()
+            WHERE id = ${bookingId}
+          `;
+        } else if (current) {
+          logger.warn("payment_intent.payment_failed: skipping stale status update", {
+            bookingId, currentStatus: current.status,
+          });
+        }
       }
       const email = intent.receipt_email ?? undefined;
       if (email) {

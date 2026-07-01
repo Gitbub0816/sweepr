@@ -20,6 +20,7 @@ import { requireAuth } from "../middleware/auth";
 import { audit } from "../lib/audit";
 import { encryptSecret, decryptSecret, requireEncryptionKey } from "../lib/crypto";
 import { canUploadPhotos, getBookingAuthCtx } from "../lib/bookingAuthorization";
+import { isValidTransition } from "../lib/statusMachine";
 import type { AppBindings } from "../types";
 
 export const dayOfServiceRouter = new Hono<AppBindings>();
@@ -337,9 +338,9 @@ dayOfServiceRouter.post(
     const sql = getDb(c.env.DATABASE_URL);
 
     const rows = (await sql`
-      SELECT b.id, b.day_status, b.cleaner_id, b.customer_id, b.started_at
+      SELECT b.id, b.day_status, b.status, b.cleaner_id, b.customer_id, b.started_at
       FROM bookings b WHERE b.id = ${bookingId}
-    `) as Array<{ id: string; day_status: string | null; cleaner_id: string; customer_id: string; started_at: string | null }>;
+    `) as Array<{ id: string; day_status: string | null; status: string; cleaner_id: string; customer_id: string; started_at: string | null }>;
 
     const booking = rows[0];
     if (!booking) return c.json({ error: "Not found" }, 404);
@@ -391,13 +392,19 @@ dayOfServiceRouter.post(
       ? Math.round((now.getTime() - new Date(booking.started_at).getTime()) / 60000)
       : null;
 
+    // Guard against completing a booking that's been moved to a terminal
+    // state (disputed/refunded/cancelled) by a race with another flow.
+    if (!isValidTransition(booking.status, "completed")) {
+      return c.json({ error: `Cannot complete a booking in '${booking.status}' status` }, 409);
+    }
+
     await sql`
       UPDATE bookings SET
         day_status = 'completed',
         status = 'completed',
         completed_at = ${now.toISOString()},
         updated_at = NOW()
-      WHERE id = ${bookingId}
+      WHERE id = ${bookingId} AND status = ${booking.status}
     `;
 
     await sql`
