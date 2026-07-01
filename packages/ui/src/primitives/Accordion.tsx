@@ -11,7 +11,7 @@ export function Accordion({ items }: { items: AccordionItemData[] }) {
     <RadixAccordion.Root type="single" collapsible className="space-y-3">
       {items.map((item, i) => (
         <RadixAccordion.Item
-          key={i}
+          key={item.question}
           value={`item-${i}`}
           className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
         >

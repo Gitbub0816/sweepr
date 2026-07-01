@@ -1,26 +1,14 @@
 import { Hono } from "hono";
-import { createMiddleware } from "hono/factory";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { getUserByClerkId } from "@sweepr/db";
 import { getDb } from "../lib/db";
 import { sendBulkEmail, wrapBodyInTemplate } from "../lib/mailer";
 import { requireAuth } from "../middleware/auth";
-import { isOwnerClerkId } from "../lib/owner";
+import { requireAdmin } from "../middleware/adminRoles";
 import { audit } from "../lib/audit";
 import type { AppBindings } from "../types";
 
 export const adminNewsletterRouter = new Hono<AppBindings>();
-
-const requireAdmin = createMiddleware<AppBindings>(async (c, next) => {
-  if (isOwnerClerkId(c.get("user").clerkId, c.env)) return next();
-  const sql = getDb(c.env.DATABASE_URL);
-  const user = await getUserByClerkId(sql, c.get("user").clerkId);
-  if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
-    return c.json({ error: "Forbidden" }, 403);
-  }
-  await next();
-});
 
 adminNewsletterRouter.use("*", requireAuth, requireAdmin);
 

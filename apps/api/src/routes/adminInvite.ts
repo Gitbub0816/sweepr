@@ -12,11 +12,9 @@
  *   UPDATE users SET role = 'admin' WHERE email = '<your-email>';
  */
 import { Hono } from "hono";
-import { createMiddleware } from "hono/factory";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { createClerkClient } from "@clerk/backend";
-import { getUserByClerkId } from "@sweepr/db";
 import { getDb } from "../lib/db";
 import { sendEmail, SENDERS, TEMPLATES, formatEmailTimestamp } from "../lib/mailer";
 
@@ -30,7 +28,7 @@ const ROLE_LABELS: Record<string, string> = {
   support: "Support",
 };
 import { requireAuth } from "../middleware/auth";
-import { isOwnerClerkId } from "../lib/owner";
+import { requireAdmin } from "../middleware/adminRoles";
 import { audit } from "../lib/audit";
 import type { AppBindings } from "../types";
 import type { UserRow } from "@sweepr/db";
@@ -48,16 +46,6 @@ function generateToken(): string {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
-
-const requireAdmin = createMiddleware<AppBindings>(async (c, next) => {
-  if (isOwnerClerkId(c.get("user").clerkId, c.env)) return next();
-  const sql = getDb(c.env.DATABASE_URL);
-  const user = await getUserByClerkId(sql, c.get("user").clerkId);
-  if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
-    return c.json({ error: "Forbidden" }, 403);
-  }
-  await next();
-});
 
 // ---------------------------------------------------------------------------
 // Protected — admin only

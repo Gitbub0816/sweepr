@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { DashboardShell, Card, Button, Input } from "@sweepr/ui";
+import { DashboardShell, Card, Button, Input, toast } from "@sweepr/ui";
 import { Bot, Wrench } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -116,16 +116,24 @@ export function StatusPage() {
   }, [getToken]);
 
   const fetchData = useCallback(async () => {
-    const headers = await authHeaders();
-    const [incRes, settingsRes, maintRes] = await Promise.all([
-      fetch(`${API_URL}/admin/status/incidents`, { headers }),
-      fetch(`${API_URL}/admin/status/settings`, { headers }),
-      fetch(`${API_URL}/admin/status/maintenance`, { headers }),
-    ]);
-    if (incRes.ok) setIncidents(await incRes.json() as Incident[]);
-    if (settingsRes.ok) setSettings(await settingsRes.json() as SiteSettings);
-    if (maintRes.ok) setMaintenance(await maintRes.json() as MaintenanceWindow[]);
-    setLoading(false);
+    try {
+      const headers = await authHeaders();
+      const [incRes, settingsRes, maintRes] = await Promise.all([
+        fetch(`${API_URL}/admin/status/incidents`, { headers }),
+        fetch(`${API_URL}/admin/status/settings`, { headers }),
+        fetch(`${API_URL}/admin/status/maintenance`, { headers }),
+      ]);
+      if (incRes.ok) setIncidents(await incRes.json() as Incident[]);
+      else toast.error("Failed to load incidents");
+      if (settingsRes.ok) setSettings(await settingsRes.json() as SiteSettings);
+      else toast.error("Failed to load settings");
+      if (maintRes.ok) setMaintenance(await maintRes.json() as MaintenanceWindow[]);
+      else toast.error("Failed to load maintenance windows");
+    } catch {
+      toast.error("Failed to load status data");
+    } finally {
+      setLoading(false);
+    }
   }, [authHeaders]);
 
   useEffect(() => { void fetchData(); }, [fetchData]);
@@ -138,7 +146,7 @@ export function StatusPage() {
     if (!res.ok) {
       // Roll back and re-fetch real state
       await fetchData();
-      alert("Failed to save setting. Please try again.");
+      toast.error("Failed to save setting. Please try again.");
     }
   }
 
@@ -158,6 +166,8 @@ export function StatusPage() {
       setNewTitle(""); setNewSummary(""); setNewStatus("investigating");
       setNewSeverity("minor"); setNewFeatures(""); setNewIsPrelaunch(false);
       await fetchData();
+    } else {
+      toast.error("Failed to create incident");
     }
   }
 
@@ -170,6 +180,8 @@ export function StatusPage() {
     if (res.ok) {
       setAddUpdateFor(null); setUpdateMessage(""); setUpdateStatus("investigating");
       await fetchData();
+    } else {
+      toast.error("Failed to post update");
     }
   }
 
@@ -198,6 +210,8 @@ export function StatusPage() {
       setShowMaintenanceForm(false);
       setMTitle(""); setMDesc(""); setMStart(""); setMEnd(""); setMServices("");
       await fetchData();
+    } else {
+      toast.error("Failed to schedule maintenance");
     }
   }
 

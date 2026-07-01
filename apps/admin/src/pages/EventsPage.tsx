@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { Download, RefreshCw } from "lucide-react";
-import { DashboardShell, Card, Select, Button, Badge } from "@sweepr/ui";
+import { DashboardShell, Card, Select, Button, Badge, toast } from "@sweepr/ui";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -64,9 +64,11 @@ export function EventsPage() {
         const data = (await res.json()) as { events: AuditEvent[]; total: number };
         setEvents(data.events ?? []);
         setTotal(data.total ?? 0);
+      } else {
+        toast.error("Failed to load events");
       }
     } catch {
-      // leave existing data in place
+      toast.error("Failed to load events");
     } finally {
       setLoading(false);
     }

@@ -1,29 +1,17 @@
 import { Hono } from "hono";
-import { createMiddleware } from "hono/factory";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { createClerkClient } from "@clerk/backend";
-import { getUserByClerkId } from "@sweepr/db";
 import { getDb } from "../lib/db";
 import { sendEmail } from "../lib/mailer";
 import { requireAuth } from "../middleware/auth";
-import { isOwnerClerkId } from "../lib/owner";
+import { requireAdmin } from "../middleware/adminRoles";
 import { checkrClient } from "../lib/checkr";
 import { audit } from "../lib/audit";
 import type { AppBindings } from "../types";
 import type { UserRow } from "@sweepr/db";
 
 export const adminRouter = new Hono<AppBindings>();
-
-const requireAdmin = createMiddleware<AppBindings>(async (c, next) => {
-  if (isOwnerClerkId(c.get("user").clerkId, c.env)) return next();
-  const sql = getDb(c.env.DATABASE_URL);
-  const user = await getUserByClerkId(sql, c.get("user").clerkId);
-  if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
-    return c.json({ error: "Forbidden" }, 403);
-  }
-  await next();
-});
 
 // IMPORTANT: Hono flattens mounted sub-app routes into one global router, so a
 // blanket "*" here would also gate sibling routers mounted under /admin/*

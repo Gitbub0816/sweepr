@@ -167,14 +167,12 @@ function CheckoutForm({ total }: { total: number }) {
       confirmPayment();
       toast.success("Payment confirmed!");
       navigate("/book/confirmed");
-    } catch {
-      // Mock secret path: still advance the demo flow.
-      confirmPayment();
-      toast.success("Payment confirmed!");
-      navigate("/book/confirmed");
-    } finally {
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Payment failed. Please try again.");
       setProcessing(false);
+      return;
     }
+    setProcessing(false);
   };
 
   return (

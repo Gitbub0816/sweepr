@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 import { Inbox, RefreshCw } from "lucide-react";
-import { DashboardShell, Badge, Button, EmptyState } from "@sweepr/ui";
+import { DashboardShell, Badge, Button, EmptyState, toast } from "@sweepr/ui";
 import { DataTable, type Column } from "../components/DataTable";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -31,7 +31,13 @@ export function ApplicationsPage() {
       const res = await fetch(`${API_URL}/admin/cleaners?status=pending`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) setApps(((await res.json()) as { cleaners: Application[] }).cleaners);
+      if (res.ok) {
+        setApps(((await res.json()) as { cleaners: Application[] }).cleaners);
+      } else {
+        toast.error("Failed to load applications");
+      }
+    } catch {
+      toast.error("Failed to load applications");
     } finally {
       setLoading(false);
     }

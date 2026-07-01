@@ -37,9 +37,9 @@ export function DataTable<T extends { id: string }>({
               key={row.id}
               className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/40"
             >
-              {columns.map((c, i) => (
+              {columns.map((c) => (
                 <td
-                  key={i}
+                  key={c.header}
                   className={`px-4 py-3 text-charcoal dark:text-slate-200 ${
                     c.align === "right" ? "text-right" : ""
                   }`}

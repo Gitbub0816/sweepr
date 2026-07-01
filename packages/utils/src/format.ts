@@ -2,7 +2,8 @@ export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-    minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount);
 }
 
@@ -31,5 +32,5 @@ export function formatTime(iso: string): string {
 }
 
 export function initials(first: string, last: string): string {
-  return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
+  return `${(first ?? "").charAt(0)}${(last ?? "").charAt(0)}`.toUpperCase();
 }

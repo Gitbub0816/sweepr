@@ -29,10 +29,9 @@ function stripHtml(html: string): string {
 itInboundRouter.post("/inbound", async (c) => {
   const raw = await c.req.text();
   // Verify against the IT inbound route's own signing secret.
-  if (c.env.MAILERSEND_IT_INBOUND_SECRET) {
-    const sig = c.req.header("signature") ?? c.req.header("x-mailersend-signature") ?? "";
-    if (sig !== (await hmacHex(c.env.MAILERSEND_IT_INBOUND_SECRET, raw))) return c.json({ error: "bad signature" }, 401);
-  }
+  if (!c.env.MAILERSEND_IT_INBOUND_SECRET) return c.json({ error: "Inbound not configured" }, 503);
+  const sig = c.req.header("signature") ?? c.req.header("x-mailersend-signature") ?? "";
+  if (sig !== (await hmacHex(c.env.MAILERSEND_IT_INBOUND_SECRET, raw))) return c.json({ error: "bad signature" }, 401);
   let payload: Record<string, unknown> = {};
   try { payload = JSON.parse(raw || "{}"); } catch { return c.json({ error: "bad json" }, 400); }
   const data = (payload.data ?? payload) as Record<string, unknown>;

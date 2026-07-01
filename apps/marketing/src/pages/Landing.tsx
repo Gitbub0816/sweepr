@@ -428,7 +428,7 @@ export default function Landing() {
 
       {/* FAQ */}
       <Section id="faq">
-        <SectionHeading eyebrow="FAQ" title={t("faq.title")} />
+        <SectionHeading eyebrow={t("nav.faq")} title={t("faq.title")} />
         <div className="mx-auto mt-10 max-w-2xl">
           <Accordion items={faqs} />
         </div>

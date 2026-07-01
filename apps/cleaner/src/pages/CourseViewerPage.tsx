@@ -262,8 +262,8 @@ function LearnerBlock({ block }: { block: Block }) {
     case "checklist":
       return (
         <div className="h-full w-full overflow-auto rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
-          {((p.items as string[]) ?? []).map((it, i) => (
-            <label key={i} className="flex items-center gap-2 py-0.5"><input type="checkbox" /> {it}</label>
+          {((p.items as string[]) ?? []).map((it) => (
+            <label key={it} className="flex items-center gap-2 py-0.5"><input type="checkbox" /> {it}</label>
           ))}
         </div>
       );

@@ -86,18 +86,21 @@ function GateLayout() {
 
 /** On first load, if ?lang= is in the URL, persist it to the cleaner's profile. */
 function LangSync() {
+  const { isSignedIn, isLoaded, getToken } = useAuth();
   useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
     const code = new URLSearchParams(window.location.search).get("lang");
     if (!code) return;
-    const token = localStorage.getItem("__clerk_db_jwt");
-    if (!token) return;
     const api = import.meta.env.VITE_API_URL ?? "";
-    fetch(`${api}/cleaner-dashboard/settings`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ preferred_language: code }),
-    }).catch(() => null);
-  }, []);
+    getToken().then((token) => {
+      if (!token) return;
+      fetch(`${api}/cleaner-dashboard/settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ preferred_language: code }),
+      }).catch(() => null);
+    });
+  }, [isLoaded, isSignedIn, getToken]);
   return null;
 }
 

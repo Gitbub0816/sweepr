@@ -64,3 +64,9 @@ export function requireAdminRole(...allowed: AdminRole[]) {
 
 /** Convenience: any admin (no specific role required). */
 export const requireAnyAdmin = requireAdminRole(...ALL_ADMIN_ROLES);
+
+/**
+ * Require the user to be an admin or super_admin — no admin_role discrimination.
+ * Drop-in replacement for the repeated local `requireAdmin` in route files.
+ */
+export const requireAdmin = requireAdminRole();

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
 import { Plus, FileStack, GraduationCap, Pencil, Archive } from "lucide-react";
+import { toast } from "@sweepr/ui";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
@@ -42,16 +43,23 @@ export function CourseBuilderPage() {
   const [creating, setCreating] = useState(false);
 
   const load = useCallback(async () => {
-    const token = await getToken();
-    const res = await fetch(`${API}/admin/courses`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setCourses(data.courses ?? []);
-      setLegacy(data.legacyModules ?? []);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API}/admin/courses`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCourses(data.courses ?? []);
+        setLegacy(data.legacyModules ?? []);
+      } else {
+        toast.error("Failed to load courses");
+      }
+    } catch {
+      toast.error("Failed to load courses");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [getToken]);
 
   useEffect(() => {
@@ -70,7 +78,11 @@ export function CourseBuilderPage() {
       if (res.ok) {
         const { id } = await res.json();
         navigate(`/courses/${id}`);
+      } else {
+        toast.error("Failed to create course");
       }
+    } catch {
+      toast.error("Failed to create course");
     } finally {
       setCreating(false);
     }

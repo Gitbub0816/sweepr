@@ -137,7 +137,7 @@ export function BarChart3D({
         <pointLight position={[-3, -3, 3]} intensity={0.4} />
         {data.map((d, i) => (
           <Bar3D
-            key={i}
+            key={d.label}
             x={(i * spacing) - totalWidth / 2}
             height={d.value}
             color={d.color ?? "#14b8a6"}

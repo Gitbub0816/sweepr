@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, XCircle, Clock } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
-import { DashboardShell, Badge, Button, Card, EmptyState } from "@sweepr/ui";
+import { DashboardShell, Badge, Button, Card, EmptyState, toast } from "@sweepr/ui";
 import { DataTable, type Column } from "../components/DataTable";
 
 const API = import.meta.env.VITE_API_URL ?? "";
@@ -44,9 +44,15 @@ export function InsurancePage() {
       const res = await fetch(`${API}/admin/insurance?status=${status}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = (await res.json()) as { policies: PolicyRow[] };
-      setRows(data.policies ?? []);
+      if (res.ok) {
+        const data = (await res.json()) as { policies: PolicyRow[] };
+        setRows(data.policies ?? []);
+      } else {
+        toast.error("Failed to load insurance policies");
+        setRows([]);
+      }
     } catch {
+      toast.error("Failed to load insurance policies");
       setRows([]);
     } finally {
       setLoading(false);
@@ -56,15 +62,23 @@ export function InsurancePage() {
   useEffect(() => { load(filter); }, [filter]);
 
   async function decide(cleanerId: string, decision: "approved" | "rejected") {
-    const token = await getToken();
-    await fetch(`${API}/admin/insurance/${cleanerId}/review`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ decision, note: note || undefined }),
-    });
-    setReviewing(null);
-    setNote("");
-    load(filter);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API}/admin/insurance/${cleanerId}/review`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ decision, note: note || undefined }),
+      });
+      if (res.ok) {
+        setReviewing(null);
+        setNote("");
+        load(filter);
+      } else {
+        toast.error("Failed to submit insurance review");
+      }
+    } catch {
+      toast.error("Failed to submit insurance review");
+    }
   }
 
   const columns: Column<PolicyRow>[] = [

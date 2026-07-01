@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 import { ShieldCheck, RefreshCw } from "lucide-react";
-import { DashboardShell, Badge, Button, EmptyState } from "@sweepr/ui";
+import { DashboardShell, Badge, Button, EmptyState, toast } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
 import { DataTable, type Column } from "../components/DataTable";
 
@@ -33,7 +33,13 @@ export function DisputesPage() {
       const res = await fetch(`${API_URL}/admin/disputes`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) setRows(((await res.json()) as { disputes: Dispute[] }).disputes ?? []);
+      if (res.ok) {
+        setRows(((await res.json()) as { disputes: Dispute[] }).disputes ?? []);
+      } else {
+        toast.error("Failed to load disputes");
+      }
+    } catch {
+      toast.error("Failed to load disputes");
     } finally {
       setLoading(false);
     }

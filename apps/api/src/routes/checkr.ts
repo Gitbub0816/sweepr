@@ -158,12 +158,14 @@ checkrRouter.post("/webhook", async (c) => {
   const rawBody = await c.req.text();
   const sig = c.req.header("x-checkr-signature") ?? "";
 
-  if (c.env.CHECKR_WEBHOOK_SECRET) {
-    const valid = await verifyCheckrSignature(rawBody, sig, c.env.CHECKR_WEBHOOK_SECRET);
-    if (!valid) {
-      logger.warn("Checkr webhook: invalid signature");
-      return c.json({ error: "Invalid signature" }, 401);
-    }
+  if (!c.env.CHECKR_WEBHOOK_SECRET) {
+    logger.warn("Checkr webhook: CHECKR_WEBHOOK_SECRET not configured");
+    return c.json({ error: "Webhook not configured" }, 503);
+  }
+  const valid = await verifyCheckrSignature(rawBody, sig, c.env.CHECKR_WEBHOOK_SECRET);
+  if (!valid) {
+    logger.warn("Checkr webhook: invalid signature");
+    return c.json({ error: "Invalid signature" }, 401);
   }
 
   let payload: { type: string; data: { object: Record<string, unknown> } };

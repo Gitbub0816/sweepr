@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { Link } from "react-router-dom";
 import { Search, RefreshCw } from "lucide-react";
-import { DashboardShell, Input, Select, Button } from "@sweepr/ui";
+import { DashboardShell, Input, Select, Button, toast } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
 import { DataTable, type Column } from "../components/DataTable";
 
@@ -64,7 +64,11 @@ export function JobsPage() {
         const d = await res.json() as { jobs: Job[]; total: number };
         setJobs(d.jobs ?? []);
         setTotal(d.total ?? 0);
+      } else {
+        toast.error("Failed to load jobs");
       }
+    } catch {
+      toast.error("Failed to load jobs");
     } finally {
       setLoading(false);
     }

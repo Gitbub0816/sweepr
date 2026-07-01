@@ -12,25 +12,13 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { createMiddleware } from "hono/factory";
-import { getUserByClerkId } from "@sweepr/db";
 import { getDb } from "../lib/db";
 import { requireAuth } from "../middleware/auth";
-import { isOwnerClerkId } from "../lib/owner";
+import { requireAdmin } from "../middleware/adminRoles";
 import type { AppBindings } from "../types";
 
 export const responseTemplatesRouter = new Hono<AppBindings>();
 responseTemplatesRouter.use("*", requireAuth);
-
-const requireAdmin = createMiddleware<AppBindings>(async (c, next) => {
-  if (isOwnerClerkId(c.get("user").clerkId, c.env)) return next();
-  const sql = getDb(c.env.DATABASE_URL);
-  const user = await getUserByClerkId(sql, c.get("user").clerkId);
-  if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
-    return c.json({ error: "Forbidden" }, 403);
-  }
-  await next();
-});
 responseTemplatesRouter.use("*", requireAdmin);
 
 const DEPARTMENT = ["it", "security"] as const;

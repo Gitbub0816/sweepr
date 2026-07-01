@@ -11,6 +11,7 @@ import {
 } from "@sweepr/db";
 import { getDb } from "../lib/db";
 import { requireAuth } from "../middleware/auth";
+import { requireAnyAdmin } from "../middleware/adminRoles";
 import { rankCleanersForBooking } from "../lib/matching";
 import { initiateAssignment } from "../lib/assignment";
 import { sendNotification } from "../lib/notifications";
@@ -279,7 +280,7 @@ async function notifyCleaner(
  * Run the matching engine, create offers for the top 3 cleaners, and notify
  * the top-ranked cleaner. Admin or system triggered.
  */
-bookingsRouter.post("/:id/match", async (c) => {
+bookingsRouter.post("/:id/match", requireAnyAdmin, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const booking = (await getBooking(sql, c.req.param("id"))) as BookingRow | null;
   if (!booking) return c.json({ error: "Not found" }, 404);
@@ -349,6 +350,15 @@ bookingsRouter.post(
     `) as { id: string; cleaner_id: string; rank: number }[];
     const offer = offerRows[0];
     if (!offer) return c.json({ error: "Offer not found" }, 404);
+
+    // Verify the requesting user is the cleaner who owns this offer.
+    const authUser = c.get("user");
+    const user = await getUserByClerkId(sql, authUser.clerkId);
+    if (!user) return c.json({ error: "Forbidden" }, 403);
+    const cleanerRows = (await sql`
+      SELECT id FROM cleaners WHERE id = ${offer.cleaner_id} AND user_id = ${user.id}
+    `) as { id: string }[];
+    if (cleanerRows.length === 0) return c.json({ error: "Forbidden" }, 403);
 
     if (response === "accepted") {
       await sql`UPDATE job_offers SET status = 'accepted' WHERE id = ${offerId}`;

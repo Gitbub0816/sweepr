@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { RefreshCw } from "lucide-react";
-import { DashboardShell } from "@sweepr/ui";
+import { DashboardShell, toast } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
 import { DataTable, type Column } from "../components/DataTable";
 
@@ -29,7 +29,13 @@ export function CustomersPage() {
       const res = await fetch(`${API_URL}/admin/customers`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) setCustomers(((await res.json()) as { customers: Customer[] }).customers);
+      if (res.ok) {
+        setCustomers(((await res.json()) as { customers: Customer[] }).customers);
+      } else {
+        toast.error("Failed to load customers");
+      }
+    } catch {
+      toast.error("Failed to load customers");
     } finally {
       setLoading(false);
     }

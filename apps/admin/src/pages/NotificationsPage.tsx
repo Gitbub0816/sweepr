@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { Bell, RefreshCw } from "lucide-react";
+import { toast } from "@sweepr/ui";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
@@ -74,6 +75,7 @@ export function NotificationsPage() {
       setGroups((gs) =>
         gs.map((g) => ({ ...g, items: g.items.map((i) => (i.key === item.key ? { ...i, enabled: item.enabled } : i)) })),
       );
+      toast.error("Failed to update notification setting");
     } finally {
       setSaving(null);
     }

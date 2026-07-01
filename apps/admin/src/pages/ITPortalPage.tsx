@@ -1,17 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { LifeBuoy, RefreshCw, X, Send, AlertTriangle, Ticket, UserCog, Activity, KeyRound, Link2, Search, Sparkles, Clock, CheckCircle2, Mail, Languages } from "lucide-react";
-import { ContextPanel } from "./SecurityPage";
+import { ContextPanel, type TicketContext } from "./SecurityPage";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
-
-interface TicketContext {
-  user: Record<string, unknown> | null;
-  invites: Array<Record<string, unknown>>;
-  audit: Array<Record<string, unknown>>;
-  relatedTickets: Array<Record<string, unknown>>;
-  error: Record<string, unknown> | null;
-}
 interface Template { id: string; department: string; key: string; name: string; classification: string | null; subject: string | null; body: string; is_active: boolean; }
 
 type Section = "tickets" | "users" | "telemetry" | "templates";

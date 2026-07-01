@@ -5,6 +5,7 @@ import {
   RefreshCw, Play, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp,
 } from "lucide-react";
 
+
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
 interface Dashboard {
@@ -97,7 +98,11 @@ export function AutomationPage() {
         fetch(`${API}/admin/automation/queue`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       if (dashRes.ok) setDashboard(await dashRes.json() as Dashboard);
+      else setToast({ msg: "Failed to load automation dashboard", ok: false });
       if (qRes.ok) setQueue(((await qRes.json()) as { queue: QueueEntry[] }).queue);
+      else setToast({ msg: "Failed to load automation queue", ok: false });
+    } catch {
+      setToast({ msg: "Failed to load automation data", ok: false });
     } finally {
       setLoading(false);
     }
@@ -182,8 +187,8 @@ export function AutomationPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {queue.map((row, i) => (
-                  <tr key={i} className="hover:bg-slate-50">
+                {queue.map((row) => (
+                  <tr key={`${row.booking_id}-${row.cleaner_id}`} className="hover:bg-slate-50">
                     <td className="px-3 py-2 font-mono text-slate-400">{row.booking_id.slice(0, 8)}</td>
                     <td className="px-3 py-2 text-charcoal capitalize">{row.service_type}</td>
                     <td className="px-3 py-2 text-slate-500">{new Date(row.scheduled_at).toLocaleDateString()}</td>

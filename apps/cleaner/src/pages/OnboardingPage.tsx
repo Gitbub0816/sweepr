@@ -390,11 +390,12 @@ export function OnboardingPage() {
   async function submitApplication() {
     setSubmitting(true);
     try {
+      const token = await getToken();
       if (API_URL && mode === "business") {
         // EIN is NEVER sent here / stored — only ein_provided is recorded.
         await fetch(`${API_URL}/cleaners/business/apply`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
           body: JSON.stringify({
             businessName: form.businessLegalName,
             businessType: form.businessType,
@@ -414,7 +415,7 @@ export function OnboardingPage() {
       } else if (API_URL) {
         await fetch(`${API_URL}/cleaners/apply`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
           body: JSON.stringify({
             fullName: form.fullName,
             phone: form.phone,
@@ -754,7 +755,6 @@ function StepWelcome({ form, set }: { form: FormState; set: SetFn }) {
       <SMSOptIn
         value={form.smsOptIn}
         onChange={(v) => set("smsOptIn", v)}
-        phone={form.phone}
       />
     </div>
   );
@@ -806,7 +806,6 @@ function StepBusinessInfo({ form, set }: { form: FormState; set: SetFn }) {
       <SMSOptIn
         value={form.smsOptIn}
         onChange={(v) => set("smsOptIn", v)}
-        phone={form.phone}
       />
     </div>
   );

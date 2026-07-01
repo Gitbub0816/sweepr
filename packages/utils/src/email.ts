@@ -4,6 +4,10 @@
 
 import { formatCurrency, formatDateTime } from "./format";
 
+function escHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 const SEAFOAM = "#14b8a6";
 const CHARCOAL = "#1a1a2e";
 
@@ -46,14 +50,14 @@ export function bookingConfirmedEmail(data: {
   return {
     subject: "Your Sweepr cleaning is confirmed 🧼",
     html: layout({
-      heading: `You're all set, ${data.customerName}!`,
+      heading: `You're all set, ${escHtml(data.customerName)}!`,
       body: `
         <p>Your cleaning is booked and confirmed.</p>
         <p><strong>When:</strong> ${formatDateTime(data.scheduledAt.toISOString())}<br/>
-        <strong>Where:</strong> ${data.address}<br/>
+        <strong>Where:</strong> ${escHtml(data.address)}<br/>
         <strong>Total:</strong> ${formatCurrency(data.total)}</p>
-        <p>Booking reference: <code>${data.bookingId}</code></p>`,
-      cta: { label: "View booking", href: `https://app.getsweepr.com/bookings/${data.bookingId}` },
+        <p>Booking reference: <code>${escHtml(data.bookingId)}</code></p>`,
+      cta: { label: "View booking", href: `https://app.getsweepr.com/bookings/${escHtml(data.bookingId)}` },
     }),
   };
 }
@@ -68,13 +72,13 @@ export function cleanerNewJobEmail(data: {
   return {
     subject: `New job available — ${formatCurrency(data.pay)}`,
     html: layout({
-      heading: `New ${data.serviceType} job, ${data.cleanerName}`,
+      heading: `New ${escHtml(data.serviceType)} job, ${escHtml(data.cleanerName)}`,
       body: `
         <p>A new job is available in your area.</p>
         <p><strong>When:</strong> ${formatDateTime(data.scheduledAt.toISOString())}<br/>
         <strong>Estimated pay:</strong> ${formatCurrency(data.pay)}</p>
         <p>Accept it before it's gone.</p>`,
-      cta: { label: "Review job", href: `https://clean.getsweepr.com/jobs/${data.bookingId}` },
+      cta: { label: "Review job", href: `https://clean.getsweepr.com/jobs/${escHtml(data.bookingId)}` },
     }),
   };
 }
@@ -88,7 +92,7 @@ export function bookingCancelledEmail(data: {
     html: layout({
       heading: `Booking cancelled`,
       body: `
-        <p>Hi ${data.customerName}, your booking <code>${data.bookingId}</code> has been cancelled.</p>
+        <p>Hi ${escHtml(data.customerName)}, your booking <code>${escHtml(data.bookingId)}</code> has been cancelled.</p>
         <p>If this was a mistake, you can rebook anytime — it only takes a minute.</p>`,
       cta: { label: "Book again", href: "https://app.getsweepr.com/book" },
     }),
@@ -103,11 +107,11 @@ export function reviewRequestEmail(data: {
   return {
     subject: `How did ${data.cleanerName} do?`,
     html: layout({
-      heading: `Rate your clean, ${data.customerName}`,
+      heading: `Rate your clean, ${escHtml(data.customerName)}`,
       body: `
-        <p>${data.cleanerName} just finished your cleaning. We'd love your feedback!</p>
+        <p>${escHtml(data.cleanerName)} just finished your cleaning. We'd love your feedback!</p>
         <p>It takes 30 seconds and helps keep Sweepr's quality high.</p>`,
-      cta: { label: "Leave a review", href: `https://app.getsweepr.com/bookings/${data.bookingId}` },
+      cta: { label: "Leave a review", href: `https://app.getsweepr.com/bookings/${escHtml(data.bookingId)}` },
     }),
   };
 }

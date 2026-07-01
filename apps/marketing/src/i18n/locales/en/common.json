@@ -105,7 +105,10 @@
   "cleaner": {
     "title": "Provide cleaning services through Sweepr",
     "subtitle": "Learn about training, requirements, and available service areas.",
-    "cta": "Become a Sweepr"
+    "cta": "Become a Sweepr",
+    "whySweepr": "Why Sweepr",
+    "coverage": "Coverage",
+    "forCustomers": "For Customers"
   },
   "newsletter": {
     "title": "Stay in the loop",

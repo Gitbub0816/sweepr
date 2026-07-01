@@ -1,7 +1,6 @@
 export interface SMSOptInProps {
   value: boolean;
   onChange: (opted: boolean) => void;
-  phone?: string;
   /** Base URL of the legal site for the SMS policy link. */
   legalUrl?: string;
 }

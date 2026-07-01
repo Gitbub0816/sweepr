@@ -39,7 +39,9 @@ export function useAdminRole(): AdminPermissions {
   const { isLoaded, user } = useUser();
 
   const role = (user?.publicMetadata?.adminRole as AdminRole | undefined)
-    ?? (user?.publicMetadata?.role === "super_admin" ? "super_admin" as AdminRole : null);
+    ?? (user?.publicMetadata?.role === "super_admin" ? "super_admin" as AdminRole
+      : user?.publicMetadata?.role === "admin" ? "admin" as AdminRole
+      : null);
 
   const can = (feature: keyof typeof PERMISSION_MAP): boolean => {
     if (!isLoaded || !role) return false;

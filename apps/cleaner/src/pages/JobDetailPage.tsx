@@ -285,8 +285,8 @@ export function JobDetailPage() {
         {job.access_codes && job.access_codes.length > 0 && (
           <div className="space-y-2">
             <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">Access</p>
-            {job.access_codes.map((code, i) => (
-              <div key={i} className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+            {job.access_codes.map((code) => (
+              <div key={`${code.code_type}-${code.code_value}`} className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
                 <Lock className="h-4 w-4 text-amber-500" />
                 <span className="text-sm font-medium text-amber-900">{code.code_type}: {code.code_value}</span>
                 {code.notes && <span className="text-xs text-slate-500 ml-1">({code.notes})</span>}
@@ -385,8 +385,8 @@ export function JobDetailPage() {
         <Card className="space-y-2">
           <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">Photos ({job.photos.length})</p>
           <div className="grid grid-cols-3 gap-2">
-            {job.photos.map((p, i) => (
-              <div key={i} className="rounded-lg bg-slate-100 aspect-square flex items-center justify-center">
+            {job.photos.map((p) => (
+              <div key={p.storage_key} className="rounded-lg bg-slate-100 aspect-square flex items-center justify-center">
                 <Camera className="h-5 w-5 text-slate-300" />
               </div>
             ))}

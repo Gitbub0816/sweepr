@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { withLang } from "../i18n/languages";
+import { LanguageSelector } from "../i18n/LanguageSelector";
 import { MarketingShell, Button, SweeprLogo } from "@sweepr/ui";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -27,12 +28,6 @@ const CLEANER_URL =
 const fadeUp = { hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0 } };
 const stagger = { show: { transition: { staggerChildren: 0.1 } } };
 
-const navLinks = [
-  { label: "How it works", href: "#how" },
-  { label: "Why Sweepr", href: "#why" },
-  { label: "Coverage", href: "#coverage" },
-  { label: "For Customers", href: "/" },
-];
 
 type Tab = "individual" | "business";
 
@@ -218,8 +213,16 @@ function TabSwitch({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
 
 export default function CleanWithUs() {
   const [tab, setTab] = useState<Tab>("individual");
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const cleanerUrl = withLang(CLEANER_URL, i18n.language);
+  const lang = i18n.language;
+
+  const navLinks = [
+    { label: t("nav.howItWorks"), href: "#how" },
+    { label: t("cleaner.whySweepr"), href: "#why" },
+    { label: t("cleaner.coverage"), href: "#coverage" },
+    { label: t("cleaner.forCustomers"), href: withLang("/", lang) },
+  ];
 
   const steps = tab === "individual" ? INDIVIDUAL_STEPS : BUSINESS_STEPS;
   const perks = tab === "individual" ? INDIVIDUAL_PERKS : BUSINESS_PERKS;
@@ -228,9 +231,12 @@ export default function CleanWithUs() {
     <MarketingShell
       navLinks={navLinks}
       cta={
-        <a href={cleanerUrl}>
-          <Button>Become a Sweepr</Button>
-        </a>
+        <div className="flex items-center gap-3">
+          <LanguageSelector />
+          <a href={cleanerUrl}>
+            <Button>{t("nav.becomeACleaner")}</Button>
+          </a>
+        </div>
       }
     >
       {/* Hero */}

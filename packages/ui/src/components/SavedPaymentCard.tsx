@@ -59,5 +59,3 @@ export function SavedPaymentCard({
     </div>
   );
 }
-
-export default SavedPaymentCard;

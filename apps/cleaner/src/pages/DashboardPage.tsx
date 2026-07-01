@@ -467,7 +467,7 @@ function ScheduleTab() {
         </h3>
         <div className="space-y-3">
           {slots.map((slot, i) => (
-            <div key={i} className="flex items-center gap-3">
+            <div key={slot.day_of_week} className="flex items-center gap-3">
               <button
                 onClick={() => setSlots((s) => s.map((x, j) => j === i ? { ...x, active: !x.active } : x))}
                 className="flex-shrink-0"
@@ -707,8 +707,8 @@ function PerformanceTab() {
       {data.recentReviews.length > 0 && (
         <div className="space-y-3">
           <h3 className="font-semibold text-slate-800">Recent Reviews</h3>
-          {data.recentReviews.map((r, i) => (
-            <div key={i} className="rounded-xl border border-slate-200 p-4">
+          {data.recentReviews.map((r) => (
+            <div key={r.created_at} className="rounded-xl border border-slate-200 p-4">
               <div className="flex items-center gap-1 mb-2">
                 {[1,2,3,4,5].map((s) => (
                   <Star key={s} size={14} className={s <= r.rating ? "fill-yellow-400 text-yellow-400" : "text-slate-200"} />
@@ -889,21 +889,21 @@ export function DashboardPage() {
   return (
     <DashboardShell title={t("cleaner.dashboard.title")} description={t("cleaner.dashboard.description")}>
       <div className="flex flex-wrap gap-1 border-b border-slate-200 -mb-px pb-0">
-        {TABS.map((t) => {
-          const Icon = t.icon;
+        {TABS.map((tabItem) => {
+          const Icon = tabItem.icon;
           return (
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
+              key={tabItem.id}
+              onClick={() => setTab(tabItem.id)}
               className={[
                 "flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
-                tab === t.id
+                tab === tabItem.id
                   ? "border-indigo-600 text-indigo-700"
                   : "border-transparent text-slate-500 hover:text-slate-700",
               ].join(" ")}
             >
               <Icon size={14} />
-              {t.label}
+              {tabItem.label}
             </button>
           );
         })}

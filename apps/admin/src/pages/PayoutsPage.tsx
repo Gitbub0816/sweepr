@@ -426,7 +426,12 @@ function DisputesTab() {
   const [acting, setActing] = useState<string | null>(null);
 
   async function resolve(id: string, resolution: "release" | "cancel") {
-    const notes = resolution === "cancel" ? window.prompt("Cancellation notes (optional):") ?? "" : "";
+    let notes = "";
+    if (resolution === "cancel") {
+      const prompted = window.prompt("Cancellation notes (optional):");
+      if (prompted === null) return;
+      notes = prompted;
+    }
     setActing(id);
     try {
       const token = await getToken();

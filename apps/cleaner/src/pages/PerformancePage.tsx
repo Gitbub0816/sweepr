@@ -153,9 +153,9 @@ export function PerformancePage() {
           Top reviews
         </h2>
         <div className="space-y-3">
-          {topReviews.map((r, i) => (
+          {topReviews.map((r) => (
             <div
-              key={i}
+              key={r.name}
               className="rounded-xl border border-slate-100 p-4 dark:border-slate-800"
             >
               <div className="mb-1 flex items-center gap-2">

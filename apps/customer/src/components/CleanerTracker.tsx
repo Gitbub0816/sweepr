@@ -43,8 +43,8 @@ export interface CleanerTrackerProps {
   token: string;
   apiUrl: string;
   /** Customer's address coordinates for ETA calculation */
-  destLat: number;
-  destLng: number;
+  destLat?: number;
+  destLng?: number;
   dayStatus: string;
 }
 
@@ -95,6 +95,7 @@ export function CleanerTracker({ bookingId, token, apiUrl, destLat, destLng, day
   // Init map
   useEffect(() => {
     if (!TOKEN || !containerRef.current || mapRef.current) return;
+    if (destLat === undefined || destLng === undefined) return;
     mapboxgl.accessToken = TOKEN;
     const dark = isDarkTheme();
     const map = new mapboxgl.Map({
@@ -128,6 +129,8 @@ export function CleanerTracker({ bookingId, token, apiUrl, destLat, destLng, day
     return () => {
       mapRef.current?.remove();
       mapRef.current = null;
+      const style = document.getElementById('cleaner-tracker-style');
+      if (style) style.remove();
     };
   }, []);
 
@@ -139,9 +142,12 @@ export function CleanerTracker({ bookingId, token, apiUrl, destLat, destLng, day
     if (!cleanerMarkerRef.current) {
       const el = document.createElement("div");
       el.innerHTML = `<div style="width:40px;height:40px;border-radius:50%;background:#0f172a;border:3px solid #14b8a6;box-shadow:0 2px 10px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;animation:pulse 2s infinite;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="#14b8a6"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg></div>`;
-      const style = document.createElement("style");
-      style.textContent = `@keyframes pulse { 0%,100%{box-shadow:0 2px 10px rgba(20,184,166,0.4)} 50%{box-shadow:0 2px 20px rgba(20,184,166,0.8)} }`;
-      document.head.appendChild(style);
+      if (!document.getElementById('cleaner-tracker-style')) {
+        const style = document.createElement("style");
+        style.id = 'cleaner-tracker-style';
+        style.textContent = `@keyframes pulse { 0%,100%{box-shadow:0 2px 10px rgba(20,184,166,0.4)} 50%{box-shadow:0 2px 20px rgba(20,184,166,0.8)} }`;
+        document.head.appendChild(style);
+      }
       cleanerMarkerRef.current = new mapboxgl.Marker({ element: el })
         .setLngLat([location.lng, location.lat])
         .setPopup(new mapboxgl.Popup({ offset: 25 }).setText("Your Sweepr"))
@@ -151,10 +157,12 @@ export function CleanerTracker({ bookingId, token, apiUrl, destLat, destLng, day
     }
 
     // Fit bounds to show both cleaner and destination
-    const bounds = new mapboxgl.LngLatBounds()
-      .extend([location.lng, location.lat])
-      .extend([destLng, destLat]);
-    map.fitBounds(bounds, { padding: 80, maxZoom: 15 });
+    if (destLat !== undefined && destLng !== undefined) {
+      const bounds = new mapboxgl.LngLatBounds()
+        .extend([location.lng, location.lat])
+        .extend([destLng, destLat]);
+      map.fitBounds(bounds, { padding: 80, maxZoom: 15 });
+    }
   }, [location, destLat, destLng]);
 
   if (!TOKEN) {

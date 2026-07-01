@@ -302,25 +302,20 @@ export function TrainingAdminPage() {
 
   async function loadModuleDetail(moduleId: string) {
     const token = await getToken();
-    const [lesRes, qRes] = await Promise.all([
-      apiFetch(`/admin/training/modules/${moduleId}`, token ?? ""),
+    const [modRes, qRes] = await Promise.all([
+      apiFetch(`/training/modules/${moduleId}`, token ?? ""),
       apiFetch(`/training/modules/${moduleId}/quiz`, token ?? ""),
     ]);
 
-    // Lessons from module detail endpoint (reuse cleaner endpoint for now)
-    const modRes = await apiFetch(`/training/modules/${moduleId}`, token ?? "");
     if (modRes.ok) {
       const data = (await modRes.json()) as { lessons: Lesson[] };
       setLessons((prev) => ({ ...prev, [moduleId]: data.lessons }));
     }
 
-    // Questions — fetch from admin endpoint (future) or quiz endpoint
     if (qRes.ok) {
       const data = (await qRes.json()) as { questions: Question[] };
       setQuestions((prev) => ({ ...prev, [moduleId]: data.questions as Question[] }));
     }
-
-    void lesRes; // unused but avoids TS error
   }
 
   function toggleModule(id: string) {

@@ -286,8 +286,8 @@ export function BookingDetailPage() {
               token={authToken}
               apiUrl={API}
               dayStatus={booking.status === "cleaner_on_the_way" ? "en_route" : booking.status}
-              destLat={32.7157}
-              destLng={-117.1611}
+              destLat={booking.address.lat}
+              destLng={booking.address.lng}
             />
           )}
 

@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 import { Star, RefreshCw } from "lucide-react";
-import { DashboardShell, Badge, Button } from "@sweepr/ui";
+import { DashboardShell, Badge, Button, toast } from "@sweepr/ui";
 import { DataTable, type Column } from "../components/DataTable";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -53,7 +53,13 @@ export function CleanersPage() {
       const res = await fetch(`${API_URL}/admin/cleaners?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) setCleaners(((await res.json()) as { cleaners: Cleaner[] }).cleaners);
+      if (res.ok) {
+        setCleaners(((await res.json()) as { cleaners: Cleaner[] }).cleaners);
+      } else {
+        toast.error("Failed to load cleaners");
+      }
+    } catch {
+      toast.error("Failed to load cleaners");
     } finally {
       setLoading(false);
     }

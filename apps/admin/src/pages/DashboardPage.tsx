@@ -23,7 +23,7 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts";
-import { DashboardShell, StatCard, Card, Badge } from "@sweepr/ui";
+import { DashboardShell, StatCard, Card, Badge, toast } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -105,7 +105,13 @@ export function DashboardPage() {
       const res = await fetch(`${API_URL}/admin/stats`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) setData(await res.json() as DashboardData);
+      if (res.ok) {
+        setData(await res.json() as DashboardData);
+      } else {
+        toast.error("Failed to load dashboard data");
+      }
+    } catch {
+      toast.error("Failed to load dashboard data");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -281,8 +287,8 @@ export function DashboardPage() {
               <p className="py-4 text-sm text-slate-400">No audit events yet. Events are recorded when admin actions are taken.</p>
             ) : (
               <div className="space-y-2">
-                {(data?.recentAudit ?? []).map((e, i) => (
-                  <div key={i} className="flex items-center gap-3 text-sm">
+                {(data?.recentAudit ?? []).map((e) => (
+                  <div key={`${e.created_at}${e.action}`} className="flex items-center gap-3 text-sm">
                     <span className="text-xs text-slate-400 whitespace-nowrap">{new Date(e.created_at).toLocaleTimeString()}</span>
                     <Badge variant={actionVariant(e.action)}>{e.action}</Badge>
                     <span className="text-slate-600 dark:text-slate-300 truncate">{e.target_type}:{e.target_id}</span>
