@@ -35,22 +35,19 @@ i18n
     fallbackLng: "en",
     supportedLngs: SUPPORTED_CODES,
     detection: {
+      // Check URL ?lang= param first, then localStorage, then browser
       order: ["querystring", "localStorage", "navigator"],
       lookupQuerystring: "lang",
       lookupLocalStorage: "sweepr_lang",
       caches: ["localStorage"],
     },
-    interpolation: {
-      escapeValue: false,
-    },
+    interpolation: { escapeValue: false },
   });
 
-// Sync dir attribute whenever language changes.
 i18n.on("languageChanged", (code) => {
   applyDir(getLanguage(code));
 });
 
-// Apply on initial load.
 applyDir(getLanguage(i18n.language));
 
 export default i18n;

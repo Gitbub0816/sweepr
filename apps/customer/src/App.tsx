@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 import { AuthenticateWithRedirectCallback } from "@clerk/clerk-react";
 import { SignInPage } from "./components/SignInPage";
 import { SignUpPage } from "./components/SignUpPage";
@@ -88,6 +89,23 @@ function OnboardingGate({ children }: { children: React.ReactNode }) {
 
 const FORCE_PRELAUNCH = import.meta.env.VITE_PRELAUNCH_FORCE === "true";
 
+/** On first load, if ?lang= is in the URL, persist it to the user's profile. */
+function LangSync() {
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("lang");
+    if (!code) return;
+    const token = localStorage.getItem("__clerk_db_jwt");
+    if (!token) return;
+    const api = import.meta.env.VITE_API_URL ?? "";
+    fetch(`${api}/customer-profile`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ preferredLanguage: code }),
+    }).catch(() => null);
+  }, []);
+  return null;
+}
+
 function GateLayout() {
   return (
     <PrelaunchGate type="customer" apiUrl={API_URL} forcePrelaunch={FORCE_PRELAUNCH}>
@@ -101,6 +119,7 @@ function GateLayout() {
 export default function App() {
   return (
     <ErrorBoundary>
+      <LangSync />
       <OfflineIndicator />
       <ReportProblemMount />
       <Routes>

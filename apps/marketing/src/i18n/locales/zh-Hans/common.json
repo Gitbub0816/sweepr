@@ -1,0 +1,99 @@
+{
+  "nav": {
+    "howItWorks": "使用方式",
+    "services": "服务",
+    "pricing": "价格",
+    "faq": "常见问题",
+    "becomeACleaner": "成为 Sweepr",
+    "getStarted": "立即开始",
+    "signIn": "登录"
+  },
+  "hero": {
+    "badge": "专业家庭清洁服务",
+    "title": "您的家，一尘不染 — 按您的时间安排",
+    "subtitle": "几分钟内预订顶级清洁师。可信赖、经过背景调查的专业人士。满意度保证。",
+    "cta": "预订清洁",
+    "ctaSub": "无需承诺。随时取消。"
+  },
+  "howItWorks": {
+    "title": "Sweepr 如何运作",
+    "subtitle": "从预订到一尘不染，只需三个简单步骤。",
+    "step1Title": "在线预订",
+    "step1Body": "选择服务、挑选时间，即时获得报价。不到 2 分钟即可完成。",
+    "step2Title": "我们为您匹配",
+    "step2Body": "我们为您配对您所在地区经过背景调查、评价最高的清洁师。",
+    "step3Title": "享受洁净之家",
+    "step3Body": "您的清洁师准时到达，让您的家一尘不染。有保证。"
+  },
+  "services": {
+    "title": "我们提供的服务",
+    "subtitle": "从日常维护到搬出深度清洁 — 我们一应俱全。",
+    "standard": "标准清洁",
+    "standardDesc": "定期维护清洁，让您的家保持清新整洁。",
+    "deep": "深度清洁",
+    "deepDesc": "从上到下彻底清洁，适合需要额外关注的住所。",
+    "moveInOut": "入住 / 搬出",
+    "moveInOutDesc": "让旧居一尘不染，或以全新面貌迎接新家。",
+    "vacation": "度假租赁",
+    "vacationDesc": "针对 Airbnb 及短期租赁房东优化的周转清洁。",
+    "postConstruction": "装修后清洁",
+    "postConstructionDesc": "翻新后的灰尘、碎屑和残留物清除。"
+  },
+  "pricing": {
+    "title": "简单透明的定价",
+    "subtitle": "无隐藏费用。价格根据您的住所提前计算。",
+    "from": "起",
+    "getQuote": "获取精确报价",
+    "calculator": {
+      "title": "即时获取报价",
+      "bedrooms": "卧室",
+      "bathrooms": "浴室",
+      "serviceType": "服务类型",
+      "calculate": "计算价格"
+    }
+  },
+  "trust": {
+    "title": "为何数千人信任 Sweepr",
+    "background": "经过背景调查",
+    "backgroundDesc": "每位清洁师在首次接单前都经过严格审查和背景调查。",
+    "guaranteed": "满意度保证",
+    "guaranteedDesc": "不满意？我们会妥善处理 — 无需任何理由。",
+    "insured": "完全投保",
+    "insuredDesc": "每次清洁均受我们责任保险保障。"
+  },
+  "faq": {
+    "title": "常见问题",
+    "q1": "如何预订清洁服务？",
+    "a1": "点击「预订清洁」，输入您的地址和房屋详情，选择时间段并确认。不到 2 分钟即可完成。",
+    "q2": "您的清洁师经过背景调查吗？",
+    "a2": "是的。每位 Sweepr 清洁师在第一次工作前都要经过严格的背景调查和身份验证。",
+    "q3": "如果我不满意怎么办？",
+    "a3": "我们提供 100% 满意保证。如有任何问题，请在 24 小时内联系我们，我们将免费安排人员重新处理。",
+    "q4": "我可以预订定期清洁吗？",
+    "a4": "当然可以。选择每周、每两周或每月，每次可节省最多 10%。",
+    "q5": "你们服务哪些地区？",
+    "a5": "我们正在积极扩张。输入您的邮政编码，查看我们是否在您所在地区提供服务。"
+  },
+  "cleaner": {
+    "title": "按您的时间赚取收入",
+    "subtitle": "加入我们的专业清洁师网络。自定工作时间，选择工作，快速收款。",
+    "cta": "申请加入 Sweepr 成为清洁师"
+  },
+  "newsletter": {
+    "title": "保持关注",
+    "subtitle": "获取新服务区域、功能和优惠活动的通知。",
+    "placeholder": "您的电子邮件地址",
+    "button": "订阅",
+    "success": "您已成功订阅！"
+  },
+  "footer": {
+    "privacy": "隐私政策",
+    "terms": "服务条款",
+    "contractor": "承包商披露",
+    "status": "状态",
+    "rights": "保留所有权利。"
+  },
+  "languageSelector": {
+    "label": "语言"
+  }
+}

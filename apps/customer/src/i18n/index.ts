@@ -35,7 +35,8 @@ i18n
     fallbackLng: "en",
     supportedLngs: SUPPORTED_CODES,
     detection: {
-      order: ["localStorage", "navigator"],
+      order: ["querystring", "localStorage", "navigator"],
+      lookupQuerystring: "lang",
       lookupLocalStorage: "sweepr_lang",
       caches: ["localStorage"],
     },

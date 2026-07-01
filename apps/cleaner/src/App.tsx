@@ -1,4 +1,5 @@
 import { Routes, Route, Outlet } from "react-router-dom";
+import { useEffect } from "react";
 import { AuthenticateWithRedirectCallback, useAuth } from "@clerk/clerk-react";
 import { ContinueSignUp } from "./components/ContinueSignUp";
 import {
@@ -83,9 +84,27 @@ function GateLayout() {
   );
 }
 
+/** On first load, if ?lang= is in the URL, persist it to the cleaner's profile. */
+function LangSync() {
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("lang");
+    if (!code) return;
+    const token = localStorage.getItem("__clerk_db_jwt");
+    if (!token) return;
+    const api = import.meta.env.VITE_API_URL ?? "";
+    fetch(`${api}/cleaner-dashboard/settings`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ preferred_language: code }),
+    }).catch(() => null);
+  }, []);
+  return null;
+}
+
 export default function App() {
   return (
     <>
+    <LangSync />
     <ReportProblemMount />
     <Routes>
       {/* OAuth SSO callback and mock Checkr form bypass the prelaunch gate */}

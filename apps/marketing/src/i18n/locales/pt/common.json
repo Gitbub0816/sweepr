@@ -1,0 +1,99 @@
+{
+  "nav": {
+    "howItWorks": "Como funciona",
+    "services": "Serviços",
+    "pricing": "Preços",
+    "faq": "Perguntas frequentes",
+    "becomeACleaner": "Seja um Sweepr",
+    "getStarted": "Começar",
+    "signIn": "Entrar"
+  },
+  "hero": {
+    "badge": "Limpeza doméstica profissional",
+    "title": "Sua casa, impecável — no seu horário",
+    "subtitle": "Reserve um profissional de limpeza bem avaliado em minutos. Profissionais confiáveis com verificação de antecedentes. Satisfação garantida.",
+    "cta": "Agendar uma limpeza",
+    "ctaSub": "Sem compromisso. Cancele quando quiser."
+  },
+  "howItWorks": {
+    "title": "Como o Sweepr funciona",
+    "subtitle": "Do agendamento à limpeza impecável em três passos simples.",
+    "step1Title": "Reserve online",
+    "step1Body": "Escolha o serviço, selecione um horário e obtenha um preço imediato. Leva menos de 2 minutos.",
+    "step2Title": "Fazemos a combinação",
+    "step2Body": "Conectamos você a um profissional de limpeza com verificação de antecedentes e alta avaliação na sua região.",
+    "step3Title": "Aproveite a casa limpa",
+    "step3Body": "Seu profissional chega no horário e deixa sua casa impecável. Garantido."
+  },
+  "services": {
+    "title": "Serviços que oferecemos",
+    "subtitle": "Da manutenção de rotina à limpeza profunda na mudança — cobrimos tudo.",
+    "standard": "Limpeza Padrão",
+    "standardDesc": "Limpeza de manutenção regular para manter sua casa fresca e organizada.",
+    "deep": "Limpeza Profunda",
+    "deepDesc": "Limpeza completa de cima a baixo para casas que precisam de atenção extra.",
+    "moveInOut": "Entrada / Saída de Imóvel",
+    "moveInOutDesc": "Deixe o lugar antigo impecável ou chegue a um começo novo e fresco.",
+    "vacation": "Aluguel por Temporada",
+    "vacationDesc": "Limpeza de rotatividade otimizada para anfitriões do Airbnb e aluguel de curto prazo.",
+    "postConstruction": "Pós-Obra",
+    "postConstructionDesc": "Remoção de poeira, entulho e resíduos após reformas."
+  },
+  "pricing": {
+    "title": "Preços simples e transparentes",
+    "subtitle": "Sem taxas ocultas. Seu preço é calculado antecipadamente com base na sua casa.",
+    "from": "a partir de",
+    "getQuote": "Obtenha seu preço exato",
+    "calculator": {
+      "title": "Obtenha um orçamento imediato",
+      "bedrooms": "Quartos",
+      "bathrooms": "Banheiros",
+      "serviceType": "Tipo de serviço",
+      "calculate": "Calcular preço"
+    }
+  },
+  "trust": {
+    "title": "Por que milhares confiam no Sweepr",
+    "background": "Verificação de antecedentes",
+    "backgroundDesc": "Cada profissional de limpeza é verificado e tem antecedentes checados antes do primeiro agendamento.",
+    "guaranteed": "Satisfação garantida",
+    "guaranteedDesc": "Não ficou satisfeito? Resolveremos — sem perguntas.",
+    "insured": "Totalmente segurado",
+    "insuredDesc": "Cada limpeza é coberta pela nossa apólice de seguro de responsabilidade civil."
+  },
+  "faq": {
+    "title": "Perguntas frequentes",
+    "q1": "Como agendar uma limpeza?",
+    "a1": "Clique em 'Agendar uma limpeza', insira seu endereço e detalhes da casa, escolha um horário e confirme. Leva menos de 2 minutos.",
+    "q2": "Os profissionais têm verificação de antecedentes?",
+    "a2": "Sim. Cada profissional do Sweepr passa por uma verificação completa de antecedentes e verificação de identidade antes do primeiro trabalho.",
+    "q3": "E se eu não ficar satisfeito?",
+    "a3": "Oferecemos garantia de satisfação de 100%. Se algo não estiver certo, entre em contato conosco em até 24 horas e enviaremos alguém sem custo adicional.",
+    "q4": "Posso agendar limpezas recorrentes?",
+    "a4": "Claro. Escolha semanal, quinzenal ou mensal e economize até 10% em cada visita.",
+    "q5": "Quais áreas vocês atendem?",
+    "a5": "Estamos em expansão ativa. Insira seu CEP para ver se estamos disponíveis na sua região."
+  },
+  "cleaner": {
+    "title": "Ganhe no seu horário",
+    "subtitle": "Faça parte da nossa rede de profissionais de limpeza. Defina seus próprios horários, escolha seus trabalhos e receba pagamentos rápidos.",
+    "cta": "Candidate-se para limpar com o Sweepr"
+  },
+  "newsletter": {
+    "title": "Fique por dentro",
+    "subtitle": "Receba notificações sobre novas áreas de serviço, recursos e promoções.",
+    "placeholder": "Seu endereço de e-mail",
+    "button": "Assinar",
+    "success": "Você está inscrito!"
+  },
+  "footer": {
+    "privacy": "Política de Privacidade",
+    "terms": "Termos de Serviço",
+    "contractor": "Divulgação de Contratante",
+    "status": "Status",
+    "rights": "Todos os direitos reservados."
+  },
+  "languageSelector": {
+    "label": "Idioma"
+  }
+}

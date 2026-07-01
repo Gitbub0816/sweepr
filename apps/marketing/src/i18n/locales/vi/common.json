@@ -1,0 +1,99 @@
+{
+  "nav": {
+    "howItWorks": "Cách hoạt động",
+    "services": "Dịch vụ",
+    "pricing": "Bảng giá",
+    "faq": "Câu hỏi thường gặp",
+    "becomeACleaner": "Trở thành Sweepr",
+    "getStarted": "Bắt đầu ngay",
+    "signIn": "Đăng nhập"
+  },
+  "hero": {
+    "badge": "Dịch vụ vệ sinh nhà chuyên nghiệp",
+    "title": "Ngôi nhà của bạn, sạch bóng — theo lịch của bạn",
+    "subtitle": "Đặt lịch thợ dọn dẹp hàng đầu chỉ trong vài phút. Các chuyên gia đã được kiểm tra lý lịch, đáng tin cậy. Đảm bảo sự hài lòng.",
+    "cta": "Đặt lịch dọn dẹp",
+    "ctaSub": "Không ràng buộc. Hủy bất cứ lúc nào."
+  },
+  "howItWorks": {
+    "title": "Sweepr hoạt động như thế nào",
+    "subtitle": "Từ đặt lịch đến sạch bóng chỉ qua ba bước đơn giản.",
+    "step1Title": "Đặt lịch trực tuyến",
+    "step1Body": "Chọn dịch vụ, chọn thời gian và nhận báo giá ngay lập tức. Chỉ mất dưới 2 phút.",
+    "step2Title": "Chúng tôi kết nối bạn",
+    "step2Body": "Chúng tôi ghép bạn với thợ dọn dẹp đã được kiểm tra lý lịch, được đánh giá cao trong khu vực của bạn.",
+    "step3Title": "Tận hưởng ngôi nhà sạch sẽ",
+    "step3Body": "Thợ dọn dẹp đến đúng giờ và để lại ngôi nhà của bạn sạch bóng. Đảm bảo."
+  },
+  "services": {
+    "title": "Dịch vụ chúng tôi cung cấp",
+    "subtitle": "Từ bảo dưỡng định kỳ đến dọn dẹp sâu khi chuyển nhà — chúng tôi bao gồm tất cả.",
+    "standard": "Dọn dẹp tiêu chuẩn",
+    "standardDesc": "Vệ sinh bảo dưỡng định kỳ để giữ cho ngôi nhà của bạn luôn sạch sẽ và gọn gàng.",
+    "deep": "Dọn dẹp sâu",
+    "deepDesc": "Vệ sinh toàn diện từ trên xuống dưới cho những ngôi nhà cần được chú ý thêm.",
+    "moveInOut": "Chuyển vào / Chuyển ra",
+    "moveInOutDesc": "Để lại nơi cũ sạch bóng hoặc chào đón không gian mới tinh tươm.",
+    "vacation": "Cho thuê ngắn hạn",
+    "vacationDesc": "Dọn dẹp giữa các lượt khách, tối ưu hóa cho Airbnb và các chủ nhà cho thuê ngắn hạn.",
+    "postConstruction": "Sau xây dựng",
+    "postConstructionDesc": "Loại bỏ bụi bẩn, mảnh vụn và cặn bẩn sau khi cải tạo."
+  },
+  "pricing": {
+    "title": "Giá cả đơn giản, minh bạch",
+    "subtitle": "Không có phí ẩn. Giá của bạn được tính trước dựa trên ngôi nhà của bạn.",
+    "from": "từ",
+    "getQuote": "Nhận báo giá chính xác",
+    "calculator": {
+      "title": "Nhận báo giá ngay lập tức",
+      "bedrooms": "Phòng ngủ",
+      "bathrooms": "Phòng tắm",
+      "serviceType": "Loại dịch vụ",
+      "calculate": "Tính giá"
+    }
+  },
+  "trust": {
+    "title": "Tại sao hàng nghìn người tin tưởng Sweepr",
+    "background": "Đã kiểm tra lý lịch",
+    "backgroundDesc": "Mỗi thợ dọn dẹp đều được thẩm tra và kiểm tra lý lịch trước lần đặt lịch đầu tiên.",
+    "guaranteed": "Đảm bảo sự hài lòng",
+    "guaranteedDesc": "Không hài lòng? Chúng tôi sẽ khắc phục — không cần hỏi lý do.",
+    "insured": "Được bảo hiểm đầy đủ",
+    "insuredDesc": "Mỗi lần dọn dẹp đều được bảo hiểm trách nhiệm dân sự của chúng tôi."
+  },
+  "faq": {
+    "title": "Câu hỏi thường gặp",
+    "q1": "Làm thế nào để đặt lịch dọn dẹp?",
+    "a1": "Nhấp vào 'Đặt lịch dọn dẹp', nhập địa chỉ và thông tin nhà của bạn, chọn khung giờ và xác nhận. Chỉ mất dưới 2 phút.",
+    "q2": "Thợ dọn dẹp của bạn có được kiểm tra lý lịch không?",
+    "a2": "Có. Mỗi thợ dọn dẹp của Sweepr đều trải qua kiểm tra lý lịch kỹ lưỡng và xác minh danh tính trước công việc đầu tiên.",
+    "q3": "Nếu tôi không hài lòng thì sao?",
+    "a3": "Chúng tôi cung cấp đảm bảo hài lòng 100%. Nếu có bất cứ điều gì không đúng, hãy liên hệ với chúng tôi trong vòng 24 giờ và chúng tôi sẽ cử người đến miễn phí.",
+    "q4": "Tôi có thể đặt lịch dọn dẹp định kỳ không?",
+    "a4": "Hoàn toàn có thể. Chọn hàng tuần, hai tuần một lần hoặc hàng tháng và tiết kiệm đến 10% cho mỗi lần.",
+    "q5": "Bạn phục vụ những khu vực nào?",
+    "a5": "Chúng tôi đang tích cực mở rộng. Nhập mã bưu chính để xem chúng tôi có phục vụ khu vực của bạn không."
+  },
+  "cleaner": {
+    "title": "Kiếm tiền theo lịch của bạn",
+    "subtitle": "Tham gia mạng lưới thợ dọn dẹp chuyên nghiệp của chúng tôi. Tự đặt giờ làm việc, chọn công việc, nhận tiền nhanh.",
+    "cta": "Đăng ký làm thợ dọn dẹp với Sweepr"
+  },
+  "newsletter": {
+    "title": "Luôn cập nhật",
+    "subtitle": "Nhận thông báo về các khu vực dịch vụ mới, tính năng và khuyến mãi.",
+    "placeholder": "Địa chỉ email của bạn",
+    "button": "Đăng ký",
+    "success": "Bạn đã đăng ký thành công!"
+  },
+  "footer": {
+    "privacy": "Chính sách bảo mật",
+    "terms": "Điều khoản dịch vụ",
+    "contractor": "Công bố nhà thầu",
+    "status": "Trạng thái",
+    "rights": "Bảo lưu mọi quyền."
+  },
+  "languageSelector": {
+    "label": "Ngôn ngữ"
+  }
+}

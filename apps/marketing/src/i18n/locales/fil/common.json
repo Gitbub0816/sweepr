@@ -1,0 +1,99 @@
+{
+  "nav": {
+    "howItWorks": "Paano ito gumagana",
+    "services": "Mga Serbisyo",
+    "pricing": "Pagpepresyo",
+    "faq": "FAQ",
+    "becomeACleaner": "Maging Sweepr",
+    "getStarted": "Magsimula",
+    "signIn": "Mag-sign in"
+  },
+  "hero": {
+    "badge": "Propesyonal na paglilinis ng bahay",
+    "title": "Ang iyong tahanan, malinis na walang mantsa — ayon sa iyong iskedyul",
+    "subtitle": "Mag-book ng nangungunang limpyador sa loob ng ilang minuto. Mapagkakatiwalaang mga propesyonal na may background check. Garantisadong kasiyahan.",
+    "cta": "Mag-book ng paglilinis",
+    "ctaSub": "Walang pangako. Kanselahin kahit kailan."
+  },
+  "howItWorks": {
+    "title": "Paano gumagana ang Sweepr",
+    "subtitle": "Mula sa pag-book hanggang sa malinis, tatlong simpleng hakbang lamang.",
+    "step1Title": "Mag-book online",
+    "step1Body": "Piliin ang iyong serbisyo, pumili ng oras, at makakuha ng agarang presyo. Tumatagal ng wala pang 2 minuto.",
+    "step2Title": "Itatambal ka namin",
+    "step2Body": "Itatambal ka namin sa isang limpyador na may background check at mataas na rating sa iyong lugar.",
+    "step3Title": "Mag-enjoy sa malinis na tahanan",
+    "step3Body": "Darating ang iyong limpyador sa tamang oras at iiwan ang iyong tahanan na malinis na walang mantsa. Garantisado."
+  },
+  "services": {
+    "title": "Mga serbisyong aming inaalok",
+    "subtitle": "Mula sa regular na pagpapanatili hanggang sa deep clean bago lumipat — sakop namin ang lahat.",
+    "standard": "Standard na Paglilinis",
+    "standardDesc": "Regular na pagpapanatili ng kalinisan upang mapanatiling sariwa at maayos ang iyong tahanan.",
+    "deep": "Deep Clean",
+    "deepDesc": "Masusing paglilinis mula itaas hanggang ibaba para sa mga tahanang nangangailangan ng karagdagang atensyon.",
+    "moveInOut": "Paglipat Pasok / Paglabas",
+    "moveInOutDesc": "Iwanan ang lumang lugar na malinis o dumating sa isang sariwang simula.",
+    "vacation": "Vacation Rental",
+    "vacationDesc": "Paglilinis ng turnover na na-optimize para sa mga host ng Airbnb at short-term rental.",
+    "postConstruction": "Pagkatapos ng Konstruksyon",
+    "postConstructionDesc": "Pag-aalis ng alikabok, debris, at residue pagkatapos ng renovasyon."
+  },
+  "pricing": {
+    "title": "Simple at transparent na pagpepresyo",
+    "subtitle": "Walang nakatagong bayad. Ang iyong presyo ay kinakalkula nang maaga batay sa iyong tahanan.",
+    "from": "mula sa",
+    "getQuote": "Kumuha ng eksaktong presyo",
+    "calculator": {
+      "title": "Kumuha ng agarang quote",
+      "bedrooms": "Mga Kwarto",
+      "bathrooms": "Mga Banyo",
+      "serviceType": "Uri ng serbisyo",
+      "calculate": "Kalkulahin ang presyo"
+    }
+  },
+  "trust": {
+    "title": "Bakit nagtitiwala ang libu-libong tao sa Sweepr",
+    "background": "May background check",
+    "backgroundDesc": "Bawat limpyador ay sinusuri at may background check bago ang kanilang unang booking.",
+    "guaranteed": "Garantisadong kasiyahan",
+    "guaranteedDesc": "Hindi masaya? Aayusin namin ito — walang tanong na itatanong.",
+    "insured": "Ganap na may insurance",
+    "insuredDesc": "Bawat paglilinis ay sakop ng aming patakaran sa liability insurance."
+  },
+  "faq": {
+    "title": "Mga madalas itanong",
+    "q1": "Paano ako mag-book ng paglilinis?",
+    "a1": "I-click ang 'Mag-book ng paglilinis', ilagay ang iyong address at mga detalye ng tahanan, pumili ng time slot, at kumpirmahin. Tumatagal ng wala pang 2 minuto.",
+    "q2": "Ang iyong mga limpyador ba ay may background check?",
+    "a2": "Oo. Bawat limpyador ng Sweepr ay dumadaan sa masusing background check at pagpapatunay ng pagkakakilanlan bago ang kanilang unang trabaho.",
+    "q3": "Paano kung hindi ako masaya?",
+    "a3": "Nag-aalok kami ng 100% na garantiya sa kasiyahan. Kung may hindi tama, makipag-ugnayan sa amin sa loob ng 24 na oras at magpapadala kami ng tao nang walang bayad.",
+    "q4": "Maaari ba akong mag-book ng regular na paglilinis?",
+    "a4": "Syempre. Pumili ng lingguhanan, dalawang linggo, o buwanan at makatipid ng hanggang 10% sa bawat pagbisita.",
+    "q5": "Anong mga lugar ang inyong pinaglilingkuran?",
+    "a5": "Aktibo kaming nagpapalawak. Ilagay ang iyong zip code upang makita kung available kami sa iyong lugar."
+  },
+  "cleaner": {
+    "title": "Kumita ayon sa iyong iskedyul",
+    "subtitle": "Sumali sa aming network ng mga propesyonal na limpyador. Itakda ang iyong sariling oras, piliin ang iyong trabaho, mabilis na makuha ang bayad.",
+    "cta": "Mag-apply na maglinis kasama ang Sweepr"
+  },
+  "newsletter": {
+    "title": "Manatiling updated",
+    "subtitle": "Maabisuhan tungkol sa mga bagong lugar ng serbisyo, mga tampok, at mga promosyon.",
+    "placeholder": "Ang iyong email address",
+    "button": "Mag-subscribe",
+    "success": "Naka-subscribe ka na!"
+  },
+  "footer": {
+    "privacy": "Patakaran sa Privacy",
+    "terms": "Mga Tuntunin ng Serbisyo",
+    "contractor": "Pagbubunyag ng Contractor",
+    "status": "Status",
+    "rights": "Lahat ng karapatan ay nakalaan."
+  },
+  "languageSelector": {
+    "label": "Wika"
+  }
+}
