@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { LegalShell } from "./components/LegalShell";
 import { HomePage } from "./pages/HomePage";
 import { TermsOfService } from "./pages/TermsOfService";
@@ -40,6 +40,12 @@ import { VulnerabilityDisclosurePolicy } from "./pages/VulnerabilityDisclosurePo
 import { LawEnforcementRequests } from "./pages/LawEnforcementRequests";
 
 export default function App() {
+  const { pathname } = useLocation();
+
+  // The SMS opt-in page renders standalone — website styling, no legal shell
+  // (the shell's .legal-content wrapper forces the Ubuntu Mono standard).
+  if (pathname === "/sms/consent") return <SMSConsentPolicy />;
+
   return (
     <LegalShell>
       <Routes>
@@ -104,8 +110,7 @@ export default function App() {
 
         {/* Platform Policies */}
         <Route path="/sms-policy" element={<SMSPolicy />} />
-        {/* Public carrier-verification page — linked from opt-in checkboxes. */}
-        <Route path="/sms/consent" element={<SMSConsentPolicy />} />
+        {/* /sms/consent is handled above App's shell — see early return. */}
         <Route path="/legal-updates" element={<LegalUpdatesPolicy />} />
         <Route path="/copyright" element={<CopyrightPolicy />} />
         <Route

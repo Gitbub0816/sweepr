@@ -19,6 +19,7 @@ import { checkrRouter } from "./routes/checkr";
 import { diditRouter, diditWebhookRouter } from "./routes/didit";
 import { clerkWebhookRouter } from "./routes/webhooks/clerk";
 import { smsInboundRouter } from "./routes/smsInbound";
+import { smsOptInRouter } from "./routes/smsOptIn";
 import { statusRouter } from "./routes/status";
 import { statusAdminRouter } from "./routes/admin/statusAdmin";
 import { adminInviteRouter } from "./routes/adminInvite";
@@ -117,6 +118,8 @@ app.route("/didit", diditRouter);
 app.route("/webhooks/didit", diditWebhookRouter);
 // MailerSend inbound SMS (STOP/START/HELP) — signature-verified, fails closed.
 app.route("/webhooks/mailersend-sms", smsInboundRouter);
+// Public SMS opt-in form (rate-limited) — backs the /sms/consent page.
+app.route("/sms", smsOptInRouter);
 app.route("/status", statusRouter);
 app.route("/admin/status", statusAdminRouter);
 app.route("/admin/invites", adminInviteRouter);

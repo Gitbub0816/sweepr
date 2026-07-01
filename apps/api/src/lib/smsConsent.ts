@@ -21,6 +21,7 @@ export type SmsConsentSource =
   | "cleaner_settings"
   | "booking"
   | "sms_start"
+  | "web_form"
   | "admin";
 
 export interface SmsConsentState {
