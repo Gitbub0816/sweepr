@@ -288,7 +288,7 @@ export function DashboardPage() {
             ) : (
               <div className="space-y-2">
                 {(data?.recentAudit ?? []).map((e) => (
-                  <div key={`${e.created_at}${e.action}`} className="flex items-center gap-3 text-sm">
+                  <div key={`${e.created_at}::${e.action}`} className="flex items-center gap-3 text-sm">
                     <span className="text-xs text-slate-400 whitespace-nowrap">{new Date(e.created_at).toLocaleTimeString()}</span>
                     <Badge variant={actionVariant(e.action)}>{e.action}</Badge>
                     <span className="text-slate-600 dark:text-slate-300 truncate">{e.target_type}:{e.target_id}</span>

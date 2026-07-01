@@ -95,7 +95,7 @@ export function CleanerTracker({ bookingId, token, apiUrl, destLat, destLng, day
   // Init map
   useEffect(() => {
     if (!TOKEN || !containerRef.current || mapRef.current) return;
-    if (destLat === undefined || destLng === undefined) return;
+    if (destLat == null || destLng == null) return;
     mapboxgl.accessToken = TOKEN;
     const dark = isDarkTheme();
     const map = new mapboxgl.Map({

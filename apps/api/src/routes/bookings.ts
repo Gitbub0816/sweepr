@@ -11,7 +11,7 @@ import {
 } from "@sweepr/db";
 import { getDb } from "../lib/db";
 import { requireAuth } from "../middleware/auth";
-import { requireAnyAdmin } from "../middleware/adminRoles";
+import { requireAdmin } from "../middleware/adminRoles";
 import { rankCleanersForBooking } from "../lib/matching";
 import { initiateAssignment } from "../lib/assignment";
 import { sendNotification } from "../lib/notifications";
@@ -280,7 +280,7 @@ async function notifyCleaner(
  * Run the matching engine, create offers for the top 3 cleaners, and notify
  * the top-ranked cleaner. Admin or system triggered.
  */
-bookingsRouter.post("/:id/match", requireAnyAdmin, async (c) => {
+bookingsRouter.post("/:id/match", requireAdmin, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const booking = (await getBooking(sql, c.req.param("id"))) as BookingRow | null;
   if (!booking) return c.json({ error: "Not found" }, 404);
@@ -347,9 +347,10 @@ bookingsRouter.post(
 
     const offerRows = (await sql`
       SELECT * FROM job_offers WHERE id = ${offerId} AND booking_id = ${bookingId}
-    `) as { id: string; cleaner_id: string; rank: number }[];
+    `) as { id: string; cleaner_id: string; rank: number; status: string }[];
     const offer = offerRows[0];
     if (!offer) return c.json({ error: "Offer not found" }, 404);
+    if (offer.status !== "offered") return c.json({ error: "Offer is no longer active" }, 409);
 
     // Verify the requesting user is the cleaner who owns this offer.
     const authUser = c.get("user");

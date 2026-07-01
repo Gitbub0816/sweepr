@@ -65,11 +65,12 @@ export function NotificationsPage() {
     );
     try {
       const token = await getToken();
-      await fetch(`${API}/admin/notification-settings`, {
+      const res = await fetch(`${API}/admin/notification-settings`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ event_key: item.key, enabled: next }),
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
     } catch {
       // revert on failure
       setGroups((gs) =>
