@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /$
+Disallow: /book
+Disallow: /bookings
+Disallow: /profile
+Disallow: /payment-methods
+Disallow: /subscriptions

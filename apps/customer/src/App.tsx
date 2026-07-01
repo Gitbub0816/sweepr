@@ -171,6 +171,7 @@ export default function App() {
             path="/payment-methods"
             element={<Protected><PaymentMethodsPage /></Protected>}
           />
+          <Route path="*" element={<Navigate to="/home" replace />} />
         </Route>
       </Routes>
     </ErrorBoundary>

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://sweep-r.com/sitemap.xml
+Sitemap: https://getsweepr.com/sitemap.xml

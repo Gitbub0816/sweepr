@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 const STORAGE_KEY = "sweepr_cookie_consent";
 
@@ -33,6 +34,7 @@ function save(record: ConsentRecord) {
  * never prevents content from loading. Persists the choice to localStorage.
  */
 export function CookieConsent() {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
   const [managing, setManaging] = useState(false);
   const [analytics, setAnalytics] = useState(false);
@@ -58,13 +60,12 @@ export function CookieConsent() {
     >
       <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
         <p className="text-sm font-semibold text-charcoal dark:text-white">
-          We value your privacy
+          {t("cookies.title")}
         </p>
         <p className="mt-1 text-sm text-slate-500">
-          We use essential cookies to run Sweepr and, with your consent,
-          analytics and marketing cookies. See our{" "}
+          {t("cookies.body")}{" "}
           <a href="https://legal.getsweepr.com/privacy?ref=marketing" target="_blank" rel="noreferrer" className="font-medium text-seafoam-600 underline">
-            Privacy Policy
+            {t("footer.privacy")}
           </a>
           .
         </p>
@@ -73,12 +74,12 @@ export function CookieConsent() {
           <div className="mt-4 space-y-2 rounded-xl bg-offwhite p-3 dark:bg-slate-800">
             <label className="flex items-center justify-between text-sm">
               <span className="text-slate-600 dark:text-slate-300">
-                Essential (always on)
+                {t("cookies.essential")}
               </span>
               <input type="checkbox" checked disabled aria-label="Essential cookies" />
             </label>
             <label className="flex items-center justify-between text-sm">
-              <span className="text-slate-600 dark:text-slate-300">Analytics</span>
+              <span className="text-slate-600 dark:text-slate-300">{t("cookies.analytics")}</span>
               <input
                 type="checkbox"
                 checked={analytics}
@@ -87,7 +88,7 @@ export function CookieConsent() {
               />
             </label>
             <label className="flex items-center justify-between text-sm">
-              <span className="text-slate-600 dark:text-slate-300">Marketing</span>
+              <span className="text-slate-600 dark:text-slate-300">{t("cookies.marketing")}</span>
               <input
                 type="checkbox"
                 checked={marketing}
@@ -103,27 +104,27 @@ export function CookieConsent() {
             onClick={() => commit("all", true, true)}
             className="rounded-xl bg-seafoam-500 px-4 py-2 text-sm font-bold text-white hover:bg-seafoam-600"
           >
-            Accept all
+            {t("cookies.acceptAll")}
           </button>
           <button
             onClick={() => commit("essential", false, false)}
             className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200"
           >
-            Reject non-essential
+            {t("cookies.rejectNonEssential")}
           </button>
           {managing ? (
             <button
               onClick={() => commit("custom", analytics, marketing)}
               className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200"
             >
-              Save preferences
+              {t("cookies.savePreferences")}
             </button>
           ) : (
             <button
               onClick={() => setManaging(true)}
               className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200"
             >
-              Manage preferences
+              {t("cookies.managePreferences")}
             </button>
           )}
         </div>

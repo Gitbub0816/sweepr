@@ -1,4 +1,4 @@
-import { Routes, Route, Outlet } from "react-router-dom";
+import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { useEffect } from "react";
 import { AuthenticateWithRedirectCallback, useAuth } from "@clerk/clerk-react";
 import { ContinueSignUp } from "./components/ContinueSignUp";
@@ -157,6 +157,7 @@ export default function App() {
       <Route path="/performance" element={<Guarded><PerformancePage /></Guarded>} />
       <Route path="/insurance" element={<Guarded><InsurancePage /></Guarded>} />
       <Route path="/profile" element={<Guarded><ProfilePage /></Guarded>} />
+      <Route path="*" element={<Navigate to="/" replace />} />
       </Route>{/* end GateLayout */}
     </Routes>
     </>

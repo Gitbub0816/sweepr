@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Landing from "./pages/Landing";
 import CleanWithUs from "./pages/CleanWithUs";
 import StatusPage from "./pages/StatusPage";
@@ -19,6 +19,7 @@ export default function App() {
         <Route path="/privacy" element={<LegalRedirect slug="privacy" />} />
         <Route path="/terms" element={<LegalRedirect slug="terms" />} />
         <Route path="/independent-contractor" element={<LegalRedirect slug="contractor-agreement" />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <CookieConsent />
     </>

@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { SignInPage } from "./components/SignInPage";
 import {
   LayoutDashboard,
@@ -171,6 +171,7 @@ export default function App() {
       <Route path="/automation" element={<Guarded><AutomationPage /></Guarded>} />
       <Route path="/admins" element={<Guarded><AdminsPage /></Guarded>} />
       <Route path="/settings" element={<Guarded><SettingsPage /></Guarded>} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
