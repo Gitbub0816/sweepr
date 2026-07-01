@@ -1,5 +1,8 @@
 import { MarketingShell, Button, Accordion, SweeprLogo, NewsletterSubscribe, type AccordionItemData } from "@sweepr/ui";
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { LanguageSelector } from "../i18n/LanguageSelector";
+import { withLang } from "../i18n/languages";
 import { motion } from "framer-motion";
 import {
   MapPin,
@@ -48,116 +51,108 @@ function Section({
   );
 }
 
-const navLinks = [
-  { label: "How it works", href: "#how" },
-  { label: "Services", href: "#services" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "FAQ", href: "#faq" },
-  { label: "Become a Sweepr", href: CLEANER_URL },
-];
-
 const steps = [
   {
     icon: ShieldCheck,
-    title: "Every Sweepr is vetted — before they can work",
-    body: "Identity verification, third-party background check, and platform training are required before any Sweepr can accept a single booking.",
+    titleKey: "howItWorks.step1Title" as const,
+    bodyKey: "howItWorks.step1Body" as const,
   },
   {
     icon: MapPin,
-    title: "Book exactly what you need",
-    body: "Standard clean, deep clean, move-in, move-out, recurring — with upfront pricing shown before you commit to anything.",
+    titleKey: "howItWorks.step2Title" as const,
+    bodyKey: "howItWorks.step2Body" as const,
   },
   {
     icon: CalendarClock,
-    title: "Track your Sweepr in real time",
-    body: "You'll know when they're on the way and when they arrive. Your address is only shared once they're confirmed and en route.",
+    titleKey: "howItWorks.step3Title" as const,
+    bodyKey: "howItWorks.step3Body" as const,
   },
   {
     icon: Star,
-    title: "A home that's actually clean",
-    body: "Every booking is covered by liability insurance. If anything's not right, report it within 48 hours — we'll send someone back or refund you.",
+    titleKey: "howItWorks.step4Title" as const,
+    bodyKey: "howItWorks.step4Body" as const,
   },
 ];
 
 const services = [
   {
     icon: Home,
-    name: "Standard Clean",
+    nameKey: "services.standard" as const,
     price: 89,
-    tagline: "Regular upkeep, consistently done right.",
-    desc: "All rooms, surfaces, floors, and fixtures get the attention they need. Bathrooms cleaned and sanitised, kitchen wiped down, floors swept and mopped. The kind of clean that resets a home without requiring you to be there for it.",
-    bestFor: "Weekly or biweekly maintenance",
+    taglineKey: "services.standardTagline" as const,
+    descKey: "services.standardDesc" as const,
+    bestForKey: "services.standardBestFor" as const,
   },
   {
     icon: Sparkles,
-    name: "Deep Clean",
+    nameKey: "services.deep" as const,
     price: 149,
-    tagline: "When standard isn't enough.",
-    desc: "Everything in a Standard Clean, plus inside appliances, baseboards, window sills, light switches, ceiling fans, and all those spots that collect a surprising amount of history. A genuine reset for a home that needs one.",
-    bestFor: "First-time bookings, seasonal resets, or pre-event prep",
+    taglineKey: "services.deepTagline" as const,
+    descKey: "services.deepDesc" as const,
+    bestForKey: "services.deepBestFor" as const,
   },
   {
     icon: Building2,
-    name: "Apartment Clean",
+    nameKey: "services.apartment" as const,
     price: 99,
-    tagline: "Sized for your space, not a four-bedroom house.",
-    desc: "Full clean tailored to apartments and condos. Everything cleaned thoroughly without padding the time or the price for rooms you don't have.",
-    bestFor: "Studio to two-bedroom apartments",
+    taglineKey: "services.apartmentTagline" as const,
+    descKey: "services.apartmentDesc" as const,
+    bestForKey: "services.apartmentBestFor" as const,
   },
   {
     icon: Truck,
-    name: "Move-In Clean",
+    nameKey: "services.moveIn" as const,
     price: 179,
-    tagline: "Start fresh in a space that's actually clean.",
-    desc: "A full empty-home clean before your things go in. Inside cabinets, closets, appliances, and every surface — so your new place feels like yours from day one.",
-    bestFor: "New tenants and homeowners before moving in",
+    taglineKey: "services.moveInTagline" as const,
+    descKey: "services.moveInDesc" as const,
+    bestForKey: "services.moveInBestFor" as const,
   },
   {
     icon: Truck,
-    name: "Move-Out Clean",
+    nameKey: "services.moveOut" as const,
     price: 199,
-    tagline: "Leave the place better than you found it.",
-    desc: "Designed to meet lease-end standards. Full empty-home clean including inside appliances, inside cabinets, all fixtures, and floors. The kind of clean that tends to get deposits back.",
-    bestFor: "End of lease or sale handover",
+    taglineKey: "services.moveOutTagline" as const,
+    descKey: "services.moveOutDesc" as const,
+    bestForKey: "services.moveOutBestFor" as const,
   },
   {
     icon: Repeat,
-    name: "Recurring Service",
+    nameKey: "services.recurring" as const,
     price: 79,
-    tagline: "Your home, kept. Without thinking about it.",
-    desc: "Weekly or biweekly visits at a lower per-visit rate. You're matched with the same Sweepr each time, so they know your home and you don't have to explain it again. Pause or cancel anytime.",
-    bestFor: "Anyone who wants a consistently clean home without the effort",
+    taglineKey: "services.recurringTagline" as const,
+    descKey: "services.recurringDesc" as const,
+    bestForKey: "services.recurringBestFor" as const,
   },
   {
     icon: PlusCircle,
-    name: "Add-Ons",
+    nameKey: "services.addOns" as const,
     price: 0,
-    tagline: "Extra attention where you need it.",
-    desc: "Inside fridge, inside oven, interior windows, laundry, organisation, or a longer clean for a larger home. Add them at booking — your price updates immediately.",
-    bestFor: "Any booking that needs something extra",
+    taglineKey: "services.addOnsTagline" as const,
+    descKey: "services.addOnsDesc" as const,
+    bestForKey: "services.addOnsBestFor" as const,
   },
 ];
 
 const trust = [
   {
     icon: ShieldCheck,
-    title: "Screened before they step inside",
-    body: "Identity verification, government ID checks, and a third-party background screen — completed before any Sweepr can accept their first job. We re-screen on an ongoing basis.",
+    titleKey: "trust.screenedTitle" as const,
+    bodyKey: "trust.screenedBody" as const,
   },
   {
     icon: BadgeCheck,
-    title: "Liability coverage on every booking",
-    body: "Every Sweepr booking includes liability coverage. If something gets damaged, you're not on your own. Accidents are rare — being covered shouldn't be.",
+    titleKey: "trust.liabilityTitle" as const,
+    bodyKey: "trust.liabilityBody" as const,
   },
   {
     icon: Clock,
-    title: "Real-time tracking, not guesswork",
-    body: "Know exactly when your Sweepr is en route, when they arrive, and when the job is done. Your address is only shared once they're confirmed.",
+    titleKey: "trust.trackingTitle" as const,
+    bodyKey: "trust.trackingBody" as const,
   },
   {
     icon: HeartHandshake,
-    title: "We stand behind the work",
-    body: "Not satisfied? Report it within 48 hours. We send your Sweepr back to fix it, or we refund the booking. No negotiating, no forms, no runaround.",
+    titleKey: "trust.guaranteeTitle" as const,
+    bodyKey: "trust.guaranteeBody" as const,
   },
 ];
 
@@ -168,52 +163,10 @@ const pricingRows = [
   { home: "4 bed / 3 bath house", service: "Move-Out", price: 384 },
 ];
 
-const faqs: AccordionItemData[] = [
-  {
-    question: "How is pricing calculated?",
-    answer:
-      "Your exact price is shown before you book — based on service type, number of bedrooms and bathrooms, and any add-ons you select. There are no hidden fees, no charges after the fact, and no surprises when the invoice arrives.",
-  },
-  {
-    question: "How are Sweeprs vetted?",
-    answer:
-      "Every Sweepr completes identity verification, a third-party background check, and training before they can accept jobs on the platform. We review work history and ratings on an ongoing basis. If a Sweepr's standards slip, they don't stay active.",
-  },
-  {
-    question: "Can I cancel or reschedule?",
-    answer:
-      "Yes. Cancel or reschedule for free up to 24 hours before your appointment. Changes made inside that window may incur a small fee.",
-  },
-  {
-    question: "What if the job isn't done right?",
-    answer:
-      "Report it within 48 hours and we'll send your Sweepr back to fix it — or refund the booking. We're not interested in arguing about it.",
-  },
-  {
-    question: "Do Sweeprs bring their own supplies?",
-    answer:
-      "Yes. Every Sweepr arrives with professional-grade equipment and supplies. If you'd prefer they use yours instead, leave a note when you book.",
-  },
-  {
-    question: "Will I get the same Sweepr each time?",
-    answer:
-      "Sweeprs are assigned on a best-match basis — factoring in location, availability, ratings, and job type — so you'll always get the right person for the job. If you've worked with a Sweepr before and want to request them again, you can do that from your booking history.",
-  },
-  {
-    question: "How does recurring pricing work?",
-    answer:
-      "Recurring bookings are billed per visit at a lower rate than one-time cleans. Pause or cancel anytime — no lock-in.",
-  },
-  {
-    question: "What areas does Sweepr serve?",
-    answer:
-      "Enter your address when you book and we'll show you real availability in your area. We're expanding regularly — if we're not in your city yet, you can join the waitlist.",
-  },
-];
-
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
 export default function Landing() {
+  const { t, i18n } = useTranslation();
   const [pricingGated, setPricingGated] = useState(false);
 
   useEffect(() => {
@@ -223,17 +176,43 @@ export default function Landing() {
       .catch(() => {});
   }, []);
 
+  const lang = i18n.language;
+  const customerUrl = withLang(CUSTOMER_URL, lang);
+  const cleanerUrl = withLang(CLEANER_URL, lang);
+
+  const navLinks = [
+    { label: t("nav.howItWorks"), href: "#how" },
+    { label: t("nav.services"), href: "#services" },
+    { label: t("nav.pricing"), href: "#pricing" },
+    { label: t("nav.faq"), href: "#faq" },
+    { label: t("nav.becomeACleaner"), href: cleanerUrl },
+  ];
+
+  const faqs: AccordionItemData[] = [
+    { question: t("faq.q1"), answer: t("faq.a1") },
+    { question: t("faq.q2"), answer: t("faq.a2") },
+    { question: t("faq.q3"), answer: t("faq.a3") },
+    { question: t("faq.q4"), answer: t("faq.a4") },
+    { question: t("faq.q5"), answer: t("faq.a5") },
+    { question: t("faq.q6"), answer: t("faq.a6") },
+    { question: t("faq.q7"), answer: t("faq.a7") },
+    { question: t("faq.q8"), answer: t("faq.a8") },
+  ];
+
   return (
     <MarketingShell
       navLinks={navLinks}
       cta={
-        <MarketingAuth
-          cta={
-            <Button onClick={() => (window.location.href = CUSTOMER_URL)}>
-              Book a Cleaning
-            </Button>
-          }
-        />
+        <div className="flex items-center gap-3">
+          <LanguageSelector />
+          <MarketingAuth
+            cta={
+              <Button onClick={() => (window.location.href = customerUrl)}>
+                {t("nav.getStarted")}
+              </Button>
+            }
+          />
+        </div>
       }
     >
       {/* Hero */}
@@ -249,17 +228,17 @@ export default function Landing() {
                 variants={fadeUp}
                 className="mt-6 max-w-2xl text-5xl font-black leading-[1.05] tracking-tight text-charcoal dark:text-white sm:text-6xl lg:text-7xl"
               >
-                Home cleaning you can actually trust.
+                {t("hero.title")}
               </motion.h1>
               <motion.p variants={fadeUp} className="mt-5 max-w-lg text-lg text-slate-600 dark:text-slate-300">
-                Every Sweepr is background-screened, identity-verified, and trained before they ever enter your home. Upfront pricing, liability coverage on every booking, and a satisfaction guarantee — so you never have to wonder.
+                {t("hero.subtitle")}
               </motion.p>
               <motion.div variants={fadeUp} className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Button size="lg" onClick={() => (window.location.href = CUSTOMER_URL)}>
-                  Book a Cleaning <ArrowRight className="h-4 w-4" />
+                <Button size="lg" onClick={() => (window.location.href = customerUrl)}>
+                  {t("hero.cta")} <ArrowRight className="h-4 w-4" />
                 </Button>
                 <Button size="lg" variant="secondary" onClick={() => document.getElementById("services")?.scrollIntoView({ behavior: "smooth" })}>
-                  View Services
+                  {t("nav.services")}
                 </Button>
               </motion.div>
             </motion.div>
@@ -279,9 +258,9 @@ export default function Landing() {
       {/* How it works */}
       <Section id="how">
         <SectionHeading
-          eyebrow="How it works"
-          title="Book with confidence. Come home to clean."
-          subtitle="From background checks to real-time tracking — here's what happens when you book with Sweepr."
+          eyebrow={t("nav.howItWorks")}
+          title={t("howItWorks.title")}
+          subtitle={t("howItWorks.subtitle")}
         />
         <motion.div
           className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4"
@@ -292,16 +271,16 @@ export default function Landing() {
         >
           {steps.map((s, i) => (
             <motion.div
-              key={s.title}
+              key={s.titleKey}
               variants={fadeUp}
               className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900"
             >
               <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-seafoam-500 text-white">
                 <s.icon className="h-5 w-5" />
               </div>
-              <p className="text-xs font-bold text-seafoam-600">Step {i + 1}</p>
-              <h3 className="mt-1 text-lg font-bold text-charcoal dark:text-white">{s.title}</h3>
-              <p className="mt-2 text-sm text-slate-500">{s.body}</p>
+              <p className="text-xs font-bold text-seafoam-600">{t("howItWorks.stepLabel", { n: i + 1 })}</p>
+              <h3 className="mt-1 text-lg font-bold text-charcoal dark:text-white">{t(s.titleKey)}</h3>
+              <p className="mt-2 text-sm text-slate-500">{t(s.bodyKey)}</p>
             </motion.div>
           ))}
         </motion.div>
@@ -311,9 +290,9 @@ export default function Landing() {
       <div className="bg-white dark:bg-slate-900/40">
         <Section id="services">
           <SectionHeading
-            eyebrow="Services"
-            title="Every service. Every standard."
-            subtitle="From a regular maintenance clean to a full move-out deep clean — all performed by screened, insured professionals."
+            eyebrow={t("nav.services")}
+            title={t("services.title")}
+            subtitle={t("services.subtitle")}
           />
           <motion.div
             className="mt-12 grid gap-6 sm:grid-cols-2"
@@ -324,7 +303,7 @@ export default function Landing() {
           >
             {services.map((s) => (
               <motion.div
-                key={s.name}
+                key={s.nameKey}
                 variants={fadeUp}
                 className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-offwhite p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900"
                 style={{ borderLeft: "6px solid #14b8a6" }}
@@ -335,22 +314,22 @@ export default function Landing() {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between gap-3">
-                      <h3 className="text-lg font-black text-charcoal dark:text-white">{s.name}</h3>
+                      <h3 className="text-lg font-black text-charcoal dark:text-white">{t(s.nameKey)}</h3>
                     </div>
-                    <p className="mt-0.5 text-sm font-semibold text-seafoam-700 dark:text-seafoam-400">{s.tagline}</p>
+                    <p className="mt-0.5 text-sm font-semibold text-seafoam-700 dark:text-seafoam-400">{t(s.taglineKey)}</p>
                   </div>
                 </div>
-                <p className="mt-3 text-sm text-slate-500 leading-relaxed">{s.desc}</p>
+                <p className="mt-3 text-sm text-slate-500 leading-relaxed">{t(s.descKey)}</p>
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-1.5 text-xs text-slate-400">
                     <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-seafoam-500" />
-                    <span>{s.bestFor}</span>
+                    <span>{t(s.bestForKey)}</span>
                   </div>
                   <a
-                    href={CUSTOMER_URL}
+                    href={customerUrl}
                     className="inline-flex items-center gap-1 text-sm font-bold text-seafoam-600 hover:text-seafoam-700 whitespace-nowrap"
                   >
-                    Book now <ArrowRight className="h-4 w-4" />
+                    {t("services.bookNow")} <ArrowRight className="h-4 w-4" />
                   </a>
                 </div>
               </motion.div>
@@ -362,9 +341,9 @@ export default function Landing() {
       {/* Trust */}
       <Section id="trust">
         <SectionHeading
-          eyebrow="Safety & Trust"
-          title="The cleaners in your home have been thoroughly screened. That's not optional."
-          subtitle="Background checks, identity verification, insurance, and training — required for every Sweepr, before their first job."
+          eyebrow={t("trust.eyebrow")}
+          title={t("trust.title")}
+          subtitle={t("trust.subtitle")}
         />
         <motion.div
           className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4"
@@ -373,17 +352,17 @@ export default function Landing() {
           whileInView="show"
           viewport={{ once: true, margin: "-80px" }}
         >
-          {trust.map((t) => (
+          {trust.map((item) => (
             <motion.div
-              key={t.title}
+              key={item.titleKey}
               variants={fadeUp}
               className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900"
             >
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-seafoam-50 text-seafoam-600 dark:bg-slate-800">
-                <t.icon className="h-6 w-6" />
+                <item.icon className="h-6 w-6" />
               </div>
-              <h3 className="font-bold text-charcoal dark:text-white">{t.title}</h3>
-              <p className="mt-2 text-sm text-slate-500 leading-relaxed">{t.body}</p>
+              <h3 className="font-bold text-charcoal dark:text-white">{t(item.titleKey)}</h3>
+              <p className="mt-2 text-sm text-slate-500 leading-relaxed">{t(item.bodyKey)}</p>
             </motion.div>
           ))}
         </motion.div>
@@ -398,10 +377,10 @@ export default function Landing() {
                 <Sparkles className="w-7 h-7 text-seafoam-500" />
               </div>
               <h2 className="text-3xl font-black tracking-tight text-charcoal dark:text-white">
-                We're still polishing the price tags.
+                {t("pricing.comingSoonTitle")}
               </h2>
               <p className="mt-4 text-lg text-slate-500 dark:text-slate-400 leading-relaxed">
-                Our pricing calculator is getting a final deep clean. Join the newsletter and we'll let you know as soon as the numbers are finalized.
+                {t("pricing.comingSoonSubtitle")}
               </p>
               <div className="mt-8 max-w-sm mx-auto">
                 <NewsletterSubscribe apiUrl={API} />
@@ -410,17 +389,17 @@ export default function Landing() {
           ) : (
             <>
               <SectionHeading
-                eyebrow="Pricing"
-                title="Upfront pricing, no surprises"
-                subtitle="Your exact price is shown before you book. Here are some common examples — use the calculator to get your number."
+                eyebrow={t("nav.pricing")}
+                title={t("pricing.title")}
+                subtitle={t("pricing.subtitle")}
               />
               <div className="mx-auto mt-10 max-w-2xl overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
                 <table className="w-full text-left text-sm">
                   <thead className="bg-offwhite text-slate-500 dark:bg-slate-800">
                     <tr>
-                      <th className="px-5 py-3 font-medium">Home</th>
-                      <th className="px-5 py-3 font-medium">Service</th>
-                      <th className="px-5 py-3 text-right font-medium">Est. price</th>
+                      <th className="px-5 py-3 font-medium">{t("pricing.colHome")}</th>
+                      <th className="px-5 py-3 font-medium">{t("pricing.colService")}</th>
+                      <th className="px-5 py-3 text-right font-medium">{t("pricing.colPrice")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -435,8 +414,8 @@ export default function Landing() {
                 </table>
               </div>
               <div className="mt-8 text-center">
-                <Button size="lg" onClick={() => (window.location.href = CUSTOMER_URL)}>
-                  See your price <ArrowRight className="h-4 w-4" />
+                <Button size="lg" onClick={() => (window.location.href = customerUrl)}>
+                  {t("pricing.getQuote")} <ArrowRight className="h-4 w-4" />
                 </Button>
               </div>
             </>
@@ -449,7 +428,7 @@ export default function Landing() {
 
       {/* FAQ */}
       <Section id="faq">
-        <SectionHeading eyebrow="FAQ" title="Good questions" />
+        <SectionHeading eyebrow="FAQ" title={t("faq.title")} />
         <div className="mx-auto mt-10 max-w-2xl">
           <Accordion items={faqs} />
         </div>
@@ -463,10 +442,10 @@ export default function Landing() {
               <SweeprLogo size="sm" />
             </div>
             <nav className="flex flex-wrap items-center gap-6 text-sm text-slate-500">
-              <a href="#services" className="hover:text-seafoam-600">Services</a>
-              <a href="#pricing" className="hover:text-seafoam-600">Pricing</a>
-              <a href="#faq" className="hover:text-seafoam-600">FAQ</a>
-              <a href="/status" className="hover:text-seafoam-600">Status</a>
+              <a href="#services" className="hover:text-seafoam-600">{t("nav.services")}</a>
+              <a href="#pricing" className="hover:text-seafoam-600">{t("nav.pricing")}</a>
+              <a href="#faq" className="hover:text-seafoam-600">{t("nav.faq")}</a>
+              <a href="/status" className="hover:text-seafoam-600">{t("footer.status")}</a>
             </nav>
           </div>
 
@@ -474,23 +453,23 @@ export default function Landing() {
 
           {/* Become a Sweepr — small footer section */}
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-6 py-5 dark:border-slate-700 dark:bg-slate-900/60">
-            <p className="text-sm font-semibold text-charcoal dark:text-white">Provide cleaning services through Sweepr</p>
+            <p className="text-sm font-semibold text-charcoal dark:text-white">{t("cleaner.title")}</p>
             <p className="mt-1 text-sm text-slate-500">
-              Learn about training, requirements, and available service areas.
+              {t("cleaner.subtitle")}
             </p>
             <a
-              href={CLEANER_URL}
+              href={cleanerUrl}
               className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-seafoam-600 hover:text-seafoam-700"
             >
-              Become a Sweepr <ArrowRight className="h-4 w-4" />
+              {t("cleaner.cta")} <ArrowRight className="h-4 w-4" />
             </a>
           </div>
 
           <div className="flex flex-col items-center justify-between gap-4 border-t border-slate-100 pt-6 dark:border-slate-800 sm:flex-row">
             <nav className="flex flex-wrap items-center gap-6 text-xs text-slate-400">
-              <a href="https://legal.getsweepr.com/privacy?ref=marketing" className="hover:text-seafoam-600">Privacy Policy</a>
-              <a href="https://legal.getsweepr.com/terms?ref=marketing" className="hover:text-seafoam-600">Terms of Service</a>
-              <a href="https://legal.getsweepr.com/contractor-agreement?ref=marketing" className="hover:text-seafoam-600">Contractor Disclosure</a>
+              <a href="https://legal.getsweepr.com/privacy?ref=marketing" className="hover:text-seafoam-600">{t("footer.privacy")}</a>
+              <a href="https://legal.getsweepr.com/terms?ref=marketing" className="hover:text-seafoam-600">{t("footer.terms")}</a>
+              <a href="https://legal.getsweepr.com/contractor-agreement?ref=marketing" className="hover:text-seafoam-600">{t("footer.contractor")}</a>
               <button
                 onClick={() => {
                   try { localStorage.removeItem("sweepr_cookie_consent"); } catch { /* noop */ }
@@ -498,7 +477,7 @@ export default function Landing() {
                 }}
                 className="hover:text-seafoam-600"
               >
-                Cookie Settings
+                {t("footer.cookieSettings")}
               </button>
             </nav>
             <p className="text-xs text-slate-400">© {new Date().getFullYear()} Sweepr, Inc.</p>

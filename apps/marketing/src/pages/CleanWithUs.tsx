@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { withLang } from "../i18n/languages";
 import { MarketingShell, Button, SweeprLogo } from "@sweepr/ui";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -216,6 +218,8 @@ function TabSwitch({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
 
 export default function CleanWithUs() {
   const [tab, setTab] = useState<Tab>("individual");
+  const { i18n } = useTranslation();
+  const cleanerUrl = withLang(CLEANER_URL, i18n.language);
 
   const steps = tab === "individual" ? INDIVIDUAL_STEPS : BUSINESS_STEPS;
   const perks = tab === "individual" ? INDIVIDUAL_PERKS : BUSINESS_PERKS;
@@ -224,7 +228,7 @@ export default function CleanWithUs() {
     <MarketingShell
       navLinks={navLinks}
       cta={
-        <a href={CLEANER_URL}>
+        <a href={cleanerUrl}>
           <Button>Become a Sweepr</Button>
         </a>
       }
@@ -335,7 +339,7 @@ export default function CleanWithUs() {
           Create your profile today and start your journey. You can complete each step at your
           own pace from your dashboard.
         </p>
-        <a href={CLEANER_URL} className="mt-8 inline-block">
+        <a href={cleanerUrl} className="mt-8 inline-block">
           <Button size="lg">
             Get started <ArrowRight className="ml-1 h-4 w-4" />
           </Button>

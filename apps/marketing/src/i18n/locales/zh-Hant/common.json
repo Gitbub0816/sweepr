@@ -1,0 +1,99 @@
+{
+  "nav": {
+    "howItWorks": "使用方式",
+    "services": "服務",
+    "pricing": "價格",
+    "faq": "常見問題",
+    "becomeACleaner": "成為 Sweepr",
+    "getStarted": "立即開始",
+    "signIn": "登入"
+  },
+  "hero": {
+    "badge": "專業家庭清潔服務",
+    "title": "您的家，一塵不染 — 按您的時間安排",
+    "subtitle": "幾分鐘內預訂頂級清潔師。可信賴、經過背景調查的專業人士。滿意度保證。",
+    "cta": "預訂清潔",
+    "ctaSub": "無需承諾。隨時取消。"
+  },
+  "howItWorks": {
+    "title": "Sweepr 如何運作",
+    "subtitle": "從預訂到一塵不染，只需三個簡單步驟。",
+    "step1Title": "線上預訂",
+    "step1Body": "選擇服務、挑選時間，即時獲得報價。不到 2 分鐘即可完成。",
+    "step2Title": "我們為您配對",
+    "step2Body": "我們為您配對您所在地區經過背景調查、評價最高的清潔師。",
+    "step3Title": "享受潔淨之家",
+    "step3Body": "您的清潔師準時到達，讓您的家一塵不染。有保證。"
+  },
+  "services": {
+    "title": "我們提供的服務",
+    "subtitle": "從日常維護到搬出深度清潔 — 我們一應俱全。",
+    "standard": "標準清潔",
+    "standardDesc": "定期維護清潔，讓您的家保持清新整潔。",
+    "deep": "深度清潔",
+    "deepDesc": "從上到下徹底清潔，適合需要額外關注的住所。",
+    "moveInOut": "入住 / 搬出",
+    "moveInOutDesc": "讓舊居一塵不染，或以全新面貌迎接新家。",
+    "vacation": "度假租賃",
+    "vacationDesc": "針對 Airbnb 及短期租賃房東最佳化的週轉清潔。",
+    "postConstruction": "裝修後清潔",
+    "postConstructionDesc": "翻新後的灰塵、碎屑和殘留物清除。"
+  },
+  "pricing": {
+    "title": "簡單透明的定價",
+    "subtitle": "無隱藏費用。價格根據您的住所提前計算。",
+    "from": "起",
+    "getQuote": "獲取精確報價",
+    "calculator": {
+      "title": "即時獲取報價",
+      "bedrooms": "臥室",
+      "bathrooms": "浴室",
+      "serviceType": "服務類型",
+      "calculate": "計算價格"
+    }
+  },
+  "trust": {
+    "title": "為何數千人信任 Sweepr",
+    "background": "經過背景調查",
+    "backgroundDesc": "每位清潔師在首次接單前都經過嚴格審查和背景調查。",
+    "guaranteed": "滿意度保證",
+    "guaranteedDesc": "不滿意？我們會妥善處理 — 無需任何理由。",
+    "insured": "完全投保",
+    "insuredDesc": "每次清潔均受我們責任保險保障。"
+  },
+  "faq": {
+    "title": "常見問題",
+    "q1": "如何預訂清潔服務？",
+    "a1": "點擊「預訂清潔」，輸入您的地址和房屋詳情，選擇時間段並確認。不到 2 分鐘即可完成。",
+    "q2": "您的清潔師經過背景調查嗎？",
+    "a2": "是的。每位 Sweepr 清潔師在第一次工作前都要經過嚴格的背景調查和身份驗證。",
+    "q3": "如果我不滿意怎麼辦？",
+    "a3": "我們提供 100% 滿意保證。如有任何問題，請在 24 小時內聯繫我們，我們將免費安排人員重新處理。",
+    "q4": "我可以預訂定期清潔嗎？",
+    "a4": "當然可以。選擇每週、每兩週或每月，每次可節省最多 10%。",
+    "q5": "你們服務哪些地區？",
+    "a5": "我們正在積極擴張。輸入您的郵遞區號，查看我們是否在您所在地區提供服務。"
+  },
+  "cleaner": {
+    "title": "按您的時間賺取收入",
+    "subtitle": "加入我們的專業清潔師網絡。自訂工作時間，選擇工作，快速收款。",
+    "cta": "申請加入 Sweepr 成為清潔師"
+  },
+  "newsletter": {
+    "title": "保持關注",
+    "subtitle": "獲取新服務區域、功能和優惠活動的通知。",
+    "placeholder": "您的電子郵件地址",
+    "button": "訂閱",
+    "success": "您已成功訂閱！"
+  },
+  "footer": {
+    "privacy": "隱私政策",
+    "terms": "服務條款",
+    "contractor": "承包商披露",
+    "status": "狀態",
+    "rights": "保留所有權利。"
+  },
+  "languageSelector": {
+    "label": "語言"
+  }
+}

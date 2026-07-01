@@ -5,6 +5,7 @@ import { ClerkProvider } from "@clerk/clerk-react";
 import { ErrorBoundary, installGlobalErrorHandlers, initAnalytics } from "@sweepr/ui";
 import App from "./App";
 import "./index.css";
+import "./i18n";
 
 initAnalytics();
 

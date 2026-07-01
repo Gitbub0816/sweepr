@@ -1,0 +1,128 @@
+{
+  "nav": {
+    "howItWorks": "How it works",
+    "services": "Services",
+    "pricing": "Pricing",
+    "faq": "FAQ",
+    "becomeACleaner": "Become a Sweepr",
+    "getStarted": "Get started",
+    "signIn": "Sign in"
+  },
+  "hero": {
+    "title": "Home cleaning you can actually trust.",
+    "subtitle": "Every Sweepr is background-screened, identity-verified, and trained before they ever enter your home. Upfront pricing, liability coverage on every booking, and a satisfaction guarantee — so you never have to wonder.",
+    "cta": "Book a Cleaning",
+    "ctaSub": "No commitment. Cancel anytime."
+  },
+  "howItWorks": {
+    "title": "Book with confidence. Come home to clean.",
+    "subtitle": "From background checks to real-time tracking — here's what happens when you book with Sweepr.",
+    "stepLabel": "Step {{n}}",
+    "step1Title": "Every Sweepr is vetted — before they can work",
+    "step1Body": "Identity verification, third-party background check, and platform training are required before any Sweepr can accept a single booking.",
+    "step2Title": "Book exactly what you need",
+    "step2Body": "Standard clean, deep clean, move-in, move-out, recurring — with upfront pricing shown before you commit to anything.",
+    "step3Title": "Track your Sweepr in real time",
+    "step3Body": "You'll know when they're on the way and when they arrive. Your address is only shared once they're confirmed and en route.",
+    "step4Title": "A home that's actually clean",
+    "step4Body": "Every booking is covered by liability insurance. If anything's not right, report it within 48 hours — we'll send someone back or refund you."
+  },
+  "services": {
+    "title": "Every service. Every standard.",
+    "subtitle": "From a regular maintenance clean to a full move-out deep clean — all performed by screened, insured professionals.",
+    "bookNow": "Book now",
+    "standard": "Standard Clean",
+    "standardTagline": "Regular upkeep, consistently done right.",
+    "standardDesc": "All rooms, surfaces, floors, and fixtures get the attention they need. Bathrooms cleaned and sanitised, kitchen wiped down, floors swept and mopped. The kind of clean that resets a home without requiring you to be there for it.",
+    "standardBestFor": "Weekly or biweekly maintenance",
+    "deep": "Deep Clean",
+    "deepTagline": "When standard isn't enough.",
+    "deepDesc": "Everything in a Standard Clean, plus inside appliances, baseboards, window sills, light switches, ceiling fans, and all those spots that collect a surprising amount of history. A genuine reset for a home that needs one.",
+    "deepBestFor": "First-time bookings, seasonal resets, or pre-event prep",
+    "apartment": "Apartment Clean",
+    "apartmentTagline": "Sized for your space, not a four-bedroom house.",
+    "apartmentDesc": "Full clean tailored to apartments and condos. Everything cleaned thoroughly without padding the time or the price for rooms you don't have.",
+    "apartmentBestFor": "Studio to two-bedroom apartments",
+    "moveIn": "Move-In Clean",
+    "moveInTagline": "Start fresh in a space that's actually clean.",
+    "moveInDesc": "A full empty-home clean before your things go in. Inside cabinets, closets, appliances, and every surface — so your new place feels like yours from day one.",
+    "moveInBestFor": "New tenants and homeowners before moving in",
+    "moveOut": "Move-Out Clean",
+    "moveOutTagline": "Leave the place better than you found it.",
+    "moveOutDesc": "Designed to meet lease-end standards. Full empty-home clean including inside appliances, inside cabinets, all fixtures, and floors. The kind of clean that tends to get deposits back.",
+    "moveOutBestFor": "End of lease or sale handover",
+    "recurring": "Recurring Service",
+    "recurringTagline": "Your home, kept. Without thinking about it.",
+    "recurringDesc": "Weekly or biweekly visits at a lower per-visit rate. You're matched with the same Sweepr each time, so they know your home and you don't have to explain it again. Pause or cancel anytime.",
+    "recurringBestFor": "Anyone who wants a consistently clean home without the effort",
+    "addOns": "Add-Ons",
+    "addOnsTagline": "Extra attention where you need it.",
+    "addOnsDesc": "Inside fridge, inside oven, interior windows, laundry, organisation, or a longer clean for a larger home. Add them at booking — your price updates immediately.",
+    "addOnsBestFor": "Any booking that needs something extra"
+  },
+  "trust": {
+    "eyebrow": "Safety & Trust",
+    "title": "The cleaners in your home have been thoroughly screened. That's not optional.",
+    "subtitle": "Background checks, identity verification, insurance, and training — required for every Sweepr, before their first job.",
+    "screenedTitle": "Screened before they step inside",
+    "screenedBody": "Identity verification, government ID checks, and a third-party background screen — completed before any Sweepr can accept their first job. We re-screen on an ongoing basis.",
+    "liabilityTitle": "Liability coverage on every booking",
+    "liabilityBody": "Every Sweepr booking includes liability coverage. If something gets damaged, you're not on your own. Accidents are rare — being covered shouldn't be.",
+    "trackingTitle": "Real-time tracking, not guesswork",
+    "trackingBody": "Know exactly when your Sweepr is en route, when they arrive, and when the job is done. Your address is only shared once they're confirmed.",
+    "guaranteeTitle": "We stand behind the work",
+    "guaranteeBody": "Not satisfied? Report it within 48 hours. We send your Sweepr back to fix it, or we refund the booking. No negotiating, no forms, no runaround."
+  },
+  "pricing": {
+    "title": "Upfront pricing, no surprises",
+    "subtitle": "Your exact price is shown before you book. Here are some common examples — use the calculator to get your number.",
+    "getQuote": "See your price",
+    "colHome": "Home",
+    "colService": "Service",
+    "colPrice": "Est. price",
+    "comingSoonTitle": "We're still polishing the price tags.",
+    "comingSoonSubtitle": "Our pricing calculator is getting a final deep clean. Join the newsletter and we'll let you know as soon as the numbers are finalized."
+  },
+  "faq": {
+    "title": "Good questions",
+    "q1": "How is pricing calculated?",
+    "a1": "Your exact price is shown before you book — based on service type, number of bedrooms and bathrooms, and any add-ons you select. There are no hidden fees, no charges after the fact, and no surprises when the invoice arrives.",
+    "q2": "How are Sweeprs vetted?",
+    "a2": "Every Sweepr completes identity verification, a third-party background check, and training before they can accept jobs on the platform. We review work history and ratings on an ongoing basis. If a Sweepr's standards slip, they don't stay active.",
+    "q3": "Can I cancel or reschedule?",
+    "a3": "Yes. Cancel or reschedule for free up to 24 hours before your appointment. Changes made inside that window may incur a small fee.",
+    "q4": "What if the job isn't done right?",
+    "a4": "Report it within 48 hours and we'll send your Sweepr back to fix it — or refund the booking. We're not interested in arguing about it.",
+    "q5": "Do Sweeprs bring their own supplies?",
+    "a5": "Yes. Every Sweepr arrives with professional-grade equipment and supplies. If you'd prefer they use yours instead, leave a note when you book.",
+    "q6": "Will I get the same Sweepr each time?",
+    "a6": "Sweeprs are assigned on a best-match basis — factoring in location, availability, ratings, and job type — so you'll always get the right person for the job. If you've worked with a Sweepr before and want to request them again, you can do that from your booking history.",
+    "q7": "How does recurring pricing work?",
+    "a7": "Recurring bookings are billed per visit at a lower rate than one-time cleans. Pause or cancel anytime — no lock-in.",
+    "q8": "What areas does Sweepr serve?",
+    "a8": "Enter your address when you book and we'll show you real availability in your area. We're expanding regularly — if we're not in your city yet, you can join the waitlist."
+  },
+  "cleaner": {
+    "title": "Provide cleaning services through Sweepr",
+    "subtitle": "Learn about training, requirements, and available service areas.",
+    "cta": "Become a Sweepr"
+  },
+  "newsletter": {
+    "title": "Stay in the loop",
+    "subtitle": "Get notified about new service areas, features, and promotions.",
+    "placeholder": "Your email address",
+    "button": "Subscribe",
+    "success": "You're subscribed!"
+  },
+  "footer": {
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "contractor": "Contractor Disclosure",
+    "status": "Status",
+    "cookieSettings": "Cookie Settings",
+    "rights": "All rights reserved."
+  },
+  "languageSelector": {
+    "label": "Language"
+  }
+}
