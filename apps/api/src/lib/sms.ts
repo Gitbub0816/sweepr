@@ -6,9 +6,10 @@
  * NOT a valid type here — future marketing SMS requires a completely separate
  * opt-in and its own sending path.
  *
- * Sends via the Twilio REST API when TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN /
- * TWILIO_FROM_NUMBER are configured; otherwise logs and no-ops so the rest of
- * the flow (consent storage, auditing) still works in every environment.
+ * Sends via the MailerSend SMS API (same MAILERSEND_API_KEY used for email)
+ * when MAILERSEND_SMS_FROM is configured; otherwise logs and no-ops so the
+ * rest of the flow (consent storage, auditing) still works in every
+ * environment.
  */
 import { logger } from "./logger";
 import { assertSmsConsent } from "./smsConsent";
@@ -43,25 +44,38 @@ export const SMS_MESSAGES = {
     "Sweepr: For assistance, contact support@getsweepr.com or visit https://getsweepr.com/support. Reply STOP to unsubscribe. Message frequency varies. Message and data rates may apply.",
 } as const;
 
-async function twilioSend(env: Env, to: string, body: string): Promise<void> {
-  const sid = env.TWILIO_ACCOUNT_SID;
-  const token = env.TWILIO_AUTH_TOKEN;
-  const from = env.TWILIO_FROM_NUMBER;
-  if (!sid || !token || !from) {
-    logger.info("sms: Twilio not configured — skipping send", { to: to.slice(-4) });
+/** Normalize a stored phone to E.164 (MailerSend requires it). US default. */
+export function toE164(phone: string): string | null {
+  const digits = phone.replace(/\D/g, "");
+  if (phone.trim().startsWith("+") && digits.length >= 10) return `+${digits}`;
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+  return null;
+}
+
+async function mailersendSmsSend(env: Env, to: string, body: string): Promise<void> {
+  const apiKey = env.MAILERSEND_API_KEY;
+  const from = env.MAILERSEND_SMS_FROM;
+  if (!apiKey || !from) {
+    logger.info("sms: MailerSend SMS not configured — skipping send", { to: to.slice(-4) });
     return;
   }
-  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+  const e164 = toE164(to);
+  if (!e164) {
+    logger.warn("sms: invalid phone number — skipping send", { to: to.slice(-4) });
+    return;
+  }
+  const res = await fetch("https://api.mailersend.com/v1/sms", {
     method: "POST",
     headers: {
-      Authorization: `Basic ${btoa(`${sid}:${token}`)}`,
-      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
     },
-    body: new URLSearchParams({ To: to, From: from, Body: body }),
+    body: JSON.stringify({ from, to: [e164], text: body }),
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
-    throw new Error(`Twilio send failed (${res.status}): ${detail.slice(0, 200)}`);
+    throw new Error(`MailerSend SMS send failed (${res.status}): ${detail.slice(0, 200)}`);
   }
 }
 
@@ -76,7 +90,7 @@ export async function sendSms(
   opts: { userId: string; to: string; type: SmsMessageType; body: string },
 ): Promise<void> {
   await assertSmsConsent(sql, opts.userId);
-  await twilioSend(env, opts.to, opts.body);
+  await mailersendSmsSend(env, opts.to, opts.body);
   logger.info("sms: sent", { type: opts.type, userId: opts.userId });
 }
 
@@ -86,5 +100,5 @@ export async function sendSms(
  * subscriber, not proactive notifications.
  */
 export async function sendCarrierReply(env: Env, to: string, body: string): Promise<void> {
-  await twilioSend(env, to, body);
+  await mailersendSmsSend(env, to, body);
 }

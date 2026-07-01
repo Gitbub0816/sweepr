@@ -18,7 +18,7 @@ import { subscriptionsRouter } from "./routes/subscriptions";
 import { checkrRouter } from "./routes/checkr";
 import { diditRouter, diditWebhookRouter } from "./routes/didit";
 import { clerkWebhookRouter } from "./routes/webhooks/clerk";
-import { twilioRouter } from "./routes/twilio";
+import { smsInboundRouter } from "./routes/smsInbound";
 import { statusRouter } from "./routes/status";
 import { statusAdminRouter } from "./routes/admin/statusAdmin";
 import { adminInviteRouter } from "./routes/adminInvite";
@@ -115,8 +115,8 @@ app.route("/webhooks/checkr", checkrRouter);
 app.route("/didit", diditRouter);
 // Didit webhooks use a separate, unauthenticated path verified by HMAC signature.
 app.route("/webhooks/didit", diditWebhookRouter);
-// Twilio inbound SMS (STOP/START/HELP) — signature-verified, fails closed.
-app.route("/webhooks/twilio", twilioRouter);
+// MailerSend inbound SMS (STOP/START/HELP) — signature-verified, fails closed.
+app.route("/webhooks/mailersend-sms", smsInboundRouter);
 app.route("/status", statusRouter);
 app.route("/admin/status", statusAdminRouter);
 app.route("/admin/invites", adminInviteRouter);
