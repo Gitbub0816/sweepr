@@ -410,6 +410,7 @@ export function OnboardingPage() {
             serviceTypes: form.services,
             addOnKeys: form.addOns,
             availability: form.availability,
+            smsOptIn: form.smsOptIn,
           }),
         });
       } else if (API_URL) {
@@ -426,6 +427,7 @@ export function OnboardingPage() {
             services: form.services,
             addOns: form.addOns,
             availability: form.availability,
+            smsOptIn: form.smsOptIn,
           }),
         });
       }

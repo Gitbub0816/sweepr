@@ -6,6 +6,8 @@ import { getDb } from "../lib/db";
 import { getStripe } from "../lib/stripe";
 import { handleOfferResponse } from "../lib/assignment";
 import { requireAuth } from "../middleware/auth";
+import { grantSmsConsent } from "../lib/smsConsent";
+import { sendSms, SMS_MESSAGES } from "../lib/sms";
 import type { AppBindings } from "../types";
 import type { Context } from "hono";
 
@@ -227,6 +229,8 @@ const applySchema = z.object({
   services: z.array(z.string()).optional(),
   addOns: z.array(z.string()).optional(),
   availability: z.record(z.string()).optional(),
+  // Explicit SMS opt-in from the (never pre-checked) onboarding checkbox.
+  smsOptIn: z.boolean().optional(),
 });
 
 cleanersRouter.post("/apply", zValidator("json", applySchema), async (c) => {
@@ -260,6 +264,25 @@ cleanersRouter.post("/apply", zValidator("json", applySchema), async (c) => {
     `;
   }
 
+  // Consent is stored in the same request as the application (atomic with
+  // account setup) but is NOT required — applicants may decline.
+  if (input.smsOptIn === true) {
+    await grantSmsConsent(sql, user.id, {
+      source: "onboarding",
+      ip: c.req.header("CF-Connecting-IP") ?? null,
+      userAgent: c.req.header("User-Agent") ?? null,
+      phone: input.phone ?? null,
+    });
+    if (input.phone) {
+      try {
+        await sendSms(c.env, sql, {
+          userId: user.id, to: input.phone,
+          type: "consent_confirmation", body: SMS_MESSAGES.optInConfirmation,
+        });
+      } catch { /* non-fatal */ }
+    }
+  }
+
   return c.json({ ok: true, status: "pending_review" });
 });
 
@@ -282,6 +305,8 @@ const businessApplySchema = z.object({
   serviceTypes: z.array(z.string()).optional(),
   addOnKeys: z.array(z.string()).optional(),
   availability: z.record(z.string()).optional(),
+  // Explicit SMS opt-in from the (never pre-checked) onboarding checkbox.
+  smsOptIn: z.boolean().optional(),
 });
 
 cleanersRouter.post(
@@ -342,6 +367,16 @@ cleanersRouter.post(
           ${input.authorizedRep.title}, true, 'pending', ${connectId}, 'pending'
         )
       `;
+    }
+
+    // Consent is stored in the same request as the application (atomic with
+    // account setup) but is NOT required — applicants may decline.
+    if (input.smsOptIn === true) {
+      await grantSmsConsent(sql, user.id, {
+        source: "onboarding",
+        ip: c.req.header("CF-Connecting-IP") ?? null,
+        userAgent: c.req.header("User-Agent") ?? null,
+      });
     }
 
     // Trigger a Checkr invitation for the authorized rep.

@@ -51,6 +51,11 @@ export interface Env {
   // MailerSend outbound event webhook signing secret.
   MAILERSEND_WEBHOOK_SECRET?: string;
   ANTHROPIC_API_KEY?: string;
+  // Twilio SMS (server-side only). Outbound sends and the inbound STOP/START/
+  // HELP webhook are both disabled until these are configured.
+  TWILIO_ACCOUNT_SID?: string;
+  TWILIO_AUTH_TOKEN?: string;
+  TWILIO_FROM_NUMBER?: string;
 }
 
 export interface AuthUser {

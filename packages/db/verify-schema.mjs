@@ -85,6 +85,9 @@ const REQUIRED_TABLES = [
   "failed_webhook_events",
   "job_completion_requirements",
   "address_reveal_settings",
+
+  // SMS consent (migration 053)
+  "sms_consent_events",
 ];
 
 // Columns that must appear in schema.sql (checks for string presence).

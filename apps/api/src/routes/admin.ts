@@ -86,6 +86,7 @@ adminRouter.get("/cleaners", async (c) => {
     `SELECT c.id, c.first_name, c.last_name, c.status,
            u.email, c.city, c.state, c.created_at,
            c.stripe_connect_status,
+           u.id AS user_id, u.sms_consent, u.sms_consent_at, u.sms_consent_source,
            (SELECT COUNT(*)::int FROM bookings b WHERE b.cleaner_id = c.id AND b.status = 'completed') AS completed_jobs,
            (SELECT ROUND(AVG(r.rating), 1) FROM reviews r WHERE r.cleaner_id = c.id) AS avg_rating
     FROM cleaners c
@@ -106,6 +107,9 @@ adminRouter.get("/customers", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const customers = (await sql`
     SELECT u.id, u.email, cust.first_name, cust.last_name, u.created_at,
+           u.sms_consent, u.sms_consent_at, u.sms_consent_source,
+           u.sms_consent_version, u.sms_consent_ip, u.sms_consent_user_agent,
+           u.sms_consent_revoked_at,
            COUNT(DISTINCT b.id)::int AS booking_count,
            COALESCE(SUM(p.amount), 0)::bigint AS lifetime_cents
     FROM users u
@@ -118,6 +122,27 @@ adminRouter.get("/customers", async (c) => {
     LIMIT 200
   `) as unknown[];
   return c.json({ customers });
+});
+
+// ---------------------------------------------------------------------------
+// SMS consent detail for any user (audit view)
+// ---------------------------------------------------------------------------
+
+adminRouter.get("/users/:id/sms-consent", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const userId = c.req.param("id");
+  const rows = (await sql`
+    SELECT sms_consent, sms_consent_at, sms_consent_ip, sms_consent_user_agent,
+           sms_consent_version, sms_consent_source, sms_consent_revoked_at
+    FROM users WHERE id = ${userId} LIMIT 1
+  `) as unknown[];
+  if (!rows[0]) return c.json({ error: "Not found" }, 404);
+  const events = (await sql`
+    SELECT action, source, consent_version, ip_address, user_agent, phone, created_at
+    FROM sms_consent_events WHERE user_id = ${userId}
+    ORDER BY created_at DESC LIMIT 50
+  `) as unknown[];
+  return c.json({ consent: rows[0], events });
 });
 
 // ---------------------------------------------------------------------------

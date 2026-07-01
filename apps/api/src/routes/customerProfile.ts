@@ -4,6 +4,8 @@ import { z } from "zod";
 import { getUserByClerkId, upsertUser } from "@sweepr/db";
 import { getDb } from "../lib/db";
 import { requireAuth } from "../middleware/auth";
+import { grantSmsConsent, revokeSmsConsent, getSmsConsent } from "../lib/smsConsent";
+import { sendSms, SMS_MESSAGES } from "../lib/sms";
 import type { AppBindings } from "../types";
 import type { Sql } from "../lib/db";
 import type { UserRow } from "@sweepr/db";
@@ -73,6 +75,8 @@ customerProfileRouter.get("/", async (c) => {
     is_default: boolean;
   }>;
 
+  const smsConsent = await getSmsConsent(sql, user.id);
+
   return c.json({
     profile: {
       onboarded: !!p.onboarded,
@@ -82,6 +86,7 @@ customerProfileRouter.get("/", async (c) => {
       homeType: p.home_type,
       hasPets: !!p.has_pets,
       defaultAddressId: p.default_address_id,
+      smsConsent: smsConsent?.smsConsent ?? false,
     },
     addresses: addresses.map((a) => ({
       id: a.id,
@@ -110,6 +115,7 @@ const patchSchema = z.object({
   defaultAddressId: z.string().uuid().optional().nullable(),
   onboarded: z.boolean().optional(),
   preferredLanguage: z.enum(LANG_CODES).optional(),
+  smsConsent: z.boolean().optional(),
 });
 
 customerProfileRouter.patch("/", zValidator("json", patchSchema), async (c) => {
@@ -133,6 +139,31 @@ customerProfileRouter.patch("/", zValidator("json", patchSchema), async (c) => {
   `;
   if (input.preferredLanguage) {
     await sql`UPDATE users SET preferred_language = ${input.preferredLanguage} WHERE id = ${user.id}`;
+  }
+
+  // Explicit SMS consent change — capture IP/UA for the TCPA audit trail.
+  if (input.smsConsent !== undefined) {
+    const meta = {
+      ip: c.req.header("CF-Connecting-IP") ?? null,
+      userAgent: c.req.header("User-Agent") ?? null,
+    };
+    if (input.smsConsent) {
+      await grantSmsConsent(sql, user.id, { ...meta, source: "customer_settings" });
+      const phones = (await sql`
+        SELECT phone FROM customers WHERE user_id = ${user.id} LIMIT 1
+      `) as Array<{ phone: string | null }>;
+      if (phones[0]?.phone) {
+        // Carrier-required opt-in confirmation (best-effort).
+        try {
+          await sendSms(c.env, sql, {
+            userId: user.id, to: phones[0].phone,
+            type: "consent_confirmation", body: SMS_MESSAGES.optInConfirmation,
+          });
+        } catch { /* non-fatal */ }
+      }
+    } else {
+      await revokeSmsConsent(sql, user.id, { ...meta, source: "customer_settings" });
+    }
   }
 
   return c.json({ ok: true });

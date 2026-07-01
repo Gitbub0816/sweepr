@@ -246,6 +246,12 @@ export const DOCS: DocMeta[] = [
     category: "Platform Policies",
   },
   {
+    slug: "sms/consent",
+    title: "SMS Consent",
+    description: "What you agree to when you opt in to Sweepr text messages.",
+    category: "Platform Policies",
+  },
+  {
     slug: "legal-updates",
     title: "Legal Updates Policy",
     description: "How and when Sweepr updates its legal terms and policies.",

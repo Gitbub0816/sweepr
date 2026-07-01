@@ -6,6 +6,7 @@ import { PrivacyPolicy } from "./pages/PrivacyPolicy";
 import { EULA } from "./pages/EULA";
 import { IndependentContractorAgreement } from "./pages/IndependentContractorAgreement";
 import { SMSPolicy } from "./pages/SMSPolicy";
+import { SMSConsentPolicy } from "./pages/SMSConsentPolicy";
 import { CookiePolicy } from "./pages/CookiePolicy";
 import { RefundPolicy } from "./pages/RefundPolicy";
 import { DisputeResolution } from "./pages/DisputeResolution";
@@ -103,6 +104,8 @@ export default function App() {
 
         {/* Platform Policies */}
         <Route path="/sms-policy" element={<SMSPolicy />} />
+        {/* Public carrier-verification page — linked from opt-in checkboxes. */}
+        <Route path="/sms/consent" element={<SMSConsentPolicy />} />
         <Route path="/legal-updates" element={<LegalUpdatesPolicy />} />
         <Route path="/copyright" element={<CopyrightPolicy />} />
         <Route
