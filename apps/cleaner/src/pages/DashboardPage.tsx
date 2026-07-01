@@ -107,6 +107,7 @@ interface OnboardingProgress {
     training: boolean;
     background: boolean;
     identity: boolean;
+    insurance: boolean;
     submitted: boolean;
     approved: boolean;
   };
@@ -131,6 +132,7 @@ function OnboardingChecklist({ status }: { status: string | undefined }) {
     { label: t("cleaner.dashboard.onboarding.training"), desc: `${passed}/${total} required modules`, step: -1, done: p?.training ?? false },
     { label: t("cleaner.dashboard.onboarding.backgroundCheck"), desc: "Verify your record", step: 3, done: p?.background ?? false },
     { label: t("cleaner.dashboard.onboarding.identity"), desc: "Confirm who you are", step: 4, done: p?.identity ?? false },
+    { label: t("cleaner.dashboard.onboarding.insurance"), desc: "Sweepr Coverage or your own validated policy", step: -2, done: p?.insurance ?? false },
     { label: t("cleaner.dashboard.onboarding.review"), desc: "Send your application", step: 5, done: p?.submitted ?? false },
   ];
 
@@ -166,7 +168,7 @@ function OnboardingChecklist({ status }: { status: string | undefined }) {
             {steps.map((s) => (
               <a
                 key={s.label}
-                href={s.step === -1 ? "/training" : `/onboarding?step=${s.step}`}
+                href={s.step === -1 ? "/training" : s.step === -2 ? "/insurance" : `/onboarding?step=${s.step}`}
                 className="flex items-center gap-3 rounded-lg bg-white/70 px-3 py-2.5 hover:bg-white transition-colors"
               >
                 {s.done ? (

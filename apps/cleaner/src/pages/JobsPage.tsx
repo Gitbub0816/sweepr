@@ -81,11 +81,22 @@ export function JobsPage() {
     setAcceptedId(job.id);
     try {
       const token = await getToken();
-      const res = await fetch(`${API_URL}/jobs/${job.id}/accept`, {
+      const res = await fetch(`${API_URL}/cleaner-dashboard/jobs/${job.id}/accept`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        setAcceptedId(null);
+        if (data?.error === "insurance_required" || res.status === 403) {
+          toast.error("Valid insurance is required before accepting jobs.");
+          navigate("/insurance");
+        } else {
+          toast.error("Could not accept job — it may have been taken.");
+          load();
+        }
+        return;
+      }
       toast.success(`Accepted job in ${job.area}`);
       setTimeout(() => navigate(`/jobs/${job.id}`), 700);
     } catch {
@@ -99,7 +110,7 @@ export function JobsPage() {
     setJobs((j) => j.filter((x) => x.id !== id));
     try {
       const token = await getToken();
-      await fetch(`${API_URL}/jobs/${id}/decline`, {
+      await fetch(`${API_URL}/cleaner-dashboard/jobs/${id}/decline`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });

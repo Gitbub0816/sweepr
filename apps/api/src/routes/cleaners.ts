@@ -7,6 +7,7 @@ import { getStripe } from "../lib/stripe";
 import { handleOfferResponse } from "../lib/assignment";
 import { requireAuth } from "../middleware/auth";
 import { grantSmsConsent } from "../lib/smsConsent";
+import { checkInsurance } from "../lib/cleanerRequirements";
 import { sendSms, SMS_MESSAGES } from "../lib/sms";
 import type { AppBindings } from "../types";
 import type { Context } from "hono";
@@ -59,9 +60,18 @@ cleanersRouter.get("/onboarding-progress", async (c) => {
   const submitted = ch?.status === "pending" || ch?.status === "approved";
   const approved = ch?.status === "approved";
 
+  // Validated insurance: Sweepr Coverage active OR an approved, unexpired
+  // personal policy. Mirrors the server-side job-accept enforcement.
+  let insurance = false;
+  const cleanerId = (cleaner as { id?: string } | null)?.id;
+  if (cleanerId) {
+    const sql = getDb(c.env.DATABASE_URL);
+    insurance = (await checkInsurance(sql, cleanerId)).valid;
+  }
+
   return c.json({
     status: ch?.status ?? "incomplete",
-    steps: { profile, training, background, identity, submitted, approved },
+    steps: { profile, training, background, identity, insurance, submitted, approved },
   });
 });
 

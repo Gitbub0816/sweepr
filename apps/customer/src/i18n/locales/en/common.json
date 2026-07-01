@@ -302,7 +302,8 @@
         "training": "Training",
         "backgroundCheck": "Background check",
         "identity": "Identity verification",
-        "review": "Review & submit"
+        "review": "Review & submit",
+        "insurance": "Insurance"
       },
       "welcomeBack": "Welcome back, {{name}}",
       "upcomingJob": "You have {{count}} upcoming job",

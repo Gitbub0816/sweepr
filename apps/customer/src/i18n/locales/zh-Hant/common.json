@@ -274,7 +274,8 @@
         "training": "培訓",
         "backgroundCheck": "背景調查",
         "identity": "身分驗證",
-        "review": "審核與提交"
+        "review": "審核與提交",
+        "insurance": "保險"
       },
       "welcomeBack": "歡迎回來，{{name}}",
       "upcomingJob": "您有 {{count}} 項即將進行的工作",

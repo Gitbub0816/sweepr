@@ -274,7 +274,8 @@
         "training": "التدريب",
         "backgroundCheck": "فحص الخلفية",
         "identity": "التحقق من الهوية",
-        "review": "المراجعة والإرسال"
+        "review": "المراجعة والإرسال",
+        "insurance": "التأمين"
       },
       "welcomeBack": "مرحبًا بعودتك، {{name}}",
       "upcomingJob": "لديك {{count}} وظيفة قادمة",

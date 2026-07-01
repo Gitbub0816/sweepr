@@ -74,3 +74,27 @@ body,
     text-decoration: none;
   }
 }
+
+/* ─── Mobile native feel ──────────────────────────────────────────────────────
+   - text-size-adjust: stops iOS/Android inflating text after rotation, which
+     breaks layouts most visibly in ar/hi/ko/zh where glyphs are taller.
+   - 16px form controls on touch devices: prevents iOS Safari's automatic
+     viewport zoom when an input is focused (fires on any font-size < 16px).
+   - overflow-wrap: long unbroken strings (agglutinative Tagalog words,
+     Vietnamese compounds, URLs) wrap instead of forcing horizontal scroll. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+@media (pointer: coarse) {
+  input, select, textarea {
+    font-size: max(16px, 1em);
+  }
+}
+body {
+  overflow-wrap: break-word;
+}
+@supports (-webkit-touch-callout: none) {
+  /* iOS momentum scrolling for a native feel in scroll containers. */
+  body { -webkit-overflow-scrolling: touch; }
+}

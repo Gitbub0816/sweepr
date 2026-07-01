@@ -274,7 +274,8 @@
         "training": "Pagsasanay",
         "backgroundCheck": "Background check",
         "identity": "Pag-verify ng pagkakakilanlan",
-        "review": "Suriin at isumite"
+        "review": "Suriin at isumite",
+        "insurance": "Insurance"
       },
       "welcomeBack": "Welcome back, {{name}}",
       "upcomingJob": "Mayroon kang {{count}} paparating na trabaho",

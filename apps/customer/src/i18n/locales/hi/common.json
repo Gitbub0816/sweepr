@@ -274,7 +274,8 @@
         "training": "प्रशिक्षण",
         "backgroundCheck": "बैकग्राउंड चेक",
         "identity": "पहचान सत्यापन",
-        "review": "समीक्षा और जमा करें"
+        "review": "समीक्षा और जमा करें",
+        "insurance": "बीमा"
       },
       "welcomeBack": "वापस स्वागत है, {{name}}",
       "upcomingJob": "आपके पास {{count}} आगामी काम है",

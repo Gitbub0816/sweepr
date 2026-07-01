@@ -274,7 +274,8 @@
         "training": "Đào tạo",
         "backgroundCheck": "Kiểm tra lý lịch",
         "identity": "Xác minh danh tính",
-        "review": "Xem xét & gửi"
+        "review": "Xem xét & gửi",
+        "insurance": "Bảo hiểm"
       },
       "welcomeBack": "Chào mừng trở lại, {{name}}",
       "upcomingJob": "Bạn có {{count}} công việc sắp tới",

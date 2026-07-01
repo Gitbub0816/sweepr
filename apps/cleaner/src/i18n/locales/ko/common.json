@@ -274,7 +274,8 @@
         "training": "교육",
         "backgroundCheck": "신원 조회",
         "identity": "신원 인증",
-        "review": "검토 및 제출"
+        "review": "검토 및 제출",
+        "insurance": "보험"
       },
       "welcomeBack": "다시 오셨군요, {{name}}님",
       "upcomingJob": "예정된 업무가 {{count}}건 있습니다",

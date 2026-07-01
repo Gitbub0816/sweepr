@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { Link } from "react-router-dom";
 import { Shield, ShieldCheck, ShieldAlert, Upload, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
 import { DashboardShell, Card, Button, toast } from "@sweepr/ui";
@@ -40,6 +41,9 @@ const STATUS_COLORS: Record<string, string> = {
 export function InsurancePage() {
   const { getToken } = useAuth();
   const [record, setRecord] = useState<InsuranceRecord | null>(null);
+  const [stripeConnected, setStripeConnected] = useState(false);
+  const [consentSigned, setConsentSigned] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -68,8 +72,14 @@ export function InsurancePage() {
   async function load() {
     try {
       const res = await authFetch("/insurance/me");
-      const data = (await res.json()) as { insurance: InsuranceRecord | null };
+      const data = (await res.json()) as {
+        insurance: InsuranceRecord | null;
+        stripeConnected?: boolean;
+        consentSigned?: boolean;
+      };
       setRecord(data.insurance);
+      setStripeConnected(data.stripeConnected ?? false);
+      setConsentSigned(data.consentSigned ?? false);
     } catch {
       // silently ignore
     } finally {
@@ -80,10 +90,25 @@ export function InsurancePage() {
   useEffect(() => { load(); }, []);
 
   async function enrollProgram() {
+    if (!consentChecked && !consentSigned) {
+      toast.error("Please review and accept the Insurance Protection Policy first.");
+      return;
+    }
     setEnrolling(true);
     try {
-      const res = await authFetch("/insurance/enroll-program", { method: "POST" });
-      if (!res.ok) throw new Error();
+      const res = await authFetch("/insurance/enroll-program", {
+        method: "POST",
+        body: JSON.stringify({ consentAccepted: true }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { error?: string; message?: string } | null;
+        if (data?.error === "stripe_required") {
+          toast.error("Set up payouts (Stripe) before enrolling in Sweepr Coverage.");
+        } else {
+          toast.error(data?.message ?? "Could not enroll. Please try again.");
+        }
+        return;
+      }
       toast.success("Enrolled in Sweepr Coverage Program");
       await load();
     } catch {
@@ -94,6 +119,19 @@ export function InsurancePage() {
   }
 
   async function uploadPolicy(file: File) {
+    if (!policyForm.insurerName.trim() || !policyForm.policyNumber.trim()) {
+      toast.error("Please enter your insurer name and policy number.");
+      return;
+    }
+    const coverage = Number(policyForm.coverageAmountUsd);
+    if (!Number.isFinite(coverage) || coverage < 500000) {
+      toast.error("We require at least $500,000 in general liability coverage.");
+      return;
+    }
+    if (!policyForm.policyExpiresAt) {
+      toast.error("Please enter your policy expiration date.");
+      return;
+    }
     setUploading(true);
     try {
       const token = await getToken();
@@ -221,10 +259,49 @@ export function InsurancePage() {
             <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700 font-medium">
               You're enrolled. Coverage is active.
             </div>
+          ) : !stripeConnected ? (
+            <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+              <p className="font-medium">Payouts must be set up first</p>
+              <p className="mt-1">
+                Sweepr Coverage is billed through your payouts, so a connected
+                Stripe account is required before you can enroll.
+              </p>
+              <Link to="/earnings" className="mt-2 inline-block font-semibold text-seafoam-700 underline">
+                Set up payouts →
+              </Link>
+            </div>
           ) : (
-            <Button onClick={enrollProgram} loading={enrolling} fullWidth>
-              Enroll — $15/mo
-            </Button>
+            <>
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={consentChecked || consentSigned}
+                  disabled={consentSigned}
+                  onChange={(e) => setConsentChecked(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 accent-teal-500"
+                />
+                <span className="text-slate-600">
+                  I have read and agree to the{" "}
+                  <a
+                    href="https://legal.getsweepr.com/insurance-protection"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-seafoam-600 underline"
+                  >
+                    Insurance Protection Policy
+                  </a>
+                  , and I authorize the monthly coverage fee to be deducted from my payouts.
+                </span>
+              </label>
+              <Button
+                onClick={enrollProgram}
+                loading={enrolling}
+                disabled={!consentChecked && !consentSigned}
+                fullWidth
+              >
+                Enroll — $15/mo
+              </Button>
+            </>
           )}
         </Card>
       ) : (

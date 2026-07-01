@@ -302,7 +302,8 @@
         "training": "Capacitación",
         "backgroundCheck": "Verificación de antecedentes",
         "identity": "Verificación de identidad",
-        "review": "Revisar y enviar"
+        "review": "Revisar y enviar",
+        "insurance": "Seguro"
       },
       "welcomeBack": "Bienvenido de nuevo, {{name}}",
       "upcomingJob": "Tienes {{count}} trabajo próximo",

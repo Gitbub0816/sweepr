@@ -21,6 +21,7 @@ import { audit } from "../lib/audit";
 import { serverTrack } from "../lib/posthog";
 import { logger } from "../lib/logger";
 import { assertBookingAccess } from "../lib/bookingAccess";
+import { checkInsurance } from "../lib/cleanerRequirements";
 import { calculateBookingPrice, getAddOnCatalogue } from "../lib/pricingEngine";
 import { resolveBookingPricing, storeQuoteSnapshot } from "../lib/resolvePricing";
 import type { AppBindings } from "../types";
@@ -362,6 +363,14 @@ bookingsRouter.post(
     if (cleanerRows.length === 0) return c.json({ error: "Forbidden" }, 403);
 
     if (response === "accepted") {
+      // Server-side eligibility: valid insurance is required to take jobs.
+      const insurance = await checkInsurance(sql, offer.cleaner_id);
+      if (!insurance.valid) {
+        return c.json(
+          { error: "insurance_required", message: "Valid insurance is required before accepting jobs." },
+          403,
+        );
+      }
       await sql`UPDATE job_offers SET status = 'accepted' WHERE id = ${offerId}`;
       await sql`
         UPDATE bookings SET cleaner_id = ${offer.cleaner_id},

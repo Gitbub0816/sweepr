@@ -274,7 +274,8 @@
         "training": "培训",
         "backgroundCheck": "背景调查",
         "identity": "身份验证",
-        "review": "审核与提交"
+        "review": "审核与提交",
+        "insurance": "保险"
       },
       "welcomeBack": "欢迎回来，{{name}}",
       "upcomingJob": "您有 {{count}} 项即将进行的工作",

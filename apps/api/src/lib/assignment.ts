@@ -4,6 +4,8 @@ import {
   eligibleCleanersForBooking,
 } from "./matching";
 import { logger } from "./logger";
+import { AppError } from "./errors";
+import { checkInsurance } from "./cleanerRequirements";
 import { OFFER_EXPIRY_MINUTES } from "./constants";
 import { sendNotification } from "./notifications";
 
@@ -164,6 +166,16 @@ export async function handleOfferResponse(
   if (!booking) return;
 
   if (response === "accepted") {
+    // Server-side eligibility: valid insurance is required to take jobs.
+    // (The dashboard checklist mirrors this — this is the enforcement point.)
+    const insurance = await checkInsurance(sql, cleanerId);
+    if (!insurance.valid) {
+      throw new AppError(
+        "insurance_required",
+        "Valid insurance is required before accepting jobs.",
+        403,
+      );
+    }
     await sql`
       UPDATE assignment_queue SET status = 'accepted'
       WHERE booking_id = ${bookingId} AND cleaner_id = ${cleanerId}

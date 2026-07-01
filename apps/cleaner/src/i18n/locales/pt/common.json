@@ -302,7 +302,8 @@
         "training": "Treinamento",
         "backgroundCheck": "Verificação de antecedentes",
         "identity": "Verificação de identidade",
-        "review": "Revisão e envio"
+        "review": "Revisão e envio",
+        "insurance": "Seguro"
       },
       "welcomeBack": "Bem-vindo de volta, {{name}}",
       "upcomingJob": "Você tem {{count}} trabalho agendado",

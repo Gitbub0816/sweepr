@@ -7,6 +7,8 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { requireAuth } from "../middleware/auth";
 import { getDb } from "../lib/db";
+import { handleOfferResponse } from "../lib/assignment";
+import type { Context } from "hono";
 import type { AppBindings } from "../types";
 
 export const cleanerDashboardRouter = new Hono<AppBindings>();
@@ -110,6 +112,35 @@ cleanerDashboardRouter.get("/my-jobs", async (c) => {
 
   return c.json({ jobs });
 });
+
+// ─── Job-offer response (accept / decline by booking id) ─────────────────────
+// The job board lists bookings offered to this cleaner; these routes resolve
+// the cleaner's pending assignment_queue row for the booking and run the
+// canonical handleOfferResponse flow (insurance gate, cascade, notifications).
+async function respondToOffer(
+  c: Context<AppBindings>,
+  response: "accepted" | "declined",
+) {
+  const sql = getDb(c.env.DATABASE_URL);
+  const ctx = await getCleanerCtx(sql, c.get("user").clerkId);
+  if (!ctx) return c.json({ error: "Cleaner not found" }, 404);
+  const bookingId = c.req.param("id");
+  if (!bookingId) return c.json({ error: "Missing job id" }, 400);
+
+  const offers = (await sql`
+    SELECT id FROM assignment_queue
+    WHERE booking_id = ${bookingId} AND cleaner_id = ${ctx.cleaner_id}
+      AND status IN ('pending', 'offered')
+    LIMIT 1
+  `) as Array<{ id: string }>;
+  if (!offers[0]) return c.json({ error: "No active offer for this job" }, 404);
+
+  await handleOfferResponse(sql, bookingId, ctx.cleaner_id, response);
+  return c.json({ ok: true, response });
+}
+
+cleanerDashboardRouter.post("/jobs/:id/accept", (c) => respondToOffer(c, "accepted"));
+cleanerDashboardRouter.post("/jobs/:id/decline", (c) => respondToOffer(c, "declined"));
 
 // ─── Earnings summary ─────────────────────────────────────────────────────────
 
