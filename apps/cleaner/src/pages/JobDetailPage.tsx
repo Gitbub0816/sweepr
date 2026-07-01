@@ -33,6 +33,8 @@ interface JobLive {
     city: string;
     state: string;
     zip: string;
+    lat: number | null;
+    lng: number | null;
   };
   access_codes?: Array<{ code_type: string; code_value: string; notes?: string }>;
   photos?: Array<{ photo_type: string; storage_key: string; room_label?: string }>;
@@ -233,7 +235,7 @@ export function JobDetailPage() {
       description={`Job ${job.id.slice(0, 8).toUpperCase()}`}
       actions={
         <span className="text-2xl font-bold text-charcoal dark:text-white">
-          {formatCurrency(job.total_price)}
+          {formatCurrency(job.total_price / 100)}
         </span>
       }
     >
@@ -305,11 +307,11 @@ export function JobDetailPage() {
             </Button>
           )}
 
-          {dayStatus === "en_route" && job.address && (
+          {dayStatus === "en_route" && job.address && job.address.lat != null && job.address.lng != null && (
             <NavigationMap
               destination={{
-                lat: 0,
-                lng: 0,
+                lat: job.address.lat,
+                lng: job.address.lng,
                 label: `${job.address.street}, ${job.address.city}, ${job.address.state} ${job.address.zip}`,
               }}
               currentLat={currentPos?.lat ?? null}

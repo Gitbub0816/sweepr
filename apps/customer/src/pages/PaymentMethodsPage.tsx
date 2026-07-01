@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { CreditCard } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
-import { DashboardShell, Card, Badge, EmptyState } from "@sweepr/ui";
+import { DashboardShell, Card, Badge, EmptyState, toast } from "@sweepr/ui";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -20,14 +20,26 @@ export function PaymentMethodsPage() {
   const { getToken } = useAuth();
   const [methods, setMethods] = useState<Method[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
     if (!API_URL) { setLoading(false); return; }
+    setLoadError(false);
     try {
       const token = await getToken();
+      if (!token) { setLoadError(true); return; }
       const res = await fetch(`${API_URL}/payments/methods`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) setMethods(((await res.json()) as { methods: Method[] }).methods ?? []);
-    } catch { /* empty */ } finally { setLoading(false); }
+      if (res.ok) {
+        setMethods(((await res.json()) as { methods: Method[] }).methods ?? []);
+      } else {
+        setLoadError(true);
+      }
+    } catch {
+      setLoadError(true);
+      toast.error("Failed to load payment methods");
+    } finally {
+      setLoading(false);
+    }
   }, [getToken]);
   useEffect(() => { load(); }, [load]);
 
@@ -35,6 +47,12 @@ export function PaymentMethodsPage() {
     <DashboardShell title={t("payment.title")} description={t("payment.description")}>
       {loading ? (
         <div className="h-32 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
+      ) : loadError ? (
+        <EmptyState
+          icon={<CreditCard className="h-10 w-10 text-slate-300" />}
+          title="Couldn't load payment methods"
+          description="Please try refreshing the page."
+        />
       ) : methods.length === 0 ? (
         <EmptyState
           icon={<CreditCard className="h-10 w-10 text-slate-300" />}

@@ -9,6 +9,12 @@ import { useCustomerProfile } from "../../data/profile";
 
 const DEFAULTS = { bedrooms: 2, bathrooms: 1, sqft: 1200, homeType: "apartment" as HomeType };
 
+function clamp(value: string, min: number, max: number, fallback: number): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
 export function HomeStep() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -59,7 +65,7 @@ export function HomeStep() {
           max={10}
           label={t("booking.home.bedrooms")}
           value={home.bedrooms}
-          onChange={(e) => setHome({ bedrooms: Number(e.target.value) })}
+          onChange={(e) => setHome({ bedrooms: clamp(e.target.value, 0, 10, DEFAULTS.bedrooms) })}
         />
         <Input
           type="number"
@@ -67,15 +73,16 @@ export function HomeStep() {
           max={10}
           label={t("booking.home.bathrooms")}
           value={home.bathrooms}
-          onChange={(e) => setHome({ bathrooms: Number(e.target.value) })}
+          onChange={(e) => setHome({ bathrooms: clamp(e.target.value, 1, 10, DEFAULTS.bathrooms) })}
         />
         <Input
           type="number"
           min={200}
+          max={20000}
           step={100}
           label={t("booking.home.sqft")}
           value={home.sqft}
-          onChange={(e) => setHome({ sqft: Number(e.target.value) })}
+          onChange={(e) => setHome({ sqft: clamp(e.target.value, 200, 20000, DEFAULTS.sqft) })}
         />
         <Select
           label={t("booking.home.homeType")}

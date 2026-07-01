@@ -118,7 +118,7 @@ function CoursePlayer({ courseId }: { courseId: string }) {
     if (index < slides.length - 1) {
       const ni = index + 1;
       setIndex(ni);
-      reportProgress(Math.round(((ni + 1) / slides.length) * 100), false, slide?.id);
+      reportProgress(Math.round((ni / slides.length) * 100), false, slides[ni]?.id);
     } else {
       setDone(true);
       reportProgress(100, true, slide?.id);

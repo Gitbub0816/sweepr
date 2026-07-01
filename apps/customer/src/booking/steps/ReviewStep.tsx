@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin, Home, CalendarClock, Sparkles, Zap, Repeat } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
@@ -8,6 +8,7 @@ import {
   formatDateTime,
   formatCurrency,
   getAddOn,
+  recurringDisplayPrice,
 } from "@sweepr/utils";
 import { useBookingStore } from "../../store/booking";
 import { StepShell } from "../StepShell";
@@ -58,17 +59,18 @@ export function ReviewStep() {
   } = state;
   const [submitting, setSubmitting] = useState(false);
 
-  if (!address || !serviceType || !scheduledFor) {
-    navigate("/book/address");
-    return null;
-  }
+  const missingRequiredFields = !address || !serviceType || !scheduledFor;
+  useEffect(() => {
+    if (missingRequiredFields) navigate("/book/address");
+  }, [missingRequiredFields, navigate]);
+
+  if (missingRequiredFields) return null;
 
   const quote = getQuote();
   const total = quote?.total ?? 0;
-  const discounts = { weekly: 0.1, biweekly: 0.08, monthly: 0.05 };
   const subPrice =
     isSubscription && subscriptionCadence
-      ? Math.round(total * (1 - discounts[subscriptionCadence]))
+      ? recurringDisplayPrice(total, subscriptionCadence)
       : null;
 
   async function handleContinueToPayment() {

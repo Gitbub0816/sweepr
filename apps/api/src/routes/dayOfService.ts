@@ -475,8 +475,10 @@ dayOfServiceRouter.get("/bookings/:id/live", async (c) => {
     SELECT b.id, b.status, b.day_status, b.cleaner_id, b.customer_id,
            b.arrival_verified_at, b.started_at, b.completed_at,
            b.address_revealed_at, b.access_code_revealed_at,
-           b.scheduled_at,
+           b.scheduled_at, b.total_price, b.service_type,
            a.lat AS address_lat, a.lng AS address_lng,
+           a.street AS address_street, a.city AS address_city,
+           a.state AS address_state, a.zip AS address_zip,
            cl.first_name AS cleaner_first, cl.last_name AS cleaner_last,
            cust.user_id AS customer_user_id, u_cl.clerk_id AS cleaner_clerk_id
     FROM bookings b
@@ -491,7 +493,10 @@ dayOfServiceRouter.get("/bookings/:id/live", async (c) => {
     arrival_verified_at: string | null; started_at: string | null;
     completed_at: string | null; address_revealed_at: string | null;
     access_code_revealed_at: string | null; scheduled_at: string | null;
+    total_price: number | null; service_type: string | null;
     address_lat: number | null; address_lng: number | null;
+    address_street: string | null; address_city: string | null;
+    address_state: string | null; address_zip: string | null;
     cleaner_first: string | null; cleaner_last: string | null;
     customer_user_id: string | null; cleaner_clerk_id: string | null;
   }>;
@@ -519,6 +524,42 @@ dayOfServiceRouter.get("/bookings/:id/live", async (c) => {
     ORDER BY created_at ASC
   `) as Array<{ id: string; photo_type: string; room_label: string | null; created_at: string }>;
 
+  // Access codes: only revealed to the cleaner after they've been unlocked
+  // (access_code_revealed_at set, i.e. GPS arrival confirmed).
+  let accessCodes: Array<{ code_type: string; code_value: string | null; notes: string | null }> = [];
+  if (isCleaner && booking.access_code_revealed_at) {
+    const rawCodes = (await sql`
+      SELECT code_type, code_value, code_value_encrypted, notes
+      FROM booking_access_codes WHERE booking_id = ${bookingId}
+    `) as Array<{ code_type: string; code_value: string | null; code_value_encrypted: string | null; notes: string | null }>;
+    const encryptionKey = requireEncryptionKey(c.env.ACCESS_CODE_ENCRYPTION_KEY, c.env.ENVIRONMENT);
+    accessCodes = await Promise.all(rawCodes.map(async (code) => {
+      let decryptedValue: string | null = null;
+      if (code.code_value_encrypted && encryptionKey) {
+        try {
+          decryptedValue = await decryptSecret(code.code_value_encrypted, encryptionKey);
+        } catch {
+          decryptedValue = null;
+        }
+      } else if (!code.code_value_encrypted) {
+        decryptedValue = code.code_value;
+      }
+      return { code_type: code.code_type, code_value: decryptedValue, notes: code.notes };
+    }));
+  }
+
+  // Address is only revealed once address_revealed_at has been set (start-route).
+  const address = isCleaner && booking.address_revealed_at && booking.address_street
+    ? {
+        street: booking.address_street,
+        city: booking.address_city,
+        state: booking.address_state,
+        zip: booking.address_zip,
+        lat: booking.address_lat,
+        lng: booking.address_lng,
+      }
+    : undefined;
+
   return c.json({
     booking: {
       id: booking.id,
@@ -528,7 +569,12 @@ dayOfServiceRouter.get("/bookings/:id/live", async (c) => {
       arrival_verified_at: booking.arrival_verified_at,
       started_at: booking.started_at,
       completed_at: booking.completed_at,
+      total_price: booking.total_price,
+      service_type: booking.service_type,
       cleaner_name: [booking.cleaner_first, booking.cleaner_last].filter(Boolean).join(" ") || null,
+      address,
+      access_codes: accessCodes,
+      photos,
     },
     last_location: pings[0] ?? null,
     photos,

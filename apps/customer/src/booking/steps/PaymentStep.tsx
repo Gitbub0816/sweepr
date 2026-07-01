@@ -35,7 +35,8 @@ function OrderSummary() {
   const isSubscription = useBookingStore((s) => s.isSubscription);
   const subscriptionCadence = useBookingStore((s) => s.subscriptionCadence);
   const cadence = useBookingStore((s) => s.cadence);
-  const quote = serviceType ? calculateQuote({ serviceType, home, addOnKeys }) : null;
+  const isEmergency = useBookingStore((s) => s.isEmergency);
+  const quote = serviceType ? calculateQuote({ serviceType, home, addOnKeys, isEmergency }) : null;
 
   if (!quote) return null;
 
@@ -158,9 +159,15 @@ function CheckoutForm({ total }: { total: number }) {
     }
 
     try {
-      const { error: submitError } = await elements.submit();
-      if (submitError) {
-        setError(submitError.message ?? "Please check your payment details.");
+      const { error: confirmError } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/book/confirmed`,
+        },
+        redirect: "if_required",
+      });
+      if (confirmError) {
+        setError(confirmError.message ?? "Please check your payment details.");
         setProcessing(false);
         return;
       }
@@ -288,7 +295,8 @@ export function PaymentStep() {
   const home = useBookingStore((s) => s.home);
   const addOnKeys = useBookingStore((s) => s.addOnKeys);
   const bookingId = useBookingStore((s) => s.bookingId);
-  const quote = serviceType ? calculateQuote({ serviceType, home, addOnKeys }) : null;
+  const isEmergency = useBookingStore((s) => s.isEmergency);
+  const quote = serviceType ? calculateQuote({ serviceType, home, addOnKeys, isEmergency }) : null;
   const isSubscription = useBookingStore((s) => s.isSubscription);
   const subscriptionCadence = useBookingStore((s) => s.subscriptionCadence);
   const [clientSecret, setClientSecret] = useState<string | null>(null);

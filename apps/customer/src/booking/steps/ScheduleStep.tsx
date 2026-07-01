@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Zap, Repeat } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SweeprCalendar, type CalendarSlot } from "@sweepr/ui";
-import { cn } from "@sweepr/utils";
+import { cn, recurringDisplayPrice } from "@sweepr/utils";
 import { useBookingStore } from "../../store/booking";
 import { StepShell } from "../StepShell";
 
@@ -30,12 +30,6 @@ function buildAvailability(): Record<string, CalendarSlot[]> {
   return data;
 }
 
-const CADENCE_VALUES = [
-  { value: "weekly" as const, discount: 10 },
-  { value: "biweekly" as const, discount: 8 },
-  { value: "monthly" as const, discount: 5 },
-];
-
 export function ScheduleStep() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -60,9 +54,9 @@ export function ScheduleStep() {
   const baseTotal = quote?.total ?? 0;
 
   const cadences = [
-    { value: "weekly" as const, label: t("booking.schedule.weekly"), discount: 10 },
-    { value: "biweekly" as const, label: t("booking.schedule.biweekly"), discount: 8 },
-    { value: "monthly" as const, label: t("booking.schedule.monthly"), discount: 5 },
+    { value: "weekly" as const, label: t("booking.schedule.weekly") },
+    { value: "biweekly" as const, label: t("booking.schedule.biweekly") },
+    { value: "monthly" as const, label: t("booking.schedule.monthly") },
   ];
 
   const onSelect = (slot: CalendarSlot) => {
@@ -143,7 +137,7 @@ export function ScheduleStep() {
         {isSubscription && (
           <div className="mt-4 grid grid-cols-3 gap-2">
             {cadences.map((c) => {
-              const price = Math.round(baseTotal * (1 - c.discount / 100));
+              const price = recurringDisplayPrice(baseTotal, c.value);
               const savings = Math.round(baseTotal - price);
               const active = subscriptionCadence === c.value;
               return (

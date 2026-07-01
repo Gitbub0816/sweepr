@@ -28,7 +28,8 @@ export function BookingLayout() {
   const serviceType = useBookingStore((s) => s.serviceType);
   const home = useBookingStore((s) => s.home);
   const addOnKeys = useBookingStore((s) => s.addOnKeys);
-  const quote = serviceType ? calculateQuote({ serviceType, home, addOnKeys }) : null;
+  const isEmergency = useBookingStore((s) => s.isEmergency);
+  const quote = serviceType ? calculateQuote({ serviceType, home, addOnKeys, isEmergency }) : null;
   const isRebook = useBookingStore((s) => s.isRebook);
   const rebookedFromDate = useBookingStore((s) => s.rebookedFromDate);
 

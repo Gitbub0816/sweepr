@@ -329,7 +329,10 @@ export interface QuoteInput {
   heavySoil?: boolean;
   lotsOfClutter?: boolean;
   smokerHome?: boolean;
+  isEmergency?: boolean; // same/next-day booking — adds a rush surcharge
 }
+
+export const EMERGENCY_SURCHARGE_RATE = 0.15;
 
 export function calculateQuote(input: QuoteInput): Quote {
   const { serviceType, home, addOnKeys } = input;
@@ -378,6 +381,14 @@ export function calculateQuote(input: QuoteInput): Quote {
   if (input.heavySoil)     subtotal *= 1.20;
   if (input.lotsOfClutter) subtotal *= 1.15;
   if (input.smokerHome)    subtotal *= 1.18;
+
+  // Rush surcharge for same/next-day bookings.
+  let rushFee = 0;
+  if (input.isEmergency) {
+    rushFee = Math.round(subtotal * EMERGENCY_SURCHARGE_RATE * 100) / 100;
+    subtotal += rushFee;
+    lineItems.push({ label: "Rush fee", amount: rushFee });
+  }
 
   // Stripe gross-up (baked into customer price)
   const grossed = sweeprGrossUp(subtotal);

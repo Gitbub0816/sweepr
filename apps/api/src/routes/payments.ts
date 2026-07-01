@@ -177,38 +177,57 @@ paymentsRouter.post(
     const tierMultiplier = await getTierMultiplier(sql, cleanerTier);
     const breakdown = calculatePayout(booking.total_price, feeSettings, tierMultiplier);
 
-    const transfer = await stripe.transfers.create({
-      amount: breakdown.cleanerPayout,
-      currency: "usd",
-      destination: cleaner.stripe_connect_id,
-      transfer_group: `booking_${bookingId}`,
-    });
-
+    // Atomic lock BEFORE calling Stripe: claim the payout row first so a
+    // concurrent/retried request can't also pass this check and double-transfer.
     const existing = (await sql`
-      SELECT id FROM payouts WHERE booking_id = ${bookingId} LIMIT 1
-    `) as Array<{ id: string }>;
+      SELECT id, status FROM payouts WHERE booking_id = ${bookingId} LIMIT 1
+    `) as Array<{ id: string; status: string }>;
     if (existing[0]) {
-      await sql`
-        UPDATE payouts
-        SET status = 'paid', stripe_transfer_id = ${transfer.id},
-            amount = ${breakdown.cleanerPayout}, platform_fee = ${breakdown.platformFee},
-            gross_amount = ${breakdown.grossAmount}, net_amount = ${breakdown.cleanerPayout},
-            fee_rate = ${breakdown.feeRate}, tier_multiplier = ${tierMultiplier},
-            paid_at = NOW()
-        WHERE booking_id = ${bookingId}
-      `;
+      const claimed = (await sql`
+        UPDATE payouts SET status = 'processing'
+        WHERE booking_id = ${bookingId} AND status NOT IN ('paid', 'processing')
+        RETURNING id
+      `) as Array<{ id: string }>;
+      if (!claimed[0]) {
+        return c.json({ error: "Payout already released or in progress for this booking" }, 409);
+      }
     } else {
-      await sql`
-        INSERT INTO payouts (
-          booking_id, cleaner_id, amount, status, stripe_transfer_id, paid_at,
-          platform_fee, gross_amount, net_amount, fee_rate, tier_multiplier
-        ) VALUES (
-          ${bookingId}, ${booking.cleaner_id}, ${breakdown.cleanerPayout}, 'paid',
-          ${transfer.id}, NOW(), ${breakdown.platformFee}, ${breakdown.grossAmount},
-          ${breakdown.cleanerPayout}, ${breakdown.feeRate}, ${tierMultiplier}
-        )
-      `;
+      try {
+        await sql`
+          INSERT INTO payouts (booking_id, cleaner_id, amount, status)
+          VALUES (${bookingId}, ${booking.cleaner_id}, ${breakdown.cleanerPayout}, 'processing')
+        `;
+      } catch {
+        return c.json({ error: "Payout already released for this booking" }, 409);
+      }
     }
+
+    let transfer;
+    try {
+      transfer = await stripe.transfers.create({
+        amount: breakdown.cleanerPayout,
+        currency: "usd",
+        destination: cleaner.stripe_connect_id,
+        transfer_group: `booking_${bookingId}`,
+      });
+    } catch (err) {
+      // Release the claim so a legitimate retry isn't permanently blocked.
+      await sql`
+        UPDATE payouts SET status = 'failed'
+        WHERE booking_id = ${bookingId} AND status = 'processing'
+      `;
+      throw err;
+    }
+
+    await sql`
+      UPDATE payouts
+      SET status = 'paid', stripe_transfer_id = ${transfer.id},
+          amount = ${breakdown.cleanerPayout}, platform_fee = ${breakdown.platformFee},
+          gross_amount = ${breakdown.grossAmount}, net_amount = ${breakdown.cleanerPayout},
+          fee_rate = ${breakdown.feeRate}, tier_multiplier = ${tierMultiplier},
+          paid_at = NOW()
+      WHERE booking_id = ${bookingId}
+    `;
     await sql`
       UPDATE bookings
       SET platform_fee = ${breakdown.platformFee}, cleaner_payout = ${breakdown.cleanerPayout}, updated_at = NOW()
@@ -276,17 +295,29 @@ paymentsRouter.post(
     if (!booking.stripe_payment_intent_id) {
       return c.json({ error: "No payment to refund" }, 400);
     }
+    if (booking.status === "refunded") {
+      return c.json({ error: "Booking has already been refunded" }, 409);
+    }
 
-    const refund = await stripe.refunds.create({
-      payment_intent: booking.stripe_payment_intent_id,
-      ...(amount ? { amount } : {}),
-      ...(reason ? { reason } : {}),
-    });
-
-    await sql`
+    // Atomic lock before calling Stripe so a concurrent/retried request can't
+    // also pass the check above and issue a second refund.
+    const claimed = (await sql`
       UPDATE bookings SET status = 'refunded', updated_at = NOW()
-      WHERE id = ${bookingId}
-    `;
+      WHERE id = ${bookingId} AND status != 'refunded'
+      RETURNING id
+    `) as Array<{ id: string }>;
+    if (!claimed[0]) {
+      return c.json({ error: "Booking has already been refunded" }, 409);
+    }
+
+    const refund = await stripe.refunds.create(
+      {
+        payment_intent: booking.stripe_payment_intent_id,
+        ...(amount ? { amount } : {}),
+        ...(reason ? { reason } : {}),
+      },
+      { idempotencyKey: `refund_${bookingId}_${amount ?? "full"}` }
+    );
 
     await audit(sql, {
       action: "payment.refunded",

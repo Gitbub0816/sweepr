@@ -149,9 +149,9 @@ export const useBookingStore = create<BookingState>()(
     }),
 
   getQuote: () => {
-    const { serviceType, home, addOnKeys } = get();
+    const { serviceType, home, addOnKeys, isEmergency } = get();
     if (!serviceType) return null;
-    const input: QuoteInput = { serviceType, home, addOnKeys };
+    const input: QuoteInput = { serviceType, home, addOnKeys, isEmergency };
     return calculateQuote(input);
   },
     }),
