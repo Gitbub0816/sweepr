@@ -176,7 +176,22 @@
     },
     "payment": {
       "title": "Thanh toán",
-      "secure": "Thanh toán của bạn được bảo mật bởi Stripe."
+      "secure": "Thanh toán của bạn được bảo mật bởi Stripe.",
+      "billingAddress": "Địa chỉ thanh toán",
+      "cardNotCharged": "Thẻ của bạn sẽ không bị tính phí cho đến khi người dọn dẹp xác nhận đặt lịch của bạn. Hủy miễn phí trước 24 giờ so với lịch hẹn.",
+      "demoMode": "Chế độ demo",
+      "detailsSecure": "Thông tin thanh toán được thu thập an toàn qua Stripe Elements",
+      "firstCleanTotal": "Tổng chi phí lần dọn đầu tiên",
+      "included": "Đã bao gồm",
+      "orderSummary": "Tóm tắt đơn hàng",
+      "payButton": "Thanh toán {{amount}}",
+      "recurringCadence": "Định kỳ {{cadence}}",
+      "satisfactionGuarantee": "Đảm bảo hài lòng",
+      "securedByStripe": "Được bảo mật bởi Stripe",
+      "subscription": "Gói đăng ký {{cadence}}",
+      "subscriptionPrice": "{{price}} / lần dọn — tiết kiệm {{savings}} mỗi lần",
+      "subtitle": "Mọi mức giá đều đã bao gồm tất cả. Không phát sinh phí bất ngờ.",
+      "total": "Tổng cộng"
     }
   },
   "bookings": {
@@ -278,7 +293,8 @@
       "maxJobsPerDay": "Số công việc tối đa / ngày",
       "maxDistance": "Khoảng cách tối đa (dặm)",
       "preferredServiceTypes": "Loại dịch vụ ưa thích",
-      "acceptLastMinute": "Chấp nhận đặt lịch vào phút chót"
+      "acceptLastMinute": "Chấp nhận đặt lịch vào phút chót",
+      "jobPreferences": "Tuỳ chọn công việc"
     },
     "notifications": {
       "title": "Thông báo",
@@ -301,7 +317,15 @@
       "checkIn": "Đăng ký vào",
       "checkOut": "Đăng ký ra",
       "beforePhotos": "Ảnh trước",
-      "afterPhotos": "Ảnh sau"
+      "afterPhotos": "Ảnh sau",
+      "steps": {
+        "arrived": "Đã đến",
+        "awaiting_checkout": "Đang hoàn tất",
+        "completed": "Hoàn thành",
+        "confirmed": "Đã xác nhận",
+        "en_route": "Đang trên đường",
+        "in_progress": "Đang tiến hành"
+      }
     },
     "earnings": {
       "title": "Thu nhập",
@@ -412,5 +436,42 @@
     "ar": "العربية",
     "pt": "Português",
     "hi": "हिन्दी"
+  },
+  "serviceTypes": {
+    "deep": "Dọn dẹp chuyên sâu",
+    "light": "Dọn dẹp nhẹ",
+    "move_in_out": "Dọn dẹp chuyển vào/ra",
+    "post_construction": "Dọn dẹp sau xây dựng",
+    "recurring": "Dọn dẹp định kỳ",
+    "standard": "Dọn dẹp tiêu chuẩn",
+    "vacation_rental": "Dọn dẹp luân chuyển nhà cho thuê nghỉ dưỡng"
+  },
+  "subscriptions": {
+    "bookRecurring": "Đặt lịch dọn dẹp định kỳ",
+    "cadence": {
+      "biweekly": "Hai tuần một lần",
+      "monthly": "Hàng tháng",
+      "weekly": "Hàng tuần"
+    },
+    "cancel": "Hủy",
+    "cancelSuccess": "Đã hủy gói đăng ký",
+    "couldNotCancel": "Không thể hủy gói đăng ký.",
+    "couldNotLoad": "Không thể tải các gói đăng ký.",
+    "couldNotPause": "Không thể tạm dừng gói đăng ký.",
+    "couldNotResume": "Không thể tiếp tục gói đăng ký.",
+    "couldNotSkip": "Không thể bỏ qua lần dọn dẹp.",
+    "description": "Quản lý các lịch dọn dẹp định kỳ của bạn.",
+    "nextCleaning": "Lần dọn dẹp tiếp theo",
+    "noSubsDesc": "Thiết lập dọn dẹp định kỳ và tiết kiệm cho mỗi lần.",
+    "noSubsTitle": "Chưa có gói đăng ký nào",
+    "pause": "Tạm dừng",
+    "pauseSuccess": "Đã tạm dừng gói đăng ký",
+    "resume": "Tiếp tục",
+    "resumeSuccess": "Đã tiếp tục gói đăng ký",
+    "skipNext": "Bỏ qua lần tới",
+    "skipSuccess": "Đã bỏ qua lần dọn dẹp tiếp theo",
+    "statusActive": "Đang hoạt động",
+    "statusPaused": "Đã tạm dừng",
+    "title": "Gói đăng ký"
   }
 }

@@ -176,7 +176,22 @@
     },
     "payment": {
       "title": "付款",
-      "secure": "您的付款由 Stripe 安全保障。"
+      "secure": "您的付款由 Stripe 安全保障。",
+      "billingAddress": "账单地址",
+      "cardNotCharged": "在保洁员确认您的预订之前，不会向您的银行卡扣款。预约前 24 小时内可免费取消。",
+      "demoMode": "演示模式",
+      "detailsSecure": "支付信息通过 Stripe Elements 安全收集",
+      "firstCleanTotal": "首次清洁总额",
+      "included": "已包含",
+      "orderSummary": "订单摘要",
+      "payButton": "支付 {{amount}}",
+      "recurringCadence": "{{cadence}}周期性付款",
+      "satisfactionGuarantee": "满意保证",
+      "securedByStripe": "由 Stripe 提供安全保障",
+      "subscription": "{{cadence}}订阅",
+      "subscriptionPrice": "每次清洁 {{price}} — 每次节省 {{savings}}",
+      "subtitle": "所有价格均为全包价，无隐藏费用。",
+      "total": "总计"
     }
   },
   "bookings": {
@@ -278,7 +293,8 @@
       "maxJobsPerDay": "每天最多接单数",
       "maxDistance": "最大距离（英里）",
       "preferredServiceTypes": "偏好的服务类型",
-      "acceptLastMinute": "接受临时预约"
+      "acceptLastMinute": "接受临时预约",
+      "jobPreferences": "工作偏好"
     },
     "notifications": {
       "title": "通知",
@@ -301,7 +317,15 @@
       "checkIn": "签到",
       "checkOut": "签退",
       "beforePhotos": "清洁前照片",
-      "afterPhotos": "清洁后照片"
+      "afterPhotos": "清洁后照片",
+      "steps": {
+        "arrived": "已到达",
+        "awaiting_checkout": "即将完成",
+        "completed": "已完成",
+        "confirmed": "已确认",
+        "en_route": "路上",
+        "in_progress": "进行中"
+      }
     },
     "earnings": {
       "title": "收入",
@@ -412,5 +436,42 @@
     "ar": "العربية",
     "pt": "Português",
     "hi": "हिन्दी"
+  },
+  "serviceTypes": {
+    "deep": "深度清洁",
+    "light": "轻度清洁",
+    "move_in_out": "搬入/搬出清洁",
+    "post_construction": "装修后清洁",
+    "recurring": "定期清洁",
+    "standard": "标准清洁",
+    "vacation_rental": "度假租赁换客清洁"
+  },
+  "subscriptions": {
+    "bookRecurring": "预订定期清洁",
+    "cadence": {
+      "biweekly": "每两周",
+      "monthly": "每月",
+      "weekly": "每周"
+    },
+    "cancel": "取消",
+    "cancelSuccess": "订阅已取消",
+    "couldNotCancel": "无法取消订阅。",
+    "couldNotLoad": "无法加载订阅信息。",
+    "couldNotPause": "无法暂停订阅。",
+    "couldNotResume": "无法恢复订阅。",
+    "couldNotSkip": "无法跳过此次清洁。",
+    "description": "管理您的定期清洁服务。",
+    "nextCleaning": "下次清洁",
+    "noSubsDesc": "设置定期清洁，每次预约都可省钱。",
+    "noSubsTitle": "暂无订阅",
+    "pause": "暂停",
+    "pauseSuccess": "订阅已暂停",
+    "resume": "恢复",
+    "resumeSuccess": "订阅已恢复",
+    "skipNext": "跳过下一次",
+    "skipSuccess": "已跳过下次清洁",
+    "statusActive": "使用中",
+    "statusPaused": "已暂停",
+    "title": "订阅"
   }
 }

@@ -176,7 +176,22 @@
     },
     "payment": {
       "title": "الدفع",
-      "secure": "دفعتك مؤمّنة عبر Stripe."
+      "secure": "دفعتك مؤمّنة عبر Stripe.",
+      "billingAddress": "عنوان الفواتير",
+      "cardNotCharged": "لن يتم خصم المبلغ من بطاقتك حتى يؤكد أحد المنظفين حجزك. يمكنك الإلغاء مجانًا حتى 24 ساعة قبل الموعد.",
+      "demoMode": "وضع تجريبي",
+      "detailsSecure": "يتم جمع بيانات الدفع بأمان عبر Stripe Elements",
+      "firstCleanTotal": "إجمالي التنظيف الأول",
+      "included": "مُدرَج",
+      "orderSummary": "ملخص الطلب",
+      "payButton": "ادفع {{amount}}",
+      "recurringCadence": "تكرار {{cadence}}",
+      "satisfactionGuarantee": "ضمان الرضا",
+      "securedByStripe": "مؤمَّن بواسطة Stripe",
+      "subscription": "اشتراك {{cadence}}",
+      "subscriptionPrice": "{{price}} لكل تنظيف — وفّر {{savings}} في كل مرة",
+      "subtitle": "جميع الأسعار شاملة. بدون رسوم مفاجئة.",
+      "total": "الإجمالي"
     }
   },
   "bookings": {
@@ -278,7 +293,8 @@
       "maxJobsPerDay": "الحد الأقصى للوظائف / اليوم",
       "maxDistance": "المسافة القصوى (أميال)",
       "preferredServiceTypes": "أنواع الخدمات المفضّلة",
-      "acceptLastMinute": "قبول الحجوزات العاجلة"
+      "acceptLastMinute": "قبول الحجوزات العاجلة",
+      "jobPreferences": "تفضيلات العمل"
     },
     "notifications": {
       "title": "الإشعارات",
@@ -301,7 +317,15 @@
       "checkIn": "تسجيل الحضور",
       "checkOut": "تسجيل المغادرة",
       "beforePhotos": "صور قبل التنظيف",
-      "afterPhotos": "صور بعد التنظيف"
+      "afterPhotos": "صور بعد التنظيف",
+      "steps": {
+        "arrived": "وصل",
+        "awaiting_checkout": "جارٍ الإنهاء",
+        "completed": "مكتمل",
+        "confirmed": "مؤكَّد",
+        "en_route": "في الطريق",
+        "in_progress": "قيد التنفيذ"
+      }
     },
     "earnings": {
       "title": "الأرباح",
@@ -412,5 +436,42 @@
     "ar": "العربية",
     "pt": "Português",
     "hi": "हिन्दी"
+  },
+  "serviceTypes": {
+    "deep": "تنظيف عميق",
+    "light": "تنظيف خفيف",
+    "move_in_out": "تنظيف الانتقال (دخول/خروج)",
+    "post_construction": "تنظيف ما بعد البناء",
+    "recurring": "تنظيف متكرر",
+    "standard": "تنظيف قياسي",
+    "vacation_rental": "تنظيف عقار إيجار العطلات"
+  },
+  "subscriptions": {
+    "bookRecurring": "احجز تنظيفًا متكررًا",
+    "cadence": {
+      "biweekly": "كل أسبوعين",
+      "monthly": "شهريًا",
+      "weekly": "أسبوعيًا"
+    },
+    "cancel": "إلغاء",
+    "cancelSuccess": "تم إلغاء الاشتراك",
+    "couldNotCancel": "تعذّر إلغاء الاشتراك.",
+    "couldNotLoad": "تعذّر تحميل الاشتراكات.",
+    "couldNotPause": "تعذّر إيقاف الاشتراك مؤقتًا.",
+    "couldNotResume": "تعذّر استئناف الاشتراك.",
+    "couldNotSkip": "تعذّر تخطي التنظيف.",
+    "description": "أدر عمليات التنظيف المتكررة الخاصة بك.",
+    "nextCleaning": "التنظيف القادم",
+    "noSubsDesc": "أنشئ تنظيفًا متكررًا ووفّر في كل زيارة.",
+    "noSubsTitle": "لا توجد اشتراكات بعد",
+    "pause": "إيقاف مؤقت",
+    "pauseSuccess": "تم إيقاف الاشتراك مؤقتًا",
+    "resume": "استئناف",
+    "resumeSuccess": "تم استئناف الاشتراك",
+    "skipNext": "تخطي التالي",
+    "skipSuccess": "تم تخطي التنظيف القادم",
+    "statusActive": "نشط",
+    "statusPaused": "متوقف مؤقتًا",
+    "title": "الاشتراكات"
   }
 }

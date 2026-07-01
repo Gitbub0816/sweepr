@@ -176,7 +176,22 @@
     },
     "payment": {
       "title": "Pagbabayad",
-      "secure": "Ang iyong pagbabayad ay sinigurado ng Stripe."
+      "secure": "Ang iyong pagbabayad ay sinigurado ng Stripe.",
+      "billingAddress": "Address para sa billing",
+      "cardNotCharged": "Hindi sisingilin ang iyong card hanggang sa kumpirmahin ng cleaner ang iyong booking. Libreng i-cancel hanggang 24 oras bago ang appointment.",
+      "demoMode": "Demo mode",
+      "detailsSecure": "Ang mga detalye ng bayad ay secure na kinokolekta sa pamamagitan ng Stripe Elements",
+      "firstCleanTotal": "Kabuuan ng unang paglilinis",
+      "included": "Kasama na",
+      "orderSummary": "Buod ng order",
+      "payButton": "Bayaran ang {{amount}}",
+      "recurringCadence": "Paulit-ulit na {{cadence}}",
+      "satisfactionGuarantee": "Garantiyang kasiyahan",
+      "securedByStripe": "Protektado ng Stripe",
+      "subscription": "Subscription na {{cadence}}",
+      "subscriptionPrice": "{{price}} bawat paglilinis — makatipid ng {{savings}} sa bawat pagkakataon",
+      "subtitle": "Lahat ng presyo ay all-inclusive. Walang bigla-biglang bayarin.",
+      "total": "Kabuuan"
     }
   },
   "bookings": {
@@ -278,7 +293,8 @@
       "maxJobsPerDay": "Max na trabaho / araw",
       "maxDistance": "Max na distansya (milya)",
       "preferredServiceTypes": "Mga Gustong Uri ng Serbisyo",
-      "acceptLastMinute": "Tanggapin ang mga last-minute na booking"
+      "acceptLastMinute": "Tanggapin ang mga last-minute na booking",
+      "jobPreferences": "Mga Kagustuhan sa Trabaho"
     },
     "notifications": {
       "title": "Mga Notification",
@@ -301,7 +317,15 @@
       "checkIn": "Check In",
       "checkOut": "Check Out",
       "beforePhotos": "Mga larawan bago",
-      "afterPhotos": "Mga larawan pagkatapos"
+      "afterPhotos": "Mga larawan pagkatapos",
+      "steps": {
+        "arrived": "Dumating na",
+        "awaiting_checkout": "Tinatapos na",
+        "completed": "Tapos na",
+        "confirmed": "Nakumpirma",
+        "en_route": "Papunta na",
+        "in_progress": "Kasalukuyang Ginagawa"
+      }
     },
     "earnings": {
       "title": "Kita",
@@ -412,5 +436,42 @@
     "ar": "العربية",
     "pt": "Português",
     "hi": "हिन्दी"
+  },
+  "serviceTypes": {
+    "deep": "Deep Clean",
+    "light": "Light Clean",
+    "move_in_out": "Paglipat (Move-in / Move-out)",
+    "post_construction": "Paglilinis Pagkatapos ng Konstruksiyon",
+    "recurring": "Paulit-ulit na Paglilinis",
+    "standard": "Standard Clean",
+    "vacation_rental": "Turnover ng Vacation Rental"
+  },
+  "subscriptions": {
+    "bookRecurring": "Mag-book ng paulit-ulit na paglilinis",
+    "cadence": {
+      "biweekly": "Tuwing ikalawang linggo",
+      "monthly": "Buwanan",
+      "weekly": "Lingguhan"
+    },
+    "cancel": "Kanselahin",
+    "cancelSuccess": "Nakansela ang subscription",
+    "couldNotCancel": "Hindi makansela ang subscription.",
+    "couldNotLoad": "Hindi ma-load ang mga subscription.",
+    "couldNotPause": "Hindi ma-pause ang subscription.",
+    "couldNotResume": "Hindi maipagpatuloy ang subscription.",
+    "couldNotSkip": "Hindi ma-skip ang paglilinis.",
+    "description": "Pamahalaan ang iyong mga paulit-ulit na paglilinis.",
+    "nextCleaning": "Susunod na paglilinis",
+    "noSubsDesc": "Mag-set up ng paulit-ulit na paglilinis at makatipid sa bawat pagbisita.",
+    "noSubsTitle": "Wala pang subscription",
+    "pause": "I-pause",
+    "pauseSuccess": "Na-pause ang subscription",
+    "resume": "Ipagpatuloy",
+    "resumeSuccess": "Naipagpatuloy ang subscription",
+    "skipNext": "Laktawan ang susunod",
+    "skipSuccess": "Nalaktawan ang susunod na paglilinis",
+    "statusActive": "Aktibo",
+    "statusPaused": "Naka-pause",
+    "title": "Mga Subscription"
   }
 }

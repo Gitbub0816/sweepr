@@ -52,11 +52,11 @@
     "phoneNotEnabled": "O login por telefone não está habilitado para esta conta.",
     "oauthFailed": "Falha no login com OAuth.",
     "signInFailed": "Falha ao entrar. Verifique suas credenciais.",
-    "firstTimeSweeping": "Primeira vez usando nosso serviço?",
-    "readyToJoin": "Pronto para entrar no time?",
+    "firstTimeSweeping": "Primeira vez usando o Sweepr?",
+    "readyToJoin": "Pronto para entrar na equipe?",
     "noProAccount": "Nenhuma conta Pro encontrada para esse e-mail.",
     "applyInstead": "Candidatar-se em vez disso →",
-    "orContinueWith": "ou continuar com",
+    "orContinueWith": "ou continue com",
     "agree": "Ao continuar, você concorda com nossos",
     "termsOfService": "Termos de Serviço",
     "privacyPolicy": "Política de Privacidade",
@@ -89,7 +89,7 @@
     "bookAgain": "Agendar novamente",
     "rebook": "Reagendar",
     "bookACleaning": "Agendar uma limpeza",
-    "getAnInstantQuote": "Obter orçamento instantâneo"
+    "getAnInstantQuote": "Obter um orçamento instantâneo"
   },
   "booking": {
     "address": {
@@ -98,14 +98,14 @@
       "label": "Endereço, cidade ou CEP",
       "placeholder": "Ex.: Rua das Flores, 123, São Paulo, ou 01310-100",
       "outOfAreaTitle": "Ainda não estamos na sua região.",
-      "outOfAreaBody": "Sweepr está disponível atualmente em CA, TX, FL, NY, WA e CO. Deixe seu e-mail e avisaremos assim que chegarmos perto de você."
+      "outOfAreaBody": "O Sweepr está disponível atualmente em CA, TX, FL, NY, WA e CO. Deixe seu e-mail e avisaremos assim que chegarmos perto de você."
     },
     "home": {
       "title": "Conte-nos sobre sua casa",
-      "subtitle": "Isso nos ajuda a encontrar o profissional certo e fazer um orçamento preciso.",
+      "subtitle": "Isso nos ajuda a combinar você com o profissional certo e fazer um orçamento preciso.",
       "bedrooms": "Quartos",
       "bathrooms": "Banheiros",
-      "sqft": "Metragem (pés quadrados)",
+      "sqft": "Metragem quadrada",
       "homeType": "Tipo de imóvel",
       "hasPets": "Tenho animais de estimação em casa",
       "apartment": "Apartamento",
@@ -116,21 +116,21 @@
     },
     "service": {
       "title": "Escolha seu serviço",
-      "subtitle": "Selecione o tipo de limpeza desejado e adicione serviços extras.",
+      "subtitle": "Selecione a limpeza que combina com você e depois adicione os extras que quiser.",
       "addOns": "Adicionais",
       "standard": "Limpeza Padrão",
-      "standardDesc": "Limpeza completa de rotina.",
+      "standardDesc": "Arrumação de rotina, de cima a baixo.",
       "deep": "Limpeza Profunda",
-      "deepDesc": "Limpeza detalhada e intensiva.",
-      "moveInOut": "Limpeza de Mudança",
-      "moveInOutDesc": "Limpeza completa de imóvel vazio.",
+      "deepDesc": "Renovação detalhada e intensiva.",
+      "moveInOut": "Entrada / Saída de Imóvel",
+      "moveInOutDesc": "Limpeza impecável de imóvel vazio.",
       "recurring": "Limpeza Recorrente",
       "recurringDesc": "Economize com planos semanais ou quinzenais.",
-      "perVisit": "/visit"
+      "perVisit": "/visita"
     },
     "schedule": {
-      "title": "Escolha a data e horário",
-      "subtitle": "Selecione o dia e o período que melhor funciona para você.",
+      "title": "Escolha a data e o horário",
+      "subtitle": "Escolha um dia e depois um período que funcione para você.",
       "makeSubscription": "Transformar em assinatura",
       "rushFeeApplied": "Taxa de urgência aplicada (+15%)",
       "morning": "manhã",
@@ -139,18 +139,18 @@
       "weekly": "Semanal",
       "biweekly": "Quinzenal",
       "monthly": "Mensal",
-      "perVisit": "/visit",
+      "perVisit": "/visita",
       "save": "Economize ${{amount}}"
     },
     "review": {
       "title": "Revise seu agendamento",
-      "subtitle": "Verifique se tudo está correto antes do pagamento.",
+      "subtitle": "Confira se tudo está correto antes do pagamento.",
       "address": "Endereço",
       "home": "Imóvel",
       "service": "Serviço",
       "scheduledFor": "Agendado para",
       "addOns": "Adicionais",
-      "notesLabel": "Observações para o profissional (opcional)",
+      "notesLabel": "Observações para o seu profissional (opcional)",
       "notesPlaceholder": "Código do portão, estacionamento, pets, áreas prioritárias…",
       "continueToPayment": "Ir para pagamento",
       "creatingBooking": "Criando agendamento…",
@@ -176,8 +176,51 @@
     },
     "payment": {
       "title": "Pagamento",
-      "secure": "Seu pagamento é processado com segurança pelo Stripe."
+      "subtitle": "Todos os preços já incluem tudo. Sem taxas surpresa.",
+      "secure": "Seu pagamento é protegido pelo Stripe.",
+      "orderSummary": "Resumo do pedido",
+      "included": "Incluído",
+      "firstCleanTotal": "Total da primeira limpeza",
+      "total": "Total",
+      "satisfactionGuarantee": "Garantia de satisfação",
+      "securedByStripe": "Protegido pelo Stripe",
+      "billingAddress": "Endereço de cobrança",
+      "demoMode": "Modo demonstração",
+      "detailsSecure": "Dados de pagamento coletados com segurança via Stripe Elements",
+      "payButton": "Pagar {{amount}}",
+      "cardNotCharged": "Seu cartão só será cobrado quando sua limpeza for confirmada por um profissional. Cancele gratuitamente até 24 horas antes do horário marcado.",
+      "subscription": "Assinatura {{cadence}}",
+      "subscriptionPrice": "{{price}} / limpeza — economize {{savings}} a cada vez",
+      "recurringCadence": "Recorrente {{cadence}}"
     }
+  },
+  "subscriptions": {
+    "title": "Assinaturas",
+    "description": "Gerencie suas limpezas recorrentes.",
+    "noSubsTitle": "Nenhuma assinatura ainda",
+    "noSubsDesc": "Configure uma limpeza recorrente e economize em cada visita.",
+    "bookRecurring": "Agendar uma limpeza recorrente",
+    "cadence": {
+      "weekly": "Semanal",
+      "biweekly": "Quinzenal",
+      "monthly": "Mensal"
+    },
+    "statusActive": "Ativa",
+    "statusPaused": "Pausada",
+    "nextCleaning": "Próxima limpeza",
+    "pause": "Pausar",
+    "resume": "Retomar",
+    "skipNext": "Pular próxima",
+    "cancel": "Cancelar",
+    "pauseSuccess": "Assinatura pausada",
+    "resumeSuccess": "Assinatura retomada",
+    "skipSuccess": "Próxima limpeza foi pulada",
+    "cancelSuccess": "Assinatura cancelada",
+    "couldNotLoad": "Não foi possível carregar as assinaturas.",
+    "couldNotPause": "Não foi possível pausar a assinatura.",
+    "couldNotResume": "Não foi possível retomar a assinatura.",
+    "couldNotSkip": "Não foi possível pular a limpeza.",
+    "couldNotCancel": "Não foi possível cancelar a assinatura."
   },
   "bookings": {
     "title": "Meus Agendamentos",
@@ -200,7 +243,7 @@
     "couldNotSubmitReview": "Não foi possível enviar sua avaliação. Tente novamente.",
     "tags": {
       "arrivedOnTime": "Chegou no horário",
-      "veryThorough": "Muito cuidadoso",
+      "veryThorough": "Muito minucioso",
       "greatCommunication": "Ótima comunicação",
       "leftHomeSpotless": "Deixou a casa impecável",
       "friendly": "Simpático"
@@ -211,7 +254,7 @@
   },
   "profile": {
     "title": "Perfil",
-    "description": "Gerencie sua conta, dados de contato e informações pessoais.",
+    "description": "Gerencie sua conta, dados de contato e informações.",
     "yourAccount": "Sua conta",
     "displayName": "Nome de exibição",
     "bio": "Biografia",
@@ -278,7 +321,8 @@
       "maxJobsPerDay": "Máx. de trabalhos / dia",
       "maxDistance": "Distância máxima (milhas)",
       "preferredServiceTypes": "Tipos de Serviço Preferidos",
-      "acceptLastMinute": "Aceitar agendamentos de última hora"
+      "acceptLastMinute": "Aceitar agendamentos de última hora",
+      "jobPreferences": "Preferências de Trabalho"
     },
     "notifications": {
       "title": "Notificações",
@@ -289,7 +333,7 @@
     },
     "jobs": {
       "title": "Quadro de Trabalhos",
-      "description": "Aceite os trabalhos que funcionam para você. Endereço completo disponível após aceitar.",
+      "description": "Aceite os trabalhos que funcionam para você. O endereço completo é liberado ao aceitar.",
       "lookingForJobs": "Procurando trabalhos próximos a você…",
       "noJobsTitle": "Nenhum trabalho disponível agora",
       "noJobsDesc": "Volte em breve — novas ofertas aparecem ao longo do dia.",
@@ -301,7 +345,15 @@
       "checkIn": "Fazer check-in",
       "checkOut": "Fazer check-out",
       "beforePhotos": "Fotos Antes",
-      "afterPhotos": "Fotos Depois"
+      "afterPhotos": "Fotos Depois",
+      "steps": {
+        "confirmed": "Confirmado",
+        "en_route": "A Caminho",
+        "arrived": "Chegou",
+        "in_progress": "Em Andamento",
+        "awaiting_checkout": "Finalizando",
+        "completed": "Concluído"
+      }
     },
     "earnings": {
       "title": "Ganhos",
@@ -331,21 +383,21 @@
       "markComplete": "Marcar como concluído",
       "keepReading": "Continue lendo…",
       "nextLesson": "Próxima aula",
-      "takeQuiz": "Fazer quiz",
-      "quizPassed": "Quiz aprovado ✓",
+      "takeQuiz": "Fazer o teste",
+      "quizPassed": "Teste aprovado ✓",
       "moduleComplete": "Módulo Concluído!",
       "notQuiteTitle": "Quase lá",
-      "youPassed": "Você passou em {{title}}.",
+      "youPassed": "Você foi aprovado em {{title}}.",
       "needScore": "Você precisa de {{score}}% para passar.",
       "attemptsRemaining": "tentativas restantes",
-      "questionOf": "Questão {{current}} de {{total}}",
-      "passAttempt": "Aprovado: {{score}}% · Tentativa {{current}} de {{total}}",
-      "submitQuiz": "Enviar quiz",
-      "reviewAnswers": "Revisar suas respostas",
+      "questionOf": "Pergunta {{current}} de {{total}}",
+      "passAttempt": "Aprovação: {{score}}% · Tentativa {{current}} de {{total}}",
+      "submitQuiz": "Enviar teste",
+      "reviewAnswers": "Revise suas respostas",
       "yourAnswer": "Sua resposta:",
       "correct": "Correto:",
       "backToAcademy": "Voltar à Academia",
-      "retryQuiz": "Refazer quiz"
+      "retryQuiz": "Refazer o teste"
     },
     "performance": {
       "title": "Desempenho",
@@ -357,8 +409,17 @@
     },
     "profile": {
       "title": "Perfil",
-      "description": "Gerencie seu perfil, dados de contato e informações pessoais."
+      "description": "Gerencie seu perfil, dados de contato e informações."
     }
+  },
+  "serviceTypes": {
+    "light": "Limpeza Leve",
+    "standard": "Limpeza Padrão",
+    "deep": "Limpeza Profunda",
+    "move_in_out": "Entrada / Saída de Imóvel",
+    "recurring": "Limpeza Recorrente",
+    "post_construction": "Limpeza Pós-Obra",
+    "vacation_rental": "Rotatividade de Aluguel por Temporada"
   },
   "onboarding": {
     "individual": "Pessoa Física",
@@ -391,7 +452,7 @@
   },
   "errors": {
     "required": "Este campo é obrigatório",
-    "invalidEmail": "Por favor, insira um endereço de e-mail válido",
+    "invalidEmail": "Insira um endereço de e-mail válido",
     "network": "Erro de rede. Verifique sua conexão.",
     "generic": "Algo deu errado. Tente novamente.",
     "couldNotLoad": "Não foi possível carregar os dados.",

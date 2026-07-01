@@ -176,7 +176,22 @@
     },
     "payment": {
       "title": "भुगतान",
-      "secure": "आपका भुगतान Stripe द्वारा सुरक्षित है।"
+      "secure": "आपका भुगतान Stripe द्वारा सुरक्षित है।",
+      "billingAddress": "बिलिंग पता",
+      "cardNotCharged": "आपके कार्ड से तब तक शुल्क नहीं लिया जाएगा जब तक कोई क्लीनर आपकी बुकिंग की पुष्टि नहीं करता। अपॉइंटमेंट से 24 घंटे पहले तक मुफ़्त में रद्द करें।",
+      "demoMode": "डेमो मोड",
+      "detailsSecure": "भुगतान विवरण Stripe Elements के ज़रिए सुरक्षित रूप से एकत्र किए जाते हैं",
+      "firstCleanTotal": "पहली सफाई का कुल",
+      "included": "शामिल",
+      "orderSummary": "ऑर्डर सारांश",
+      "payButton": "{{amount}} का भुगतान करें",
+      "recurringCadence": "{{cadence}} दोहराव",
+      "satisfactionGuarantee": "संतुष्टि की गारंटी",
+      "securedByStripe": "Stripe द्वारा सुरक्षित",
+      "subscription": "{{cadence}} सब्सक्रिप्शन",
+      "subscriptionPrice": "{{price}} प्रति सफाई — हर बार {{savings}} की बचत",
+      "subtitle": "सभी कीमतें सब कुछ शामिल हैं। कोई छिपा हुआ शुल्क नहीं।",
+      "total": "कुल"
     }
   },
   "bookings": {
@@ -278,7 +293,8 @@
       "maxJobsPerDay": "प्रति दिन अधिकतम काम",
       "maxDistance": "अधिकतम दूरी (मील)",
       "preferredServiceTypes": "पसंदीदा सेवा प्रकार",
-      "acceptLastMinute": "अंतिम समय की बुकिंग स्वीकार करें"
+      "acceptLastMinute": "अंतिम समय की बुकिंग स्वीकार करें",
+      "jobPreferences": "काम की प्राथमिकताएं"
     },
     "notifications": {
       "title": "सूचनाएं",
@@ -301,7 +317,15 @@
       "checkIn": "चेक इन",
       "checkOut": "चेक आउट",
       "beforePhotos": "पहले की तस्वीरें",
-      "afterPhotos": "बाद की तस्वीरें"
+      "afterPhotos": "बाद की तस्वीरें",
+      "steps": {
+        "arrived": "पहुंच गए",
+        "awaiting_checkout": "पूरा किया जा रहा है",
+        "completed": "पूर्ण",
+        "confirmed": "पुष्ट",
+        "en_route": "रास्ते में",
+        "in_progress": "प्रगति पर है"
+      }
     },
     "earnings": {
       "title": "आमदनी",
@@ -412,5 +436,42 @@
     "ar": "العربية",
     "pt": "Português",
     "hi": "हिन्दी"
+  },
+  "serviceTypes": {
+    "deep": "गहरी सफाई",
+    "light": "हल्की सफाई",
+    "move_in_out": "मूव-इन / मूव-आउट सफाई",
+    "post_construction": "निर्माण-पश्चात सफाई",
+    "recurring": "दोहराई जाने वाली सफाई",
+    "standard": "मानक सफाई",
+    "vacation_rental": "वेकेशन रेंटल टर्नओवर"
+  },
+  "subscriptions": {
+    "bookRecurring": "दोहराई जाने वाली सफाई बुक करें",
+    "cadence": {
+      "biweekly": "पाक्षिक",
+      "monthly": "मासिक",
+      "weekly": "साप्ताहिक"
+    },
+    "cancel": "रद्द करें",
+    "cancelSuccess": "सब्सक्रिप्शन रद्द कर दिया गया",
+    "couldNotCancel": "सब्सक्रिप्शन रद्द नहीं किया जा सका।",
+    "couldNotLoad": "सब्सक्रिप्शन लोड नहीं हो सके।",
+    "couldNotPause": "सब्सक्रिप्शन रोका नहीं जा सका।",
+    "couldNotResume": "सब्सक्रिप्शन फिर से शुरू नहीं किया जा सका।",
+    "couldNotSkip": "सफाई स्किप नहीं की जा सकी।",
+    "description": "अपनी दोहराई जाने वाली सफाइयों को प्रबंधित करें।",
+    "nextCleaning": "अगली सफाई",
+    "noSubsDesc": "एक दोहराई जाने वाली सफाई सेट करें और हर विज़िट पर बचत करें।",
+    "noSubsTitle": "अभी तक कोई सब्सक्रिप्शन नहीं",
+    "pause": "रोकें",
+    "pauseSuccess": "सब्सक्रिप्शन रोक दिया गया",
+    "resume": "फिर से शुरू करें",
+    "resumeSuccess": "सब्सक्रिप्शन फिर से शुरू हो गया",
+    "skipNext": "अगला स्किप करें",
+    "skipSuccess": "अगली सफाई स्किप कर दी गई",
+    "statusActive": "सक्रिय",
+    "statusPaused": "रोका गया",
+    "title": "सब्सक्रिप्शन"
   }
 }

@@ -176,7 +176,22 @@
     },
     "payment": {
       "title": "付款",
-      "secure": "您的付款由 Stripe 安全保障。"
+      "secure": "您的付款由 Stripe 安全保障。",
+      "billingAddress": "帳單地址",
+      "cardNotCharged": "在清潔人員確認您的預約之前，不會向您的信用卡扣款。預約前 24 小時內可免費取消。",
+      "demoMode": "示範模式",
+      "detailsSecure": "付款資訊透過 Stripe Elements 安全收集",
+      "firstCleanTotal": "首次清潔總額",
+      "included": "已包含",
+      "orderSummary": "訂單摘要",
+      "payButton": "支付 {{amount}}",
+      "recurringCadence": "{{cadence}}週期性付款",
+      "satisfactionGuarantee": "滿意保證",
+      "securedByStripe": "由 Stripe 提供安全保障",
+      "subscription": "{{cadence}}訂閱",
+      "subscriptionPrice": "每次清潔 {{price}} — 每次節省 {{savings}}",
+      "subtitle": "所有價格均為全包價，無隱藏費用。",
+      "total": "總計"
     }
   },
   "bookings": {
@@ -278,7 +293,8 @@
       "maxJobsPerDay": "每天最多接單數",
       "maxDistance": "最大距離（英里）",
       "preferredServiceTypes": "偏好的服務類型",
-      "acceptLastMinute": "接受臨時預約"
+      "acceptLastMinute": "接受臨時預約",
+      "jobPreferences": "工作偏好"
     },
     "notifications": {
       "title": "通知",
@@ -301,7 +317,15 @@
       "checkIn": "簽到",
       "checkOut": "簽退",
       "beforePhotos": "清潔前照片",
-      "afterPhotos": "清潔後照片"
+      "afterPhotos": "清潔後照片",
+      "steps": {
+        "arrived": "已抵達",
+        "awaiting_checkout": "即將完成",
+        "completed": "已完成",
+        "confirmed": "已確認",
+        "en_route": "前往中",
+        "in_progress": "進行中"
+      }
     },
     "earnings": {
       "title": "收入",
@@ -412,5 +436,42 @@
     "ar": "العربية",
     "pt": "Português",
     "hi": "हिन्दी"
+  },
+  "serviceTypes": {
+    "deep": "深度清潔",
+    "light": "輕度清潔",
+    "move_in_out": "搬入/搬出清潔",
+    "post_construction": "裝修後清潔",
+    "recurring": "定期清潔",
+    "standard": "標準清潔",
+    "vacation_rental": "度假租賃換客清潔"
+  },
+  "subscriptions": {
+    "bookRecurring": "預約定期清潔",
+    "cadence": {
+      "biweekly": "每兩週",
+      "monthly": "每月",
+      "weekly": "每週"
+    },
+    "cancel": "取消",
+    "cancelSuccess": "訂閱已取消",
+    "couldNotCancel": "無法取消訂閱。",
+    "couldNotLoad": "無法載入訂閱資訊。",
+    "couldNotPause": "無法暫停訂閱。",
+    "couldNotResume": "無法恢復訂閱。",
+    "couldNotSkip": "無法略過此次清潔。",
+    "description": "管理您的定期清潔服務。",
+    "nextCleaning": "下次清潔",
+    "noSubsDesc": "設定定期清潔，每次預約都能省錢。",
+    "noSubsTitle": "尚無訂閱",
+    "pause": "暫停",
+    "pauseSuccess": "訂閱已暫停",
+    "resume": "恢復",
+    "resumeSuccess": "訂閱已恢復",
+    "skipNext": "略過下一次",
+    "skipSuccess": "已略過下次清潔",
+    "statusActive": "使用中",
+    "statusPaused": "已暫停",
+    "title": "訂閱"
   }
 }

@@ -176,7 +176,22 @@
     },
     "payment": {
       "title": "결제",
-      "secure": "결제 정보는 Stripe에 의해 안전하게 처리됩니다."
+      "secure": "결제 정보는 Stripe에 의해 안전하게 처리됩니다.",
+      "billingAddress": "청구지 주소",
+      "cardNotCharged": "청소 전문가가 예약을 확정할 때까지 카드로 결제되지 않습니다. 예약 24시간 전까지 무료로 취소할 수 있습니다.",
+      "demoMode": "데모 모드",
+      "detailsSecure": "결제 정보는 Stripe Elements를 통해 안전하게 수집됩니다",
+      "firstCleanTotal": "첫 청소 총액",
+      "included": "포함됨",
+      "orderSummary": "주문 요약",
+      "payButton": "{{amount}} 결제하기",
+      "recurringCadence": "{{cadence}} 정기 결제",
+      "satisfactionGuarantee": "만족 보장",
+      "securedByStripe": "Stripe로 안전하게 보호됨",
+      "subscription": "{{cadence}} 구독",
+      "subscriptionPrice": "청소 1회당 {{price}} — 매번 {{savings}} 절약",
+      "subtitle": "모든 가격은 추가 비용 없이 전부 포함되어 있습니다.",
+      "total": "합계"
     }
   },
   "bookings": {
@@ -278,7 +293,8 @@
       "maxJobsPerDay": "하루 최대 업무 수",
       "maxDistance": "최대 거리(마일)",
       "preferredServiceTypes": "선호 서비스 유형",
-      "acceptLastMinute": "긴급 예약 수락"
+      "acceptLastMinute": "긴급 예약 수락",
+      "jobPreferences": "작업 선호도"
     },
     "notifications": {
       "title": "알림",
@@ -301,7 +317,15 @@
       "checkIn": "체크인",
       "checkOut": "체크아웃",
       "beforePhotos": "청소 전 사진",
-      "afterPhotos": "청소 후 사진"
+      "afterPhotos": "청소 후 사진",
+      "steps": {
+        "arrived": "도착함",
+        "awaiting_checkout": "마무리 중",
+        "completed": "완료됨",
+        "confirmed": "확정됨",
+        "en_route": "이동 중",
+        "in_progress": "진행 중"
+      }
     },
     "earnings": {
       "title": "수입",
@@ -412,5 +436,42 @@
     "ar": "العربية",
     "pt": "Português",
     "hi": "हिन्दी"
+  },
+  "serviceTypes": {
+    "deep": "딥 클린",
+    "light": "라이트 클린",
+    "move_in_out": "입주/이사 청소",
+    "post_construction": "공사 후 청소",
+    "recurring": "정기 청소",
+    "standard": "기본 청소",
+    "vacation_rental": "휴가용 임대 회전 청소"
+  },
+  "subscriptions": {
+    "bookRecurring": "정기 청소 예약하기",
+    "cadence": {
+      "biweekly": "격주",
+      "monthly": "매월",
+      "weekly": "매주"
+    },
+    "cancel": "취소",
+    "cancelSuccess": "구독이 취소되었습니다",
+    "couldNotCancel": "구독을 취소할 수 없습니다.",
+    "couldNotLoad": "구독 정보를 불러올 수 없습니다.",
+    "couldNotPause": "구독을 일시중지할 수 없습니다.",
+    "couldNotResume": "구독을 재개할 수 없습니다.",
+    "couldNotSkip": "청소를 건너뛸 수 없습니다.",
+    "description": "정기 청소를 관리하세요.",
+    "nextCleaning": "다음 청소",
+    "noSubsDesc": "정기 청소를 설정하고 방문마다 절약하세요.",
+    "noSubsTitle": "아직 구독이 없습니다",
+    "pause": "일시중지",
+    "pauseSuccess": "구독이 일시중지되었습니다",
+    "resume": "재개",
+    "resumeSuccess": "구독이 재개되었습니다",
+    "skipNext": "다음 회차 건너뛰기",
+    "skipSuccess": "다음 청소가 건너뛰어졌습니다",
+    "statusActive": "활성",
+    "statusPaused": "일시중지됨",
+    "title": "구독"
   }
 }
