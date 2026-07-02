@@ -324,7 +324,9 @@ export function OnboardingPage() {
         // Allow continuing once Checkr invitation was sent (pending = check in progress)
         return checkrStatus === "submitted" || checkrStatus === "pending";
       case "Identity":
-        return diditStatus === "submitted" || diditStatus === "pending";
+        // Only a confirmed Didit approval (webhook → "approved" → "submitted") unlocks Next.
+        // "pending" = applicant redirected to Didit but hasn't finished — must not pass.
+        return diditStatus === "submitted";
       case "Review":
         return form.certifyAccurate && form.agreeIC;
       default:
@@ -347,9 +349,16 @@ export function OnboardingPage() {
         });
         if (!res.ok) return;
         const data = (await res.json()) as { status?: string };
-        if (data.status === "approved") setDiditStatus("submitted");
-        else if (data.status === "pending" || data.status === "in_review")
-          setDiditStatus("pending");
+        // Only a genuine Didit "approved" decision unlocks the step.
+        // "pending" / "in_review" keep the button disabled so the applicant
+        // must complete the actual Didit flow before proceeding.
+        if (data.status === "approved") {
+          setDiditStatus("submitted");
+        } else if (data.status === "pending" || data.status === "in_review") {
+          setDiditStatus("pending"); // shows waiting UI, Next stays locked
+        } else if (data.status === "declined" || data.status === "expired") {
+          setDiditStatus("idle"); // allow retry
+        }
       } catch {
         // ignore — show the start button
       }
@@ -1050,19 +1059,36 @@ function StepIdentity({
           sees or stores your ID images.
         </p>
       </div>
-      {status === "submitted" || status === "pending" ? (
+
+      {status === "submitted" && (
+        // Only reachable when Didit webhook confirmed "approved".
         <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300">
-          <CheckCircle2 className="h-5 w-5" />
-          {status === "pending"
-            ? "Identity verification in review."
-            : "Identity verification submitted."}
+          <CheckCircle2 className="h-5 w-5 shrink-0" />
+          Identity verified. You can continue.
         </div>
-      ) : (
-        <Button
-          fullWidth
-          onClick={onSubmit}
-          loading={status === "submitting"}
-        >
+      )}
+
+      {status === "pending" && (
+        // Applicant started Didit but verification is not yet confirmed.
+        // Next is locked — they must complete the Didit flow first.
+        <div className="space-y-3">
+          <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
+            <div>
+              <p className="font-semibold">Verification in progress</p>
+              <p className="mt-0.5 font-normal text-amber-700 dark:text-amber-400">
+                Complete your identity check on Didit's portal, then return here. The Next button will unlock once your identity is confirmed.
+              </p>
+            </div>
+          </div>
+          <Button fullWidth variant="secondary" onClick={onSubmit}>
+            Return to Didit →
+          </Button>
+        </div>
+      )}
+
+      {(status === "idle" || status === "submitting") && (
+        <Button fullWidth onClick={onSubmit} loading={status === "submitting"}>
           Start identity verification →
         </Button>
       )}
