@@ -115,22 +115,26 @@ export const diditWebhookRouter = new Hono<AppBindings>();
 
 diditWebhookRouter.post("/", async (c) => {
   const rawBody = await c.req.text();
-  const sig =
-    c.req.header("x-signature") ?? c.req.header("x-didit-signature") ?? "";
+
+  // V3 uses X-Signature-V2 (canonicalised HMAC) + X-Timestamp (freshness).
+  const sigV2 = c.req.header("x-signature-v2") ?? "";
+  const timestamp = c.req.header("x-timestamp") ?? "";
 
   if (c.env.DIDIT_WEBHOOK_SECRET) {
     const valid = await verifyDiditSignature(
       rawBody,
-      sig,
-      c.env.DIDIT_WEBHOOK_SECRET
+      sigV2,
+      c.env.DIDIT_WEBHOOK_SECRET,
+      timestamp
     );
     if (!valid) {
-      logger.warn("Didit webhook: invalid signature");
+      logger.warn("Didit webhook: invalid signature or stale timestamp");
       return c.json({ error: "Invalid signature" }, 401);
     }
   }
 
   let payload: {
+    event_id?: string;
     session_id?: string;
     status?: string;
     vendor_data?: string;
@@ -153,9 +157,10 @@ diditWebhookRouter.post("/", async (c) => {
     WHERE didit_verification_id = ${sessionId}
   `;
 
-  logger.info("Didit webhook processed", { sessionId, status });
+  logger.info("Didit webhook processed", { sessionId, status, raw: payload.status });
   serverTrack(c.env, payload.vendor_data ?? sessionId, "didit_decision", {
     status,
+    raw_status: payload.status,
   });
 
   return c.json({ received: true });
