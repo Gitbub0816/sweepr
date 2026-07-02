@@ -242,6 +242,7 @@ export function BookingDetailPage() {
   const isActive =
     currentIdx >= 0 && booking.status !== "completed";
   const needsReview = booking.status === "completed_pending_review";
+  const canReview = needsReview || booking.status === "completed";
 
   // In-progress mock completion estimate.
   const durationMin = 120;
@@ -310,17 +311,19 @@ export function BookingDetailPage() {
             </Card>
           )}
 
-          {needsReview && (
-            <Card className="flex items-center justify-between bg-seafoam-50 dark:bg-seafoam-900/20">
+          {canReview && (
+            <Card className={`flex items-center justify-between ${needsReview ? "bg-seafoam-50 dark:bg-seafoam-900/20" : "bg-slate-50 dark:bg-slate-800/40"}`}>
               <div>
                 <h2 className="text-sm font-semibold text-charcoal dark:text-white">
-                  Complete — rate your clean
+                  {needsReview ? "Complete — rate your clean" : "How did it go?"}
                 </h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Let us know how it went.
+                  {needsReview ? "Let us know how it went." : "Leave an optional rating for your cleaner."}
                 </p>
               </div>
-              <Button onClick={() => setReviewOpen(true)}>Leave a review</Button>
+              <Button variant={needsReview ? "primary" : "secondary"} onClick={() => setReviewOpen(true)}>
+                {needsReview ? "Leave a review" : "Rate"}
+              </Button>
             </Card>
           )}
 

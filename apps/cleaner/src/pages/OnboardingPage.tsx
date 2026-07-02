@@ -378,9 +378,9 @@ export function OnboardingPage() {
         window.location.href = data.url;
         return;
       }
-      // Stub mode (Didit not configured): session goes to manual admin review.
-      setDiditStatus("submitted");
-      toast.success("Identity verification submitted for review.");
+      // Stub mode (Didit not configured): surface an error so the flow doesn't falsely succeed.
+      setDiditStatus("idle");
+      toast.error("Identity verification is not available right now. Please contact support.");
     } catch {
       setDiditStatus("idle");
       toast.error("Could not submit. Try again.");

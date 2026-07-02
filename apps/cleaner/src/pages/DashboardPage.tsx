@@ -397,7 +397,9 @@ function ScheduleTab() {
   const { data: blocked, loading: loadingBlocked, reload: reloadBlocked } =
     useApi<{ dates: BlockedDate[] }>("/cleaner-dashboard/blocked-dates");
 
-  const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
+  const [slots, setSlots] = useState<AvailabilitySlot[]>(() =>
+    DAYS.map((_, i) => ({ day_of_week: i, start_time: "08:00", end_time: "18:00", active: false }))
+  );
   const [saving, setSaving] = useState(false);
   const [newBlock, setNewBlock] = useState("");
   const [blockReason, setBlockReason] = useState("");
@@ -405,12 +407,10 @@ function ScheduleTab() {
 
   useEffect(() => {
     if (avail?.slots) {
-      // Fill all 7 days
-      const filled = DAYS.map((_, i) => {
+      setSlots(DAYS.map((_, i) => {
         const existing = avail.slots.find((s) => s.day_of_week === i);
         return existing ?? { day_of_week: i, start_time: "08:00", end_time: "18:00", active: false };
-      });
-      setSlots(filled);
+      }));
     }
   }, [avail]);
 
@@ -644,12 +644,15 @@ interface PerformanceStats {
   onTimeRate: number;
   disputeRate: number;
   tier: string;
-  tierProgress: number; // 0-100% towards next tier
+  tierProgress: number;
   nextTier: string | null;
   thisMonthJobs: number;
+  totalJobs: number;
   acceptanceRate: number;
   recentReviews: { rating: number; comment: string | null; created_at: string }[];
 }
+
+const JOB_MILESTONES = [1, 5, 10, 25, 50, 100, 250, 500];
 
 function PerformanceTab() {
   const { data, loading } = useApi<PerformanceStats>("/cleaner-dashboard/performance-stats");
@@ -657,13 +660,23 @@ function PerformanceTab() {
   if (loading) return <div className="animate-pulse h-64 bg-slate-100 rounded-xl" />;
   if (!data) return null;
 
+  const jobCount = data.thisMonthJobs ?? 0;
+  const totalJobs = data.totalJobs ?? 0;
+  const isNewCleaner = totalJobs === 0;
+
+  // Milestone progress
+  const nextMilestone = JOB_MILESTONES.find((m) => m > totalJobs) ?? JOB_MILESTONES[JOB_MILESTONES.length - 1];
+  const prevMilestone = [...JOB_MILESTONES].reverse().find((m) => m <= totalJobs) ?? 0;
+  const milestoneProgress = nextMilestone === prevMilestone ? 100
+    : Math.round(((totalJobs - prevMilestone) / (nextMilestone - prevMilestone)) * 100);
+
   return (
     <div className="space-y-6">
-      {/* Tier card */}
+      {/* Tier / hero card */}
       <div className="rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-violet-50 p-6">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-1">
           <div>
-            <p className="text-xs text-indigo-500 font-medium uppercase tracking-wide">Current Tier</p>
+            <p className="text-xs text-indigo-500 font-medium uppercase tracking-wide">Tier</p>
             <p className="text-2xl font-bold text-indigo-800 capitalize">{data.tier}</p>
           </div>
           <div className="rounded-full bg-indigo-100 p-3">
@@ -672,11 +685,8 @@ function PerformanceTab() {
         </div>
         {data.nextTier && (
           <>
-            <div className="h-2 rounded-full bg-indigo-100 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-indigo-500 transition-all"
-                style={{ width: `${Math.min(data.tierProgress, 100)}%` }}
-              />
+            <div className="h-2 rounded-full bg-indigo-100 overflow-hidden mt-3">
+              <div className="h-full rounded-full bg-indigo-500 transition-all" style={{ width: `${Math.min(data.tierProgress, 100)}%` }} />
             </div>
             <p className="text-xs text-indigo-500 mt-1.5">
               {data.tierProgress.toFixed(0)}% towards <span className="font-medium capitalize">{data.nextTier}</span>
@@ -685,47 +695,83 @@ function PerformanceTab() {
         )}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Completion Rate" value={`${data.completionRate.toFixed(1)}%`} icon={CheckCircle2} />
-        <StatCard label="On-Time Rate"    value={`${data.onTimeRate.toFixed(1)}%`}    icon={Clock} />
-        <StatCard label="Acceptance Rate" value={`${data.acceptanceRate.toFixed(1)}%`} icon={Briefcase} />
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-500">Avg Rating</span>
-            <div className="flex items-center gap-1">
-              {[1,2,3,4,5].map((s) => (
-                <Star key={s} size={16} className={s <= Math.round(data.avgRating) ? "fill-yellow-400 text-yellow-400" : "text-slate-200"} />
-              ))}
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-slate-800 mt-2">{Number(data.avgRating).toFixed(1)}</p>
-          <p className="text-xs text-slate-400">{data.reviewCount} reviews</p>
+      {/* Milestone journey */}
+      <div className="rounded-xl border border-slate-200 p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-slate-800 flex items-center gap-2"><TrendingUp size={16} /> Jobs Milestone</h3>
+          <span className="text-sm font-bold text-indigo-600">{totalJobs} / {nextMilestone}</span>
         </div>
-        <div className="rounded-xl border border-slate-200 p-5">
-          <span className="text-sm text-slate-500">Dispute Rate</span>
-          <p className="text-3xl font-bold text-slate-800 mt-2">{data.disputeRate.toFixed(2)}%</p>
-          <p className="text-xs text-slate-400">Lower is better</p>
+        <div className="h-3 rounded-full bg-slate-100 overflow-hidden">
+          <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all" style={{ width: `${milestoneProgress}%` }} />
         </div>
-      </div>
-
-      {data.recentReviews.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="font-semibold text-slate-800">Recent Reviews</h3>
-          {data.recentReviews.map((r) => (
-            <div key={r.created_at} className="rounded-xl border border-slate-200 p-4">
-              <div className="flex items-center gap-1 mb-2">
-                {[1,2,3,4,5].map((s) => (
-                  <Star key={s} size={14} className={s <= r.rating ? "fill-yellow-400 text-yellow-400" : "text-slate-200"} />
-                ))}
-                <span className="text-xs text-slate-400 ml-2">{new Date(r.created_at).toLocaleDateString()}</span>
-              </div>
-              {r.comment && <p className="text-sm text-slate-600">"{r.comment}"</p>}
+        <div className="flex justify-between text-xs text-slate-400">
+          <span>{prevMilestone} jobs</span>
+          <span>{nextMilestone} jobs</span>
+        </div>
+        <div className="flex gap-2 flex-wrap mt-1">
+          {JOB_MILESTONES.map((m) => (
+            <div key={m} className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${totalJobs >= m ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-medium" : "border-slate-200 text-slate-400"}`}>
+              {totalJobs >= m ? <CheckCircle2 size={10} /> : null}{m}
             </div>
           ))}
         </div>
+      </div>
+
+      {isNewCleaner ? (
+        <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center space-y-2">
+          <div className="mx-auto w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center mb-3">
+            <Briefcase size={22} className="text-indigo-400" />
+          </div>
+          <p className="font-semibold text-slate-700">Complete your first job to unlock stats</p>
+          <p className="text-sm text-slate-400">Your completion rate, rating, and earnings breakdown will appear here once you're active.</p>
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <StatCard label="Completion Rate" value={`${data.completionRate.toFixed(1)}%`} icon={CheckCircle2} />
+            <StatCard label="On-Time Rate"    value={`${data.onTimeRate.toFixed(1)}%`}    icon={Clock} />
+            <StatCard label="Acceptance Rate" value={`${data.acceptanceRate.toFixed(1)}%`} icon={Briefcase} />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {data.reviewCount > 0 && (
+              <div className="rounded-xl border border-slate-200 p-5">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-500">Avg Rating</span>
+                  <div className="flex items-center gap-0.5">
+                    {[1,2,3,4,5].map((s) => (
+                      <Star key={s} size={14} className={s <= Math.round(data.avgRating) ? "fill-yellow-400 text-yellow-400" : "text-slate-200"} />
+                    ))}
+                  </div>
+                </div>
+                <p className="text-3xl font-bold text-slate-800 mt-2">{Number(data.avgRating).toFixed(1)}</p>
+                <p className="text-xs text-slate-400">{data.reviewCount} {data.reviewCount === 1 ? "review" : "reviews"}</p>
+              </div>
+            )}
+            <div className="rounded-xl border border-slate-200 p-5">
+              <span className="text-sm text-slate-500">Dispute Rate</span>
+              <p className="text-3xl font-bold text-slate-800 mt-2">{data.disputeRate.toFixed(2)}%</p>
+              <p className="text-xs text-slate-400">Lower is better</p>
+            </div>
+          </div>
+
+          {data.recentReviews.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="font-semibold text-slate-800">Customer Reviews</h3>
+              {data.recentReviews.map((r) => (
+                <div key={r.created_at} className="rounded-xl border border-slate-200 p-4">
+                  <div className="flex items-center gap-1 mb-2">
+                    {[1,2,3,4,5].map((s) => (
+                      <Star key={s} size={13} className={s <= r.rating ? "fill-yellow-400 text-yellow-400" : "text-slate-200"} />
+                    ))}
+                    <span className="text-xs text-slate-400 ml-2">{new Date(r.created_at).toLocaleDateString()}</span>
+                  </div>
+                  {r.comment && <p className="text-sm text-slate-600 italic">"{r.comment}"</p>}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

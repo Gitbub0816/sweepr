@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
-import { useSignIn } from "@clerk/clerk-react";
-import { useNavigate, Link } from "react-router-dom";
+import { useSignIn, useUser } from "@clerk/clerk-react";
+import { useNavigate, Navigate, Link } from "react-router-dom";
 import { Eye, EyeOff, UserPlus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SweeprLogo, ThemeToggle } from "@sweepr/ui";
@@ -12,8 +12,11 @@ type Method = "email" | "phone";
 
 export function SignInPage() {
   const { t } = useTranslation();
+  const { isSignedIn, isLoaded: userLoaded } = useUser();
   const { signIn, setActive, isLoaded } = useSignIn();
   const navigate = useNavigate();
+
+  if (userLoaded && isSignedIn) return <Navigate to="/" replace />;
 
   const [method, setMethod] = useState<Method>("email");
   const [email, setEmail] = useState("");

@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
-import { useSignUp, useSignIn } from "@clerk/clerk-react";
-import { useNavigate, Link } from "react-router-dom";
+import { useSignUp, useSignIn, useUser } from "@clerk/clerk-react";
+import { useNavigate, Navigate, Link } from "react-router-dom";
 import { Eye, EyeOff, LogIn } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SweeprLogo, ThemeToggle } from "@sweepr/ui";
@@ -13,9 +13,12 @@ type Stage = "form" | "code";
 
 export function SignUpPage() {
   const { t } = useTranslation();
+  const { isSignedIn, isLoaded: userLoaded } = useUser();
   const { signUp, setActive, isLoaded } = useSignUp();
   const { signIn } = useSignIn();
   const navigate = useNavigate();
+
+  if (userLoaded && isSignedIn) return <Navigate to="/" replace />;
 
   const [method, setMethod] = useState<Method>("email");
   const [stage, setStage] = useState<Stage>("form");

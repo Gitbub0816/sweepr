@@ -236,6 +236,7 @@ cleanerDashboardRouter.get("/performance-stats", async (c) => {
     nextTier,
     tierProgress,
     thisMonthJobs: doneJobs,
+    totalJobs,
     recentReviews: reviews,
   });
 });
