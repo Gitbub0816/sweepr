@@ -88,8 +88,9 @@ paymentsRouter.post(
       return c.json({ error: "Forbidden" }, 403);
     }
 
-    // Prevent paying for already-paid, cancelled, or refunded bookings.
-    if (["booked", "confirmed", "completed", "cancelled", "refunded"].includes(booking.status)) {
+    // Block payment only when the booking is already in a terminal or paid state.
+    // "booked" is the initial state and IS the correct state for first payment.
+    if (["completed", "cancelled", "refunded"].includes(booking.status)) {
       return c.json({ error: `Booking is already in '${booking.status}' state` }, 400);
     }
 
@@ -217,7 +218,8 @@ paymentsRouter.post(
         UPDATE payouts SET status = 'failed'
         WHERE booking_id = ${bookingId} AND status = 'processing'
       `;
-      throw err;
+      console.error("[payout-transfer]", err instanceof Error ? err.message : err);
+      return c.json({ error: "payout_failed", message: "Payout transfer failed. Please try again." }, 502);
     }
 
     await sql`

@@ -104,13 +104,13 @@ function Section({
                   {t(`serviceTypes.${b.serviceType}`)}
                 </p>
                 <p className="text-sm text-slate-500">
-                  {formatDateTime(b.scheduledFor)} · {b.address.city}
+                  {formatDateTime(b.scheduledFor)}{b.address?.city ? ` · ${b.address.city}` : ""}
                 </p>
               </div>
               <div className="text-right">
                 <StatusBadge status={b.status} />
                 <p className="mt-1 text-sm font-semibold text-charcoal dark:text-white">
-                  {formatCurrency(b.quote.total)}
+                  {b.quote ? formatCurrency(b.quote.total) : ""}
                 </p>
               </div>
               {showRebook ? (

@@ -60,9 +60,12 @@ reviewsRouter.post(
 
 reviewsRouter.get("/cleaner/:id", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
+  // Expose only public-safe fields — never customer_id or internal IDs.
   const reviews = (await sql`
-    SELECT * FROM reviews WHERE cleaner_id = ${c.req.param("id")}
+    SELECT id, cleaner_id, rating, comment, tags, created_at
+    FROM reviews WHERE cleaner_id = ${c.req.param("id")}
     ORDER BY created_at DESC
+    LIMIT 100
   `) as unknown[];
   return c.json({ reviews });
 });

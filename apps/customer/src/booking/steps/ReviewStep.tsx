@@ -93,7 +93,7 @@ export function ReviewStep() {
             zip: address!.zip,
             lat: address!.lat,
             lng: address!.lng,
-            makeDefault: true,
+            makeDefault: !address?.id,
           }),
         });
         if (addrRes.ok) {

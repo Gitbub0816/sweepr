@@ -450,12 +450,17 @@ function ScheduleTab() {
   }
 
   async function removeBlockedDate(id: string) {
-    const token = await getToken();
-    await fetch(`${API}/cleaner-dashboard/blocked-dates/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    reloadBlocked();
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API}/cleaner-dashboard/blocked-dates/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error();
+      reloadBlocked();
+    } catch {
+      toast.error("Could not remove date. Please try again.");
+    }
   }
 
   if (loadingAvail) return <div className="animate-pulse h-64 bg-slate-100 rounded-xl" />;
@@ -742,13 +747,14 @@ interface CleanerSettings {
 function SettingsTab() {
   const { t } = useTranslation();
   const { getToken } = useAuth();
-  const { data, loading } = useApi<CleanerSettings>("/cleaner-dashboard/settings");
+  const { data, loading, error } = useApi<CleanerSettings>("/cleaner-dashboard/settings");
   const [form, setForm] = useState<CleanerSettings | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => { if (data) setForm({ ...data }); }, [data]);
 
-  if (loading || !form) return <div className="animate-pulse h-64 bg-slate-100 rounded-xl" />;
+  if (loading) return <div className="animate-pulse h-64 bg-slate-100 rounded-xl" />;
+  if (error || !form) return <p className="py-6 text-center text-sm text-slate-500">Could not load settings. Please refresh.</p>;
 
   function toggle(k: keyof CleanerSettings) {
     setForm((f) => f ? { ...f, [k]: !f[k as keyof typeof f] } : f);

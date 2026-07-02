@@ -393,7 +393,7 @@ export function OnboardingPage() {
       const token = await getToken();
       if (API_URL && mode === "business") {
         // EIN is NEVER sent here / stored — only ein_provided is recorded.
-        await fetch(`${API_URL}/cleaners/business/apply`, {
+        const res = await fetch(`${API_URL}/cleaners/business/apply`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
           body: JSON.stringify({
@@ -413,15 +413,21 @@ export function OnboardingPage() {
             smsOptIn: form.smsOptIn,
           }),
         });
+        if (!res.ok) {
+          const data = (await res.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(data?.error ?? "Application submission failed. Please try again.");
+        }
       } else if (API_URL) {
-        await fetch(`${API_URL}/cleaners/apply`, {
+        // avatarUrl may be a local blob: URL (preview only) — strip it before sending.
+        const avatarUrl = form.avatarUrl?.startsWith("blob:") ? undefined : form.avatarUrl;
+        const res = await fetch(`${API_URL}/cleaners/apply`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
           body: JSON.stringify({
             fullName: form.fullName,
             phone: form.phone,
             bio: form.bio,
-            avatarUrl: form.avatarUrl,
+            avatarUrl,
             basedIn: form.basedIn,
             radiusMi: form.radiusMi,
             services: form.services,
@@ -430,6 +436,10 @@ export function OnboardingPage() {
             smsOptIn: form.smsOptIn,
           }),
         });
+        if (!res.ok) {
+          const data = (await res.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(data?.error ?? "Application submission failed. Please try again.");
+        }
       }
       track(Events.CLEANER_APPLICATION_SUBMITTED, { mode });
       await user?.update({

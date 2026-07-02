@@ -84,7 +84,10 @@ cleanerDashboardRouter.get("/my-jobs", async (c) => {
   const ctx = await getCleanerCtx(sql, c.get("user").clerkId);
   if (!ctx) return c.json({ error: "Cleaner not found" }, 404);
 
-  const { limit = "20", offset = "0", status } = c.req.query();
+  const raw = c.req.query();
+  const limit = Math.min(Math.max(1, Number(raw.limit ?? "20") || 20), 100);
+  const offset = Math.max(0, Number(raw.offset ?? "0") || 0);
+  const { status } = raw;
 
   // Two explicit queries instead of an inlined conditional sql`` fragment — the
   // empty-fragment form produced a "syntax error at or near $2" on the driver.
@@ -97,7 +100,7 @@ cleanerDashboardRouter.get("/my-jobs", async (c) => {
         LEFT JOIN addresses a ON a.id = b.address_id
         WHERE b.cleaner_id = ${ctx.cleaner_id} AND b.status = ${status}
         ORDER BY b.scheduled_at DESC
-        LIMIT ${Number(limit)} OFFSET ${Number(offset)}
+        LIMIT ${limit} OFFSET ${offset}
       `
     : await sql`
         SELECT b.id, b.status, b.day_status, b.service_type, b.scheduled_at,
@@ -107,7 +110,7 @@ cleanerDashboardRouter.get("/my-jobs", async (c) => {
         LEFT JOIN addresses a ON a.id = b.address_id
         WHERE b.cleaner_id = ${ctx.cleaner_id}
         ORDER BY b.scheduled_at DESC
-        LIMIT ${Number(limit)} OFFSET ${Number(offset)}
+        LIMIT ${limit} OFFSET ${offset}
       `;
 
   return c.json({ jobs });
@@ -301,7 +304,10 @@ cleanerDashboardRouter.get("/blocked-dates", async (c) => {
 
 cleanerDashboardRouter.post(
   "/blocked-dates",
-  zValidator("json", z.object({ date: z.string(), reason: z.string().optional() })),
+  zValidator("json", z.object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD"),
+    reason: z.string().max(200).optional(),
+  })),
   async (c) => {
     const { date, reason } = c.req.valid("json");
     const sql = getDb(c.env.DATABASE_URL);
@@ -455,11 +461,9 @@ cleanerDashboardRouter.post("/stripe-connect/onboard", async (c) => {
 
     return c.json({ url: link.url });
   } catch (err) {
-    // Surface the real reason (e.g. Connect not enabled on the platform account)
-    // instead of a raw 500 so the UI can tell the cleaner what to do.
-    const message = err instanceof Error ? err.message : "Stripe onboarding failed";
+    console.error("[stripe-onboard]", err instanceof Error ? err.message : err);
     return c.json(
-      { error: "stripe_onboarding_failed", message },
+      { error: "stripe_onboarding_failed", message: "Stripe onboarding is temporarily unavailable. Please try again." },
       502,
     );
   }

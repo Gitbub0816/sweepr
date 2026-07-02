@@ -76,11 +76,11 @@ cleanersRouter.get("/onboarding-progress", async (c) => {
 });
 
 const profileSchema = z.object({
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
-  phone: z.string().optional(),
-  bio: z.string().optional(),
-  avatarUrl: z.string().url().optional(),
+  firstName: z.string().max(100).optional(),
+  lastName: z.string().max(100).optional(),
+  phone: z.string().max(30).optional(),
+  bio: z.string().max(5000).optional(),
+  avatarUrl: z.string().url().max(512).optional(),
 });
 
 cleanersRouter.patch("/me", zValidator("json", profileSchema), async (c) => {
@@ -97,7 +97,7 @@ cleanersRouter.patch("/me", zValidator("json", profileSchema), async (c) => {
       bio        = COALESCE(${input.bio ?? null}, bio),
       avatar_url = COALESCE(${input.avatarUrl ?? null}, avatar_url)
     WHERE user_id = ${user.id}
-    RETURNING *
+    RETURNING id, first_name, last_name, phone, bio, avatar_url, status
   `) as unknown[];
 
   return c.json({ cleaner: rows[0] ?? null });

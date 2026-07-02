@@ -300,6 +300,7 @@ export function PaymentStep() {
   const isSubscription = useBookingStore((s) => s.isSubscription);
   const subscriptionCadence = useBookingStore((s) => s.subscriptionCadence);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [intentLoading, setIntentLoading] = useState(false);
   const [dark, setDark] = useState(() => isDarkMode());
 
   const displayPrice = quote?.total ?? 0;
@@ -323,6 +324,7 @@ export function PaymentStep() {
   // Create Stripe payment intent using the DB booking ID set by ReviewStep.
   useEffect(() => {
     if (!bookingId) return;
+    setIntentLoading(true);
     getToken().then((token) => {
       fetch(`${API_URL}/payments/create-intent`, {
         method: "POST",
@@ -336,7 +338,8 @@ export function PaymentStep() {
         .then((data: { clientSecret?: string } | null) => {
           if (data?.clientSecret) setClientSecret(data.clientSecret);
         })
-        .catch(() => {/* demo mode: no clientSecret, DemoCheckout renders */});
+        .catch(() => {/* clientSecret stays null → DemoCheckout renders */})
+        .finally(() => setIntentLoading(false));
     });
   }, [bookingId, getToken]);
 
@@ -371,7 +374,9 @@ export function PaymentStep() {
       <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
         {/* Left: payment form */}
         <div>
-          {stripePromise && clientSecret && options ? (
+          {intentLoading ? (
+            <div className="flex items-center justify-center py-12 text-slate-400 text-sm">Loading payment…</div>
+          ) : stripePromise && clientSecret && options ? (
             <Elements stripe={stripePromise} options={options}>
               <CheckoutForm total={chargedPrice} />
             </Elements>

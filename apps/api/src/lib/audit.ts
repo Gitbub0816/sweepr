@@ -15,6 +15,7 @@ export type AuditAction =
   | "cleaner.approved"
   | "cleaner.rejected"
   | "cleaner.suspended"
+  | "cleaner.insurance_enrolled"
   | "dispute.opened"
   | "dispute.resolved"
   | "payout.released"

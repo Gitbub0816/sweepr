@@ -130,6 +130,14 @@ customerProfileRouter.patch("/", zValidator("json", patchSchema), async (c) => {
 
   const input = c.req.valid("json");
 
+  // Validate defaultAddressId ownership before writing (prevents IDOR).
+  if (input.defaultAddressId) {
+    const owned = (await sql`
+      SELECT id FROM addresses WHERE id = ${input.defaultAddressId} AND user_id = ${user.id} LIMIT 1
+    `) as Array<{ id: string }>;
+    if (!owned[0]) return c.json({ error: "Address not found" }, 404);
+  }
+
   await sql`
     UPDATE customers SET
       home_bedrooms    = COALESCE(${input.homeBedrooms ?? null}, home_bedrooms),
