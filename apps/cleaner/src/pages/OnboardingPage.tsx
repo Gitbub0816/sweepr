@@ -1112,8 +1112,30 @@ function StepIdentity({
         </div>
       )}
 
-      {(status === "idle" || status === "submitting") && (
-        <Button fullWidth onClick={onSubmit} loading={status === "submitting"}>
+      {status === "submitting" && (
+        <div className="flex flex-col items-center gap-4 py-6">
+          {/* Animated broom sweep */}
+          <div className="relative h-16 w-16">
+            <div className="absolute inset-0 animate-spin rounded-full border-4 border-seafoam-100 border-t-seafoam-500" />
+            <div className="absolute inset-0 flex items-center justify-center text-2xl">
+              🧹
+            </div>
+          </div>
+          <div className="text-center">
+            <p className="font-semibold text-charcoal dark:text-white">Opening Didit…</p>
+            <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+              Preparing your secure verification portal
+            </p>
+          </div>
+          {/* Animated progress bar */}
+          <div className="h-1.5 w-48 overflow-hidden rounded-full bg-seafoam-100 dark:bg-seafoam-900/30">
+            <div className="h-full animate-[sweep_1.8s_ease-in-out_infinite] rounded-full bg-seafoam-500" />
+          </div>
+        </div>
+      )}
+
+      {status === "idle" && (
+        <Button fullWidth onClick={onSubmit}>
           Start identity verification →
         </Button>
       )}

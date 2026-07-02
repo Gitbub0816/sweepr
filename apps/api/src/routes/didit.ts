@@ -51,7 +51,7 @@ diditRouter.post("/session", requireAuth, async (c) => {
     session = await client.createSession({
       workflow,
       vendorData: user.id,
-      callbackUrl: "https://app.getsweepr.com/onboarding",
+      callbackUrl: "https://clean.getsweepr.com/onboarding",
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

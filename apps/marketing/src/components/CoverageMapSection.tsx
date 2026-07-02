@@ -141,9 +141,11 @@ function CoverageMap({ areas, pins }: { areas: ServiceArea[]; pins: Array<{ lat:
               source: "pins",
               layout: {
                 "icon-image": "broom-pin",
-                "icon-size": 0.45,
+                "icon-size": ["interpolate", ["linear"], ["zoom"], 7, 0.15, 11, 0.35, 14, 0.55],
                 "icon-anchor": "bottom",
                 "icon-allow-overlap": true,
+                "icon-pitch-alignment": "map",
+                "icon-rotation-alignment": "map",
               },
             });
           } else {
