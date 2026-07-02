@@ -394,11 +394,11 @@ export function OnboardingPage() {
           Authorization: `Bearer ${token ?? ""}`,
         },
       });
+      const data = (await res.json()) as { url?: string; stub?: boolean; error?: string; detail?: string };
       if (!res.ok) {
-        const errText = await res.text().catch(() => "");
-        throw new Error(errText || `HTTP ${res.status}`);
+        const detail = data.detail || data.error || `HTTP ${res.status}`;
+        throw new Error(detail);
       }
-      const data = (await res.json()) as { url?: string; stub?: boolean };
 
       if (data.stub || !data.url) {
         // Keys not configured on the server — don't let the user proceed.
@@ -414,7 +414,8 @@ export function OnboardingPage() {
       window.location.assign(data.url);
     } catch (err) {
       setDiditStatus("idle");
-      toast.error("Could not start identity verification. Please try again.");
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Verification error: ${msg}`);
       console.error("Didit session error:", err);
     }
   }
