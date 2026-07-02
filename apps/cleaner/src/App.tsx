@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate, Outlet } from "react-router-dom";
-import { useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { AuthenticateWithRedirectCallback, useAuth } from "@clerk/clerk-react";
+import { useTranslation } from "react-i18next";
 import { ContinueSignUp } from "./components/ContinueSignUp";
 import {
   LayoutDashboard,
@@ -84,30 +85,73 @@ function GateLayout() {
   );
 }
 
-/** On first load, if ?lang= is in the URL, persist it to the cleaner's profile. */
-function LangSync() {
+/**
+ * Last-used language persistence — hard rule, no save button:
+ *  - Every language switch is written to the server immediately, so
+ *    users.preferred_language is always the LAST-USED language.
+ *  - On sign-in, the server's last-used language is applied (unless the URL
+ *    carries an explicit ?lang link, which wins and is itself persisted).
+ * Note: the settings endpoint is a PUT (the old ?lang sync PATCHed it and
+ * silently 404'd — fixed here).
+ */
+function LanguagePersistence() {
   const { isSignedIn, isLoaded, getToken } = useAuth();
-  useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
-    const code = new URLSearchParams(window.location.search).get("lang");
-    if (!code) return;
+  const { i18n } = useTranslation();
+  const lastSynced = useRef<string | null>(null);
+
+  const push = useCallback((code: string) => {
+    if (lastSynced.current === code) return;
+    lastSynced.current = code;
     const api = import.meta.env.VITE_API_URL ?? "";
     getToken().then((token) => {
       if (!token) return;
       fetch(`${api}/cleaner-dashboard/settings`, {
-        method: "PATCH",
+        method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ preferred_language: code }),
       }).catch(() => null);
     });
-  }, [isLoaded, isSignedIn, getToken]);
+  }, [getToken]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    const onChange = (code: string) => push(code);
+    i18n.on("languageChanged", onChange);
+    return () => i18n.off("languageChanged", onChange);
+  }, [isLoaded, isSignedIn, i18n, push]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    const urlLang = new URLSearchParams(window.location.search).get("lang");
+    if (urlLang) {
+      push(urlLang);
+      return;
+    }
+    const api = import.meta.env.VITE_API_URL ?? "";
+    getToken().then((token) => {
+      if (!token) return;
+      fetch(`${api}/cleaner-dashboard/settings`, { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { preferred_language?: string | null } | null) => {
+          const saved = d?.preferred_language;
+          if (saved) {
+            lastSynced.current = saved;
+            if (saved !== i18n.language) void i18n.changeLanguage(saved);
+          } else {
+            push(i18n.language);
+          }
+        })
+        .catch(() => null);
+    });
+  }, [isLoaded, isSignedIn, getToken, i18n, push]);
+
   return null;
 }
 
 export default function App() {
   return (
     <>
-    <LangSync />
+    <LanguagePersistence />
     <ReportProblemMount />
     <Routes>
       {/* OAuth SSO callback and mock Checkr form bypass the prelaunch gate */}

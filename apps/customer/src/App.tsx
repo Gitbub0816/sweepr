@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
-import { useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { AuthenticateWithRedirectCallback } from "@clerk/clerk-react";
 import { SignInPage } from "./components/SignInPage";
 import { SignUpPage } from "./components/SignUpPage";
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { AppShell, PrelaunchGate, ReportProblem } from "@sweepr/ui";
 import { useAuth } from "@clerk/clerk-react";
+import { useTranslation } from "react-i18next";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { useCustomerProfile } from "./data/profile";
 
@@ -89,13 +90,22 @@ function OnboardingGate({ children }: { children: React.ReactNode }) {
 
 const FORCE_PRELAUNCH = import.meta.env.VITE_PRELAUNCH_FORCE === "true";
 
-/** On first load, if ?lang= is in the URL, persist it to the user's profile. */
-function LangSync() {
+/**
+ * Last-used language persistence — hard rule, no save button:
+ *  - Every language switch is written to the server immediately, so
+ *    users.preferred_language is always the LAST-USED language.
+ *  - On sign-in, the server's last-used language is applied (unless the URL
+ *    carries an explicit ?lang link, which wins and is itself persisted).
+ */
+function LanguagePersistence() {
   const { isSignedIn, isLoaded, getToken } = useAuth();
-  useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
-    const code = new URLSearchParams(window.location.search).get("lang");
-    if (!code) return;
+  const { i18n } = useTranslation();
+  const lastSynced = useRef<string | null>(null);
+
+  // Persist a language code to the server (fire-and-forget, deduped).
+  const push = useCallback((code: string) => {
+    if (lastSynced.current === code) return;
+    lastSynced.current = code;
     const api = import.meta.env.VITE_API_URL ?? "";
     getToken().then((token) => {
       if (!token) return;
@@ -105,7 +115,44 @@ function LangSync() {
         body: JSON.stringify({ preferredLanguage: code }),
       }).catch(() => null);
     });
-  }, [isLoaded, isSignedIn, getToken]);
+  }, [getToken]);
+
+  // Every switch, anywhere in the app, becomes the saved last-used language.
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    const onChange = (code: string) => push(code);
+    i18n.on("languageChanged", onChange);
+    return () => i18n.off("languageChanged", onChange);
+  }, [isLoaded, isSignedIn, i18n, push]);
+
+  // On sign-in: explicit ?lang link wins (and is persisted); otherwise the
+  // server's last-used language is applied to this device.
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    const urlLang = new URLSearchParams(window.location.search).get("lang");
+    if (urlLang) {
+      push(urlLang);
+      return;
+    }
+    const api = import.meta.env.VITE_API_URL ?? "";
+    getToken().then((token) => {
+      if (!token) return;
+      fetch(`${api}/customer-profile`, { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { profile?: { preferredLanguage?: string | null } } | null) => {
+          const saved = d?.profile?.preferredLanguage;
+          if (saved) {
+            lastSynced.current = saved;
+            if (saved !== i18n.language) void i18n.changeLanguage(saved);
+          } else {
+            // No saved preference yet — current language becomes last-used.
+            push(i18n.language);
+          }
+        })
+        .catch(() => null);
+    });
+  }, [isLoaded, isSignedIn, getToken, i18n, push]);
+
   return null;
 }
 
@@ -122,7 +169,7 @@ function GateLayout() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <LangSync />
+      <LanguagePersistence />
       <OfflineIndicator />
       <ReportProblemMount />
       <Routes>

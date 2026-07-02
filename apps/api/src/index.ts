@@ -19,6 +19,7 @@ import { checkrRouter } from "./routes/checkr";
 import { diditRouter, diditWebhookRouter } from "./routes/didit";
 import { clerkWebhookRouter } from "./routes/webhooks/clerk";
 import { smsInboundRouter } from "./routes/smsInbound";
+import { localeRouter } from "./routes/locale";
 import { smsOptInRouter } from "./routes/smsOptIn";
 import { statusRouter } from "./routes/status";
 import { statusAdminRouter } from "./routes/admin/statusAdmin";
@@ -120,6 +121,8 @@ app.route("/webhooks/didit", diditWebhookRouter);
 app.route("/webhooks/mailersend-sms", smsInboundRouter);
 // Public SMS opt-in form (rate-limited) — backs the /sms/consent page.
 app.route("/sms", smsOptInRouter);
+// Public IP-based initial-language suggestion.
+app.route("/locale", localeRouter);
 app.route("/status", statusRouter);
 app.route("/admin/status", statusAdminRouter);
 app.route("/admin/invites", adminInviteRouter);

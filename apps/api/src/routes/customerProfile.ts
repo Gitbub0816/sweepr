@@ -76,6 +76,9 @@ customerProfileRouter.get("/", async (c) => {
   }>;
 
   const smsConsent = await getSmsConsent(sql, user.id);
+  const [langRow] = (await sql`
+    SELECT preferred_language FROM users WHERE id = ${user.id} LIMIT 1
+  `) as Array<{ preferred_language: string | null }>;
 
   return c.json({
     profile: {
@@ -87,6 +90,7 @@ customerProfileRouter.get("/", async (c) => {
       hasPets: !!p.has_pets,
       defaultAddressId: p.default_address_id,
       smsConsent: smsConsent?.smsConsent ?? false,
+      preferredLanguage: langRow?.preferred_language ?? null,
     },
     addresses: addresses.map((a) => ({
       id: a.id,

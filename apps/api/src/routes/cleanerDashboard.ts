@@ -349,10 +349,12 @@ cleanerDashboardRouter.get("/settings", async (c) => {
   if (!ctx) return c.json({ error: "Cleaner not found" }, 404);
 
   const rows = await sql`
-    SELECT max_jobs_per_day, max_distance_miles, accepts_last_minute,
-           notification_job_offer, notification_reminder, notification_payout,
-           notification_marketing, preferred_service_types
-    FROM cleaners WHERE id = ${ctx.cleaner_id} LIMIT 1
+    SELECT c.max_jobs_per_day, c.max_distance_miles, c.accepts_last_minute,
+           c.notification_job_offer, c.notification_reminder, c.notification_payout,
+           c.notification_marketing, c.preferred_service_types,
+           u.preferred_language
+    FROM cleaners c JOIN users u ON u.id = c.user_id
+    WHERE c.id = ${ctx.cleaner_id} LIMIT 1
   ` as Array<Record<string, unknown>>;
 
   return c.json(rows[0] ?? {
