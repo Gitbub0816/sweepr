@@ -86,9 +86,9 @@ export function JobsPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        const data = (await res.json().catch(() => null)) as { error?: string; code?: string } | null;
         setAcceptedId(null);
-        if (data?.error === "insurance_required" || res.status === 403) {
+        if (data?.code === "insurance_required") {
           toast.error("Valid insurance is required before accepting jobs.");
           navigate("/insurance");
         } else {

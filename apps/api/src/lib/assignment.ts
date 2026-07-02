@@ -176,14 +176,19 @@ export async function handleOfferResponse(
         403,
       );
     }
-    await sql`
+    const updated = await sql`
       UPDATE assignment_queue SET status = 'accepted'
       WHERE booking_id = ${bookingId} AND cleaner_id = ${cleanerId}
+        AND status NOT IN ('accepted', 'declined', 'expired')
+      RETURNING id
     `;
+    if (!updated[0]) {
+      throw new AppError("offer_already_resolved", "This offer has already been accepted, declined, or expired.", 409);
+    }
     await sql`
       UPDATE bookings SET cleaner_id = ${cleanerId},
         status = 'cleaner_accepted', updated_at = NOW()
-      WHERE id = ${bookingId}
+      WHERE id = ${bookingId} AND status NOT IN ('cleaner_accepted', 'confirmed', 'in_progress', 'completed')
     `;
     await notifyCustomer(
       sql,

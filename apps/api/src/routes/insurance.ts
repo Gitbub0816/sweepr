@@ -71,7 +71,7 @@ insuranceRouter.post(
       JOIN users u ON u.id = cl.user_id
       WHERE u.clerk_id = ${user.clerkId} AND cl.status = 'approved'
     `;
-    if (!cleaner) throw new AppError("Cleaner not found or not approved", "NOT_FOUND", 404);
+    if (!cleaner) throw new AppError("NOT_FOUND", "Cleaner not found or not approved", 404);
 
     // Stripe Connect is mandatory for Sweepr-provided coverage — the monthly
     // fee is deducted from payouts, which requires a connected account.
@@ -82,21 +82,19 @@ insuranceRouter.post(
       );
     }
 
-    // Record the signed consent BEFORE activating coverage.
-    await db`
-      INSERT INTO legal_acceptances (
-        user_id, document_slug, document_version, flow_context,
-        ip_address, user_agent, checkbox_label_snapshot
-      ) VALUES (
-        ${cleaner.user_id}, ${INSURANCE_CONSENT_SLUG}, ${INSURANCE_CONSENT_VERSION},
-        'insurance_enrollment',
-        ${c.req.header("CF-Connecting-IP") ?? null}, ${c.req.header("User-Agent") ?? null},
-        ${INSURANCE_CONSENT_LABEL}
-      )
-    `;
-
-    // Upsert insurance record as sweepr_program
+    // Consent insert + insurance upsert in a single CTE so they're atomic.
     const [ins] = await db`
+      WITH consent AS (
+        INSERT INTO legal_acceptances (
+          user_id, document_slug, document_version, flow_context,
+          ip_address, user_agent, checkbox_label_snapshot
+        ) VALUES (
+          ${cleaner.user_id}, ${INSURANCE_CONSENT_SLUG}, ${INSURANCE_CONSENT_VERSION},
+          'insurance_enrollment',
+          ${c.req.header("CF-Connecting-IP") ?? null}, ${c.req.header("User-Agent") ?? null},
+          ${INSURANCE_CONSENT_LABEL}
+        )
+      )
       INSERT INTO cleaner_insurance (cleaner_id, coverage_type, policy_status)
       VALUES (${cleaner.id}, 'sweepr_program', 'active')
       ON CONFLICT (cleaner_id) DO UPDATE
@@ -108,7 +106,7 @@ insuranceRouter.post(
     `;
 
     await audit(db, {
-      action: "admin.action",
+      action: "cleaner.insurance_enrolled",
       actorClerkId: user.clerkId,
       targetType: "cleaner_insurance",
       targetId: ins.id,
@@ -124,8 +122,10 @@ insuranceRouter.post(
 const uploadSchema = z.object({
   policyNumber: z.string().min(1).optional(),
   insurerName: z.string().min(1).optional(),
-  coverageAmountUsd: z.number().int().positive().optional(),
-  policyExpiresAt: z.string().datetime().optional(),
+  coverageAmountUsd: z.number().int().min(500000).optional(),
+  policyExpiresAt: z.string().datetime().refine((v) => new Date(v) > new Date(), {
+    message: "Policy expiry date must be in the future",
+  }).optional(),
   fileName: z.string().min(1).max(255),
   contentType: z.enum(["image/jpeg", "image/png", "image/webp", "application/pdf"]),
 });
@@ -141,9 +141,9 @@ insuranceRouter.post(
     const [cleaner] = await db`
       SELECT cl.id FROM cleaners cl
       JOIN users u ON u.id = cl.user_id
-      WHERE u.clerk_id = ${user.clerkId}
+      WHERE u.clerk_id = ${user.clerkId} AND cl.status = 'approved'
     `;
-    if (!cleaner) throw new AppError("Cleaner not found", "NOT_FOUND", 404);
+    if (!cleaner) throw new AppError("NOT_FOUND", "Cleaner not found or not approved", 404);
 
     const cfg = parseR2Config(c.env as Parameters<typeof parseR2Config>[0]);
     const rawExt = input.fileName.split(".").pop()?.toLowerCase() ?? "";
@@ -230,7 +230,7 @@ insuranceAdminRouter.post(
     const newStatus = decision === "approved" ? "active" : "rejected";
 
     const [prev] = await db`SELECT policy_status FROM cleaner_insurance WHERE cleaner_id = ${cleanerId}`;
-    if (!prev) throw new AppError("Insurance record not found", "NOT_FOUND", 404);
+    if (!prev) throw new AppError("NOT_FOUND", "Insurance record not found", 404);
 
     await db`
       UPDATE cleaner_insurance SET

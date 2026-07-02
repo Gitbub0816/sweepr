@@ -761,7 +761,7 @@ function SettingsTab() {
       const res = await fetch(`${API}/cleaner-dashboard/settings`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, preferred_language: undefined }),
       });
       if (!res.ok) throw new Error();
       toast.success("Settings saved.");

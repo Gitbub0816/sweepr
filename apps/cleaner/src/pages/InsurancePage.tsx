@@ -18,6 +18,7 @@ interface InsuranceRecord {
   doc_uploaded_at?: string;
   review_notes?: string;
   program_active_since?: string;
+  program_cancelled_at?: string;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -172,7 +173,7 @@ export function InsurancePage() {
 
   const isActive =
     record?.coverage_type === "sweepr_program"
-      ? !!record.program_active_since
+      ? record.policy_status === "active" && !record.program_cancelled_at
       : record?.policy_status === "active";
 
   return (
