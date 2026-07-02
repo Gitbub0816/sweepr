@@ -45,11 +45,19 @@ diditRouter.post("/session", requireAuth, async (c) => {
     rows[0]?.account_type === "business" ? "business" : "personal";
 
   const client = diditClient(c.env);
-  const session = await client.createSession({
-    workflow,
-    vendorData: user.id,
-    callbackUrl: "https://api.getsweepr.com/webhooks/didit",
-  });
+
+  let session;
+  try {
+    session = await client.createSession({
+      workflow,
+      vendorData: user.id,
+      callbackUrl: "https://app.getsweepr.com/onboarding",
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error("Didit session creation failed", { msg, workflow });
+    return c.json({ error: "didit_session_failed", detail: msg }, 502);
+  }
 
   const status = session.stub ? "in_review" : "pending";
   await sql`
