@@ -41,10 +41,15 @@ const preset: Partial<Config> = {
           "0%, 100%": { backgroundPosition: "0% 50%" },
           "50%": { backgroundPosition: "100% 50%" },
         },
+        sweep: {
+          "0%": { transform: "translateX(-100%)" },
+          "60%, 100%": { transform: "translateX(200%)" },
+        },
       },
       animation: {
         "fade-in": "fade-in 0.5s ease-out both",
         "gradient-shift": "gradient-shift 12s ease infinite",
+        sweep: "sweep 1.8s ease-in-out infinite",
       },
     },
   },
