@@ -114,21 +114,32 @@ export function diditClient(env: DiditEnv) {
         };
       }
 
+      const body: Record<string, string> = {
+        workflow_id: wfId,
+        vendor_data: opts.vendorData,
+      };
+      if (opts.callbackUrl) {
+        // Didit v2 uses "redirect_url" for the post-verification callback.
+        body.redirect_url = opts.callbackUrl;
+      }
+
       const res = await fetch(`${DIDIT_BASE}/session/`, {
         method: "POST",
         headers: {
+          "Authorization": `Bearer ${env.DIDIT_API_KEY}`,
           "x-api-key": env.DIDIT_API_KEY,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          workflow_id: wfId,
-          vendor_data: opts.vendorData,
-          ...(opts.callbackUrl ? { callback: opts.callbackUrl } : {}),
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
         const text = await res.text().catch(() => "");
+        // Log full details so the 400 body is visible in Cloudflare tail logs.
+        console.error(`[didit] POST /session → ${res.status}`, {
+          body: JSON.stringify(body),
+          response: text,
+        });
         throw new Error(`Didit POST /session → ${res.status}: ${text}`);
       }
 
