@@ -67,6 +67,7 @@ export function SignInPage() {
         navigate("/");
       }
     } catch (err: unknown) {
+      console.error("[SignIn] email error", JSON.stringify(err));
       const clerr = (err as { errors?: { message: string; code?: string }[] })?.errors?.[0];
       if (clerr?.code === "form_identifier_not_found") setNoAccount(true);
       setError(clerr?.message ?? "Sign in failed. Check your credentials.");
@@ -84,6 +85,7 @@ export function SignInPage() {
       await signIn.prepareFirstFactor({ strategy: "phone_code", phoneNumberId: (factor as { phoneNumberId: string }).phoneNumberId });
       setPhoneStage("code");
     } catch (err: unknown) {
+      console.error("[SignIn] phone error", JSON.stringify(err));
       setError((err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? "Could not send code. Check your phone number.");
     } finally { setLoading(false); }
   }
