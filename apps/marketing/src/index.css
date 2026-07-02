@@ -31,7 +31,11 @@ html {
   }
 }
 body {
-  overflow-wrap: break-word;
+  /* 'anywhere' (unlike 'break-word') also affects intrinsic min-content
+     sizing, so long words in grid/flex children shrink the track instead of
+     overflowing the viewport — critical for Tagalog/Vietnamese/German-length
+     words in hero headings on phones. */
+  overflow-wrap: anywhere;
 }
 @supports (-webkit-touch-callout: none) {
   /* iOS momentum scrolling for a native feel in scroll containers. */
