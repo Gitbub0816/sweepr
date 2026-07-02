@@ -164,7 +164,7 @@ const initialState: FormState = {
   },
 };
 
-type StatusFlow = "idle" | "submitting" | "submitted" | "pending";
+type StatusFlow = "idle" | "submitting" | "qr" | "submitted" | "pending";
 
 function loadDraft(userId: string) {
   try {
@@ -243,6 +243,7 @@ export function OnboardingPage() {
   const isPrelaunch = usePrelaunch();
   const [checkrStatus, setCheckrStatus] = useState<StatusFlow>("idle");
   const [diditStatus, setDiditStatus] = useState<StatusFlow>("idle");
+  const [diditUrl, setDiditUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [trainingComplete, setTrainingComplete] = useState(false);
 
@@ -383,6 +384,8 @@ export function OnboardingPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepName]);
 
+  const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+
   async function submitIdentity() {
     setDiditStatus("submitting");
     try {
@@ -401,17 +404,20 @@ export function OnboardingPage() {
       }
 
       if (data.stub || !data.url) {
-        // Keys not configured on the server — don't let the user proceed.
         setDiditStatus("idle");
         toast.error("Identity verification is not available right now. Please contact support.");
         return;
       }
 
-      // Redirect to Didit's hosted portal. Use location.assign rather than
-      // href assignment — same behaviour but clearer intent, and avoids
-      // mobile Safari silently dropping async-context href writes.
-      setDiditStatus("pending");
-      window.location.assign(data.url);
+      if (isMobile) {
+        // On mobile: redirect immediately.
+        setDiditStatus("pending");
+        window.location.assign(data.url);
+      } else {
+        // On desktop: show QR code so they can scan with their phone.
+        setDiditUrl(data.url);
+        setDiditStatus("qr");
+      }
     } catch (err) {
       setDiditStatus("idle");
       const msg = err instanceof Error ? err.message : String(err);
@@ -628,6 +634,7 @@ export function OnboardingPage() {
                 {stepName === "Identity" && (
                   <StepIdentity
                     status={diditStatus}
+                    url={diditUrl}
                     onSubmit={submitIdentity}
                     stepNumber={step + 1}
                   />
@@ -1060,12 +1067,37 @@ function StepServices({
 // StepBackground removed — background check is now handled by BackgroundCheckStep
 // (Checkr native invitation flow). No PII is collected by Sweepr.
 
+function DiditQrCode({ url }: { url: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    let cancelled = false;
+    import("qrcode").then(({ default: QRCode }) => {
+      if (cancelled || !canvasRef.current) return;
+      QRCode.toCanvas(canvasRef.current, url, {
+        width: 220,
+        margin: 2,
+        color: { dark: "#0f172a", light: "#f0fdfa" },
+      });
+    });
+    return () => { cancelled = true; };
+  }, [url]);
+  return (
+    <canvas
+      ref={canvasRef}
+      className="rounded-2xl"
+      aria-label="QR code to open Didit verification on your phone"
+    />
+  );
+}
+
 function StepIdentity({
   status,
+  url,
   onSubmit,
   stepNumber,
 }: {
   status: StatusFlow;
+  url: string | null;
   onSubmit: () => void;
   stepNumber: number;
 }) {
@@ -1086,7 +1118,6 @@ function StepIdentity({
       </div>
 
       {status === "submitted" && (
-        // Only reachable when Didit webhook confirmed "approved".
         <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300">
           <CheckCircle2 className="h-5 w-5 shrink-0" />
           Identity verified. You can continue.
@@ -1094,8 +1125,6 @@ function StepIdentity({
       )}
 
       {status === "pending" && (
-        // Applicant started Didit but verification is not yet confirmed.
-        // Next is locked — they must complete the Didit flow first.
         <div className="space-y-3">
           <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
             <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
@@ -1112,24 +1141,51 @@ function StepIdentity({
         </div>
       )}
 
-      {status === "submitting" && (
-        <div className="flex flex-col items-center gap-4 py-6">
-          {/* Animated broom sweep */}
-          <div className="relative h-16 w-16">
-            <div className="absolute inset-0 animate-spin rounded-full border-4 border-seafoam-100 border-t-seafoam-500" />
-            <div className="absolute inset-0 flex items-center justify-center text-2xl">
-              🧹
-            </div>
-          </div>
-          <div className="text-center">
-            <p className="font-semibold text-charcoal dark:text-white">Opening Didit…</p>
-            <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-              Preparing your secure verification portal
+      {status === "qr" && url && (
+        <div className="flex flex-col items-center gap-5 rounded-2xl border border-seafoam-200 bg-seafoam-50 p-6 text-center dark:border-seafoam-800 dark:bg-seafoam-900/20">
+          <div className="space-y-1">
+            <p className="font-semibold text-charcoal dark:text-white">Scan with your phone</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Open your camera app and point it at the code below to complete
+              verification on your mobile device.
             </p>
           </div>
-          {/* Animated progress bar */}
+          <div className="rounded-2xl bg-[#f0fdfa] p-3 shadow-md dark:bg-seafoam-950">
+            <DiditQrCode url={url} />
+          </div>
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+            or
+            <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+          </div>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-medium text-seafoam-600 underline underline-offset-2 hover:text-seafoam-700 dark:text-seafoam-400"
+          >
+            Open in this browser instead →
+          </a>
+          <p className="text-xs text-slate-400">
+            This page will update automatically once your identity is confirmed.
+          </p>
+        </div>
+      )}
+
+      {status === "submitting" && (
+        <div className="flex flex-col items-center gap-4 py-6">
+          <div className="relative h-16 w-16">
+            <div className="absolute inset-0 animate-spin rounded-full border-4 border-seafoam-100 border-t-seafoam-500" />
+            <div className="absolute inset-0 flex items-center justify-center text-2xl">🧹</div>
+          </div>
+          <div className="text-center">
+            <p className="font-semibold text-charcoal dark:text-white">Preparing your portal…</p>
+            <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+              Setting up your secure verification session
+            </p>
+          </div>
           <div className="h-1.5 w-48 overflow-hidden rounded-full bg-seafoam-100 dark:bg-seafoam-900/30">
-            <div className="h-full animate-[sweep_1.8s_ease-in-out_infinite] rounded-full bg-seafoam-500" />
+            <div className="h-full animate-sweep rounded-full bg-seafoam-500" />
           </div>
         </div>
       )}
