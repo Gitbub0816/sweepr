@@ -87,10 +87,24 @@ diditRouter.get("/status", requireAuth, async (c) => {
   `) as { didit_status: string | null; didit_verification_id: string | null }[];
 
   const row = rows[0];
-  return c.json({
-    status: row?.didit_status ?? "not_started",
-    sessionId: row?.didit_verification_id ?? null,
-  });
+  const sessionId = row?.didit_verification_id ?? null;
+  const status = row?.didit_status ?? "not_started";
+
+  // If the stored session is a stub (created when keys were absent) but live
+  // credentials are now configured, wipe the stale record so the applicant
+  // is sent through the real Didit flow instead of seeing a phantom "in_review".
+  const isStubSession = sessionId?.startsWith("stub_didit_");
+  const client = diditClient(c.env);
+  if (isStubSession && client.isLive("personal")) {
+    await sql`
+      UPDATE cleaners
+      SET didit_verification_id = NULL, didit_status = 'not_started'
+      WHERE user_id = ${user.id}
+    `;
+    return c.json({ status: "not_started", sessionId: null });
+  }
+
+  return c.json({ status, sessionId });
 });
 
 // ─── POST /webhooks/didit ─────────────────────────────────────────────────────

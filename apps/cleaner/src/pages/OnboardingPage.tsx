@@ -394,22 +394,28 @@ export function OnboardingPage() {
           Authorization: `Bearer ${token ?? ""}`,
         },
       });
-      const data = (await res.json().catch(() => ({}))) as {
-        url?: string;
-        stub?: boolean;
-      };
-      // Live Didit: redirect the applicant to the hosted verification page.
-      // All ID capture happens on Didit — no documents touch Sweepr.
-      if (data.url && !data.stub) {
-        window.location.href = data.url;
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        throw new Error(errText || `HTTP ${res.status}`);
+      }
+      const data = (await res.json()) as { url?: string; stub?: boolean };
+
+      if (data.stub || !data.url) {
+        // Keys not configured on the server — don't let the user proceed.
+        setDiditStatus("idle");
+        toast.error("Identity verification is not available right now. Please contact support.");
         return;
       }
-      // Stub mode (Didit not configured): surface an error so the flow doesn't falsely succeed.
+
+      // Redirect to Didit's hosted portal. Use location.assign rather than
+      // href assignment — same behaviour but clearer intent, and avoids
+      // mobile Safari silently dropping async-context href writes.
+      setDiditStatus("pending");
+      window.location.assign(data.url);
+    } catch (err) {
       setDiditStatus("idle");
-      toast.error("Identity verification is not available right now. Please contact support.");
-    } catch {
-      setDiditStatus("idle");
-      toast.error("Could not submit. Try again.");
+      toast.error("Could not start identity verification. Please try again.");
+      console.error("Didit session error:", err);
     }
   }
 
