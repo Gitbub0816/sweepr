@@ -88,13 +88,13 @@ function ChangeField({ kind, current }: { kind: Kind; current: string }) {
             onChange={(e) => setValue(e.target.value)}
             placeholder={kind === "email" ? "new@email.com" : "+1 555 123 4567"}
           />
-          <Button onClick={sendCode} loading={busy} disabled={!value.trim()}>Change</Button>
+          <Button className="shrink-0 whitespace-nowrap" onClick={sendCode} loading={busy} disabled={!value.trim()}>Change</Button>
         </div>
       ) : (
         <div className="flex gap-2">
           <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Verification code" />
-          <Button onClick={verify} loading={busy} disabled={!code.trim()}>Verify</Button>
-          <Button variant="ghost" onClick={() => { setStage("idle"); setPendingId(null); }}>Cancel</Button>
+          <Button className="shrink-0 whitespace-nowrap" onClick={verify} loading={busy} disabled={!code.trim()}>Verify</Button>
+          <Button className="shrink-0 whitespace-nowrap" variant="ghost" onClick={() => { setStage("idle"); setPendingId(null); }}>Cancel</Button>
         </div>
       )}
     </div>

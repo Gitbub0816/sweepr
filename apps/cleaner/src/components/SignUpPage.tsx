@@ -184,7 +184,6 @@ export function SignUpPage() {
                   </div>
                 </div>
                 {error && <ErrorBox message={error} />}
-                <div id="clerk-captcha" />
                 <SubmitButton loading={loading} disabled={!isLoaded} label={t("auth.createAccount")} />
               </form>
             ) : (
@@ -195,10 +194,12 @@ export function SignUpPage() {
                     className={inputCls} placeholder="+1 (555) 000-0000" />
                 </div>
                 {error && <ErrorBox message={error} />}
-                <div id="clerk-captcha" />
                 <SubmitButton loading={loading} disabled={!isLoaded} label={t("auth.sendCode")} />
               </form>
             )}
+
+            {/* Single stable Clerk Smart CAPTCHA target — one per page. */}
+            <div id="clerk-captcha" className="mt-4 empty:hidden" />
 
             <p className="mt-6 text-center text-sm text-slate-500">
               {t("auth.alreadyHaveAccount")}{" "}

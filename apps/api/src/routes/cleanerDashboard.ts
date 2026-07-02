@@ -346,7 +346,21 @@ const settingsSchema = z.object({
 cleanerDashboardRouter.get("/settings", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const ctx = await getCleanerCtx(sql, c.get("user").clerkId);
-  if (!ctx) return c.json({ error: "Cleaner not found" }, 404);
+  // During onboarding a user may not have a cleaner row yet. Return defaults
+  // (plus their last-used language) instead of 404 so language restore and the
+  // settings screen work throughout the whole cleaner lifecycle.
+  if (!ctx) {
+    const [u] = (await sql`
+      SELECT preferred_language FROM users WHERE clerk_id = ${c.get("user").clerkId} LIMIT 1
+    `) as Array<{ preferred_language: string | null }>;
+    return c.json({
+      max_jobs_per_day: 3, max_distance_miles: 25, accepts_last_minute: true,
+      notification_job_offer: true, notification_reminder: true,
+      notification_payout: true, notification_marketing: false,
+      preferred_service_types: ["standard", "deep"],
+      preferred_language: u?.preferred_language ?? null,
+    });
+  }
 
   const rows = await sql`
     SELECT c.max_jobs_per_day, c.max_distance_miles, c.accepts_last_minute,
@@ -373,7 +387,14 @@ cleanerDashboardRouter.put("/settings", zValidator("json", settingsSchema), asyn
   const body = c.req.valid("json");
   const sql = getDb(c.env.DATABASE_URL);
   const ctx = await getCleanerCtx(sql, c.get("user").clerkId);
-  if (!ctx) return c.json({ error: "Cleaner not found" }, 404);
+  // No cleaner row yet (onboarding): a language-only save must still persist to
+  // the user so last-used language works before the cleaner is fully created.
+  if (!ctx) {
+    if (body.preferred_language) {
+      await sql`UPDATE users SET preferred_language = ${body.preferred_language} WHERE clerk_id = ${c.get("user").clerkId}`;
+    }
+    return c.json({ ok: true });
+  }
 
   await sql`
     UPDATE cleaners SET

@@ -195,6 +195,9 @@ export function SignInPage() {
           </form>
         )}
 
+        {/* Clerk Smart CAPTCHA renders here for sign-in bot protection. */}
+        <div id="clerk-captcha" className="mt-4 empty:hidden" />
+
         <p className="mt-6 text-center text-sm text-slate-500">
           {t("auth.dontHaveAccount")}{" "}
           <Link to="/sign-up" className="font-medium text-seafoam-600 hover:underline dark:text-seafoam-400">{t("auth.createOne")}</Link>
