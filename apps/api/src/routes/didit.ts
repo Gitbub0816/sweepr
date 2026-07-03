@@ -103,7 +103,7 @@ diditRouter.get("/status", requireAuth, async (c) => {
 
   const row = rows[0];
   const sessionId = row?.didit_verification_id ?? null;
-  const status = row?.didit_status ?? "not_started";
+  let status = row?.didit_status ?? "not_started";
 
   // If the stored session is a stub (created when keys were absent) but live
   // credentials are now configured, wipe the stale record so the applicant
@@ -117,6 +117,26 @@ diditRouter.get("/status", requireAuth, async (c) => {
       WHERE user_id = ${user.id}
     `;
     return c.json({ status: "not_started", sessionId: null });
+  }
+
+  // Webhook-independent source of truth: while the stored status is
+  // non-terminal, pull the live decision from Didit and persist it. This
+  // means a completed verification survives page refreshes even if the
+  // webhook was delayed, misconfigured, or lost.
+  const nonTerminal = status === "pending" || status === "in_review";
+  if (sessionId && !isStubSession && nonTerminal && client.isLive("personal")) {
+    const live = await client.getSession(sessionId);
+    if (live?.status) {
+      const mapped = mapDiditStatus(live.status);
+      if (mapped !== status) {
+        status = mapped;
+        await sql`
+          UPDATE cleaners SET didit_status = ${mapped}
+          WHERE user_id = ${user.id}
+        `;
+        logger.info("Didit status synced from decision API", { sessionId, mapped });
+      }
+    }
   }
 
   return c.json({ status, sessionId });

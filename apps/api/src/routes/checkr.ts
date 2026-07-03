@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { getUserByClerkId, upsertUser } from "@sweepr/db";
@@ -150,7 +150,10 @@ checkrRouter.get("/status", requireAuth, async (c) => {
   });
 });
 
-checkrRouter.post("/webhook", async (c) => {
+// Registered at both "/" and "/webhook" so the canonical URL
+// api.getsweepr.com/webhooks/checkr works (the router is mounted at
+// /webhooks/checkr AND /checkr, so bare "/" must answer too).
+const checkrWebhookHandler = async (c: Context<AppBindings>) => {
   const rawBody = await c.req.text();
   const sig = c.req.header("x-checkr-signature") ?? "";
 
@@ -284,4 +287,7 @@ checkrRouter.post("/webhook", async (c) => {
   }
 
   return c.json({ received: true });
-});
+};
+
+checkrRouter.post("/", checkrWebhookHandler);
+checkrRouter.post("/webhook", checkrWebhookHandler);
