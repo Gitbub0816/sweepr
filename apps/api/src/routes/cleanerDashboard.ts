@@ -1,3 +1,4 @@
+import { logger } from "../lib/logger";
 /**
  * Cleaner-facing endpoints for the full-featured cleaner dashboard.
  * All routes require auth + verified cleaner identity.
@@ -462,7 +463,7 @@ cleanerDashboardRouter.post("/stripe-connect/onboard", async (c) => {
 
     return c.json({ url: link.url });
   } catch (err) {
-    console.error("[stripe-onboard]", err instanceof Error ? err.message : err);
+    logger.error("stripe-onboard failed", err);
     return c.json(
       { error: "stripe_onboarding_failed", message: "Stripe onboarding is temporarily unavailable. Please try again." },
       502,

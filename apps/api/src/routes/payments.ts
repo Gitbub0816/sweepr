@@ -1,3 +1,4 @@
+import { logger } from "../lib/logger";
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
@@ -218,7 +219,7 @@ paymentsRouter.post(
         UPDATE payouts SET status = 'failed'
         WHERE booking_id = ${bookingId} AND status = 'processing'
       `;
-      console.error("[payout-transfer]", err instanceof Error ? err.message : err);
+      logger.error("payout-transfer failed", err);
       return c.json({ error: "payout_failed", message: "Payout transfer failed. Please try again." }, 502);
     }
 
