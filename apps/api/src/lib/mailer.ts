@@ -71,7 +71,7 @@ export function wrapBodyInTemplate(
   <hr style="margin:32px 0;border:none;border-top:1px solid #e5e7eb" />
   <p style="font-size:12px;color:#6b7280;margin:0">You're receiving this from Sweepr.</p>${opts?.unsubscribe ? `
   <p style="font-size:12px;color:#6b7280;margin:8px 0 0">Don't want these emails? <a href="https://api.getsweepr.com/unsubscribe" style="color:#0f766e;text-decoration:underline">Unsubscribe</a> at any time.</p>
-  <p style="font-size:12px;color:#6b7280;margin:8px 0 0">Sweepr · a ClearKey Solutions product · United States</p>` : ""}
+  <p style="font-size:12px;color:#6b7280;margin:8px 0 0">Sweepr · a ClearKey Solutions product · 832 B St #B, Hayward, CA 94541</p>` : ""}
 </div>`;
 }
 
