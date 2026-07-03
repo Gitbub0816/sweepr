@@ -78,7 +78,7 @@ export function BookingLayout() {
         </div>
       )}
 
-      <main id="main" className="mx-auto grid max-w-5xl gap-8 px-4 py-8 lg:grid-cols-[1fr_320px]">
+      <main className="mx-auto grid max-w-5xl gap-8 px-4 py-8 lg:grid-cols-[1fr_320px]">
         <div className="overflow-hidden">
           <AnimatePresence mode="wait">
             <motion.div

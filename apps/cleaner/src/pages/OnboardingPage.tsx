@@ -761,6 +761,7 @@ function PhotoUpload({
         ref={inputRef}
         type="file"
         accept="image/*"
+        aria-label="Upload profile photo"
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
