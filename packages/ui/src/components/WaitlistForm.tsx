@@ -53,6 +53,7 @@ export function WaitlistForm({ type, apiUrl, onSuccess }: WaitlistFormProps) {
     <form onSubmit={handleSubmit} className="flex flex-col gap-3 w-full max-w-sm mx-auto">
       <input
         type="text"
+        aria-label="Your name"
         placeholder="Your name (optional)"
         value={name}
         onChange={(e) => setName(e.target.value)}
@@ -60,6 +61,7 @@ export function WaitlistForm({ type, apiUrl, onSuccess }: WaitlistFormProps) {
       />
       <input
         type="email"
+        aria-label="Email address"
         placeholder="Email address *"
         required
         value={email}
@@ -68,6 +70,7 @@ export function WaitlistForm({ type, apiUrl, onSuccess }: WaitlistFormProps) {
       />
       <input
         type="tel"
+        aria-label="Phone number"
         placeholder="Phone (optional)"
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
@@ -75,6 +78,7 @@ export function WaitlistForm({ type, apiUrl, onSuccess }: WaitlistFormProps) {
       />
       <input
         type="text"
+        aria-label="ZIP code"
         placeholder="ZIP code (optional)"
         value={zip}
         onChange={(e) => setZip(e.target.value)}

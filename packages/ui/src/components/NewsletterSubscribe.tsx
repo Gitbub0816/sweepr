@@ -44,6 +44,7 @@ export function NewsletterSubscribe({ apiUrl, className }: NewsletterSubscribePr
       <form onSubmit={handleSubmit} className="flex items-center gap-2">
         <input
           type="email"
+          aria-label="Email address"
           placeholder="Your email"
           required
           value={email}
