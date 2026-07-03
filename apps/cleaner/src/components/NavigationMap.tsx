@@ -237,7 +237,7 @@ export function NavigationMap({ destination, currentLat, currentLng }: Navigatio
 
   if (!TOKEN) {
     return (
-      <div className="flex h-48 items-center justify-center rounded-2xl border border-slate-200 bg-seafoam-50 text-sm text-slate-400">
+      <div className="flex h-48 items-center justify-center rounded-2xl border border-slate-200 bg-seafoam-50 text-sm text-slate-600">
         Navigation map (set VITE_MAPBOX_TOKEN)
       </div>
     );
@@ -252,7 +252,7 @@ export function NavigationMap({ destination, currentLat, currentLng }: Navigatio
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold leading-snug truncate">{currentStep.instruction}</p>
             {nextStep && (
-              <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+              <p className="text-xs text-slate-600 mt-0.5 flex items-center gap-1">
                 <ChevronRight className="h-3 w-3" />
                 then: {nextStep.instruction}
               </p>
@@ -269,8 +269,8 @@ export function NavigationMap({ destination, currentLat, currentLng }: Navigatio
         <div className="bg-slate-900 text-white px-4 py-2 flex items-center gap-4 text-sm">
           <Clock className="h-4 w-4 text-seafoam-400 shrink-0" />
           <span className="font-semibold">{fmtDuration(route.totalDurationS)}</span>
-          <span className="text-slate-400">·</span>
-          <span className="text-slate-400">{fmtDist(route.totalDistanceM)}</span>
+          <span className="text-slate-600">·</span>
+          <span className="text-slate-600">{fmtDist(route.totalDistanceM)}</span>
           <span className="ml-auto text-seafoam-400 font-medium">
             ETA {new Date(Date.now() + route.totalDurationS * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
           </span>

@@ -102,25 +102,25 @@ export function JobCard({
           <p className="text-2xl font-bold text-charcoal dark:text-white">
             {formatCurrency(job.pay)}
           </p>
-          <p className="text-xs text-slate-400">est. pay (80%)</p>
+          <p className="text-xs text-slate-600">est. pay (80%)</p>
         </div>
       </div>
 
       <div className="grid grid-cols-3 gap-2 rounded-xl bg-offwhite p-3 text-center text-xs dark:bg-slate-800">
         <div>
-          <Navigation className="mx-auto mb-1 h-4 w-4 text-slate-400" />
+          <Navigation className="mx-auto mb-1 h-4 w-4 text-slate-600" />
           <span className="font-medium text-charcoal dark:text-white">
             {job.distanceMi} mi
           </span>
         </div>
         <div>
-          <Home className="mx-auto mb-1 h-4 w-4 text-slate-400" />
+          <Home className="mx-auto mb-1 h-4 w-4 text-slate-600" />
           <span className="font-medium text-charcoal dark:text-white">
             {job.bedrooms}bd · {job.bathrooms}ba
           </span>
         </div>
         <div>
-          <Clock className="mx-auto mb-1 h-4 w-4 text-slate-400" />
+          <Clock className="mx-auto mb-1 h-4 w-4 text-slate-600" />
           <span className="font-medium text-charcoal dark:text-white">
             {job.date} {job.timeSlot}
           </span>
@@ -139,7 +139,7 @@ export function JobCard({
           <p
             className={cn(
               "text-center text-xs font-medium",
-              remaining <= 30 ? "text-red-500" : "text-slate-400"
+              remaining <= 30 ? "text-red-500" : "text-slate-600"
             )}
           >
             Offer expires in {fmt(remaining)}

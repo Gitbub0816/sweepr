@@ -30,7 +30,7 @@ function Row({
         <Icon className="h-4 w-4" />
       </span>
       <div>
-        <p className="text-xs text-slate-400">{label}</p>
+        <p className="text-xs text-slate-600">{label}</p>
         <p className="text-sm font-medium text-charcoal dark:text-white">
           {value}
         </p>
@@ -187,7 +187,7 @@ export function ReviewStep() {
         />
         {addOnKeys.length > 0 && (
           <div className="py-2">
-            <p className="text-xs text-slate-400">{t("booking.review.addOns")}</p>
+            <p className="text-xs text-slate-600">{t("booking.review.addOns")}</p>
             <p className="text-sm font-medium text-charcoal dark:text-white">
               {addOnKeys.map((k) => getAddOn(k)?.name).join(", ")}
             </p>
@@ -223,7 +223,7 @@ export function ReviewStep() {
             <p className="text-3xl font-bold text-charcoal dark:text-white">
               {formatCurrency(total)}
             </p>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-slate-600">
               {t("booking.review.includesEverything")}
             </p>
           </div>

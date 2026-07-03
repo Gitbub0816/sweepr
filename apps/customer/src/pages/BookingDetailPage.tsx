@@ -375,7 +375,7 @@ export function BookingDetailPage() {
                       className={`pb-4 text-sm ${
                         done || current
                           ? "font-medium text-charcoal dark:text-white"
-                          : "text-slate-400"
+                          : "text-slate-600"
                       }`}
                     >
                       {JOB_STATUS_LABELS[s]}

@@ -135,7 +135,7 @@ export function SchedulePage() {
               "flex h-12 w-12 items-center justify-center rounded-xl",
               availableNow
                 ? "bg-amber-400 text-amber-950"
-                : "bg-slate-100 text-slate-400 dark:bg-slate-800"
+                : "bg-slate-100 text-slate-600 dark:bg-slate-800"
             )}
           >
             <Zap className="h-6 w-6" />

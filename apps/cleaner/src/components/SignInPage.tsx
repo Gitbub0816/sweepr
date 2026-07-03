@@ -134,7 +134,7 @@ export function SignInPage() {
 
         <div className="my-6 flex items-center gap-3">
           <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
-          <span className="text-xs text-slate-400">{t("common.or")}</span>
+          <span className="text-xs text-slate-600">{t("common.or")}</span>
           <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
         </div>
 
@@ -177,7 +177,7 @@ export function SignInPage() {
                 <button type="button" onClick={() => setShowPassword((v) => !v)}
                   aria-label={showPassword ? t("auth.hidePassword", { defaultValue: "Hide password" }) : t("auth.showPassword", { defaultValue: "Show password" })}
                   aria-pressed={showPassword}
-                  className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-seafoam-400 focus-visible:ring-offset-2 rounded">
+                  className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center text-slate-600 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-seafoam-400 focus-visible:ring-offset-2 rounded">
                   {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" focusable="false" /> : <Eye className="h-4 w-4" aria-hidden="true" focusable="false" />}
                 </button>
               </div>

@@ -93,7 +93,7 @@ export function ConfirmedStep() {
         )}
 
         {bookingId && (
-          <p className="mt-4 text-xs text-slate-400">
+          <p className="mt-4 text-xs text-slate-600">
             {t("booking.confirmed.bookingRef")} <span className="font-mono">{bookingId.slice(0, 8).toUpperCase()}</span>
           </p>
         )}

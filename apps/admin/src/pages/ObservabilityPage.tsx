@@ -92,7 +92,7 @@ function SectionHeader({ title, onRefresh, loading }: { title: string; onRefresh
 
 function ErrorBox({ msg }: { msg: string }) {
   return (
-    <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 flex items-center gap-2 text-sm text-red-600">
+    <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 flex items-center gap-2 text-sm text-red-700">
       <AlertTriangle className="h-4 w-4 shrink-0" /> {msg}
     </div>
   );
@@ -412,7 +412,7 @@ function PaymentsTab() {
               </h3>
               <div className="rounded-xl border border-red-100 overflow-hidden">
                 <table className="w-full text-xs">
-                  <thead className="bg-red-50 text-red-500 uppercase tracking-wide">
+                  <thead className="bg-red-50 text-red-800 uppercase tracking-wide">
                     <tr>
                       <th className="px-3 py-2 text-left">Type</th>
                       <th className="px-3 py-2 text-left">Error Code</th>

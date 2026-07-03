@@ -38,12 +38,12 @@ export function PendingReviewPage() {
                 className={
                   step.done
                     ? "text-sm font-medium text-charcoal dark:text-white"
-                    : "text-sm text-slate-400"
+                    : "text-sm text-slate-600"
                 }
               >
                 {step.label}
                 {!step.done && (
-                  <span className="ml-2 text-xs text-slate-400">(pending)</span>
+                  <span className="ml-2 text-xs text-slate-600">(pending)</span>
                 )}
               </span>
             </li>
@@ -60,7 +60,7 @@ export function PendingReviewPage() {
               support@getsweepr.com
             </a>
           </p>
-          <p className="mt-2 text-xs text-slate-400">
+          <p className="mt-2 text-xs text-slate-600">
             In the meantime, follow us on social — we'll be in touch soon.
           </p>
         </div>
