@@ -146,7 +146,7 @@ export function MailPage() {
 
   const fmtDate = (s: string) => new Date(s).toLocaleString();
 
-  if (loading) return <div className="p-8 text-slate-400">Loading mail…</div>;
+  if (loading) return <div className="p-8 text-slate-600">Loading mail…</div>;
 
   if (boxes.length === 0) {
     return (
@@ -184,7 +184,7 @@ export function MailPage() {
             >
               <span className="truncate">
                 <span className="block">{b.name}</span>
-                <span className="block text-xs font-normal text-slate-400">{b.address}</span>
+                <span className="block text-xs font-normal text-slate-600">{b.address}</span>
               </span>
               {b.unread > 0 && (
                 <span className="ml-2 rounded-full bg-seafoam-500 px-2 py-0.5 text-xs font-bold text-white">{b.unread}</span>
@@ -195,7 +195,7 @@ export function MailPage() {
 
         {/* Message list */}
         <Card className="col-span-4 max-h-[70vh] overflow-y-auto p-2">
-          {messages.length === 0 && <p className="p-4 text-sm text-slate-400">No messages yet.</p>}
+          {messages.length === 0 && <p className="p-4 text-sm text-slate-600">No messages yet.</p>}
           {messages.map((m) => (
             <button
               key={m.id}
@@ -206,7 +206,7 @@ export function MailPage() {
             >
               <div className="flex items-center gap-2">
                 {m.direction === "outbound"
-                  ? <Send className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                  ? <Send className="h-3.5 w-3.5 shrink-0 text-slate-600" />
                   : m.read_at
                     ? <MailOpen className="h-3.5 w-3.5 shrink-0 text-slate-300" />
                     : <MailIcon className="h-3.5 w-3.5 shrink-0 text-seafoam-500" />}
@@ -215,7 +215,7 @@ export function MailPage() {
                 </span>
               </div>
               <p className="truncate text-sm text-slate-600 dark:text-slate-300">{m.subject}</p>
-              <p className="text-xs text-slate-400">{fmtDate(m.created_at)}</p>
+              <p className="text-xs text-slate-600">{fmtDate(m.created_at)}</p>
             </button>
           ))}
         </Card>
@@ -258,7 +258,7 @@ export function MailPage() {
                       ? `Sent to ${selected.to_email}${selected.sent_by_email ? ` by ${selected.sent_by_email}` : ""}`
                       : `From ${selected.sender_name ? `${selected.sender_name} <${selected.sender_email}>` : selected.sender_email}`}
                   </p>
-                  <p className="text-xs text-slate-400">{fmtDate(selected.created_at)}</p>
+                  <p className="text-xs text-slate-600">{fmtDate(selected.created_at)}</p>
                 </div>
                 <Button variant="secondary" onClick={() => startReply(selected)}>
                   <Reply className="mr-1 h-4 w-4" /> Reply
@@ -269,7 +269,7 @@ export function MailPage() {
               </div>
             </div>
           ) : (
-            <p className="p-6 text-center text-sm text-slate-400">Select a message to read it.</p>
+            <p className="p-6 text-center text-sm text-slate-600">Select a message to read it.</p>
           )}
         </Card>
       </div>
@@ -280,7 +280,7 @@ export function MailPage() {
           <div className="mb-3 flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-seafoam-500" />
             <h2 className="font-semibold">Mailbox access</h2>
-            <span className="text-xs text-slate-400">Super admins always have every mailbox.</span>
+            <span className="text-xs text-slate-600">Super admins always have every mailbox.</span>
           </div>
 
           <div className="mb-4 flex flex-wrap items-end gap-2">
@@ -314,11 +314,11 @@ export function MailPage() {
           </div>
 
           {grants.length === 0 ? (
-            <p className="text-sm text-slate-400">No per-admin grants yet.</p>
+            <p className="text-sm text-slate-600">No per-admin grants yet.</p>
           ) : (
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-xs uppercase text-slate-400 dark:border-slate-700">
+                <tr className="border-b border-slate-200 text-xs uppercase text-slate-600 dark:border-slate-700">
                   <th scope="col" className="py-2">Admin</th>
                   <th scope="col" className="py-2">Mailbox</th>
                   <th scope="col" className="py-2">Granted by</th>
@@ -330,7 +330,7 @@ export function MailPage() {
                   <tr key={g.id} className="border-b border-slate-100 dark:border-slate-800">
                     <td className="py-2">{g.email}</td>
                     <td className="py-2">{g.mailbox}@getsweepr.com</td>
-                    <td className="py-2 text-slate-400">{g.granted_by_email ?? "—"}</td>
+                    <td className="py-2 text-slate-600">{g.granted_by_email ?? "—"}</td>
                     <td className="py-2 text-right">
                       <button onClick={() => void removeGrant(g.id)} className="text-red-500 hover:text-red-700" title="Revoke">
                         <Trash2 className="h-4 w-4" />

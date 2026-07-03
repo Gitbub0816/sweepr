@@ -44,14 +44,14 @@ function ConsentDetail({ customer, onClose }: { customer: Customer; onClose: () 
           <h3 className="text-lg font-bold text-charcoal dark:text-white">
             SMS Consent — {[customer.first_name, customer.last_name].filter(Boolean).join(" ") || customer.email}
           </h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600" aria-label="Close">
+          <button onClick={onClose} className="text-slate-600 hover:text-slate-600" aria-label="Close">
             <X className="h-5 w-5" />
           </button>
         </div>
         <dl className="space-y-2 text-sm">
           {rows.map(([label, value]) => (
             <div key={label} className="grid grid-cols-[140px_1fr] gap-2">
-              <dt className="text-slate-400">{label}</dt>
+              <dt className="text-slate-600">{label}</dt>
               <dd className="break-all text-charcoal dark:text-white">{value}</dd>
             </div>
           ))}

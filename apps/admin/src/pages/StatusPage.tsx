@@ -329,7 +329,7 @@ export function StatusPage() {
                       </div>
                       <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">{incident.summary}</p>
                       {incident.auto_detected && (incident.affected_user_count != null || incident.total_occurrences != null) && (
-                        <p className="text-xs text-slate-400 mb-2">
+                        <p className="text-xs text-slate-600 mb-2">
                           {incident.affected_user_count != null && <span>{incident.affected_user_count} users affected · </span>}
                           {incident.total_occurrences != null && <span>{incident.total_occurrences} occurrences in 30 min</span>}
                         </p>
@@ -341,7 +341,7 @@ export function StatusPage() {
                           ))}
                         </div>
                       )}
-                      <p className="text-xs text-slate-400">Created {new Date(incident.created_at).toLocaleString()}</p>
+                      <p className="text-xs text-slate-600">Created {new Date(incident.created_at).toLocaleString()}</p>
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
                       {incident.status !== "resolved" && (
@@ -386,7 +386,7 @@ export function StatusPage() {
                       <div className="space-y-2">
                         {incident.updates.map((u) => (
                           <div key={u.id} className="flex gap-3 text-sm">
-                            <span className="text-slate-400 whitespace-nowrap">{new Date(u.created_at).toLocaleString()}</span>
+                            <span className="text-slate-600 whitespace-nowrap">{new Date(u.created_at).toLocaleString()}</span>
                             <Badge text={u.status} className={STATUS_COLORS[u.status as IncidentStatus] ?? "bg-slate-100 text-slate-700"} />
                             <span className="text-slate-700 dark:text-slate-300">{u.message}</span>
                           </div>

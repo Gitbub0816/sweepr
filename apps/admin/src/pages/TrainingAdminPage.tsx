@@ -505,15 +505,15 @@ export function TrainingAdminPage() {
                           className="flex flex-1 items-center gap-3 text-left"
                         >
                           {expandedModule === m.id ? (
-                            <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+                            <ChevronDown className="h-4 w-4 shrink-0 text-slate-600" />
                           ) : (
-                            <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+                            <ChevronRight className="h-4 w-4 shrink-0 text-slate-600" />
                           )}
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-charcoal dark:text-white">
                               {m.title}
                               {!m.active && (
-                                <span className="ml-2 text-xs text-slate-400">(inactive)</span>
+                                <span className="ml-2 text-xs text-slate-600">(inactive)</span>
                               )}
                             </p>
                             <div className="mt-1 flex flex-wrap gap-2">
@@ -531,7 +531,7 @@ export function TrainingAdminPage() {
                           <button
                             type="button"
                             onClick={() => setEditingModule(m)}
-                            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
+                            className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
                             aria-label="Edit module"
                           >
                             <Edit2 className="h-4 w-4" />
@@ -539,7 +539,7 @@ export function TrainingAdminPage() {
                           <button
                             type="button"
                             onClick={() => void deleteModule(m.id)}
-                            className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"
+                            className="rounded-lg p-1.5 text-slate-600 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"
                             aria-label="Deactivate module"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -574,7 +574,7 @@ export function TrainingAdminPage() {
                                   ))}
                                 </div>
                               ) : (
-                                <p className="text-xs text-slate-400">Loading…</p>
+                                <p className="text-xs text-slate-600">Loading…</p>
                               )}
                             </div>
 
@@ -597,7 +597,7 @@ export function TrainingAdminPage() {
                                   ))}
                                 </div>
                               ) : (
-                                <p className="text-xs text-slate-400">Loading…</p>
+                                <p className="text-xs text-slate-600">Loading…</p>
                               )}
                             </div>
                           </div>

@@ -93,7 +93,7 @@ export function NotificationsPage() {
             Turn notification events on or off across customer, cleaner, and admin channels.
           </p>
         </div>
-        <button onClick={load} disabled={loading} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 disabled:opacity-50">
+        <button onClick={load} disabled={loading} className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-600 disabled:opacity-50">
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
         </button>
       </div>
@@ -120,7 +120,7 @@ export function NotificationsPage() {
                       <p className="text-xs text-slate-500">{item.description}</p>
                       <p className="mt-0.5 font-mono text-[10px] text-slate-300">{item.key}</p>
                     </div>
-                    <span className={`text-xs ${item.enabled ? "text-seafoam-600" : "text-slate-400"}`}>
+                    <span className={`text-xs ${item.enabled ? "text-seafoam-600" : "text-slate-600"}`}>
                       {item.enabled ? "On" : "Off"}
                     </span>
                     <Toggle on={item.enabled} onClick={() => toggle(item)} />
@@ -129,7 +129,7 @@ export function NotificationsPage() {
               </div>
             </div>
           ))}
-          {saving && <p className="text-xs text-slate-400">Saving…</p>}
+          {saving && <p className="text-xs text-slate-600">Saving…</p>}
         </div>
       )}
     </div>

@@ -121,7 +121,7 @@ export function SlackSettings() {
                 <div className="flex items-center gap-3">
                   <div>
                     <p className="font-medium text-charcoal dark:text-white">{w.team_name ?? w.team_id}</p>
-                    <p className="text-xs text-slate-400">{w.last_error ? `Error: ${w.last_error}` : `Connected ${new Date(w.created_at).toLocaleDateString()}`}</p>
+                    <p className="text-xs text-slate-600">{w.last_error ? `Error: ${w.last_error}` : `Connected ${new Date(w.created_at).toLocaleDateString()}`}</p>
                   </div>
                   <Badge variant={w.status === "active" ? "success" : "error"}>{w.status}</Badge>
                 </div>
@@ -139,16 +139,16 @@ export function SlackSettings() {
             <h2 className="text-sm font-semibold text-charcoal dark:text-white">Channel routing</h2>
             <Button size="sm" variant="secondary" onClick={provision}>Provision default channels</Button>
           </div>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-600">
             Creates Team-Wide (public) plus private Approvals, Operations, Finance, IT, and Training channels, and
             invites admins by role. Super Admins join every channel; IT and Training only their channel + Team-Wide.
           </p>
           {channels.length === 0 ? (
-            <p className="text-sm text-slate-400">No channels mapped yet.</p>
+            <p className="text-sm text-slate-600">No channels mapped yet.</p>
           ) : channels.map((ch) => (
             <div key={ch.id} className="flex items-center justify-between rounded-xl border border-slate-200 p-3 dark:border-slate-700">
               <div>
-                <p className="font-medium text-charcoal dark:text-white">#{ch.channel_name ?? ch.channel_id}{ch.is_private && <span className="ml-2 text-xs text-slate-400">(private)</span>}</p>
+                <p className="font-medium text-charcoal dark:text-white">#{ch.channel_name ?? ch.channel_id}{ch.is_private && <span className="ml-2 text-xs text-slate-600">(private)</span>}</p>
                 <Badge variant="info">{ch.purpose}</Badge>
               </div>
               <Button size="sm" variant="ghost" onClick={() => test(ch.purpose)}><Send className="h-4 w-4" /> Test</Button>

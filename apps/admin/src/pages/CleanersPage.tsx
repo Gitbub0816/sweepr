@@ -87,14 +87,14 @@ export function CleanersPage() {
             {r.avg_rating.toFixed(1)}
           </span>
         ) : (
-          <span className="text-slate-400">No reviews</span>
+          <span className="text-slate-600">No reviews</span>
         ),
     },
     { header: "Jobs", cell: (r) => r.completed_jobs },
     {
       header: "Stripe",
       cell: (r) => (
-        <span className={`text-xs ${r.stripe_connect_status === "active" ? "text-emerald-600" : "text-slate-400"}`}>
+        <span className={`text-xs ${r.stripe_connect_status === "active" ? "text-emerald-600" : "text-slate-600"}`}>
           {r.stripe_connect_status ?? "not connected"}
         </span>
       ),

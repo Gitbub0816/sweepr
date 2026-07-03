@@ -162,12 +162,12 @@ export function SlackPage() {
             {loadingMsgs ? (
               <div className="flex h-full items-center justify-center"><div className="h-6 w-6 animate-spin rounded-full border-4 border-seafoam-400 border-t-transparent" /></div>
             ) : messages.length === 0 ? (
-              <p className="text-sm text-slate-400">No messages.</p>
+              <p className="text-sm text-slate-600">No messages.</p>
             ) : messages.map((m) => (
               <div key={m.ts} className="flex gap-2">
                 {m.avatar ? <img src={m.avatar} alt="" className="h-8 w-8 rounded" /> : <div className="h-8 w-8 rounded bg-slate-200 dark:bg-slate-700" />}
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm"><span className="font-semibold text-charcoal dark:text-white">{m.author}</span> <span className="text-xs text-slate-400">{new Date(Number(m.ts.split(".")[0]) * 1000).toLocaleTimeString()}</span></p>
+                  <p className="text-sm"><span className="font-semibold text-charcoal dark:text-white">{m.author}</span> <span className="text-xs text-slate-600">{new Date(Number(m.ts.split(".")[0]) * 1000).toLocaleTimeString()}</span></p>
                   <p className="whitespace-pre-wrap break-words text-sm text-slate-700 dark:text-slate-200">{m.text}</p>
                   {m.approvalProposalId && (
                     <div className="mt-2 rounded-xl border border-seafoam-200 bg-seafoam-50/50 p-3 dark:border-slate-700 dark:bg-slate-800">
@@ -181,8 +181,8 @@ export function SlackPage() {
                     </div>
                   )}
                   <div className="mt-1 flex items-center gap-3">
-                    {m.reactions.length > 0 && <span className="text-xs text-slate-400">{m.reactions.map((r) => `:${r.name}: ${r.count}`).join("  ")}</span>}
-                    <button onClick={() => openThread(m)} className="flex items-center gap-1 text-xs text-slate-400 hover:text-seafoam-600">
+                    {m.reactions.length > 0 && <span className="text-xs text-slate-600">{m.reactions.map((r) => `:${r.name}: ${r.count}`).join("  ")}</span>}
+                    <button onClick={() => openThread(m)} className="flex items-center gap-1 text-xs text-slate-600 hover:text-seafoam-600">
                       <CornerDownRight className="h-3 w-3" /> {m.reply_count > 0 ? `${m.reply_count} replies` : "Reply"}
                     </button>
                   </div>
@@ -204,7 +204,7 @@ export function SlackPage() {
           <Card className="hidden flex-col overflow-hidden p-0 lg:flex">
             <div className="flex items-center justify-between border-b border-slate-200 p-3 dark:border-slate-700">
               <h3 className="text-sm font-semibold text-charcoal dark:text-white">Thread</h3>
-              <button onClick={() => setThread(null)} className="text-xs text-slate-400 hover:text-slate-600">Close</button>
+              <button onClick={() => setThread(null)} className="text-xs text-slate-600 hover:text-slate-600">Close</button>
             </div>
             <div className="flex-1 space-y-3 overflow-y-auto p-3">
               {threadMsgs.map((tm) => (

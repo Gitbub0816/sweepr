@@ -102,7 +102,7 @@ export function PricingPage() {
       <div className="space-y-8">
         <section>
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-charcoal dark:text-white"><DollarSign className="h-4 w-4" /> Pricing rules</h2>
-          {rules.length === 0 ? <Card><p className="text-sm text-slate-400">No pricing rules yet. Create one to begin.</p></Card> : <DataTable columns={ruleCols} rows={rules} />}
+          {rules.length === 0 ? <Card><p className="text-sm text-slate-600">No pricing rules yet. Create one to begin.</p></Card> : <DataTable columns={ruleCols} rows={rules} />}
         </section>
 
         <section>
@@ -122,9 +122,9 @@ export function PricingPage() {
             {simResult && (
               <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
                 <div className="flex flex-wrap gap-6">
-                  <div><p className="text-xs text-slate-400">Customer total</p><p className="text-lg font-bold text-charcoal dark:text-white">{fmt(simResult.customer_total_cents)}</p></div>
-                  <div><p className="text-xs text-slate-400">Est. cleaner payout</p><p className="text-lg font-semibold text-charcoal dark:text-white">{fmt(simResult.estimated_cleaner_payout_cents)}</p></div>
-                  <div><p className="text-xs text-slate-400">Est. platform</p><p className="text-lg font-semibold text-charcoal dark:text-white">{fmt(simResult.estimated_platform_revenue_cents)}</p></div>
+                  <div><p className="text-xs text-slate-600">Customer total</p><p className="text-lg font-bold text-charcoal dark:text-white">{fmt(simResult.customer_total_cents)}</p></div>
+                  <div><p className="text-xs text-slate-600">Est. cleaner payout</p><p className="text-lg font-semibold text-charcoal dark:text-white">{fmt(simResult.estimated_cleaner_payout_cents)}</p></div>
+                  <div><p className="text-xs text-slate-600">Est. platform</p><p className="text-lg font-semibold text-charcoal dark:text-white">{fmt(simResult.estimated_platform_revenue_cents)}</p></div>
                   {simResult.requires_custom_quote && <Badge variant="warning">Custom quote</Badge>}
                 </div>
                 <div className="mt-3 space-y-0.5">
@@ -140,7 +140,7 @@ export function PricingPage() {
 
         <section>
           <h2 className="mb-3 text-sm font-semibold text-charcoal dark:text-white">Pricing change approvals</h2>
-          {proposals.length === 0 ? <Card><p className="text-sm text-slate-400">No pricing proposals.</p></Card> : <DataTable columns={propCols} rows={proposals} />}
+          {proposals.length === 0 ? <Card><p className="text-sm text-slate-600">No pricing proposals.</p></Card> : <DataTable columns={propCols} rows={proposals} />}
         </section>
       </div>
     </DashboardShell>

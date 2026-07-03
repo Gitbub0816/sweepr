@@ -47,7 +47,7 @@ const LEVEL_COLOR: Record<string, string> = {
 function StatCard({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-600">{label}</p>
       <p className="mt-1 text-2xl font-bold text-charcoal">{value}</p>
     </div>
   );
@@ -155,7 +155,7 @@ export function ErrorsPage() {
           <button
             onClick={load}
             disabled={loading}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 disabled:opacity-50"
+            className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-600 disabled:opacity-50"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </button>
@@ -199,7 +199,7 @@ export function ErrorsPage() {
       {loading ? (
         <div className="h-64 animate-pulse rounded-xl bg-slate-100" />
       ) : errors.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white py-16 text-center text-sm text-slate-400">
+        <div className="rounded-xl border border-slate-200 bg-white py-16 text-center text-sm text-slate-600">
           <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-emerald-400" />
           No errors. Everything's running clean.
         </div>
@@ -215,9 +215,9 @@ export function ErrorsPage() {
               <div className="flex items-start gap-3 p-4">
                 <div className="mt-0.5 flex-shrink-0">
                   {e.source === "server" ? (
-                    <Server className="h-4 w-4 text-slate-400" />
+                    <Server className="h-4 w-4 text-slate-600" />
                   ) : (
-                    <Monitor className="h-4 w-4 text-slate-400" />
+                    <Monitor className="h-4 w-4 text-slate-600" />
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -235,13 +235,13 @@ export function ErrorsPage() {
                         {e.method} {e.status_code}
                       </span>
                     )}
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-slate-600">
                       {new Date(e.occurred_at).toLocaleString()}
                     </span>
                   </div>
                   <p className="mt-1.5 break-words font-mono text-sm text-charcoal">{e.message}</p>
                   {e.path && (
-                    <p className="mt-0.5 truncate font-mono text-xs text-slate-400">{e.path}</p>
+                    <p className="mt-0.5 truncate font-mono text-xs text-slate-600">{e.path}</p>
                   )}
                   {expanded === e.id && e.stack && (
                     <pre className="mt-3 max-h-72 overflow-auto rounded-lg bg-slate-950 p-3 text-xs leading-relaxed text-slate-300">
@@ -249,7 +249,7 @@ export function ErrorsPage() {
                     </pre>
                   )}
                   {expanded === e.id && (
-                    <p className="mt-2 text-xs text-slate-400">
+                    <p className="mt-2 text-xs text-slate-600">
                       {e.clerk_id ? `User: ${e.clerk_id} · ` : ""}
                       {e.request_id ? `Ray: ${e.request_id}` : ""}
                     </p>
@@ -259,7 +259,7 @@ export function ErrorsPage() {
                   {e.stack && (
                     <button
                       onClick={() => setExpanded(expanded === e.id ? null : e.id)}
-                      className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600"
+                      className="flex items-center gap-1 text-xs text-slate-600 hover:text-slate-600"
                     >
                       {expanded === e.id ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                       Stack
@@ -293,7 +293,7 @@ export function ErrorsPage() {
         </div>
       )}
 
-      <p className="flex items-center gap-1.5 text-xs text-slate-400">
+      <p className="flex items-center gap-1.5 text-xs text-slate-600">
         <AlertTriangle className="h-3.5 w-3.5" />
         Errors are captured automatically from the API and every frontend app.
       </p>

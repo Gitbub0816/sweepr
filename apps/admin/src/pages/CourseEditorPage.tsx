@@ -414,7 +414,7 @@ export function CourseEditorPage() {
           onChange={(e) => { setTitle(e.target.value); setSaveStatus("dirty"); }}
           className="rounded px-2 py-1 text-sm font-semibold outline-none hover:bg-slate-100 focus:bg-slate-100 w-64"
         />
-        <span className="text-xs text-slate-400 w-16">
+        <span className="text-xs text-slate-600 w-16">
           {saveStatus === "saving" ? "Saving…" : saveStatus === "dirty" ? "Unsaved" : "Saved"}
         </span>
         <div className="ml-auto flex items-center gap-2">
@@ -536,8 +536,8 @@ export function CourseEditorPage() {
                   className={`block w-full rounded-md border-2 p-1 text-left transition ${i === current ? "border-seafoam-400" : "border-slate-200 hover:border-slate-300"}`}
                 >
                   <div className="mb-1 flex items-center justify-between px-0.5">
-                    <span className="text-[10px] font-medium text-slate-400">{i + 1}</span>
-                    <span className="text-[9px] uppercase text-slate-400">{s.slide_type}</span>
+                    <span className="text-[10px] font-medium text-slate-600">{i + 1}</span>
+                    <span className="text-[9px] uppercase text-slate-600">{s.slide_type}</span>
                   </div>
                   <div className="relative aspect-video overflow-hidden rounded bg-white ring-1 ring-slate-200"
                     style={{ background: (s.background.color as string) ?? "#ffffff" }}>
@@ -558,7 +558,7 @@ export function CourseEditorPage() {
                 </div>
               </div>
             ))}
-            <button onClick={() => addSlide()} className="flex w-full items-center justify-center gap-1 rounded-md border-2 border-dashed border-slate-300 py-3 text-xs text-slate-400 hover:border-slate-400">
+            <button onClick={() => addSlide()} className="flex w-full items-center justify-center gap-1 rounded-md border-2 border-dashed border-slate-300 py-3 text-xs text-slate-600 hover:border-slate-400">
               <Plus className="h-3.5 w-3.5" /> Add slide
             </button>
           </div>
@@ -620,7 +620,7 @@ function RibbonGroup({ label, children }: { label: string; children: React.React
   return (
     <div className="flex flex-col items-center border-r border-slate-200 px-2 last:border-r-0">
       <div className="flex items-center gap-0.5">{children}</div>
-      <span className="mt-0.5 text-[9px] uppercase tracking-wide text-slate-400">{label}</span>
+      <span className="mt-0.5 text-[9px] uppercase tracking-wide text-slate-600">{label}</span>
     </div>
   );
 }
@@ -711,7 +711,7 @@ function BlockContent({ block, editing, onEditContent, onEndEdit }: {
         <img src={p.url as string} alt={(p.caption as string) ?? ""} className="h-full w-full"
           style={{ objectFit: (p.fit as "cover") ?? "cover", borderRadius: `${(p.radius as number) ?? 12}px` }} />
       ) : (
-        <div className="grid h-full w-full place-items-center bg-slate-100 text-xs text-slate-400" style={{ borderRadius: `${(p.radius as number) ?? 12}px` }}>
+        <div className="grid h-full w-full place-items-center bg-slate-100 text-xs text-slate-600" style={{ borderRadius: `${(p.radius as number) ?? 12}px` }}>
           <span className="flex flex-col items-center gap-1"><ImageIcon className="h-5 w-5" /> Image</span>
         </div>
       );
@@ -723,7 +723,7 @@ function BlockContent({ block, editing, onEditContent, onEndEdit }: {
       );
     case "embed":
       return (
-        <div className="grid h-full w-full place-items-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-400">
+        <div className="grid h-full w-full place-items-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-600">
           {p.url ? "Embedded content" : "Embed URL"}
         </div>
       );
@@ -763,7 +763,7 @@ function BlockContent({ block, editing, onEditContent, onEndEdit }: {
       return (
         <div className="h-full w-full overflow-hidden rounded-lg bg-slate-50 p-2 text-xs text-slate-700">
           {((p.items as string[]) ?? []).map((it, i) => (
-            <div key={i} className="flex items-center gap-1.5 py-0.5"><CheckSquare className="h-3 w-3 text-slate-400" />{it}</div>
+            <div key={i} className="flex items-center gap-1.5 py-0.5"><CheckSquare className="h-3 w-3 text-slate-600" />{it}</div>
           ))}
         </div>
       );
@@ -893,7 +893,7 @@ function StreamUploader({
           <button
             type="button"
             onClick={() => { onChange({ streamId: "" }); setState("idle"); }}
-            className="text-xs text-slate-400 hover:text-red-500"
+            className="text-xs text-slate-600 hover:text-red-500"
           >Replace</button>
         </div>
         <a
@@ -953,7 +953,7 @@ function StreamUploader({
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
       />
       {streamId && (
-        <div className="text-xs text-slate-400">
+        <div className="text-xs text-slate-600">
           Current ID: <span className="font-mono">{streamId}</span>
           <button type="button" onClick={() => setState("ready")} className="ml-2 text-seafoam-500 hover:underline">view</button>
         </div>
@@ -965,7 +965,7 @@ function StreamUploader({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block mb-3">
-      <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</span>
+      <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-600">{label}</span>
       {children}
     </label>
   );
@@ -1003,7 +1003,7 @@ function SlideInspector({ slide, onChange }: { slide: Slide; onChange: (p: Parti
           <option value="acknowledgment_signed">Acknowledgment signed</option>
         </select>
       </Field>
-      <p className="mt-6 rounded-lg bg-slate-50 p-3 text-[11px] leading-relaxed text-slate-400">
+      <p className="mt-6 rounded-lg bg-slate-50 p-3 text-[11px] leading-relaxed text-slate-600">
         Tip: double-click a text or heading block to edit it inline. Use arrow keys to nudge, ⌘D to duplicate, ⌫ to delete.
       </p>
     </div>

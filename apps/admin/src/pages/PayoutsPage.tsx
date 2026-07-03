@@ -471,7 +471,7 @@ function DisputesTab() {
     : (
       <div className="space-y-4">
         {(!data?.rows || data.rows.length === 0) && (
-          <div className="rounded-lg border border-slate-200 p-8 text-center text-slate-400 text-sm">
+          <div className="rounded-lg border border-slate-200 p-8 text-center text-slate-600 text-sm">
             No disputes or holds at this time.
           </div>
         )}
@@ -569,13 +569,13 @@ function SettingsTab() {
                   <td className="py-2 pr-4 text-red-600">{r.old_value ?? "—"}</td>
                   <td className="py-2 pr-4 text-green-600">{r.new_value ?? "—"}</td>
                   <td className="py-2 pr-4 text-slate-500">{r.reason ?? "—"}</td>
-                  <td className="py-2 text-slate-400">{new Date(r.created_at).toLocaleDateString()}</td>
+                  <td className="py-2 text-slate-600">{new Date(r.created_at).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         ) : (
-          <p className="text-sm text-slate-400">No changes recorded yet.</p>
+          <p className="text-sm text-slate-600">No changes recorded yet.</p>
         )}
       </div>
     </div>

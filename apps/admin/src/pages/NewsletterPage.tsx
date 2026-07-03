@@ -79,7 +79,7 @@ export function NewsletterPage() {
           <Card className="p-5">
             <h3 className="text-sm font-semibold text-charcoal dark:text-white mb-1">Subscribers</h3>
             {loadingSubs ? (
-              <p className="text-sm text-slate-400">Loading…</p>
+              <p className="text-sm text-slate-600">Loading…</p>
             ) : (
               <p className="text-3xl font-bold text-seafoam-600">{subscribers.length}</p>
             )}
@@ -135,13 +135,13 @@ export function NewsletterPage() {
                 className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm leading-relaxed text-slate-800 focus:outline-none focus:ring-2 focus:ring-seafoam-400 resize-y dark:bg-slate-900 dark:text-slate-200 dark:border-slate-700"
                 placeholder={"Hello Sweepr community,\n\nYour message here…\n\nDouble line breaks become paragraphs."}
               />
-              <p className="mt-1.5 text-xs text-slate-400">
+              <p className="mt-1.5 text-xs text-slate-600">
                 Plain text only — your branded email template is applied automatically.
               </p>
             </div>
 
             <div className="flex items-center justify-between pt-1">
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-600">
                 {subscribers.length} subscriber{subscribers.length === 1 ? "" : "s"}
               </p>
               <Button

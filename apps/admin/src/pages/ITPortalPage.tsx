@@ -85,7 +85,7 @@ const PRIORITY_COLOR: Record<string, string> = {
   urgent: "bg-red-100 text-red-700",
   high: "bg-orange-100 text-orange-700",
   normal: "bg-slate-100 text-slate-600",
-  low: "bg-slate-100 text-slate-400",
+  low: "bg-slate-100 text-slate-600",
 };
 const STATUS_COLOR: Record<string, string> = {
   open: "bg-blue-100 text-blue-700",
@@ -135,7 +135,7 @@ function TicketsSection() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-end">
-        <button onClick={load} disabled={loading} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 disabled:opacity-50">
+        <button onClick={load} disabled={loading} className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-600 disabled:opacity-50">
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
         </button>
       </div>
@@ -162,7 +162,7 @@ function TicketsSection() {
       {loading ? (
         <div className="h-64 animate-pulse rounded-xl bg-slate-100" />
       ) : tickets.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white py-16 text-center text-sm text-slate-400">
+        <div className="rounded-xl border border-slate-200 bg-white py-16 text-center text-sm text-slate-600">
           No {view.replace("_", " ")} tickets.
         </div>
       ) : (
@@ -193,7 +193,7 @@ function TicketsSection() {
                     {overdue && <span className="flex items-center gap-1 text-xs font-medium text-red-600"><AlertTriangle className="h-3 w-3" /> overdue</span>}
                   </div>
                   <p className="mt-1 truncate text-sm font-medium text-charcoal">{t.title}</p>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-600">
                     {t.reporter_email ?? "—"} · {new Date(t.created_at).toLocaleString()}
                   </p>
                 </div>
@@ -367,9 +367,9 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
             <h2 className="text-lg font-bold text-charcoal">
               {ticket ? <><span className="font-mono text-seafoam-700">{ticket.case_code ?? `#${ticket.ticket_number}`}</span> · {ticket.title}</> : "Loading…"}
             </h2>
-            {ticket && <p className="font-mono text-xs text-slate-400">Ticket ID: {ticket.ticket_id ?? "—"}</p>}
+            {ticket && <p className="font-mono text-xs text-slate-600">Ticket ID: {ticket.ticket_id ?? "—"}</p>}
           </div>
-          <button onClick={onClose} aria-label="Close ticket details" className="text-slate-400 hover:text-slate-600"><X className="h-5 w-5" /></button>
+          <button onClick={onClose} aria-label="Close ticket details" className="text-slate-600 hover:text-slate-600"><X className="h-5 w-5" /></button>
         </div>
 
         <div className="flex flex-1 overflow-hidden">
@@ -388,11 +388,11 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
                       <span className={`rounded-full px-2 py-0.5 font-medium ${ticket.classification_confidence >= 45 ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
                         {ticket.classification_confidence}% confidence
                       </span>
-                      <span className="text-slate-400">{ticket.auto_classified ? "auto-classified" : "needs review"}</span>
-                      {ticket.classification_signals?.length ? <span className="text-slate-400">· signals: {ticket.classification_signals.join(", ")}</span> : null}
+                      <span className="text-slate-600">{ticket.auto_classified ? "auto-classified" : "needs review"}</span>
+                      {ticket.classification_signals?.length ? <span className="text-slate-600">· signals: {ticket.classification_signals.join(", ")}</span> : null}
                     </>
                   ) : (
-                    <span className="text-slate-400">manually reported</span>
+                    <span className="text-slate-600">manually reported</span>
                   )}
                 </div>
 
@@ -474,7 +474,7 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
                   </div>
                   {ticket.reporter_email ? (
                     <>
-                      <p className="text-xs text-slate-400">Sends from IT@getsweepr.com → {ticket.reporter_email}</p>
+                      <p className="text-xs text-slate-600">Sends from IT@getsweepr.com → {ticket.reporter_email}</p>
                       <textarea
                         value={emailBody}
                         onChange={(e) => { setEmailBody(e.target.value); setEmailSent(false); setEmailError(null); }}
@@ -494,7 +494,7 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
                       {emailError && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{emailError}</p>}
                     </>
                   ) : (
-                    <p className="text-xs text-slate-400">No reporter email on this ticket — this ticket was submitted internally or without an email address.</p>
+                    <p className="text-xs text-slate-600">No reporter email on this ticket — this ticket was submitted internally or without an email address.</p>
                   )}
                 </div>
 
@@ -509,7 +509,7 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
                       </div>
                       <div>
                         <p className="text-slate-500">Ticket created · {new Date(ticket.created_at).toLocaleString()}</p>
-                        <p className="text-slate-400">Source: {ticket.source.replace("_", " ")}</p>
+                        <p className="text-slate-600">Source: {ticket.source.replace("_", " ")}</p>
                       </div>
                     </div>
                     {comments.map((cm) => {
@@ -523,12 +523,12 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
                           </div>
                           <div className={`flex-1 rounded-lg p-2 ${isSystemComment(cm.body) ? "bg-blue-50/50" : cm.is_admin ? "bg-amber-50" : "bg-slate-50"}`}>
                             <div className="flex items-center gap-1">
-                              <p className="flex-1 text-slate-400">{cm.author_email ?? "system"} · {new Date(cm.created_at).toLocaleString()}</p>
+                              <p className="flex-1 text-slate-600">{cm.author_email ?? "system"} · {new Date(cm.created_at).toLocaleString()}</p>
                               {canTranslate && (
                                 <button
                                   onClick={() => handleTranslate(cm.id, cm.body)}
                                   disabled={translating[cm.id]}
-                                  className="flex items-center gap-1 rounded px-1 py-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-600 disabled:opacity-50"
+                                  className="flex items-center gap-1 rounded px-1 py-0.5 text-slate-600 hover:bg-slate-200 hover:text-slate-600 disabled:opacity-50"
                                   title={showing ? "Show original" : "Translate to English"}
                                 >
                                   <Languages className="h-3 w-3" />
@@ -539,7 +539,7 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
                             {showing && translated ? (
                               <div>
                                 <p className="mt-0.5 whitespace-pre-wrap text-slate-700">{translated}</p>
-                                <p className="mt-1 border-t border-slate-200 pt-1 italic text-slate-400">Original: {cm.body}</p>
+                                <p className="mt-1 border-t border-slate-200 pt-1 italic text-slate-600">Original: {cm.body}</p>
                               </div>
                             ) : (
                               <p className="mt-0.5 whitespace-pre-wrap text-slate-700">{cm.body}</p>
@@ -548,7 +548,7 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
                         </div>
                       );
                     })}
-                    {comments.length === 0 && <p className="text-xs text-slate-400">No activity yet.</p>}
+                    {comments.length === 0 && <p className="text-xs text-slate-600">No activity yet.</p>}
                   </div>
                   <div className="mt-3 flex gap-2">
                     <input
@@ -569,7 +569,7 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
 
           {/* Context sidebar */}
           <div className="hidden w-72 shrink-0 overflow-y-auto border-l border-slate-100 p-4 xl:block">
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Reporter context</h3>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-600">Reporter context</h3>
             <ContextPanel context={context} kind="it" />
           </div>
         </div>
@@ -618,7 +618,7 @@ function UsersSection() {
       </div>
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-600" />
           <input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -633,7 +633,7 @@ function UsersSection() {
       </div>
 
       {searched && !loading && users.length === 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white py-10 text-center text-sm text-slate-400">No users found.</div>
+        <div className="rounded-xl border border-slate-200 bg-white py-10 text-center text-sm text-slate-600">No users found.</div>
       )}
 
       <div className="space-y-2">
@@ -740,7 +740,7 @@ interface Telemetry {
 function Stat({ label, value, alert }: { label: string; value: string | number; alert?: boolean }) {
   return (
     <div className={`rounded-xl border p-4 ${alert ? "border-red-200 bg-red-50" : "border-slate-200 bg-white"}`}>
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-600">{label}</p>
       <p className={`mt-1 text-2xl font-bold ${alert ? "text-red-700" : "text-charcoal"}`}>{value}</p>
     </div>
   );
@@ -781,16 +781,16 @@ function TelemetrySection() {
         <div className="border-b border-slate-100 px-5 py-3 text-sm font-semibold text-charcoal">Recent unresolved errors</div>
         <div className="divide-y divide-slate-50">
           {data.recentErrors.length === 0 ? (
-            <p className="px-5 py-6 text-center text-sm text-slate-400">No unresolved errors. 🎉</p>
+            <p className="px-5 py-6 text-center text-sm text-slate-600">No unresolved errors. 🎉</p>
           ) : data.recentErrors.map((e) => (
             <div key={e.id} className="px-5 py-3">
               <div className="flex items-center gap-2">
                 <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">{e.level}</span>
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{e.source}{e.app ? `/${e.app}` : ""}</span>
-                <span className="text-xs text-slate-400">{new Date(e.occurred_at).toLocaleString()}</span>
+                <span className="text-xs text-slate-600">{new Date(e.occurred_at).toLocaleString()}</span>
               </div>
               <p className="mt-1 font-mono text-sm text-charcoal">{e.message}</p>
-              {e.path && <p className="font-mono text-xs text-slate-400">{e.path}{e.status_code ? ` → ${e.status_code}` : ""}</p>}
+              {e.path && <p className="font-mono text-xs text-slate-600">{e.path}{e.status_code ? ` → ${e.status_code}` : ""}</p>}
             </div>
           ))}
         </div>
@@ -844,19 +844,19 @@ function TemplatesSection() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-xs text-slate-400">Editable canned replies. Placeholders {"{{case_code}}"}, {"{{ticket_id}}"}, {"{{classification}}"}, {"{{sender_email}}"} are substituted when inserted.</p>
+        <p className="text-xs text-slate-600">Editable canned replies. Placeholders {"{{case_code}}"}, {"{{ticket_id}}"}, {"{{classification}}"}, {"{{sender_email}}"} are substituted when inserted.</p>
         <button onClick={() => setEditing({ department: "it", is_active: true })} className="rounded-lg bg-seafoam-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-seafoam-600">New template</button>
       </div>
       {loading ? <div className="h-48 animate-pulse rounded-xl bg-slate-100" /> : (
         (["it", "security"] as const).map((dept) => (
           <div key={dept}>
-            <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-400">{dept === "it" ? "IT" : "Security"}</h3>
+            <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-600">{dept === "it" ? "IT" : "Security"}</h3>
             <div className="space-y-2">
-              {grouped[dept].length === 0 && <p className="text-xs text-slate-400">No templates.</p>}
+              {grouped[dept].length === 0 && <p className="text-xs text-slate-600">No templates.</p>}
               {grouped[dept].map((t) => (
                 <div key={t.id} className="flex items-start justify-between rounded-xl border border-slate-200 bg-white p-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-charcoal">{t.name} {!t.is_active && <span className="text-xs text-slate-400">(inactive)</span>}</p>
+                    <p className="text-sm font-medium text-charcoal">{t.name} {!t.is_active && <span className="text-xs text-slate-600">(inactive)</span>}</p>
                     <p className="font-mono text-[10px] text-slate-300">{t.key}{t.classification ? ` · ${t.classification}` : ""}</p>
                     <p className="mt-1 line-clamp-2 text-xs text-slate-500">{t.body}</p>
                   </div>
@@ -876,7 +876,7 @@ function TemplatesSection() {
           <div className="h-full w-full max-w-lg overflow-y-auto bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-charcoal">{editing.id ? "Edit template" : "New template"}</h2>
-              <button onClick={() => setEditing(null)} aria-label="Close template editor" className="text-slate-400 hover:text-slate-600"><X className="h-5 w-5" /></button>
+              <button onClick={() => setEditing(null)} aria-label="Close template editor" className="text-slate-600 hover:text-slate-600"><X className="h-5 w-5" /></button>
             </div>
             <div className="mt-4 space-y-3">
               {!editing.id && (

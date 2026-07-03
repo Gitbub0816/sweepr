@@ -120,7 +120,7 @@ function BlockEditor({ block, onChange, onRemove }: { block: Block; onChange: (b
   return (
     <div className="group relative rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wide text-slate-400">{block.type}</span>
+        <span className="text-xs font-medium uppercase tracking-wide text-slate-600">{block.type}</span>
         <button onClick={onRemove} className="text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition">Remove</button>
       </div>
       {block.type === "divider" ? (
@@ -243,7 +243,7 @@ function ComposeTab() {
             />
           </Card>
         ) : (
-          <Card className="p-8 text-center text-slate-400">
+          <Card className="p-8 text-center text-slate-600">
             <Pencil className="mx-auto mb-3 h-8 w-8 opacity-30" />
             <p className="text-sm">Click "Preview HTML" to see a live render of your email.</p>
           </Card>
@@ -385,7 +385,7 @@ function BroadcastsTab() {
               {BROADCAST_CATEGORIES.map(c => (
                 <button key={c.value} onClick={() => setCategory(c.value)}
                   className={`w-full flex items-start gap-3 rounded-xl border p-3 text-left transition ${category === c.value ? "border-seafoam-400 bg-seafoam-50 dark:bg-seafoam-900/20" : "border-slate-200 hover:border-slate-300 dark:border-slate-700"}`}>
-                  <span className={`mt-0.5 ${category === c.value ? "text-seafoam-600" : "text-slate-400"}`}>{c.icon}</span>
+                  <span className={`mt-0.5 ${category === c.value ? "text-seafoam-600" : "text-slate-600"}`}>{c.icon}</span>
                   <div>
                     <p className="text-sm font-medium text-charcoal dark:text-white">{c.label}</p>
                     <p className="text-xs text-slate-500">{c.description}</p>
@@ -439,7 +439,7 @@ function BroadcastsTab() {
                 <p className="text-sm font-medium text-charcoal dark:text-white">{b.subject}</p>
                 <p className="text-xs text-slate-500 mt-0.5">{b.broadcast_type} · {AUDIENCE_LABELS[b.audience as Audience] ?? b.audience} · {b.sent_count} sent</p>
               </div>
-              <p className="text-xs text-slate-400">{new Date(b.created_at).toLocaleDateString()}</p>
+              <p className="text-xs text-slate-600">{new Date(b.created_at).toLocaleDateString()}</p>
             </div>
           ))}
         </Card>
@@ -493,7 +493,7 @@ function NewsletterTab() {
               <p className="text-sm text-charcoal dark:text-white">{s.email}</p>
               <div className="flex items-center gap-3">
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${s.status === "active" ? "bg-seafoam-100 text-seafoam-700" : "bg-slate-100 text-slate-500"}`}>{s.status}</span>
-                <p className="text-xs text-slate-400">{new Date(s.created_at).toLocaleDateString()}</p>
+                <p className="text-xs text-slate-600">{new Date(s.created_at).toLocaleDateString()}</p>
               </div>
             </div>
           ))}
@@ -514,7 +514,7 @@ function InboxTab() {
         The proprietary inbox will display inbound emails routed through your MailerSend addresses.
         It will show emails per sender address based on your permission scope.
       </p>
-      <p className="mt-3 text-xs text-slate-400">
+      <p className="mt-3 text-xs text-slate-600">
         Configure inbound routes in MailerSend → connect your addresses to see messages here.
       </p>
     </div>

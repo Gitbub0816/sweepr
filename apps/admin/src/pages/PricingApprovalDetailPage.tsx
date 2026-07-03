@@ -126,7 +126,7 @@ export function PricingApprovalDetailPage() {
           </Card>
           <Card>
             <h3 className="mb-2 font-semibold text-charcoal dark:text-white">Collaborators</h3>
-            {collaborators.length === 0 ? <p className="text-sm text-slate-400">None yet.</p> : (
+            {collaborators.length === 0 ? <p className="text-sm text-slate-600">None yet.</p> : (
               <ul className="space-y-1 text-sm">
                 {collaborators.map((cb) => (
                   <li key={cb.clerk_id} className="flex items-center justify-between">
@@ -144,5 +144,5 @@ export function PricingApprovalDetailPage() {
 }
 
 function D({ label, value }: { label: string; value: string }) {
-  return <div><dt className="text-xs text-slate-400">{label}</dt><dd className="font-medium text-charcoal dark:text-white">{value}</dd></div>;
+  return <div><dt className="text-xs text-slate-600">{label}</dt><dd className="font-medium text-charcoal dark:text-white">{value}</dd></div>;
 }

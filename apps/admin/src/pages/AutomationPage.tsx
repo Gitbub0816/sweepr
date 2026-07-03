@@ -75,7 +75,7 @@ function StatCard({
       </div>
       <p className={`text-2xl font-bold ${tc}`}>{value}</p>
       <p className="text-xs text-slate-500 mt-0.5">{label}</p>
-      {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
+      {sub && <p className="text-xs text-slate-600 mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -136,7 +136,7 @@ export function AutomationPage() {
           <h1 className="text-xl font-bold text-charcoal">Automation Engine</h1>
           <p className="text-sm text-slate-500 mt-0.5">Assignment, payment capture, payouts, and ops automations.</p>
         </div>
-        <button onClick={load} disabled={loading} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 disabled:opacity-50">
+        <button onClick={load} disabled={loading} className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-600 disabled:opacity-50">
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
         </button>
       </div>
@@ -189,13 +189,13 @@ export function AutomationPage() {
               <tbody className="divide-y divide-slate-100">
                 {queue.map((row) => (
                   <tr key={`${row.booking_id}-${row.cleaner_id}`} className="hover:bg-slate-50">
-                    <td className="px-3 py-2 font-mono text-slate-400">{row.booking_id.slice(0, 8)}</td>
+                    <td className="px-3 py-2 font-mono text-slate-600">{row.booking_id.slice(0, 8)}</td>
                     <td className="px-3 py-2 text-charcoal capitalize">{row.service_type}</td>
                     <td className="px-3 py-2 text-slate-500">{new Date(row.scheduled_at).toLocaleDateString()}</td>
                     <td className="px-3 py-2 text-charcoal">{row.cleaner_name}</td>
                     <td className="px-3 py-2 text-right font-medium text-seafoam-600">{row.score?.toFixed(1)}</td>
                     <td className="px-3 py-2"><StatusBadge status={row.status} /></td>
-                    <td className="px-3 py-2 text-slate-400">
+                    <td className="px-3 py-2 text-slate-600">
                       {row.expires_at ? new Date(row.expires_at).toLocaleTimeString() : "—"}
                     </td>
                   </tr>
@@ -211,7 +211,7 @@ export function AutomationPage() {
         <h2 className="text-sm font-semibold text-slate-600 mb-2">Recent Automation Runs</h2>
         <div className="rounded-xl border border-slate-200 overflow-hidden">
           {(dashboard?.recentRuns?.length ?? 0) === 0 ? (
-            <div className="px-4 py-6 text-center text-sm text-slate-400">No runs yet.</div>
+            <div className="px-4 py-6 text-center text-sm text-slate-600">No runs yet.</div>
           ) : (
             <table className="w-full text-xs">
               <thead className="bg-slate-50 text-slate-500 uppercase tracking-wide">
@@ -240,8 +240,8 @@ export function AutomationPage() {
                           {run.status === "failed" && <XCircle className="h-3.5 w-3.5 text-red-500" />}
                           {run.status === "running" && <RefreshCw className="h-3.5 w-3.5 text-amber-500 animate-spin" />}
                         </td>
-                        <td className="px-3 py-2.5 text-slate-400">{new Date(run.started_at).toLocaleString()}</td>
-                        <td className="px-3 py-2.5 text-right text-slate-400">{duration}</td>
+                        <td className="px-3 py-2.5 text-slate-600">{new Date(run.started_at).toLocaleString()}</td>
+                        <td className="px-3 py-2.5 text-right text-slate-600">{duration}</td>
                         <td className="px-3 py-2.5 text-slate-300">
                           {expandedRun === run.id ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                         </td>
