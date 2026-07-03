@@ -49,6 +49,7 @@ import { feeProposalsRouter, feeActionRouter } from "./routes/feeProposals";
 import { pricingAdminRouter } from "./routes/pricingAdmin";
 import { securityRouter } from "./routes/security";
 import { itInboundRouter } from "./routes/itInbound";
+import { mailboxInboundRouter } from "./routes/mailboxInbound";
 import { reportRouter } from "./routes/report";
 import { responseTemplatesRouter } from "./routes/responseTemplates";
 import { adminEmailRouter, mailersendWebhookRouter, unsubscribeRouter } from "./routes/adminEmail";
@@ -152,6 +153,9 @@ app.route("/fee-action", feeActionRouter);
 app.route("/admin/pricing", pricingAdminRouter);
 app.route("/security", securityRouter);
 app.route("/it-mail", itInboundRouter);
+// Generic inbound mailboxes (caleb/kristin/news/updates/help/alerts) —
+// per-box MailerSend signing secrets, fail closed.
+app.route("/mail", mailboxInboundRouter);
 app.route("/report", reportRouter);
 app.route("/admin/response-templates", responseTemplatesRouter);
 app.route("/admin/email", adminEmailRouter);
