@@ -23,7 +23,7 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts";
-import { DashboardShell, StatCard, Card, Badge, toast } from "@sweepr/ui";
+import { DashboardShell, StatCard, Card, Badge, toast, StatGridSkeleton, TableSkeleton } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -138,8 +138,10 @@ export function DashboardPage() {
       }
     >
       {loading ? (
-        <div className="flex h-40 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-seafoam-400 border-t-transparent" />
+        <div className="space-y-4">
+          <StatGridSkeleton count={4} />
+          <StatGridSkeleton count={6} className="lg:grid-cols-6" />
+          <TableSkeleton rows={5} cols={3} />
         </div>
       ) : (
         <>

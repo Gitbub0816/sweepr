@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Repeat, Pause, Play, SkipForward, X, Sparkles, Loader2 } from "lucide-react";
+import { Repeat, Pause, Play, SkipForward, X, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Card, Button, Badge, toast } from "@sweepr/ui";
+import { Card, Button, Badge, toast, CardListSkeleton } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
 import { useAuth } from "@clerk/clerk-react";
 
@@ -84,8 +84,8 @@ export function SubscriptionsPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-seafoam-500" />
+      <div className="mx-auto w-full max-w-3xl px-4 py-8">
+        <CardListSkeleton rows={3} />
       </div>
     );
   }

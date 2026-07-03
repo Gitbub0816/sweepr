@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { Card, Button, Input, toast } from "@sweepr/ui";
+import { Card, Button, Input, toast, CardListSkeleton } from "@sweepr/ui";
 import { Inbox, Send, RotateCw, Reply, PenSquare, ShieldCheck, Trash2, MailOpen, Mail as MailIcon } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
@@ -146,7 +146,7 @@ export function MailPage() {
 
   const fmtDate = (s: string) => new Date(s).toLocaleString();
 
-  if (loading) return <div className="p-8 text-slate-600">Loading mail…</div>;
+  if (loading) return <div className="p-6"><CardListSkeleton rows={4} /></div>;
 
   if (boxes.length === 0) {
     return (

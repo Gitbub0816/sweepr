@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { RefreshCw, X } from "lucide-react";
-import { DashboardShell, toast, Badge } from "@sweepr/ui";
+import { DashboardShell, toast, Badge, TableSkeleton } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
 import { DataTable, type Column } from "../components/DataTable";
 
@@ -132,9 +132,7 @@ export function CustomersPage() {
       }
     >
       {loading ? (
-        <div className="flex h-40 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-seafoam-400 border-t-transparent" />
-        </div>
+        <TableSkeleton cols={5} />
       ) : (
         <DataTable columns={columns} rows={customers} />
       )}

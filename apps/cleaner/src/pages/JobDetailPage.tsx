@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
-import { DashboardShell, Card, Button, ErrorState, toast } from "@sweepr/ui";
+import { DashboardShell, Card, Button, ErrorState, Skeleton, toast } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
 import { NavigationMap } from "../components/NavigationMap";
 
@@ -207,7 +207,12 @@ export function JobDetailPage() {
   if (loading) {
     return (
       <DashboardShell title="Job Detail">
-        <p className="text-slate-600 text-sm">Loading…</p>
+        <div className="space-y-4" role="status" aria-busy="true" aria-label="Loading job">
+          <Skeleton className="h-40 w-full rounded-2xl" />
+          <Skeleton className="h-24 w-full rounded-2xl" />
+          <Skeleton className="h-24 w-full rounded-2xl" />
+          <span className="sr-only">Loading…</span>
+        </div>
       </DashboardShell>
     );
   }

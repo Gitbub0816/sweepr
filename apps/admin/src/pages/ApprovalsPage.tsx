@@ -12,6 +12,7 @@ import {
   Textarea,
   Modal,
   EmptyState,
+  TableSkeleton,
   toast,
 } from "@sweepr/ui";
 import { DataTable, type Column } from "../components/DataTable";
@@ -160,9 +161,7 @@ export function ApprovalsPage() {
       </div>
 
       {loading ? (
-        <div className="flex h-40 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-seafoam-400 border-t-transparent" />
-        </div>
+        <TableSkeleton cols={columns.length} />
       ) : rows.length === 0 ? (
         <EmptyState
           icon={<GitPullRequest className="h-10 w-10 text-seafoam-500" />}

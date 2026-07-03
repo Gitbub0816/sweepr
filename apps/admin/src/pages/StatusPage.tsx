@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { DashboardShell, Card, Button, Input, toast } from "@sweepr/ui";
+import { DashboardShell, Card, Button, Input, toast, StatGridSkeleton, CardListSkeleton } from "@sweepr/ui";
 import { Bot, Wrench } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -224,8 +224,9 @@ export function StatusPage() {
   if (loading) {
     return (
       <DashboardShell title="Status Management" description="Manage incidents, maintenance windows, and prelaunch settings">
-        <div className="flex h-40 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-seafoam-400 border-t-transparent" />
+        <div className="space-y-6">
+          <StatGridSkeleton count={4} />
+          <CardListSkeleton rows={3} />
         </div>
       </DashboardShell>
     );
