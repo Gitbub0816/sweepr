@@ -6,7 +6,7 @@ import { TrainingGate } from "../TrainingPage";
 import type { CheckrStatus } from "../../types/checkr";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
-const CHECKR_PUBLISHABLE_KEY = import.meta.env.VITE_CHECKR_PUBLISHABLE_KEY ?? "";
+const BUILD_CHECKR_PUBLISHABLE_KEY = import.meta.env.VITE_CHECKR_PUBLISHABLE_KEY ?? "";
 const CHECKR_JS_URL = "https://js.checkr.com/checkr-2.0.0.min.js";
 
 interface CheckrCandidateResponse {
@@ -60,12 +60,23 @@ function loadCheckrJs(): Promise<CheckrGlobal> {
   });
 }
 
-async function createCheckrCandidate(data: Record<string, string>): Promise<string> {
-  if (!CHECKR_PUBLISHABLE_KEY) {
-    throw new Error("Checkr publishable key is not configured. Set VITE_CHECKR_PUBLISHABLE_KEY on the cleaner app and redeploy.");
-  }
+async function resolvePublishableKey(getToken: () => Promise<string | null>): Promise<string> {
+  if (BUILD_CHECKR_PUBLISHABLE_KEY) return BUILD_CHECKR_PUBLISHABLE_KEY;
+
+  const token = await getToken();
+  const res = await fetch(`${API_URL}/checkr/config`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error(`Unable to load Checkr config (${res.status}).`);
+  const data = (await res.json()) as { publishableKey?: string; configured?: boolean };
+  if (!data.publishableKey) throw new Error("Checkr publishable key is not configured on the API Worker. Set VITE_CHECKR_PUBLISHABLE_KEY or CHECKR_PUBLISHABLE_KEY on sweepr-api and redeploy.");
+  return data.publishableKey;
+}
+
+async function createCheckrCandidate(data: Record<string, string>, getToken: () => Promise<string | null>): Promise<string> {
+  const publishableKey = await resolvePublishableKey(getToken);
   const checkr = await loadCheckrJs();
-  checkr.setPublishableKey(CHECKR_PUBLISHABLE_KEY);
+  checkr.setPublishableKey(publishableKey);
   return new Promise((resolve, reject) => {
     checkr.candidate.create(data, (_status, response) => {
       if (response?.error) return reject(new Error(response.error));
@@ -91,7 +102,7 @@ export function BackgroundCheckStep({ n, workState = "CA", getToken, onComplete,
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         email,
-      });
+      }, getToken);
       const token = await getToken();
       const res = await fetch(`${API_URL}/checkr/invite`, {
         method: "POST",
