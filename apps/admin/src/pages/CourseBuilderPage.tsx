@@ -108,7 +108,7 @@ export function CourseBuilderPage() {
       </div>
 
       {loading ? (
-        <p className="text-slate-400 text-sm">Loading…</p>
+        <p className="text-slate-600 text-sm">Loading…</p>
       ) : (
         <>
           <section className="mb-10">
@@ -116,7 +116,7 @@ export function CourseBuilderPage() {
               <FileStack className="h-4 w-4" /> Courses
             </h2>
             {courses.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-400">
+              <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-600">
                 No courses yet. Create one to open the editor.
               </div>
             ) : (
@@ -139,7 +139,7 @@ export function CourseBuilderPage() {
                       <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyles[c.status] ?? statusStyles.draft}`}>
                         {c.status}
                       </span>
-                      <Pencil className="h-4 w-4 text-slate-400" />
+                      <Pencil className="h-4 w-4 text-slate-600" />
                     </div>
                   </button>
                 ))}
@@ -151,7 +151,7 @@ export function CourseBuilderPage() {
             <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">
               <GraduationCap className="h-4 w-4" /> Legacy library (read-only)
             </h2>
-            <p className="text-xs text-slate-400 mb-3">
+            <p className="text-xs text-slate-600 mb-3">
               These modules are the current certification of record. They keep
               working until replaced by a published course.
             </p>
@@ -163,11 +163,11 @@ export function CourseBuilderPage() {
                 >
                   <div>
                     <div className="text-sm font-medium text-slate-700">{m.title}</div>
-                    <div className="text-xs text-slate-400">
+                    <div className="text-xs text-slate-600">
                       {m.required_type} · {m.lesson_count} lessons · v{m.version}
                     </div>
                   </div>
-                  <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                  <span className="inline-flex items-center gap-1 text-xs text-slate-600">
                     <Archive className="h-3.5 w-3.5" /> library
                   </span>
                 </div>

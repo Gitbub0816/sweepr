@@ -55,13 +55,10 @@ export function PrelaunchGate({ type, apiUrl, children, forcePrelaunch = false }
       .then((data) => {
         const resolved = data.settings ?? { prelaunch_cleaner: true, prelaunch_customer: true };
         setSettings(resolved);
-        // If admin has turned the gate ON while the user has a bypass stored,
-        // clear the bypass so it takes effect immediately.
-        const gated = type === "cleaner" ? resolved.prelaunch_cleaner : resolved.prelaunch_customer;
-        if (gated) {
-          try { localStorage.removeItem(BYPASS_KEY); } catch { /* noop */ }
-          setBypassed(false);
-        }
+        // NOTE: the stored bypass intentionally survives while the gate is on —
+        // that is the whole point of the bypass (previewing a gated site).
+        // It previously got cleared here, which meant ?bypass= only lasted a
+        // single page load. Clearing it is reserved for sign-out/manual reset.
       })
       .catch(() => setSettings({ prelaunch_cleaner: true, prelaunch_customer: true }))
       .finally(() => clearTimeout(timeout));

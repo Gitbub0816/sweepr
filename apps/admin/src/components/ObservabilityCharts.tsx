@@ -81,7 +81,7 @@ export function HealthOrb({ errorRate, label }: { errorRate: number; label: stri
       </Canvas>}
       <div className="text-center -mt-2">
         <p className="text-xs font-bold" style={{ color: textColor }}>{statusText}</p>
-        <p className="text-xs text-slate-400">{label}</p>
+        <p className="text-xs text-slate-600">{label}</p>
       </div>
     </div>
   );

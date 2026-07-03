@@ -171,7 +171,7 @@ export function SettingsPage() {
         <GeneralSettingsPanel />
         <AdminInvitePanel />
         <div>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Slack</h2>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-600">Slack</h2>
           <SlackSettings />
         </div>
       </div>

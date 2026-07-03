@@ -155,7 +155,7 @@ export function DisputeDetailPage() {
               {dispute.status}
             </Badge>
             {dispute.resolved_at && (
-              <p className="mt-2 text-xs text-slate-400">
+              <p className="mt-2 text-xs text-slate-600">
                 Resolved {formatDateTime(dispute.resolved_at)}
               </p>
             )}
@@ -198,7 +198,7 @@ export function DisputeDetailPage() {
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs text-slate-400">{label}</dt>
+      <dt className="text-xs text-slate-600">{label}</dt>
       <dd className="font-medium text-charcoal dark:text-white">{value}</dd>
     </div>
   );

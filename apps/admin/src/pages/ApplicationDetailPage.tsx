@@ -154,7 +154,7 @@ export function ApplicationDetailPage() {
                   className="h-16 w-16 rounded-full object-cover"
                 />
               ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800">
                   <UserIcon className="h-7 w-7" />
                 </div>
               )}
@@ -190,7 +190,7 @@ export function ApplicationDetailPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-slate-400">No services selected.</p>
+              <p className="text-sm text-slate-600">No services selected.</p>
             )}
           </Card>
         </div>
@@ -291,7 +291,7 @@ export function ApplicationDetailPage() {
 function Row({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div className="flex justify-between gap-4">
-      <dt className="text-slate-400">{label}</dt>
+      <dt className="text-slate-600">{label}</dt>
       <dd className="text-right font-medium text-charcoal dark:text-white">
         {value ?? "—"}
       </dd>

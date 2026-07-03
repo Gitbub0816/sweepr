@@ -47,7 +47,7 @@ function RoleSelect({ value, onChange, disabled }: { value: string; onChange: (r
         className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50 disabled:opacity-40"
       >
         <RoleBadge role={value} />
-        <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+        <ChevronDown className="h-3.5 w-3.5 text-slate-600" />
       </button>
       {open && (
         <div className="absolute right-0 top-full mt-1 z-20 bg-white rounded-xl shadow-lg border border-slate-200 w-64 py-1">
@@ -62,7 +62,7 @@ function RoleSelect({ value, onChange, disabled }: { value: string; onChange: (r
                   <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${r.color}`}>{r.label}</span>
                   {r.value === value && <Check className="h-3 w-3 text-seafoam-500" />}
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5">{r.description}</p>
+                <p className="text-xs text-slate-600 mt-0.5">{r.description}</p>
               </div>
             </button>
           ))}
@@ -144,7 +144,7 @@ export function AdminsPage() {
           <h1 className="text-xl font-bold text-charcoal">Admin Team</h1>
           <p className="text-sm text-slate-500 mt-0.5">Manage admin users and their permission levels.</p>
         </div>
-        <button onClick={load} disabled={loading} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600">
+        <button onClick={load} disabled={loading} className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-600">
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
         </button>
       </div>
@@ -214,9 +214,9 @@ export function AdminsPage() {
               <tbody className="divide-y divide-slate-100">
                 {invites.map(inv => (
                   <tr key={inv.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-2.5 flex items-center gap-2"><Mail className="h-3.5 w-3.5 text-slate-400" />{inv.email}</td>
+                    <td className="px-4 py-2.5 flex items-center gap-2"><Mail className="h-3.5 w-3.5 text-slate-600" />{inv.email}</td>
                     <td className="px-4 py-2.5"><RoleBadge role={inv.admin_role} /></td>
-                    <td className="px-4 py-2.5 text-slate-400">{new Date(inv.expires_at).toLocaleDateString()}</td>
+                    <td className="px-4 py-2.5 text-slate-600">{new Date(inv.expires_at).toLocaleDateString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -249,7 +249,7 @@ export function AdminsPage() {
                       {a.email} {isSelf && <span className="ml-1 text-xs text-seafoam-600">(you)</span>}
                     </td>
                     <td className="px-4 py-3"><RoleBadge role={a.admin_role ?? a.role} /></td>
-                    <td className="px-4 py-3 text-slate-400 text-xs">{new Date(a.created_at).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-slate-600 text-xs">{new Date(a.created_at).toLocaleDateString()}</td>
                     {canChangeRoles && (
                       <td className="px-4 py-3 text-right">
                         {!isSelf && (

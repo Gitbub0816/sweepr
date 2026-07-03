@@ -197,7 +197,7 @@ export function DashboardPage() {
             <Card>
               <h2 className="mb-4 font-semibold text-charcoal dark:text-white">Bookings by status</h2>
               {pieData.length === 0 ? (
-                <p className="py-8 text-center text-sm text-slate-400">No bookings yet.</p>
+                <p className="py-8 text-center text-sm text-slate-600">No bookings yet.</p>
               ) : (
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
@@ -242,11 +242,11 @@ export function DashboardPage() {
           <Card>
             <h2 className="mb-4 font-semibold text-charcoal dark:text-white">Recent bookings</h2>
             {(data?.recentBookings ?? []).length === 0 ? (
-              <p className="py-8 text-center text-sm text-slate-400">No bookings yet.</p>
+              <p className="py-8 text-center text-sm text-slate-600">No bookings yet.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
-                  <thead className="text-xs uppercase text-slate-400">
+                  <thead className="text-xs uppercase text-slate-600">
                     <tr>
                       <th className="py-2 pr-4">Booking</th>
                       <th className="py-2 pr-4">Service</th>
@@ -284,12 +284,12 @@ export function DashboardPage() {
               <a href="/events" className="text-xs text-seafoam-600 hover:underline">View all →</a>
             </div>
             {(data?.recentAudit ?? []).length === 0 ? (
-              <p className="py-4 text-sm text-slate-400">No audit events yet. Events are recorded when admin actions are taken.</p>
+              <p className="py-4 text-sm text-slate-600">No audit events yet. Events are recorded when admin actions are taken.</p>
             ) : (
               <div className="space-y-2">
                 {(data?.recentAudit ?? []).map((e) => (
                   <div key={`${e.created_at}::${e.action}`} className="flex items-center gap-3 text-sm">
-                    <span className="text-xs text-slate-400 whitespace-nowrap">{new Date(e.created_at).toLocaleTimeString()}</span>
+                    <span className="text-xs text-slate-600 whitespace-nowrap">{new Date(e.created_at).toLocaleTimeString()}</span>
                     <Badge variant={actionVariant(e.action)}>{e.action}</Badge>
                     <span className="text-slate-600 dark:text-slate-300 truncate">{e.target_type}:{e.target_id}</span>
                   </div>

@@ -154,7 +154,7 @@ export function BroadcastsPage() {
                       className="text-seafoam-500 focus:ring-seafoam-400" />
                     <span className="text-sm text-slate-700">{AUDIENCE_LABELS[a]}</span>
                     {counts && (
-                      <span className="ml-auto text-xs text-slate-400 font-mono">
+                      <span className="ml-auto text-xs text-slate-600 font-mono">
                         {a === "newsletter" ? counts.newsletter
                           : a === "waitlist_customer" ? counts.waitlist_customer
                           : a === "waitlist_cleaner" ? counts.waitlist_cleaner
@@ -180,7 +180,7 @@ export function BroadcastsPage() {
               <div className="pt-2 border-t border-slate-100">
                 <p className="text-xs text-slate-500">
                   <span className="font-semibold text-charcoal">{recipientCount()}</span> recipients
-                  {audience === "all" && <span className="text-slate-400"> (deduped on send)</span>}
+                  {audience === "all" && <span className="text-slate-600"> (deduped on send)</span>}
                 </p>
               </div>
             </Card>
@@ -197,7 +197,7 @@ export function BroadcastsPage() {
                       className="mt-0.5 text-seafoam-500 focus:ring-seafoam-400" />
                     <div>
                       <span className="text-sm text-slate-700 font-medium">{t.label}</span>
-                      <p className="text-xs text-slate-400">{t.description}</p>
+                      <p className="text-xs text-slate-600">{t.description}</p>
                     </div>
                   </label>
                 ))}
@@ -206,7 +206,7 @@ export function BroadcastsPage() {
 
             {/* Optional test */}
             <Card className="p-5 space-y-3">
-              <h3 className="text-sm font-semibold">Send test <span className="font-normal text-slate-400">(optional)</span></h3>
+              <h3 className="text-sm font-semibold">Send test <span className="font-normal text-slate-600">(optional)</span></h3>
               <Input label="Test address" type="email" placeholder="you@example.com"
                 value={previewTo} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPreviewTo(e.target.value)} />
               <Button variant="secondary" disabled={previewing || !subject || !body || !previewTo}
@@ -232,13 +232,13 @@ export function BroadcastsPage() {
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm leading-relaxed text-slate-800 focus:outline-none focus:ring-2 focus:ring-seafoam-400 resize-y dark:bg-slate-900 dark:text-slate-200 dark:border-slate-700"
                   placeholder={"Your message here…\n\nDouble line breaks become paragraphs."}
                 />
-                <p className="mt-1.5 text-xs text-slate-400">
+                <p className="mt-1.5 text-xs text-slate-600">
                   Plain text — your branded email template is applied automatically.
                 </p>
               </div>
 
               <div className="flex items-center justify-between pt-1">
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-600">
                   {recipientCount()} recipient{recipientCount() === 1 ? "" : "s"}
                 </p>
                 <Button disabled={sending || !subject || !body || recipientCount() === 0} onClick={() => send(false)}>
@@ -252,7 +252,7 @@ export function BroadcastsPage() {
 
       {tab === "history" && (
         <div className="space-y-2">
-          {history.length === 0 && <p className="text-sm text-slate-400">No broadcasts sent yet.</p>}
+          {history.length === 0 && <p className="text-sm text-slate-600">No broadcasts sent yet.</p>}
           {history.map((s) => {
             const typeInfo = BROADCAST_TYPES.find((t) => t.value === s.broadcast_type);
             const badgeCls = TYPE_BADGE[(s.broadcast_type as BroadcastType)] ?? TYPE_BADGE.announcement;
@@ -265,7 +265,7 @@ export function BroadcastsPage() {
                       {typeInfo?.label ?? s.broadcast_type}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-600">
                     {AUDIENCE_LABELS[s.audience as Audience] ?? s.audience}
                     {s.area_slug ? ` › ${s.area_slug}` : ""}
                     {" · "}{s.sent_count} sent{" · "}{new Date(s.created_at).toLocaleString()}

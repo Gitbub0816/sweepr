@@ -132,13 +132,13 @@ export function EventsPage() {
         </div>
 
         {events.length === 0 ? (
-          <p className="py-8 text-center text-sm text-slate-400">
+          <p className="py-8 text-center text-sm text-slate-600">
             No events to display.
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="text-xs uppercase text-slate-400">
+              <thead className="text-xs uppercase text-slate-600">
                 <tr>
                   <th className="py-2 pr-4">Timestamp</th>
                   <th className="py-2 pr-4">Action</th>
@@ -165,7 +165,7 @@ export function EventsPage() {
                     <td className="py-2 pr-4 text-slate-600 dark:text-slate-300">
                       {e.target_type}:{e.target_id}
                     </td>
-                    <td className="py-2 pr-4 text-slate-400">
+                    <td className="py-2 pr-4 text-slate-600">
                       {e.ip_address ?? "—"}
                     </td>
                   </tr>

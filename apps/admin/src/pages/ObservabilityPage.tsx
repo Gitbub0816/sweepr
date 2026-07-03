@@ -74,7 +74,7 @@ function StatCard({ label, value, sub, color = "slate" }: { label: string; value
     <div className={`rounded-xl border p-4 ${colors[color]}`}>
       <p className="text-xs text-slate-500 mb-1">{label}</p>
       <p className="text-2xl font-bold">{value}</p>
-      {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
+      {sub && <p className="text-xs text-slate-600 mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -83,7 +83,7 @@ function SectionHeader({ title, onRefresh, loading }: { title: string; onRefresh
   return (
     <div className="flex items-center justify-between mb-4">
       <h2 className="text-base font-semibold text-charcoal">{title}</h2>
-      <button onClick={onRefresh} disabled={loading} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 disabled:opacity-50">
+      <button onClick={onRefresh} disabled={loading} className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-600 disabled:opacity-50">
         <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
       </button>
     </div>
@@ -208,7 +208,7 @@ function OverviewTab() {
                       <span className="rounded-full bg-red-100 text-red-700 px-2 py-0.5">{row.status_code}</span>
                     </td>
                     <td className="px-3 py-2 text-slate-500 max-w-xs truncate">{row.error_message ?? "—"}</td>
-                    <td className="px-3 py-2 text-slate-400">{new Date(row.logged_at).toLocaleTimeString()}</td>
+                    <td className="px-3 py-2 text-slate-600">{new Date(row.logged_at).toLocaleTimeString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -324,7 +324,7 @@ function ApiHealthTab() {
                         </td>
                         <td className="px-3 py-2 text-slate-500">{row.duration_ms ?? "—"}</td>
                         <td className="px-3 py-2 text-slate-500 max-w-xs truncate">{row.error_message ?? "—"}</td>
-                        <td className="px-3 py-2 text-slate-400">{new Date(row.logged_at).toLocaleString()}</td>
+                        <td className="px-3 py-2 text-slate-600">{new Date(row.logged_at).toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -430,7 +430,7 @@ function PaymentsTab() {
                         <td className="px-3 py-2 text-right text-charcoal">
                           {row.amount_cents ? `$${(row.amount_cents / 100).toFixed(2)}` : "—"}
                         </td>
-                        <td className="px-3 py-2 text-slate-400">{new Date(row.occurred_at).toLocaleString()}</td>
+                        <td className="px-3 py-2 text-slate-600">{new Date(row.occurred_at).toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -700,8 +700,8 @@ function AuditTrailTab() {
                     <td className="px-3 py-2.5 text-charcoal">{row.actor_email ?? "—"}</td>
                     <td className="px-3 py-2.5"><span className="rounded-full bg-seafoam-100 text-seafoam-700 px-2 py-0.5">{row.action}</span></td>
                     <td className="px-3 py-2.5 font-mono text-slate-500">{row.table_name}</td>
-                    <td className="px-3 py-2.5 font-mono text-slate-400">{row.record_id?.slice(0, 8)}…</td>
-                    <td className="px-3 py-2.5 text-slate-400">{new Date(row.created_at).toLocaleString()}</td>
+                    <td className="px-3 py-2.5 font-mono text-slate-600">{row.record_id?.slice(0, 8)}…</td>
+                    <td className="px-3 py-2.5 text-slate-600">{new Date(row.created_at).toLocaleString()}</td>
                     <td className="px-3 py-2.5 text-slate-300">
                       {expandedRow === row.id ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                     </td>
@@ -718,13 +718,13 @@ function AuditTrailTab() {
                 </>
               ))}
               {(data?.rows?.length ?? 0) === 0 && (
-                <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-400">No audit events found.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-600">No audit events found.</td></tr>
               )}
             </tbody>
           </table>
         </div>
       )}
-      <div className="flex items-center justify-between text-xs text-slate-400">
+      <div className="flex items-center justify-between text-xs text-slate-600">
         <span>Showing {offset + 1}–{offset + (data?.rows?.length ?? 0)}</span>
         <div className="flex gap-2">
           <button onClick={() => setOffset(Math.max(0, offset - LIMIT))} disabled={offset === 0}
@@ -784,9 +784,9 @@ function IntegrationCard({ tile }: { tile: IntegrationTile }) {
         <p className="text-lg font-bold text-charcoal truncate">
           {tile.status === "loading" ? <span className="text-slate-300">—</span> : tile.value ?? "—"}
         </p>
-        {tile.sub && <p className="text-xs text-slate-400 mt-0.5">{tile.sub}</p>}
+        {tile.sub && <p className="text-xs text-slate-600 mt-0.5">{tile.sub}</p>}
         {tile.status === "unconfigured" && (
-          <p className="text-xs text-slate-400 mt-0.5 italic">Key not configured</p>
+          <p className="text-xs text-slate-600 mt-0.5 italic">Key not configured</p>
         )}
       </div>
       {tile.href && (
@@ -934,7 +934,7 @@ function ExternalIntegrationsPanel() {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-charcoal">External Integrations</h3>
-        <span className="text-xs text-slate-400">Live data</span>
+        <span className="text-xs text-slate-600">Live data</span>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {tiles.map(t => <IntegrationCard key={t.id} tile={t} />)}
@@ -962,7 +962,7 @@ function IntegrationsTab() {
       {error && <ErrorBox msg={error} />}
 
       {!loading && (data?.latest?.length ?? 0) === 0 && (
-        <div className="rounded-xl bg-slate-50 border border-slate-200 p-6 text-center text-sm text-slate-400">
+        <div className="rounded-xl bg-slate-50 border border-slate-200 p-6 text-center text-sm text-slate-600">
           No integration health data yet. Health checks will appear here once integrations start reporting.
         </div>
       )}
@@ -984,7 +984,7 @@ function IntegrationsTab() {
               </div>
               <div className="text-right">
                 <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColor(row.status)}`}>{row.status}</span>
-                <div className="mt-1 flex items-center gap-1 text-xs text-slate-400">
+                <div className="mt-1 flex items-center gap-1 text-xs text-slate-600">
                   <Clock className="h-3 w-3" />
                   {row.latency_ms ? `${row.latency_ms}ms` : "—"}
                 </div>

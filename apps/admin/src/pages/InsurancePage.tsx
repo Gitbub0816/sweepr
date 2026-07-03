@@ -87,7 +87,7 @@ export function InsurancePage() {
       cell: (r) => (
         <div>
           <p className="font-medium text-charcoal">{r.first_name} {r.last_name}</p>
-          <p className="text-xs text-slate-400">{r.email}</p>
+          <p className="text-xs text-slate-600">{r.email}</p>
         </div>
       ),
     },
@@ -158,7 +158,7 @@ export function InsurancePage() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-slate-400 py-8 text-center">Loading…</p>
+        <p className="text-sm text-slate-600 py-8 text-center">Loading…</p>
       ) : rows.length === 0 ? (
         <EmptyState
           title="No submissions"

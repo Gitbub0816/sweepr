@@ -162,8 +162,8 @@ export function SecurityPage() {
                   <Badge variant={STATUS_VARIANT[t.status] ?? "info"}>{t.status}</Badge>
                 </div>
                 <p className="mt-1 truncate text-sm font-medium text-charcoal dark:text-white">{t.subject ?? "(no subject)"}</p>
-                <p className="truncate text-xs text-slate-400">{t.sender_email}</p>
-                <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-400">
+                <p className="truncate text-xs text-slate-600">{t.sender_email}</p>
+                <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-600">
                   <span>{t.classification}</span>
                   {t.classification_confidence != null && (
                     <span className={`rounded-full px-1.5 ${t.auto_classified ? "bg-seafoam-100 text-seafoam-700" : "bg-slate-100 text-slate-500"}`}>
@@ -186,9 +186,9 @@ export function SecurityPage() {
                     <h3 className="font-semibold text-charcoal dark:text-white">{active.subject ?? "(no subject)"}</h3>
                     <p className="text-xs">
                       <span className="font-mono font-semibold text-seafoam-700">{active.case_code ?? "—"}</span>
-                      <span className="ml-2 font-mono text-slate-400">Ticket ID: {active.ticket_id ?? "—"}</span>
+                      <span className="ml-2 font-mono text-slate-600">Ticket ID: {active.ticket_id ?? "—"}</span>
                     </p>
-                    <p className="text-xs text-slate-400">from {active.sender_name ? `${active.sender_name} <${active.sender_email}>` : active.sender_email}</p>
+                    <p className="text-xs text-slate-600">from {active.sender_name ? `${active.sender_name} <${active.sender_email}>` : active.sender_email}</p>
                   </div>
                   <Badge variant={STATUS_VARIANT[active.status] ?? "info"}>{active.status}</Badge>
                 </div>
@@ -202,11 +202,11 @@ export function SecurityPage() {
                   {active.classification_confidence != null ? (
                     <>
                       <Badge variant={active.classification_confidence >= 45 ? "success" : "warning"}>{active.classification_confidence}% confidence</Badge>
-                      <span className="text-slate-400">{active.auto_classified ? "auto-classified" : "needs review"}</span>
-                      {active.classification_signals?.length ? <span className="text-slate-400">· signals: {active.classification_signals.join(", ")}</span> : null}
+                      <span className="text-slate-600">{active.auto_classified ? "auto-classified" : "needs review"}</span>
+                      {active.classification_signals?.length ? <span className="text-slate-600">· signals: {active.classification_signals.join(", ")}</span> : null}
                     </>
                   ) : (
-                    <span className="text-slate-400">manual / pre-inference</span>
+                    <span className="text-slate-600">manual / pre-inference</span>
                   )}
                 </div>
 
@@ -221,7 +221,7 @@ export function SecurityPage() {
 
               {/* Message thread */}
               <Card>
-                <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Thread</h4>
+                <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-600">Thread</h4>
                 <div className="space-y-3">
                   {messages.map((m) => {
                     const isInbound = m.direction === "inbound";
@@ -235,7 +235,7 @@ export function SecurityPage() {
                         : isAutoReply ? "border-blue-100 bg-blue-50/40 dark:border-slate-700 dark:bg-slate-800"
                         : "border-seafoam-200 bg-seafoam-50/40 dark:border-slate-700 dark:bg-slate-800"
                       }`}>
-                        <div className="mb-1 flex items-center gap-2 text-xs text-slate-400">
+                        <div className="mb-1 flex items-center gap-2 text-xs text-slate-600">
                           {isAutoReply ? <Clock className="h-3 w-3 text-blue-500" /> : isInbound ? <Mail className="h-3 w-3" /> : <Send className="h-3 w-3 text-seafoam-500" />}
                           <span>{m.direction.replace(/_/g, " ")}</span>
                           <span>·</span>
@@ -245,7 +245,7 @@ export function SecurityPage() {
                             <button
                               onClick={() => handleTranslate(m.id, body)}
                               disabled={translating[m.id]}
-                              className="ml-auto flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50 dark:hover:bg-slate-700"
+                              className="ml-auto flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-slate-600 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50 dark:hover:bg-slate-700"
                               title={showing ? "Show original" : "Translate to English"}
                             >
                               <Languages className="h-3 w-3" />
@@ -256,7 +256,7 @@ export function SecurityPage() {
                         {showing && translated ? (
                           <div>
                             <p className="whitespace-pre-wrap break-words text-slate-700 dark:text-slate-200">{translated}</p>
-                            <p className="mt-2 border-t border-slate-100 pt-2 text-xs italic text-slate-400 dark:border-slate-700">Original: {body}</p>
+                            <p className="mt-2 border-t border-slate-100 pt-2 text-xs italic text-slate-600 dark:border-slate-700">Original: {body}</p>
                           </div>
                         ) : (
                           <p className="whitespace-pre-wrap break-words text-slate-700 dark:text-slate-200">{body}</p>
@@ -264,7 +264,7 @@ export function SecurityPage() {
                       </div>
                     );
                   })}
-                  {messages.length === 0 && <p className="text-xs text-slate-400">No messages yet.</p>}
+                  {messages.length === 0 && <p className="text-xs text-slate-600">No messages yet.</p>}
                 </div>
               </Card>
 
@@ -305,13 +305,13 @@ export function SecurityPage() {
               </Card>
             </div>
           ) : (
-            <Card><p className="text-sm text-slate-400">Select a ticket to view the thread and respond.</p></Card>
+            <Card><p className="text-sm text-slate-600">Select a ticket to view the thread and respond.</p></Card>
           )}
 
           {/* Context panel */}
           {active && (
             <Card className="max-h-[78vh] space-y-4 overflow-y-auto">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Reporter context</h3>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-600">Reporter context</h3>
               <ContextPanel context={context} kind="security" />
             </Card>
           )}
@@ -322,7 +322,7 @@ export function SecurityPage() {
 }
 
 export function ContextPanel({ context, kind }: { context: TicketContext | null; kind: "it" | "security" }) {
-  if (!context) return <p className="text-xs text-slate-400">Loading…</p>;
+  if (!context) return <p className="text-xs text-slate-600">Loading…</p>;
   const { user, invites, audit, relatedTickets, error } = context;
   return (
     <div className="space-y-4 text-xs">
@@ -332,10 +332,10 @@ export function ContextPanel({ context, kind }: { context: TicketContext | null;
         {user ? (
           <div className="rounded-lg border border-slate-200 p-2 dark:border-slate-700">
             <p className="font-medium text-charcoal dark:text-white">{String(user.email)}</p>
-            <p className="text-slate-400">Role: {String(user.role ?? "—")}{user.admin_role ? ` · ${String(user.admin_role)}` : ""}</p>
-            <p className="text-slate-400">Joined {user.created_at ? new Date(String(user.created_at)).toLocaleDateString() : "—"}</p>
+            <p className="text-slate-600">Role: {String(user.role ?? "—")}{user.admin_role ? ` · ${String(user.admin_role)}` : ""}</p>
+            <p className="text-slate-600">Joined {user.created_at ? new Date(String(user.created_at)).toLocaleDateString() : "—"}</p>
           </div>
-        ) : <p className="text-slate-400">No Sweepr account matches this email.</p>}
+        ) : <p className="text-slate-600">No Sweepr account matches this email.</p>}
       </section>
 
       {/* Admin invites — key signal for "who invited this person" */}
@@ -347,7 +347,7 @@ export function ContextPanel({ context, kind }: { context: TicketContext | null;
               <p className="text-slate-600 dark:text-slate-300">
                 Invited by <span className="font-semibold text-charcoal dark:text-white">{String(inv.inviter_email ?? inv.created_by ?? "unknown")}</span>
               </p>
-              <p className="text-slate-400">
+              <p className="text-slate-600">
                 {inv.created_at ? new Date(String(inv.created_at)).toLocaleString() : ""}
                 {inv.used_at ? " · accepted" : " · pending"}
                 {inv.expires_at && !inv.used_at ? `, expires ${new Date(String(inv.expires_at)).toLocaleDateString()}` : ""}
@@ -364,7 +364,7 @@ export function ContextPanel({ context, kind }: { context: TicketContext | null;
           <div className="rounded-lg border border-rose-200 bg-rose-50/50 p-2 dark:border-slate-700 dark:bg-slate-800">
             <p className="font-mono text-rose-600">{String(error.status_code ?? "")} {String(error.method ?? "")} {String(error.path ?? "")}</p>
             <p className="text-slate-500">{String(error.message ?? "")}</p>
-            <p className="text-slate-400">{error.occurred_at ? new Date(String(error.occurred_at)).toLocaleString() : ""}</p>
+            <p className="text-slate-600">{error.occurred_at ? new Date(String(error.occurred_at)).toLocaleString() : ""}</p>
           </div>
         </section>
       )}
@@ -377,7 +377,7 @@ export function ContextPanel({ context, kind }: { context: TicketContext | null;
             {audit.slice(0, 10).map((a, i) => (
               <div key={i} className="rounded border border-slate-100 p-1.5 dark:border-slate-800">
                 <p className="font-medium text-slate-600 dark:text-slate-300">{String(a.action ?? "")}</p>
-                <p className="text-slate-400">
+                <p className="text-slate-600">
                   {a.actor_email ? `${String(a.actor_email)} · ` : ""}
                   {a.created_at ? new Date(String(a.created_at)).toLocaleString() : ""}
                 </p>
@@ -395,7 +395,7 @@ export function ContextPanel({ context, kind }: { context: TicketContext | null;
             <div key={i} className="rounded border border-slate-100 p-1.5 dark:border-slate-800">
               <span className="font-mono font-semibold text-seafoam-700">{String(r.case_code ?? "")}</span>
               <span className="ml-2 text-slate-600">{String((kind === "security" ? r.subject : r.title) ?? "")}</span>
-              <span className="ml-1 text-slate-400">· {String(r.status ?? "")}</span>
+              <span className="ml-1 text-slate-600">· {String(r.status ?? "")}</span>
             </div>
           ))}
         </section>
@@ -403,7 +403,7 @@ export function ContextPanel({ context, kind }: { context: TicketContext | null;
 
       {/* Nothing found */}
       {!user && invites.length === 0 && audit.length === 0 && relatedTickets.length === 0 && !error && (
-        <p className="text-slate-400">No related account, invite, audit, or ticket history found for this email.</p>
+        <p className="text-slate-600">No related account, invite, audit, or ticket history found for this email.</p>
       )}
     </div>
   );

@@ -119,7 +119,7 @@ function AreaMap({ areas, requests }: { areas: ServiceArea[]; requests: CityRequ
 
   if (!TOKEN) return (
     <div className="flex h-full items-center justify-center bg-slate-100 rounded-xl">
-      <p className="text-slate-400 text-sm">Set VITE_MAPBOX_PUBLIC_TOKEN to enable map</p>
+      <p className="text-slate-600 text-sm">Set VITE_MAPBOX_PUBLIC_TOKEN to enable map</p>
     </div>
   );
 
@@ -250,14 +250,14 @@ export function ServiceAreasPage() {
               </Card>
             )}
 
-            {loading ? <p className="text-sm text-slate-400">Loading…</p> : (
+            {loading ? <p className="text-sm text-slate-600">Loading…</p> : (
               <div className="space-y-2">
                 {areas.map((area) => (
                   <Card key={area.id} className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[area.status]}`}>{area.status}</span>
                       <span className="font-medium text-sm">{area.name}</span>
-                      <span className="text-xs text-slate-400 font-mono">{area.slug}</span>
+                      <span className="text-xs text-slate-600 font-mono">{area.slug}</span>
                     </div>
                     <div className="flex gap-2">
                       <Button variant="ghost" onClick={() => toggleStatus(area)}>
@@ -267,7 +267,7 @@ export function ServiceAreasPage() {
                     </div>
                   </Card>
                 ))}
-                {areas.length === 0 && <p className="text-sm text-slate-400">No areas configured yet.</p>}
+                {areas.length === 0 && <p className="text-sm text-slate-600">No areas configured yet.</p>}
               </div>
             )}
           </div>
@@ -282,10 +282,10 @@ export function ServiceAreasPage() {
                   <div key={r.id} className="flex items-center gap-2 rounded-lg border border-slate-100 px-3 py-2 text-sm">
                     <MapPin className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
                     <span className="flex-1 text-slate-700">{r.input}</span>
-                    {r.lat && <span className="text-xs text-slate-400">{r.lat.toFixed(2)},{r.lng!.toFixed(2)}</span>}
+                    {r.lat && <span className="text-xs text-slate-600">{r.lat.toFixed(2)},{r.lng!.toFixed(2)}</span>}
                   </div>
                 ))}
-                {requests.length === 0 && <p className="text-sm text-slate-400">No requests yet.</p>}
+                {requests.length === 0 && <p className="text-sm text-slate-600">No requests yet.</p>}
               </div>
             </div>
             <div>
@@ -294,10 +294,10 @@ export function ServiceAreasPage() {
                 {subscribers.map((s, i) => (
                   <div key={i} className="flex items-center gap-2 text-sm py-1 border-b border-slate-50">
                     <span className="flex-1 truncate text-slate-700">{s.email}</span>
-                    {s.city_input && <span className="text-xs text-slate-400 truncate">{s.city_input}</span>}
+                    {s.city_input && <span className="text-xs text-slate-600 truncate">{s.city_input}</span>}
                   </div>
                 ))}
-                {subscribers.length === 0 && <p className="text-sm text-slate-400">No subscribers yet.</p>}
+                {subscribers.length === 0 && <p className="text-sm text-slate-600">No subscribers yet.</p>}
               </div>
             </div>
           </div>

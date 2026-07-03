@@ -101,7 +101,7 @@ export function NotificationBell({
 
           <div className="max-h-96 overflow-y-auto">
             {notifications.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-slate-400">
+              <p className="px-4 py-8 text-center text-sm text-slate-600">
                 You're all caught up.
               </p>
             ) : (
@@ -134,7 +134,7 @@ export function NotificationBell({
                         {n.body}
                       </span>
                     )}
-                    <span className="mt-1 block text-[11px] text-slate-400">
+                    <span className="mt-1 block text-[11px] text-slate-600">
                       {timeAgo(n.createdAt)}
                     </span>
                   </span>
