@@ -26,6 +26,7 @@ import {
   GitPullRequest,
   ShieldAlert,
   Radio,
+  Inbox,
 } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -66,6 +67,7 @@ import { PricingApprovalDetailPage } from "./pages/PricingApprovalDetailPage";
 import { SecurityPage } from "./pages/SecurityPage";
 import { BroadcastsPage } from "./pages/BroadcastsPage";
 import { NewsletterPage } from "./pages/NewsletterPage";
+import { MailPage } from "./pages/MailPage";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -86,6 +88,7 @@ const nav = [
   { to: "/email", label: "Email", icon: Mail },
   { to: "/broadcasts", label: "Broadcasts", icon: Radio },
   { to: "/newsletter", label: "Newsletter", icon: Mail },
+  { to: "/mail", label: "Mail", icon: Inbox },
   { to: "/observability", label: "Observability", icon: Telescope },
   { to: "/errors", label: "Errors", icon: Bug },
   { to: "/it-portal", label: "IT Portal", icon: LifeBuoy },
@@ -160,6 +163,7 @@ export default function App() {
       <Route path="/email" element={<Guarded><EmailPage /></Guarded>} />
       <Route path="/broadcasts" element={<Guarded><BroadcastsPage /></Guarded>} />
       <Route path="/newsletter" element={<Guarded><NewsletterPage /></Guarded>} />
+      <Route path="/mail" element={<Guarded><MailPage /></Guarded>} />
       <Route path="/observability" element={<Guarded><ObservabilityPage /></Guarded>} />
       <Route path="/errors" element={<Guarded><ErrorsPage /></Guarded>} />
       <Route path="/it-portal" element={<Guarded><ITPortalPage /></Guarded>} />
