@@ -110,11 +110,11 @@ function IncidentCard({ incident }: { incident: Incident }) {
 
       {incident.updates.length > 0 && (
         <div className="mb-4 border-t border-slate-100 pt-4">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Timeline</h4>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-600 mb-2">Timeline</h4>
           <div className="space-y-2">
             {[...incident.updates].reverse().map((u) => (
               <div key={u.id} className="flex gap-3 text-sm items-start">
-                <span className="text-slate-400 whitespace-nowrap text-xs pt-0.5">
+                <span className="text-slate-600 whitespace-nowrap text-xs pt-0.5">
                   {new Date(u.created_at).toLocaleString()}
                 </span>
                 <StatusBadge text={u.status}
@@ -283,7 +283,7 @@ export default function App() {
             <span className={`h-3 w-3 rounded-full ${overallStatus.dot} animate-pulse`} />
             <h1 className={`text-xl font-bold ${overallStatus.color}`}>{overallStatus.label}</h1>
           </div>
-          {data && <p className="mt-1 text-sm text-slate-400">Last updated {new Date().toLocaleTimeString()}</p>}
+          {data && <p className="mt-1 text-sm text-slate-600">Last updated {new Date().toLocaleTimeString()}</p>}
         </div>
 
         {/* Active maintenance in progress */}
