@@ -14,7 +14,7 @@ import {
   BookOpen,
   ShieldCheck,
 } from "lucide-react";
-import { AppShell, PrelaunchGate, ReportProblem } from "@sweepr/ui";
+import { AppShell, PrelaunchGate, ReportProblem, CookieConsent } from "@sweepr/ui";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -154,6 +154,7 @@ export default function App() {
     <>
     <LanguagePersistence />
     <ReportProblemMount />
+    <CookieConsent />
     <Routes>
       {/* OAuth SSO callback and mock Checkr form bypass the prelaunch gate */}
       <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback continueSignUpUrl="/sign-up/continue" />} />

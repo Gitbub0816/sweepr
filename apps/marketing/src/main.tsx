@@ -6,8 +6,12 @@ import { ErrorBoundary, installGlobalErrorHandlers, initAnalytics } from "@sweep
 import App from "./App";
 import "./index.css";
 import "./i18n";
+import { initAnalyticsIfConsented } from "./lib/consentGate";
 
-initAnalytics();
+// GDPR/CCPA: only start PostHog (autocapture + session recording) once the
+// visitor has opted in via the cookie banner, or honors an existing consent
+// record that already granted analytics. See src/lib/consentGate.ts.
+void initAnalyticsIfConsented(initAnalytics);
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as
   | string

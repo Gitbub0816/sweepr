@@ -18,15 +18,21 @@ export function LegalShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-full flex-col bg-white">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-seafoam-700 focus:shadow-lg focus:outline focus:outline-2 focus:outline-seafoam-600"
+      >
+        Skip to main content
+      </a>
       {/* Top nav */}
       <header className="no-print sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <Link to="/" className="flex items-baseline gap-2">
             <LegalLogo size="md" />
-            <span className="text-sm text-slate-400">Legal</span>
+            <span className="text-sm text-slate-500">Legal</span>
           </Link>
           <div className="flex items-center gap-4 text-sm">
-            <span className="hidden text-slate-400 sm:inline">
+            <span className="hidden text-slate-500 sm:inline">
               Legal Documents
             </span>
             <a
@@ -41,15 +47,15 @@ export function LegalShell({ children }: { children: ReactNode }) {
 
       <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-6 md:flex-row md:gap-8 md:py-8">
         {/* Left sidebar: all docs */}
-        <aside className="no-print hidden w-56 shrink-0 md:block">
+        <aside className="no-print hidden w-56 shrink-0 md:block" aria-label="Legal document categories">
           <div className="sticky top-24">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
               Documents
             </p>
             <nav className="max-h-[calc(100vh-9rem)] space-y-4 overflow-y-auto pr-1">
               {docsByCategory().map((group) => (
                 <div key={group.category}>
-                  <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-300">
+                  <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                     {group.category}
                   </p>
                   {group.docs.map((doc) => {
@@ -76,7 +82,11 @@ export function LegalShell({ children }: { children: ReactNode }) {
 
         {/* Mobile doc selector */}
         <div className="no-print mb-4 w-full md:hidden">
+          <label htmlFor="mobile-doc-select" className="sr-only">
+            Select a legal document
+          </label>
           <select
+            id="mobile-doc-select"
             value={pathname}
             onChange={(e) => {
               window.location.href = e.target.value;
@@ -92,13 +102,15 @@ export function LegalShell({ children }: { children: ReactNode }) {
           </select>
         </div>
 
-        <main className="legal-content min-w-0 flex-1">{children}</main>
+        <main id="main-content" className="legal-content min-w-0 flex-1">
+          {children}
+        </main>
       </div>
 
       {/* Footer */}
       <footer className="no-print border-t border-slate-200 bg-slate-50">
         <div className="mx-auto max-w-6xl px-4 py-8">
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+          <nav className="flex flex-wrap gap-x-6 gap-y-2 text-sm" aria-label="Legal documents">
             {DOCS.map((doc) => (
               <Link
                 key={doc.slug}
@@ -108,8 +120,8 @@ export function LegalShell({ children }: { children: ReactNode }) {
                 {doc.title}
               </Link>
             ))}
-          </div>
-          <p className="mt-6 text-xs text-slate-400">
+          </nav>
+          <p className="mt-6 text-xs text-slate-500">
             © {new Date().getFullYear()} {COMPANY_NAME}. All rights reserved.
             Last updated: {LAST_UPDATED}.
           </p>

@@ -44,7 +44,7 @@ function ConsentDetail({ customer, onClose }: { customer: Customer; onClose: () 
           <h3 className="text-lg font-bold text-charcoal dark:text-white">
             SMS Consent — {[customer.first_name, customer.last_name].filter(Boolean).join(" ") || customer.email}
           </h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600" aria-label="Close">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -102,7 +102,7 @@ export function CustomersPage() {
     {
       header: "SMS Consent",
       cell: (r) => (
-        <button onClick={() => setDetail(r)} title="View consent audit detail">
+        <button onClick={() => setDetail(r)} aria-label={`View SMS consent audit detail for ${r.email}`}>
           <Badge variant={r.sms_consent ? "success" : "default"}>
             {r.sms_consent ? "✅ Granted" : "❌ Revoked"}
           </Badge>

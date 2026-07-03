@@ -66,7 +66,7 @@ export function CleanerView() {
             <p className="text-xs text-slate-400 font-mono">{txId?.slice(0, 8)}</p>
           </div>
         </div>
-        <button onClick={() => act("reset")} disabled={busy}
+        <button onClick={() => act("reset")} disabled={busy} aria-label="Reset session"
           className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 disabled:opacity-40">
           <RotateCcw className="h-3.5 w-3.5" /> Reset
         </button>

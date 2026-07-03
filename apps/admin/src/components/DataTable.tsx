@@ -22,6 +22,7 @@ export function DataTable<T extends { id: string }>({
             {columns.map((c) => (
               <th
                 key={c.header}
+                scope="col"
                 className={`px-4 py-3 font-medium ${
                   c.align === "right" ? "text-right" : ""
                 }`}

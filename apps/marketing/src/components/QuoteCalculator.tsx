@@ -41,7 +41,7 @@ export function QuoteCalculator({ pricingGated = false }: { pricingGated?: boole
       <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white/95 p-6 text-left shadow-2xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/95">
         <div className="flex justify-center mb-4">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-seafoam-50 dark:bg-seafoam-900/30">
-            <Sparkles className="w-6 h-6 text-seafoam-500" />
+            <Sparkles aria-hidden="true" className="w-6 h-6 text-seafoam-500" />
           </div>
         </div>
         <h3 className="text-lg font-black text-charcoal dark:text-white text-center">
@@ -100,9 +100,9 @@ export function QuoteCalculator({ pricingGated = false }: { pricingGated?: boole
         onClick={() => (window.location.href = CUSTOMER_URL)}
         className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-seafoam-500 px-4 py-3.5 text-base font-bold text-white transition hover:bg-seafoam-600"
       >
-        Book this clean <ArrowRight className="h-4 w-4" />
+        Book this clean <ArrowRight aria-hidden="true" className="h-4 w-4" />
       </button>
-      <p className="mt-2 text-center text-xs text-slate-400">
+      <p className="mt-2 text-center text-xs text-slate-500">
         Final price confirmed at checkout. No surprises.
       </p>
     </div>

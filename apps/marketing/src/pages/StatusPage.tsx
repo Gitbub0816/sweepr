@@ -50,15 +50,19 @@ function IncidentCard({ incident }: { incident: Incident }) {
   const [open, setOpen] = useState(false);
   const cfg = severityConfig[incident.severity] ?? severityConfig.minor;
   const Icon = cfg.icon;
+  const panelId = `incident-${incident.id}-panel`;
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <button
+        type="button"
         className="flex w-full items-start justify-between gap-4 p-5 text-left"
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-controls={panelId}
       >
         <div className="flex items-start gap-3">
-          <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${cfg.color}`} />
+          <Icon aria-hidden="true" className={`mt-0.5 h-5 w-5 shrink-0 ${cfg.color}`} />
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-semibold text-charcoal dark:text-white">{incident.title}</span>
@@ -70,29 +74,30 @@ function IncidentCard({ incident }: { incident: Incident }) {
               ))}
             </div>
             <p className="mt-1 text-sm text-slate-500">{incident.summary}</p>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-slate-500">
               {new Date(incident.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}
             </p>
           </div>
         </div>
-        <div className="shrink-0 text-slate-400">
-          {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        <div className="shrink-0 text-slate-500">
+          {open ? <ChevronUp aria-hidden="true" className="h-4 w-4" /> : <ChevronDown aria-hidden="true" className="h-4 w-4" />}
+          <span className="sr-only">{open ? "Hide" : "Show"} timeline for {incident.title}</span>
         </div>
       </button>
 
       {open && incident.updates.length > 0 && (
-        <div className="border-t border-slate-100 px-5 pb-5 pt-4 dark:border-slate-700">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Timeline</p>
+        <div id={panelId} className="border-t border-slate-100 px-5 pb-5 pt-4 dark:border-slate-700">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Timeline</p>
           <div className="space-y-3">
             {incident.updates.map((u) => (
               <div key={u.id} className="flex gap-3 text-sm">
-                <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-seafoam-400" />
+                <div aria-hidden="true" className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-seafoam-400" />
                 <div>
                   <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColor[u.status] ?? "bg-slate-100 text-slate-700"}`}>
                     {statusLabel[u.status] ?? u.status}
                   </span>
                   <p className="mt-1 text-slate-700 dark:text-slate-300">{u.message}</p>
-                  <p className="mt-0.5 text-xs text-slate-400">
+                  <p className="mt-0.5 text-xs text-slate-500">
                     {new Date(u.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                   </p>
                 </div>
@@ -129,23 +134,25 @@ export default function StatusPage() {
       cta={null}
     >
       <div className="mx-auto max-w-2xl px-4 py-16">
+        <h1 className="sr-only">Sweepr System Status</h1>
         <div className="mb-2 flex items-center gap-3">
           <SweeprLogo size="sm" />
-          <span className="text-slate-400">/</span>
+          <span aria-hidden="true" className="text-slate-500">/</span>
           <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Status</span>
         </div>
 
         {loading ? (
-          <div className="mt-16 flex justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-seafoam-400 border-t-transparent" />
+          <div role="status" aria-live="polite" className="mt-16 flex justify-center">
+            <div aria-hidden="true" className="h-8 w-8 animate-spin rounded-full border-4 border-seafoam-400 border-t-transparent motion-reduce:animate-none" />
+            <span className="sr-only">Loading status…</span>
           </div>
         ) : (
           <>
-            <div className={`mt-8 flex items-center gap-3 rounded-2xl p-6 ${allGood ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-amber-50 dark:bg-amber-950/30"}`}>
+            <div role="status" className={`mt-8 flex items-center gap-3 rounded-2xl p-6 ${allGood ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-amber-50 dark:bg-amber-950/30"}`}>
               {allGood ? (
-                <CheckCircle2 className="h-7 w-7 text-emerald-500" />
+                <CheckCircle2 aria-hidden="true" className="h-7 w-7 text-emerald-500" />
               ) : (
-                <AlertTriangle className="h-7 w-7 text-amber-500" />
+                <AlertTriangle aria-hidden="true" className="h-7 w-7 text-amber-500" />
               )}
               <div>
                 <p className={`font-bold ${allGood ? "text-emerald-800 dark:text-emerald-300" : "text-amber-800 dark:text-amber-300"}`}>

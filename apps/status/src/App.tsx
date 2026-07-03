@@ -131,7 +131,8 @@ function IncidentCard({ incident }: { incident: Incident }) {
           <p className="text-sm text-seafoam-600 font-medium">Subscribed! We'll email you with updates.</p>
         ) : (
           <form onSubmit={(e) => void subscribe(e)} className="flex gap-2">
-            <input type="email" required value={subEmail} onChange={(e) => setSubEmail(e.target.value)}
+            <label htmlFor="incident-email-input" className="sr-only">Email address</label>
+            <input id="incident-email-input" type="email" required value={subEmail} onChange={(e) => setSubEmail(e.target.value)}
               placeholder="your@email.com"
               className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400" />
             <button type="submit" disabled={subLoading}
@@ -152,7 +153,7 @@ function MaintenanceCard({ window: w }: { window: MaintenanceWindow }) {
   return (
     <div className={`rounded-xl border p-5 ${isNow ? "border-yellow-200 bg-yellow-50" : "border-blue-100 bg-blue-50"}`}>
       <div className="flex items-start gap-3">
-        <span className="text-lg">{isNow ? "🔧" : "🗓"}</span>
+        <span className="text-lg" aria-label={isNow ? "Maintenance in progress" : "Scheduled maintenance"}>{isNow ? "🔧" : "🗓"}</span>
         <div>
           <p className="text-sm font-semibold text-charcoal">{w.title}</p>
           {w.description && <p className="text-xs text-slate-600 mt-0.5">{w.description}</p>}
@@ -201,7 +202,8 @@ function NewsletterSection() {
         <p className="text-seafoam-600 font-semibold">You're subscribed!</p>
       ) : (
         <form onSubmit={(e) => void subscribe(e)} className="flex flex-col sm:flex-row gap-3 max-w-sm mx-auto">
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
+          <label htmlFor="newsletter-email-input" className="sr-only">Email address</label>
+          <input id="newsletter-email-input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
             placeholder="your@email.com"
             className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400 bg-white" />
           <button type="submit" disabled={loading}

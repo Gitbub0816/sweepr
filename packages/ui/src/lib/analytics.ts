@@ -33,7 +33,13 @@ export function getAnalyticsConsent(): ConsentState {
   if (gpcDeclined()) return 'denied'
   try {
     const v = localStorage.getItem(CONSENT_KEY)
-    return v === 'granted' || v === 'denied' ? v : 'unset'
+    if (!v) return 'unset'
+    if (v === 'granted' || v === 'denied') return v
+    // Marketing's banner stores a JSON record { analytics: boolean, ... }
+    // under the same key — honor it too.
+    const rec = JSON.parse(v) as { analytics?: boolean }
+    if (typeof rec?.analytics === 'boolean') return rec.analytics ? 'granted' : 'denied'
+    return 'unset'
   } catch {
     return 'unset'
   }

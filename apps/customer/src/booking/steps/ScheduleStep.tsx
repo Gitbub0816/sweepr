@@ -110,24 +110,28 @@ export function ScheduleStep() {
       {/* Subscription section */}
       <div className="mt-6 rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
         <button
+          type="button"
+          role="switch"
+          aria-checked={isSubscription}
           onClick={() => setSubscription(!isSubscription)}
           className="flex w-full items-center justify-between text-left"
         >
           <span className="flex items-center gap-2">
-            <Repeat className="h-4 w-4 text-seafoam-500" />
+            <Repeat className="h-4 w-4 text-seafoam-500" aria-hidden="true" />
             <span className="text-sm font-semibold text-charcoal dark:text-white">
               {t("booking.schedule.makeSubscription")}
             </span>
           </span>
           <span
+            aria-hidden="true"
             className={cn(
-              "relative h-6 w-11 rounded-full transition-colors",
+              "relative h-6 w-11 rounded-full transition-colors motion-reduce:transition-none",
               isSubscription ? "bg-seafoam-500" : "bg-slate-300 dark:bg-slate-600"
             )}
           >
             <span
               className={cn(
-                "absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all",
+                "absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all motion-reduce:transition-none",
                 isSubscription ? "left-5" : "left-0.5"
               )}
             />

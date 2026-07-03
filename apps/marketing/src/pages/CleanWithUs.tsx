@@ -91,7 +91,7 @@ function StepList({ steps }: { steps: readonly StepItem[] }) {
               {i + 1}
             </span>
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-seafoam-500 text-white shadow-lg shadow-seafoam-500/30">
-              <Icon className="h-6 w-6" />
+              <Icon aria-hidden="true" className="h-6 w-6" />
             </div>
             <h3 className="text-lg font-bold text-charcoal dark:text-white">{t(`cleanWithUs.${s.key}Title`)}</h3>
             <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
@@ -116,7 +116,7 @@ function PerkGrid({ perks }: { perks: readonly StepItem[] }) {
             className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"
           >
             <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-seafoam-50 text-seafoam-600 dark:bg-seafoam-900/20">
-              <Icon className="h-5 w-5" />
+              <Icon aria-hidden="true" className="h-5 w-5" />
             </div>
             <div>
               <h4 className="font-semibold text-charcoal dark:text-white">{t(`cleanWithUs.${p.key}Title`)}</h4>
@@ -162,7 +162,7 @@ function TabSwitch({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
                 active ? "text-white" : "text-slate-600 dark:text-slate-300"
               }`}
             >
-              <Icon className="h-4 w-4" />
+              <Icon aria-hidden="true" className="h-4 w-4" />
               {t.label}
             </span>
           </button>
@@ -212,7 +212,7 @@ export default function CleanWithUs() {
             transition={{ duration: 0.5 }}
           >
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-seafoam-700 shadow-sm dark:bg-slate-900 dark:text-seafoam-300">
-              <Sparkles className="h-3.5 w-3.5" /> {t("cleanWithUs.badge")}
+              <Sparkles aria-hidden="true" className="h-3.5 w-3.5" /> {t("cleanWithUs.badge")}
             </span>
             <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-black tracking-tight text-charcoal dark:text-white sm:text-5xl">
               {t("cleanWithUs.heroTitle")}
@@ -284,7 +284,7 @@ export default function CleanWithUs() {
             {t("cleanWithUs.coverageTitle")}
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-slate-500 dark:text-slate-400">
-            <MapPin className="mr-1 inline h-4 w-4 text-seafoam-600" />
+            <MapPin aria-hidden="true" className="mr-1 inline h-4 w-4 text-seafoam-600" />
             {t("cleanWithUs.coverageSubtitle")}
           </p>
         </div>
@@ -301,7 +301,7 @@ export default function CleanWithUs() {
         </p>
         <a href={cleanerUrl} className="mt-8 inline-block">
           <Button size="lg">
-            {t("nav.getStarted")} <ArrowRight className="ml-1 h-4 w-4" />
+            {t("nav.getStarted")} <ArrowRight aria-hidden="true" className="ml-1 h-4 w-4" />
           </Button>
         </a>
       </section>

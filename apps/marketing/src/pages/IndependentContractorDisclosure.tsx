@@ -21,7 +21,7 @@ export default function IndependentContractorDisclosure() {
         <h1 className="text-4xl font-black text-charcoal dark:text-white">
           Independent Contractor Disclosure
         </h1>
-        <p className="mt-2 text-sm text-slate-400">
+        <p className="mt-2 text-sm text-slate-500">
           Required gig-economy disclosure
         </p>
 

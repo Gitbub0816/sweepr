@@ -369,7 +369,7 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
             </h2>
             {ticket && <p className="font-mono text-xs text-slate-400">Ticket ID: {ticket.ticket_id ?? "—"}</p>}
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="h-5 w-5" /></button>
+          <button onClick={onClose} aria-label="Close ticket details" className="text-slate-400 hover:text-slate-600"><X className="h-5 w-5" /></button>
         </div>
 
         <div className="flex flex-1 overflow-hidden">
@@ -876,7 +876,7 @@ function TemplatesSection() {
           <div className="h-full w-full max-w-lg overflow-y-auto bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-charcoal">{editing.id ? "Edit template" : "New template"}</h2>
-              <button onClick={() => setEditing(null)} className="text-slate-400 hover:text-slate-600"><X className="h-5 w-5" /></button>
+              <button onClick={() => setEditing(null)} aria-label="Close template editor" className="text-slate-400 hover:text-slate-600"><X className="h-5 w-5" /></button>
             </div>
             <div className="mt-4 space-y-3">
               {!editing.id && (

@@ -235,7 +235,7 @@ export default function Landing() {
               </motion.p>
               <motion.div variants={fadeUp} className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button size="lg" onClick={() => (window.location.href = customerUrl)}>
-                  {t("hero.cta")} <ArrowRight className="h-4 w-4" />
+                  {t("hero.cta")} <ArrowRight aria-hidden="true" className="h-4 w-4" />
                 </Button>
                 <Button size="lg" variant="secondary" onClick={() => document.getElementById("services")?.scrollIntoView({ behavior: "smooth" })}>
                   {t("nav.services")}
@@ -276,7 +276,7 @@ export default function Landing() {
               className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900"
             >
               <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-seafoam-500 text-white">
-                <s.icon className="h-5 w-5" />
+                <s.icon aria-hidden="true" className="h-5 w-5" />
               </div>
               <p className="text-xs font-bold text-seafoam-600">{t("howItWorks.stepLabel", { n: i + 1 })}</p>
               <h3 className="mt-1 text-lg font-bold text-charcoal dark:text-white">{t(s.titleKey)}</h3>
@@ -310,7 +310,7 @@ export default function Landing() {
               >
                 <div className="flex items-start gap-4">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-seafoam-50 text-seafoam-600 dark:bg-slate-800">
-                    <s.icon className="h-6 w-6" />
+                    <s.icon aria-hidden="true" className="h-6 w-6" />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between gap-3">
@@ -321,15 +321,15 @@ export default function Landing() {
                 </div>
                 <p className="mt-3 text-sm text-slate-500 leading-relaxed">{t(s.descKey)}</p>
                 <div className="mt-3 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-seafoam-500" />
+                  <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                    <CheckCircle2 aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-seafoam-500" />
                     <span>{t(s.bestForKey)}</span>
                   </div>
                   <a
                     href={customerUrl}
                     className="inline-flex items-center gap-1 text-sm font-bold text-seafoam-600 hover:text-seafoam-700 whitespace-nowrap"
                   >
-                    {t("services.bookNow")} <ArrowRight className="h-4 w-4" />
+                    {t("services.bookNow")} <ArrowRight aria-hidden="true" className="h-4 w-4" />
                   </a>
                 </div>
               </motion.div>
@@ -359,7 +359,7 @@ export default function Landing() {
               className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900"
             >
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-seafoam-50 text-seafoam-600 dark:bg-slate-800">
-                <item.icon className="h-6 w-6" />
+                <item.icon aria-hidden="true" className="h-6 w-6" />
               </div>
               <h3 className="font-bold text-charcoal dark:text-white">{t(item.titleKey)}</h3>
               <p className="mt-2 text-sm text-slate-500 leading-relaxed">{t(item.bodyKey)}</p>
@@ -374,7 +374,7 @@ export default function Landing() {
           {pricingGated ? (
             <div className="mx-auto max-w-xl text-center py-6">
               <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-seafoam-50 dark:bg-seafoam-900/30 mb-6">
-                <Sparkles className="w-7 h-7 text-seafoam-500" />
+                <Sparkles aria-hidden="true" className="w-7 h-7 text-seafoam-500" />
               </div>
               <h2 className="text-3xl font-black tracking-tight text-charcoal dark:text-white">
                 {t("pricing.comingSoonTitle")}
@@ -397,9 +397,9 @@ export default function Landing() {
                 <table className="w-full text-left text-sm">
                   <thead className="bg-offwhite text-slate-500 dark:bg-slate-800">
                     <tr>
-                      <th className="px-5 py-3 font-medium">{t("pricing.colHome")}</th>
-                      <th className="px-5 py-3 font-medium">{t("pricing.colService")}</th>
-                      <th className="px-5 py-3 text-right font-medium">{t("pricing.colPrice")}</th>
+                      <th scope="col" className="px-5 py-3 font-medium">{t("pricing.colHome")}</th>
+                      <th scope="col" className="px-5 py-3 font-medium">{t("pricing.colService")}</th>
+                      <th scope="col" className="px-5 py-3 text-right font-medium">{t("pricing.colPrice")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -415,7 +415,7 @@ export default function Landing() {
               </div>
               <div className="mt-8 text-center">
                 <Button size="lg" onClick={() => (window.location.href = customerUrl)}>
-                  {t("pricing.getQuote")} <ArrowRight className="h-4 w-4" />
+                  {t("pricing.getQuote")} <ArrowRight aria-hidden="true" className="h-4 w-4" />
                 </Button>
               </div>
             </>
@@ -461,15 +461,16 @@ export default function Landing() {
               href={cleanerUrl}
               className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-seafoam-600 hover:text-seafoam-700"
             >
-              {t("cleaner.cta")} <ArrowRight className="h-4 w-4" />
+              {t("cleaner.cta")} <ArrowRight aria-hidden="true" className="h-4 w-4" />
             </a>
           </div>
 
           <div className="flex flex-col items-center justify-between gap-4 border-t border-slate-100 pt-6 dark:border-slate-800 sm:flex-row">
-            <nav className="flex flex-wrap items-center gap-6 text-xs text-slate-400">
+            <nav className="flex flex-wrap items-center gap-6 text-xs text-slate-500">
               <a href="https://legal.getsweepr.com/privacy?ref=marketing" className="hover:text-seafoam-600">{t("footer.privacy")}</a>
               <a href="https://legal.getsweepr.com/terms?ref=marketing" className="hover:text-seafoam-600">{t("footer.terms")}</a>
               <a href="https://legal.getsweepr.com/contractor-agreement?ref=marketing" className="hover:text-seafoam-600">{t("footer.contractor")}</a>
+              <a href="https://legal.getsweepr.com/privacy-notice-at-collection?ref=marketing#do-not-sell" className="hover:text-seafoam-600">{t("footer.doNotSell")}</a>
               <button
                 onClick={() => {
                   try { localStorage.removeItem("sweepr_cookie_consent"); } catch { /* noop */ }
@@ -480,7 +481,7 @@ export default function Landing() {
                 {t("footer.cookieSettings")}
               </button>
             </nav>
-            <p className="text-xs text-slate-400">© {new Date().getFullYear()} Sweepr, Inc.</p>
+            <p className="text-xs text-slate-500">© {new Date().getFullYear()} Sweepr, Inc.</p>
           </div>
         </div>
       </footer>
