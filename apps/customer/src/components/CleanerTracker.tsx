@@ -167,7 +167,7 @@ export function CleanerTracker({ bookingId, token, apiUrl, destLat, destLng, day
 
   if (!TOKEN) {
     return (
-      <div className="flex h-48 items-center justify-center rounded-2xl border border-slate-200 bg-seafoam-50 text-sm text-slate-400 dark:border-slate-700">
+      <div className="flex h-48 items-center justify-center rounded-2xl border border-slate-200 bg-seafoam-50 text-sm text-slate-600 dark:border-slate-700">
         Live tracker (set VITE_MAPBOX_TOKEN)
       </div>
     );
@@ -187,7 +187,7 @@ export function CleanerTracker({ bookingId, token, apiUrl, destLat, destLng, day
              "Your Sweepr is cleaning"}
           </p>
           {lastUpdated && (
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-600">
               Updated {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </p>
           )}
@@ -199,7 +199,7 @@ export function CleanerTracker({ bookingId, token, apiUrl, destLat, destLng, day
           </div>
         )}
         {dayStatus === "en_route" && !location && (
-          <div className="flex items-center gap-1.5 text-slate-400">
+          <div className="flex items-center gap-1.5 text-slate-600">
             <Navigation2 className="h-4 w-4" />
             <span className="text-xs">Locating…</span>
           </div>

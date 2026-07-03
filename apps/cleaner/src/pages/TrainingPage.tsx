@@ -167,7 +167,7 @@ function ModuleCard({
             passed
               ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30"
               : locked
-                ? "bg-slate-200 text-slate-400 dark:bg-slate-800"
+                ? "bg-slate-200 text-slate-600 dark:bg-slate-800"
                 : "bg-seafoam-100 text-seafoam-700 dark:bg-seafoam-900/30"
           }`}
         >
@@ -488,7 +488,7 @@ function LessonViewer({
                   ) : (
                     <span
                       className={`flex h-6 w-6 items-center justify-center rounded-full border-2 text-xs ${
-                        active ? "border-seafoam-500 text-seafoam-700" : "border-slate-300 text-slate-400"
+                        active ? "border-seafoam-500 text-seafoam-700" : "border-slate-300 text-slate-600"
                       }`}
                     >
                       {idx + 1}
@@ -505,7 +505,7 @@ function LessonViewer({
               className={`mt-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm ${
                 allComplete || passed
                   ? "text-seafoam-700 dark:text-seafoam-300"
-                  : "text-slate-400"
+                  : "text-slate-600"
               }`}
             >
               <HelpCircle className="h-5 w-5 shrink-0" />
@@ -685,7 +685,7 @@ function Quiz({
                   className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 text-xs font-semibold ${
                     selected
                       ? "border-seafoam-500 bg-seafoam-700 text-white"
-                      : "border-slate-300 text-slate-400"
+                      : "border-slate-300 text-slate-600"
                   }`}
                 >
                   {String.fromCharCode(65 + ci)}

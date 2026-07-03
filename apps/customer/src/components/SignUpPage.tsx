@@ -176,7 +176,7 @@ export function SignUpPage() {
                       className={`${inputCls} pr-11`} placeholder="Min. 8 characters"
                     />
                     <button type="button" onClick={() => setShowPassword(v => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-600">
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>

@@ -41,7 +41,7 @@ function FileUpload({
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 px-3 py-5 text-sm text-slate-400 transition-colors hover:border-seafoam-400 dark:border-slate-700"
+        className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 px-3 py-5 text-sm text-slate-600 transition-colors hover:border-seafoam-400 dark:border-slate-700"
       >
         {value ? (
           <span className="flex items-center gap-2 text-seafoam-700">

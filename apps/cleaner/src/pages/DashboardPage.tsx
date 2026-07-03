@@ -328,7 +328,7 @@ function JobsTab() {
   const jobs = data?.jobs ?? [];
   if (jobs.length === 0) {
     return (
-      <div className="text-center py-16 text-slate-400 text-sm">
+      <div className="text-center py-16 text-slate-600 text-sm">
         No jobs yet. <a href="/jobs" className="text-indigo-600 underline">Browse the job board</a>
       </div>
     );
@@ -351,7 +351,7 @@ function JobsTab() {
             <p className="text-sm text-slate-500 mt-0.5">
               {new Date(job.scheduled_at).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
             </p>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-600">
               {job.bedrooms}bd / {job.bathrooms}ba · {job.address_city}, {job.address_state}
             </p>
           </div>
@@ -481,7 +481,7 @@ function ScheduleTab() {
               >
                 {slot.active
                   ? <ToggleRight size={24} className="text-indigo-600" />
-                  : <ToggleLeft size={24} className="text-slate-400" />}
+                  : <ToggleLeft size={24} className="text-slate-600" />}
               </button>
               <span className="w-10 text-sm font-medium text-slate-700">{DAYS[i]}</span>
               <input
@@ -491,7 +491,7 @@ function ScheduleTab() {
                 onChange={(e) => setSlots((s) => s.map((x, j) => j === i ? { ...x, start_time: e.target.value } : x))}
                 className="rounded border border-slate-200 px-2 py-1 text-sm disabled:opacity-40"
               />
-              <span className="text-slate-400 text-xs">to</span>
+              <span className="text-slate-600 text-xs">to</span>
               <input
                 type="time"
                 disabled={!slot.active}
@@ -529,7 +529,7 @@ function ScheduleTab() {
             {blocked.dates.map((d) => (
               <div key={d.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
                 <span className="font-medium">{d.blocked_date}</span>
-                <span className="text-slate-400">{d.reason ?? "—"}</span>
+                <span className="text-slate-600">{d.reason ?? "—"}</span>
                 <button onClick={() => removeBlockedDate(d.id)} className="text-red-400 hover:text-red-600 text-xs">Remove</button>
               </div>
             ))}
@@ -704,13 +704,13 @@ function PerformanceTab() {
         <div className="h-3 rounded-full bg-slate-100 overflow-hidden">
           <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all" style={{ width: `${milestoneProgress}%` }} />
         </div>
-        <div className="flex justify-between text-xs text-slate-400">
+        <div className="flex justify-between text-xs text-slate-600">
           <span>{prevMilestone} jobs</span>
           <span>{nextMilestone} jobs</span>
         </div>
         <div className="flex gap-2 flex-wrap mt-1">
           {JOB_MILESTONES.map((m) => (
-            <div key={m} className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${totalJobs >= m ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-medium" : "border-slate-200 text-slate-400"}`}>
+            <div key={m} className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${totalJobs >= m ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-medium" : "border-slate-200 text-slate-600"}`}>
               {totalJobs >= m ? <CheckCircle2 size={10} /> : null}{m}
             </div>
           ))}
@@ -723,7 +723,7 @@ function PerformanceTab() {
             <Briefcase size={22} className="text-indigo-400" />
           </div>
           <p className="font-semibold text-slate-700">Complete your first job to unlock stats</p>
-          <p className="text-sm text-slate-400">Your completion rate, rating, and earnings breakdown will appear here once you're active.</p>
+          <p className="text-sm text-slate-600">Your completion rate, rating, and earnings breakdown will appear here once you're active.</p>
         </div>
       ) : (
         <>
@@ -745,13 +745,13 @@ function PerformanceTab() {
                   </div>
                 </div>
                 <p className="text-3xl font-bold text-slate-800 mt-2">{Number(data.avgRating).toFixed(1)}</p>
-                <p className="text-xs text-slate-400">{data.reviewCount} {data.reviewCount === 1 ? "review" : "reviews"}</p>
+                <p className="text-xs text-slate-600">{data.reviewCount} {data.reviewCount === 1 ? "review" : "reviews"}</p>
               </div>
             )}
             <div className="rounded-xl border border-slate-200 p-5">
               <span className="text-sm text-slate-500">Dispute Rate</span>
               <p className="text-3xl font-bold text-slate-800 mt-2">{data.disputeRate.toFixed(2)}%</p>
-              <p className="text-xs text-slate-400">Lower is better</p>
+              <p className="text-xs text-slate-600">Lower is better</p>
             </div>
           </div>
 
@@ -764,7 +764,7 @@ function PerformanceTab() {
                     {[1,2,3,4,5].map((s) => (
                       <Star key={s} size={13} className={s <= r.rating ? "fill-yellow-400 text-yellow-400" : "text-slate-200"} />
                     ))}
-                    <span className="text-xs text-slate-400 ml-2">{new Date(r.created_at).toLocaleDateString()}</span>
+                    <span className="text-xs text-slate-600 ml-2">{new Date(r.created_at).toLocaleDateString()}</span>
                   </div>
                   {r.comment && <p className="text-sm text-slate-600 italic">"{r.comment}"</p>}
                 </div>
@@ -885,7 +885,7 @@ function SettingsTab() {
           <button onClick={() => toggle("accepts_last_minute")}>
             {form.accepts_last_minute
               ? <ToggleRight size={24} className="text-indigo-600" />
-              : <ToggleLeft size={24} className="text-slate-400" />}
+              : <ToggleLeft size={24} className="text-slate-600" />}
           </button>
         </div>
       </div>
@@ -905,7 +905,7 @@ function SettingsTab() {
             <button onClick={() => toggle(key)}>
               {form[key]
                 ? <ToggleRight size={24} className="text-indigo-600" />
-                : <ToggleLeft size={24} className="text-slate-400" />}
+                : <ToggleLeft size={24} className="text-slate-600" />}
             </button>
           </div>
         ))}

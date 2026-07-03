@@ -52,9 +52,9 @@ function CourseLibrary() {
       <h1 className="text-2xl font-bold text-slate-900 mb-1">Courses</h1>
       <p className="text-sm text-slate-500 mb-6">Interactive training courses.</p>
       {loading ? (
-        <p className="text-slate-400 text-sm">Loading…</p>
+        <p className="text-slate-600 text-sm">Loading…</p>
       ) : courses.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-400">
+        <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-600">
           No published courses yet.
         </div>
       ) : (
@@ -126,7 +126,7 @@ function CoursePlayer({ courseId }: { courseId: string }) {
   }
 
   if (!slide && !done) {
-    return <div className="grid min-h-[60vh] place-items-center text-slate-400 text-sm">Loading course…</div>;
+    return <div className="grid min-h-[60vh] place-items-center text-slate-600 text-sm">Loading course…</div>;
   }
 
   if (done) {
@@ -150,7 +150,7 @@ function CoursePlayer({ courseId }: { courseId: string }) {
         <button onClick={() => navigate("/courses")} className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
           <ChevronLeft className="h-4 w-4" /> Exit
         </button>
-        <span className="text-xs text-slate-400">{index + 1} / {slides.length}</span>
+        <span className="text-xs text-slate-600">{index + 1} / {slides.length}</span>
       </div>
 
       {/* Progress bar */}

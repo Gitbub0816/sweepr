@@ -142,7 +142,7 @@ export function ServiceAreaMap({ center, radiusMi }: ServiceAreaMapProps) {
   if (!TOKEN) {
     return (
       <div
-        className="flex h-[260px] items-center justify-center rounded-2xl border border-slate-200 bg-seafoam-50 text-sm text-slate-400 dark:border-slate-700"
+        className="flex h-[260px] items-center justify-center rounded-2xl border border-slate-200 bg-seafoam-50 text-sm text-slate-600 dark:border-slate-700"
         role="img"
         aria-label="Service area map unavailable"
       >

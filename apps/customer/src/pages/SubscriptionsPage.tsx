@@ -128,7 +128,7 @@ export function SubscriptionsPage() {
                     {t(`subscriptions.cadence.${sub.cadence}`)} · {formatCurrency(sub.display_price / 100)}/visit
                   </p>
                   {sub.next_cleaning_date && (
-                    <p className="mt-1 text-xs text-slate-400">
+                    <p className="mt-1 text-xs text-slate-600">
                       {t("subscriptions.nextCleaning")}:{" "}
                       {new Date(sub.next_cleaning_date).toLocaleDateString("en-US", {
                         weekday: "short",

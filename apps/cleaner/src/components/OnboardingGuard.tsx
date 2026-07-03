@@ -35,7 +35,7 @@ function JobsLocked() {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
       <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800">
-        <Lock className="h-6 w-6 text-slate-400" />
+        <Lock className="h-6 w-6 text-slate-600" />
       </div>
       <h2 className="mt-4 text-lg font-bold text-charcoal dark:text-white">
         Complete onboarding to unlock jobs

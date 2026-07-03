@@ -159,7 +159,7 @@ export function BackgroundCheckStep({ n, workState = "CA", getToken, onComplete,
         <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
           <iframe src={phase.invitationUrl} title="Background check — powered by Checkr" className="h-[640px] w-full" allow="camera; microphone" sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-top-navigation-by-user-activation" onLoad={pollStatus} />
         </div>
-        <p className="text-center text-xs text-slate-400">Secured by <a href="https://checkr.com" target="_blank" rel="noopener noreferrer" className="underline">Checkr</a>. Results are typically available within 1–3 business days.</p>
+        <p className="text-center text-xs text-slate-600">Secured by <a href="https://checkr.com" target="_blank" rel="noopener noreferrer" className="underline">Checkr</a>. Results are typically available within 1–3 business days.</p>
         <div className="flex gap-3"><a href={phase.invitationUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-seafoam-700 underline underline-offset-2 hover:text-seafoam-700"><ExternalLink className="h-4 w-4" />Open in new tab</a><Button variant="secondary" onClick={pollStatus} className="ml-auto">I've completed the form</Button></div>
       </div>
     );

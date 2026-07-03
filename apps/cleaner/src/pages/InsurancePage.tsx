@@ -361,7 +361,7 @@ export function InsurancePage() {
 
           {record?.coverage_type === "personal_policy" && record.doc_uploaded_at && (
             <div className="flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-600">
-              <Clock className="h-4 w-4 text-slate-400 shrink-0" />
+              <Clock className="h-4 w-4 text-slate-600 shrink-0" />
               <span>
                 Document uploaded {new Date(record.doc_uploaded_at).toLocaleDateString()} ·{" "}
                 <span className={cn("font-medium", STATUS_COLORS[record.policy_status])}>
@@ -389,7 +389,7 @@ export function InsurancePage() {
               : "Upload COI or declarations page"}
           </Button>
 
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-600">
             Accepted formats: PDF, JPG, PNG, WEBP · Max 10 MB
           </p>
         </Card>

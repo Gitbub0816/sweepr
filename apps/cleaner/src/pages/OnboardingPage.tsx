@@ -536,7 +536,7 @@ export function OnboardingPage() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <SweeprLogo size="lg" />
-              <span className="text-sm font-medium text-slate-400">Pro</span>
+              <span className="text-sm font-medium text-slate-600">Pro</span>
             </div>
             <ThemeToggle />
           </div>
@@ -745,7 +745,7 @@ function PhotoUpload({
       type="button"
       onClick={() => inputRef.current?.click()}
       aria-label={label}
-      className="flex h-32 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 text-sm text-slate-400 transition-colors hover:border-seafoam-400 dark:border-slate-700"
+      className="flex h-32 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 text-sm text-slate-600 transition-colors hover:border-seafoam-400 dark:border-slate-700"
     >
       {value ? (
         <span className="flex items-center gap-2 text-seafoam-700">
@@ -783,7 +783,7 @@ function StepWelcome({ form, set }: { form: FormState; set: SetFn }) {
             className="h-20 w-20 rounded-full object-cover"
           />
         ) : (
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800">
             <Camera className="h-7 w-7" />
           </div>
         )}
@@ -812,7 +812,7 @@ function StepWelcome({ form, set }: { form: FormState; set: SetFn }) {
         placeholder="Share a little about your cleaning style and what customers can expect."
         maxLength={500}
       />
-      <p className="-mt-2 text-xs text-slate-400">
+      <p className="-mt-2 text-xs text-slate-600">
         {form.bio.length}/500 — minimum 50 characters
       </p>
       <Textarea
@@ -956,7 +956,7 @@ function StepArea({
           placeholder="City, State"
         />
         {geocoding && (
-          <span className="absolute right-3 top-9 text-xs text-slate-400">Locating…</span>
+          <span className="absolute right-3 top-9 text-xs text-slate-600">Locating…</span>
         )}
       </div>
     </div>
@@ -1169,7 +1169,7 @@ function StepIdentity({
           <div className="rounded-2xl bg-[#f0fdfa] p-3 shadow-md dark:bg-seafoam-950">
             <DiditQrCode url={url} />
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-400">
+          <div className="flex items-center gap-2 text-xs text-slate-600">
             <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
             or
             <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
@@ -1182,7 +1182,7 @@ function StepIdentity({
           >
             Open in this browser instead →
           </a>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-600">
             This page will update automatically once your identity is confirmed.
           </p>
         </div>
@@ -1319,7 +1319,7 @@ function StepReview({
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-4 border-b border-slate-100 pb-2 dark:border-slate-800">
-      <dt className="text-slate-400">{label}</dt>
+      <dt className="text-slate-600">{label}</dt>
       <dd className="text-right font-medium text-charcoal dark:text-white">
         {value}
       </dd>

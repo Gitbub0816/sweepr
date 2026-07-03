@@ -207,7 +207,7 @@ export function JobDetailPage() {
   if (loading) {
     return (
       <DashboardShell title="Job Detail">
-        <p className="text-slate-400 text-sm">Loading…</p>
+        <p className="text-slate-600 text-sm">Loading…</p>
       </DashboardShell>
     );
   }
@@ -254,12 +254,12 @@ export function JobDetailPage() {
                         ? "bg-emerald-500 text-white"
                         : active
                         ? "bg-seafoam-700 text-white"
-                        : "bg-slate-200 text-slate-400"
+                        : "bg-slate-200 text-slate-600"
                     }`}
                   >
                     {done ? "✓" : i + 1}
                   </div>
-                  <span className={`text-[10px] text-center leading-tight ${active ? "text-seafoam-700 font-semibold" : "text-slate-400"}`}>
+                  <span className={`text-[10px] text-center leading-tight ${active ? "text-seafoam-700 font-semibold" : "text-slate-600"}`}>
                     {t(`cleaner.jobs.steps.${step}`, { defaultValue: step })}
                   </span>
                 </div>
@@ -286,7 +286,7 @@ export function JobDetailPage() {
         )}
         {job.access_codes && job.access_codes.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">Access</p>
+            <p className="text-xs text-slate-600 uppercase tracking-wide font-medium">Access</p>
             {job.access_codes.map((code) => (
               <div key={`${code.code_type}-${code.code_value}`} className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
                 <Lock className="h-4 w-4 text-amber-500" />
@@ -385,7 +385,7 @@ export function JobDetailPage() {
       {/* Photos taken */}
       {job.photos && job.photos.length > 0 && (
         <Card className="space-y-2">
-          <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">Photos ({job.photos.length})</p>
+          <p className="text-xs text-slate-600 uppercase tracking-wide font-medium">Photos ({job.photos.length})</p>
           <div className="grid grid-cols-3 gap-2">
             {job.photos.map((p) => (
               <div key={p.storage_key} className="rounded-lg bg-slate-100 aspect-square flex items-center justify-center">
@@ -429,8 +429,8 @@ function Detail({
         <Icon className="h-4 w-4" />
       </span>
       <div>
-        <p className="text-xs text-slate-400">{label}</p>
-        <p className={`text-sm font-medium ${muted ? "text-slate-400 italic" : "text-charcoal dark:text-white"}`}>
+        <p className="text-xs text-slate-600">{label}</p>
+        <p className={`text-sm font-medium ${muted ? "text-slate-600 italic" : "text-charcoal dark:text-white"}`}>
           {value}
         </p>
       </div>

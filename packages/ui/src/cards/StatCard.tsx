@@ -32,7 +32,7 @@ export function StatCard({
         <p
           className={cn(
             "mt-1 text-xs font-medium",
-            deltaPositive ? "text-emerald-500" : "text-red-500"
+            deltaPositive ? "text-emerald-700" : "text-red-700"
           )}
         >
           {delta}

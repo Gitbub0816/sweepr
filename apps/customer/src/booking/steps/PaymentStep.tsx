@@ -117,18 +117,18 @@ function OrderSummary() {
             {formatCurrency(activeCadence && recurringPrice !== null ? recurringPrice : displayPrice)}
           </span>
           {cadence !== "none" && cadence && !isSubscription && (
-            <p className="text-xs text-slate-400">{t("booking.payment.recurringCadence", { cadence })}</p>
+            <p className="text-xs text-slate-600">{t("booking.payment.recurringCadence", { cadence })}</p>
           )}
         </div>
       </div>
 
       {/* Trust badges */}
       <div className="flex items-center gap-3 pt-1">
-        <div className="flex items-center gap-1.5 text-xs text-slate-400">
+        <div className="flex items-center gap-1.5 text-xs text-slate-600">
           <ShieldCheck className="h-3.5 w-3.5 text-seafoam-400" />
           {t("booking.payment.satisfactionGuarantee")}
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-slate-400">
+        <div className="flex items-center gap-1.5 text-xs text-slate-600">
           <Lock className="h-3.5 w-3.5 text-seafoam-400" />
           {t("booking.payment.securedByStripe")}
         </div>
@@ -225,7 +225,7 @@ function CheckoutForm({ total }: { total: number }) {
         {t("booking.payment.payButton", { amount: formatCurrency(total) })}
       </Button>
 
-      <p className="text-center text-xs text-slate-400 dark:text-slate-500">
+      <p className="text-center text-xs text-slate-600 dark:text-slate-500">
         {t("booking.payment.cardNotCharged")}
       </p>
     </form>
@@ -375,7 +375,7 @@ export function PaymentStep() {
         {/* Left: payment form */}
         <div>
           {intentLoading ? (
-            <div className="flex items-center justify-center py-12 text-slate-400 text-sm">Loading payment…</div>
+            <div className="flex items-center justify-center py-12 text-slate-600 text-sm">Loading payment…</div>
           ) : stripePromise && clientSecret && options ? (
             <Elements stripe={stripePromise} options={options}>
               <CheckoutForm total={chargedPrice} />
