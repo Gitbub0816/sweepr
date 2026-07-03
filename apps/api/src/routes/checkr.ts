@@ -17,6 +17,11 @@ import type { AppBindings } from "../types";
 
 export const checkrRouter = new Hono<AppBindings>();
 
+checkrRouter.get("/config", requireAuth, async (c) => {
+  const publishableKey = c.env.VITE_CHECKR_PUBLISHABLE_KEY ?? c.env.CHECKR_PUBLISHABLE_KEY ?? "";
+  return c.json({ publishableKey, configured: Boolean(publishableKey) });
+});
+
 const inviteSchema = z.object({
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
