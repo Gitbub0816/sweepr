@@ -9,7 +9,9 @@
  *
  * When CHECKR_API_KEY is absent (sandbox / pre-approval), every call falls
  * through to a deterministic mock that mirrors the real Checkr response shapes.
- * Switch to live by setting CHECKR_API_KEY + CHECKR_API_URL in wrangler secrets.
+ * Switch to live by setting CHECKR_API_KEY + optional CHECKR_API_URL in wrangler
+ * secrets/vars. Use CHECKR_API_URL for staging/sandbox accounts when the key is
+ * issued for a non-production Checkr host.
  */
 
 const CHECKR_BASE = "https://api.checkr.com/v1";
@@ -69,11 +71,54 @@ export interface CheckrWebhookPayload {
   };
 }
 
-function authHeader(apiKey: string): Record<string, string> {
+function stripWrappingQuotes(value: string): string {
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
+}
+
+/**
+ * Normalize common dashboard/secret-manager paste mistakes without exposing the
+ * secret. Checkr expects HTTP Basic auth with the API key as username and a blank
+ * password, i.e. base64(`${key}:`).
+ */
+function normalizeCheckrApiKey(rawApiKey: string): string {
+  let key = stripWrappingQuotes(rawApiKey);
+
+  // Some operators paste the full header value or `Authorization: ...`.
+  key = key.replace(/^Authorization:\s*/i, "").trim();
+
+  // Some operators paste `Bearer sk_...` from a generic API-key UI.
+  key = key.replace(/^Bearer\s+/i, "").trim();
+
+  // Some operators paste curl's `-u sk_xxx:` value including the trailing colon.
+  if (!key.toLowerCase().startsWith("basic ") && key.endsWith(":")) {
+    key = key.slice(0, -1).trim();
+  }
+
+  return key;
+}
+
+function authHeader(rawApiKey: string): Record<string, string> {
+  const apiKey = normalizeCheckrApiKey(rawApiKey);
+  const authorization = apiKey.toLowerCase().startsWith("basic ")
+    ? apiKey
+    : `Basic ${btoa(apiKey + ":")}`;
+
   return {
-    Authorization: `Basic ${btoa(apiKey + ":")}`,
+    Authorization: authorization,
     "Content-Type": "application/json",
   };
+}
+
+function normalizeCheckrBaseUrl(rawBaseUrl?: string): string {
+  const cleaned = stripWrappingQuotes(rawBaseUrl || CHECKR_BASE).replace(/\/+$/, "");
+  return cleaned.endsWith("/v1") ? cleaned : `${cleaned}/v1`;
 }
 
 // ─── Mock implementation ──────────────────────────────────────────────────────
@@ -160,20 +205,23 @@ function mockClient(packageSlug: string) {
 
 // ─── Live implementation ──────────────────────────────────────────────────────
 
-function liveClient(apiKey: string, packageSlug: string) {
+function liveClient(apiKey: string, packageSlug: string, baseUrl: string) {
   async function req<T>(
     method: string,
     path: string,
     body?: unknown
   ): Promise<T> {
-    const res = await fetch(`${CHECKR_BASE}${path}`, {
+    const res = await fetch(`${baseUrl}${path}`, {
       method,
       headers: authHeader(apiKey),
       body: body ? JSON.stringify(body) : undefined,
     });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      throw new Error(`Checkr ${method} ${path} → ${res.status}: ${text}`);
+      const authHint = res.status === 401
+        ? " Check CHECKR_API_KEY and CHECKR_API_URL; staging keys must be used with the staging API host, and the secret should be the raw API key, not a dashboard URL."
+        : "";
+      throw new Error(`Checkr ${method} ${path} → ${res.status}: ${text}${authHint}`);
     }
     return res.json() as Promise<T>;
   }
@@ -246,10 +294,11 @@ function liveClient(apiKey: string, packageSlug: string) {
 export function checkrClient(env: {
   CHECKR_API_KEY?: string;
   CHECKR_PACKAGE?: string;
+  CHECKR_API_URL?: string;
 }) {
   const pkg = env.CHECKR_PACKAGE ?? "tasker_standard";
   if (!env.CHECKR_API_KEY) return mockClient(pkg);
-  return liveClient(env.CHECKR_API_KEY, pkg);
+  return liveClient(env.CHECKR_API_KEY, pkg, normalizeCheckrBaseUrl(env.CHECKR_API_URL));
 }
 
 // ─── Webhook signature verification ──────────────────────────────────────────
