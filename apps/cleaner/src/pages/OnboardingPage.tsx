@@ -359,13 +359,15 @@ export function OnboardingPage() {
   // the Identity step (e.g. after completing the hosted flow and coming back).
   useEffect(() => {
     if (stepName !== "Identity" || !API_URL) return;
-    void (async () => {
+    let cancelled = false;
+
+    async function syncDiditStatus() {
       try {
         const token = await getToken();
         const res = await fetch(`${API_URL}/didit/status`, {
           headers: { Authorization: `Bearer ${token ?? ""}` },
         });
-        if (!res.ok) return;
+        if (!res.ok || cancelled) return;
         const data = (await res.json()) as { status?: string };
         // Only a genuine Didit "approved" decision unlocks the step.
         // "pending" / "in_review" keep the button disabled so the applicant
@@ -373,14 +375,27 @@ export function OnboardingPage() {
         if (data.status === "approved") {
           setDiditStatus("submitted");
         } else if (data.status === "pending" || data.status === "in_review") {
-          setDiditStatus("pending"); // shows waiting UI, Next stays locked
+          // Don't clobber the QR screen — it stays up until a decision lands.
+          setDiditStatus((prev) => (prev === "qr" ? prev : "pending"));
         } else if (data.status === "declined" || data.status === "expired") {
           setDiditStatus("idle"); // allow retry
         }
       } catch {
         // ignore — show the start button
       }
-    })();
+    }
+
+    void syncDiditStatus();
+    // While a verification is in flight (QR shown or hosted flow pending),
+    // poll so the page updates by itself the moment Didit decides — this is
+    // what makes the desktop QR screen and post-redirect return "live".
+    const interval = setInterval(() => {
+      setDiditStatus((prev) => {
+        if (prev === "qr" || prev === "pending") void syncDiditStatus();
+        return prev;
+      });
+    }, 5000);
+    return () => { cancelled = true; clearInterval(interval); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepName]);
 
