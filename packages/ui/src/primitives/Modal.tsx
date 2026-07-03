@@ -44,8 +44,11 @@ export function Modal({
           )}
           <div className="mt-4">{children}</div>
           {footer && <div className="mt-6 flex justify-end gap-2">{footer}</div>}
-          <Dialog.Close className="absolute right-4 top-4 rounded-lg p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
-            <X className="h-4 w-4" />
+          <Dialog.Close
+            aria-label="Close dialog"
+            className="absolute right-4 top-4 rounded-lg p-2 text-slate-500 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-seafoam-400 dark:hover:bg-slate-800"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
           </Dialog.Close>
         </Dialog.Content>
       </Dialog.Portal>
