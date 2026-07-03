@@ -4,12 +4,35 @@ import { getDb } from "../lib/db";
 import { isOwnerClerkId } from "../lib/owner";
 import type { AppBindings } from "../types";
 
-export type AdminRole = "super_admin" | "admin" | "ops" | "finance" | "trainer" | "support" | "it";
+export type AdminRole =
+  | "super_admin" | "admin"
+  | "ops" | "ops_senior"
+  | "finance" | "finance_senior"
+  | "trainer" | "trainer_senior"
+  | "support" | "support_senior"
+  | "it" | "it_senior"
+  | "security" | "security_senior";
 
 /** Roles that map to "any admin" — the baseline gate used everywhere. */
 export const ALL_ADMIN_ROLES: AdminRole[] = [
-  "super_admin", "admin", "ops", "finance", "trainer", "support", "it",
+  "super_admin", "admin",
+  "ops", "ops_senior",
+  "finance", "finance_senior",
+  "trainer", "trainer_senior",
+  "support", "support_senior",
+  "it", "it_senior",
+  "security", "security_senior",
 ];
+
+/**
+ * S-level (senior) credentials exist for every scoped admin type. A senior
+ * credential satisfies any gate its base role satisfies (ops_senior passes
+ * wherever ops is required) — plus gates that explicitly require the senior
+ * variant.
+ */
+export function baseRoleOf(role: string): string {
+  return role.endsWith("_senior") ? role.slice(0, -"_senior".length) : role;
+}
 
 /**
  * IT Portal access: any admin (including the dedicated "it" admin_role) can view
@@ -53,8 +76,13 @@ export function requireAdminRole(...allowed: AdminRole[]) {
     const adminRole = (user as unknown as Record<string, unknown>).admin_role as string | null;
     if (adminRole === "super_admin") return next();
 
-    // Check if the user's admin_role is in the allowed list.
-    if (!adminRole || !allowed.includes(adminRole as AdminRole)) {
+    // Check if the user's admin_role is in the allowed list — a senior
+    // credential also passes any gate that allows its base role.
+    const passes =
+      adminRole != null &&
+      (allowed.includes(adminRole as AdminRole) ||
+        allowed.includes(baseRoleOf(adminRole) as AdminRole));
+    if (!passes) {
       return c.json({ error: "Insufficient permissions" }, 403);
     }
 
