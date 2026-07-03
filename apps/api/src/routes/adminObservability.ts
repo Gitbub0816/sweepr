@@ -443,14 +443,17 @@ observabilityRouter.get("/cloudflare", async (c) => {
 // GET /admin/observability/sentry
 observabilityRouter.get("/sentry", async (c) => {
   const token = c.env.SENTRY_AUTH_TOKEN;
-  const org = c.env.SENTRY_ORG;
-  const project = c.env.SENTRY_PROJECT;
-  if (!token || !org || !project) {
+  // Slugs are not secrets — default to the real org/project so a wrong or
+  // missing env var (e.g. the non-existent "sweepr-api" project) can't break
+  // the tile. Only the auth token is required.
+  const org = c.env.SENTRY_ORG || "sweepr-45";
+  const project = c.env.SENTRY_PROJECT || "sweepr-react";
+  if (!token) {
     return c.json({ status: "unconfigured" as const, issues: null });
   }
   try {
     const res = await fetch(
-      `https://sentry.io/api/0/projects/${org}/${project}/issues/?limit=1&statsPeriod=24h&query=is:unresolved`,
+      `https://us.sentry.io/api/0/projects/${org}/${project}/issues/?limit=25&statsPeriod=24h&query=is:unresolved`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
     if (!res.ok) return c.json({ status: "error" as const, issues: null });
