@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { initAnalytics } from "@sweepr/ui";
+import { initAnalytics, persistConsentRecord } from "@sweepr/ui";
 
 const STORAGE_KEY = "sweepr_cookie_consent";
 
@@ -31,12 +31,16 @@ function read(): ConsentRecord | null {
   }
 }
 
+const API_URL = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
+
 function save(record: ConsentRecord) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
   } catch {
     /* ignore storage errors */
   }
+  // Server-side consent record (GDPR Art. 7 accountability) — fire-and-forget.
+  persistConsentRecord(API_URL, record.analytics);
 }
 
 /**
@@ -87,7 +91,7 @@ export function CookieConsent() {
         </p>
         <p className="mt-1 text-sm text-slate-500">
           {t("cookies.body")}{" "}
-          <a href="https://legal.getsweepr.com/privacy?ref=marketing" target="_blank" rel="noreferrer" className="font-medium text-seafoam-600 underline">
+          <a href="https://legal.getsweepr.com/privacy?ref=marketing" target="_blank" rel="noreferrer" className="font-medium text-seafoam-700 underline">
             {t("footer.privacy")}
           </a>
           .
@@ -125,7 +129,7 @@ export function CookieConsent() {
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             onClick={() => commit("all", true, true)}
-            className="rounded-xl bg-seafoam-500 px-4 py-2 text-sm font-bold text-white hover:bg-seafoam-600"
+            className="rounded-xl bg-seafoam-700 px-4 py-2 text-sm font-bold text-white hover:bg-seafoam-800"
           >
             {t("cookies.acceptAll")}
           </button>

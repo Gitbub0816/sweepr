@@ -61,7 +61,7 @@ export function RefundPolicy() {
       <Section id="disputes" title="5. Disputes">
         <p>
           If you disagree with a refund decision, please see our{" "}
-          <a className="text-seafoam-600 underline" href="/dispute-resolution">
+          <a className="text-seafoam-700 underline" href="/dispute-resolution">
             Dispute Resolution policy
           </a>
           .
@@ -71,7 +71,7 @@ export function RefundPolicy() {
       <Section id="contact" title="6. Contact">
         <p>
           To request a refund or report an issue, contact{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>
           .

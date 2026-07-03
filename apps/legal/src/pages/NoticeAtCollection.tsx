@@ -35,7 +35,7 @@ export function NoticeAtCollection() {
         <p>
           This Notice at Collection is provided at or before the point of
           collection. For full details on sources, disclosures, and rights, see the{" "}
-          <Link className="text-seafoam-600 underline" to="/privacy">
+          <Link className="text-seafoam-700 underline" to="/privacy">
             Privacy Policy
           </Link>
           .
@@ -81,7 +81,7 @@ export function NoticeAtCollection() {
           We retain each category for as long as needed for the purposes above and
           to meet legal, tax, safety, and dispute obligations, then delete or
           de-identify it. See the{" "}
-          <Link className="text-seafoam-600 underline" to="/privacy">
+          <Link className="text-seafoam-700 underline" to="/privacy">
             Privacy Policy
           </Link>{" "}
           for details.
@@ -101,7 +101,7 @@ export function NoticeAtCollection() {
           California residents may request to know, delete, or correct their
           personal information, and may use an authorized agent. To exercise
           rights, use the in-app privacy controls or contact{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${PRIVACY_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${PRIVACY_EMAIL}`}>
             {PRIVACY_EMAIL}
           </a>
           .

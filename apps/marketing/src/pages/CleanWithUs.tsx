@@ -90,7 +90,7 @@ function StepList({ steps }: { steps: readonly StepItem[] }) {
             <span className="absolute right-5 top-5 text-5xl font-black text-slate-100 dark:text-slate-800">
               {i + 1}
             </span>
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-seafoam-500 text-white shadow-lg shadow-seafoam-500/30">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-seafoam-700 text-white shadow-lg shadow-seafoam-500/30">
               <Icon aria-hidden="true" className="h-6 w-6" />
             </div>
             <h3 className="text-lg font-bold text-charcoal dark:text-white">{t(`cleanWithUs.${s.key}Title`)}</h3>
@@ -115,7 +115,7 @@ function PerkGrid({ perks }: { perks: readonly StepItem[] }) {
             key={p.key}
             className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"
           >
-            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-seafoam-50 text-seafoam-600 dark:bg-seafoam-900/20">
+            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-seafoam-50 text-seafoam-700 dark:bg-seafoam-900/20">
               <Icon aria-hidden="true" className="h-5 w-5" />
             </div>
             <div>
@@ -153,7 +153,7 @@ function TabSwitch({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
             {active && (
               <motion.span
                 layoutId="cleanTabHighlight"
-                className="absolute inset-0 rounded-xl bg-seafoam-500 shadow"
+                className="absolute inset-0 rounded-xl bg-seafoam-700 shadow"
                 transition={{ type: "spring", stiffness: 350, damping: 30 }}
               />
             )}
@@ -265,7 +265,7 @@ export default function CleanWithUs() {
 
         {/* The "Sweepr" difference — shared */}
         <section className="py-16">
-          <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-seafoam-500 to-seafoam-600 px-6 py-14 text-center text-white sm:px-12">
+          <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-seafoam-700 to-seafoam-800 px-6 py-14 text-center text-white sm:px-12">
             <SweeprLogo size="lg" className="mx-auto mb-6 brightness-0 invert" />
             <h2 className="mx-auto max-w-2xl text-3xl font-black">
               {t("cleanWithUs.differenceTitle")}
@@ -284,7 +284,7 @@ export default function CleanWithUs() {
             {t("cleanWithUs.coverageTitle")}
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-slate-500 dark:text-slate-400">
-            <MapPin aria-hidden="true" className="mr-1 inline h-4 w-4 text-seafoam-600" />
+            <MapPin aria-hidden="true" className="mr-1 inline h-4 w-4 text-seafoam-700" />
             {t("cleanWithUs.coverageSubtitle")}
           </p>
         </div>

@@ -16,7 +16,7 @@ export function PendingReviewPage() {
       </div>
 
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-seafoam-500 text-white shadow-lg shadow-seafoam-500/30">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-seafoam-700 text-white shadow-lg shadow-seafoam-500/30">
           <CheckCircle2 className="h-7 w-7" />
         </div>
         <h1 className="mt-6 text-2xl font-bold text-charcoal dark:text-white">
@@ -55,7 +55,7 @@ export function PendingReviewPage() {
             <Mail className="h-4 w-4" />
             <a
               href="mailto:support@getsweepr.com"
-              className="font-medium text-seafoam-600"
+              className="font-medium text-seafoam-700"
             >
               support@getsweepr.com
             </a>

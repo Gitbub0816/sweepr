@@ -139,7 +139,7 @@ export function AddSlotModal({
                   onClick={() => toggleDay(i)}
                   className={`h-9 w-11 rounded-lg border text-xs font-medium transition-colors ${
                     days.includes(i)
-                      ? "border-seafoam-400 bg-seafoam-500 text-white"
+                      ? "border-seafoam-400 bg-seafoam-700 text-white"
                       : "border-slate-200 text-slate-400 hover:border-seafoam-300 dark:border-slate-700"
                   }`}
                 >

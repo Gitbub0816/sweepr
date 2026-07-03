@@ -113,7 +113,7 @@ export function SignUpPage() {
       <div className="absolute right-4 top-4"><ThemeToggle /></div>
       <div className="mb-8 flex flex-col items-center text-center">
         <SweeprLogo size="md" />
-        <p className="mt-1 text-sm font-medium text-seafoam-600 dark:text-seafoam-400">Sweepr Pro</p>
+        <p className="mt-1 text-sm font-medium text-seafoam-700 dark:text-seafoam-400">Sweepr Pro</p>
         <h1 className="mt-4 text-2xl font-bold text-charcoal dark:text-white">
           {stage === "form" ? t("auth.createAccount") : t("auth.verify")}
         </h1>
@@ -147,7 +147,7 @@ export function SignUpPage() {
             <div className="mb-5 flex rounded-xl border border-slate-200 p-1 dark:border-slate-700">
               {(["email", "phone"] as Method[]).map((m) => (
                 <button key={m} type="button" onClick={() => { setMethod(m); setError(""); setHasAccount(false); }}
-                  className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${method === m ? "bg-seafoam-500 text-white shadow-sm" : "text-slate-500 hover:text-slate-700 dark:text-slate-400"}`}>
+                  className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${method === m ? "bg-seafoam-700 text-white shadow-sm" : "text-slate-500 hover:text-slate-700 dark:text-slate-400"}`}>
                   {m === "email" ? t("auth.email") : t("auth.phone")}
                 </button>
               ))}
@@ -164,7 +164,7 @@ export function SignUpPage() {
                 </div>
                 {hasAccount && (
                   <div className="flex items-start gap-3 rounded-xl border border-seafoam-200 bg-seafoam-50 px-4 py-3 dark:border-seafoam-800/40 dark:bg-seafoam-900/20">
-                    <LogIn className="mt-0.5 h-4 w-4 shrink-0 text-seafoam-600 dark:text-seafoam-400" />
+                    <LogIn className="mt-0.5 h-4 w-4 shrink-0 text-seafoam-700 dark:text-seafoam-400" />
                     <div>
                       <p className="text-sm font-medium text-seafoam-800 dark:text-seafoam-300">{t("auth.alreadyHaveAccount")}</p>
                       <p className="mt-0.5 text-xs text-seafoam-700 dark:text-seafoam-400">
@@ -208,7 +208,7 @@ export function SignUpPage() {
 
             <p className="mt-6 text-center text-sm text-slate-500">
               {t("auth.alreadyHaveAccount")}{" "}
-              <Link to="/sign-in" className="font-medium text-seafoam-600 hover:underline dark:text-seafoam-400">{t("auth.signIn")}</Link>
+              <Link to="/sign-in" className="font-medium text-seafoam-700 hover:underline dark:text-seafoam-400">{t("auth.signIn")}</Link>
             </p>
           </>
         ) : (

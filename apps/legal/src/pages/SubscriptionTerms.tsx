@@ -29,7 +29,7 @@ export function SubscriptionTerms() {
           You may select a recurring cadence (for example weekly, biweekly, or
           monthly). Each scheduled visit creates an individual booking subject to
           the{" "}
-          <Link className="text-seafoam-600 underline" to="/customer-agreement">
+          <Link className="text-seafoam-700 underline" to="/customer-agreement">
             Customer Agreement
           </Link>
           .
@@ -42,7 +42,7 @@ export function SubscriptionTerms() {
           processor) to charge your payment method for each visit at the time
           disclosed at sign-up (for example, before or at the time of each
           service). See the{" "}
-          <Link className="text-seafoam-600 underline" to="/payment-terms">
+          <Link className="text-seafoam-700 underline" to="/payment-terms">
             Payment Services Terms
           </Link>
           .
@@ -53,7 +53,7 @@ export function SubscriptionTerms() {
         <p>
           Recurring prices may change for future visits. Material changes are
           disclosed in advance under the{" "}
-          <Link className="text-seafoam-600 underline" to="/platform-fee-policy">
+          <Link className="text-seafoam-700 underline" to="/platform-fee-policy">
             Platform Fee Policy
           </Link>{" "}
           and apply only to visits after the effective date. The price for any
@@ -65,7 +65,7 @@ export function SubscriptionTerms() {
         <p>
           You may reschedule or skip an upcoming visit within the windows shown in
           the app. Late changes may be subject to the cancellation rules in the{" "}
-          <Link className="text-seafoam-600 underline" to="/refund-policy">
+          <Link className="text-seafoam-700 underline" to="/refund-policy">
             Refund Policy
           </Link>
           . Holiday scheduling may shift a visit; you will be notified.
@@ -109,7 +109,7 @@ export function SubscriptionTerms() {
           Recurring plans are not a guarantee of indefinite service. Sweepr or the
           Cleaner may decline future bookings consistent with the Terms. Questions?
           Contact{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>
           .

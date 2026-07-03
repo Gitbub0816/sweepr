@@ -122,7 +122,7 @@ export function SweeprCalendar(props: CalendarProps) {
                 onClick={() => setView(v)}
                 className={`rounded-md px-3 py-1 text-xs font-medium capitalize transition-colors ${
                   view === v
-                    ? "bg-seafoam-500 text-white"
+                    ? "bg-seafoam-700 text-white"
                     : "text-slate-500 hover:text-slate-700"
                 }`}
               >
@@ -216,7 +216,7 @@ export function SweeprCalendar(props: CalendarProps) {
                       key={keyOf(d)}
                       className={`pb-2 text-center text-xs font-medium ${
                         isToday(d)
-                          ? "text-seafoam-600"
+                          ? "text-seafoam-700"
                           : "text-slate-400"
                       }`}
                     >

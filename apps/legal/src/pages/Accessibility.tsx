@@ -45,7 +45,7 @@ export function Accessibility() {
       <Section id="feedback" title="4. Feedback">
         <p>
           If you encounter an accessibility barrier, please let us know at{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>{" "}
           so we can address it.

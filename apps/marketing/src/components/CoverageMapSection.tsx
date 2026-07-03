@@ -181,7 +181,7 @@ function CoverageMap({ areas, pins }: { areas: ServiceArea[]; pins: Array<{ lat:
   if (!TOKEN) {
     return (
       <div className="flex h-full items-center justify-center bg-slate-100 rounded-2xl">
-        <p className="text-slate-500 text-sm">Map unavailable (no token)</p>
+        <p className="text-slate-600 text-sm">Map unavailable (no token)</p>
       </div>
     );
   }
@@ -366,7 +366,7 @@ export function CoverageMapSection() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full rounded-lg bg-seafoam-500 px-4 py-2 text-sm font-semibold text-white hover:bg-seafoam-600 disabled:opacity-50 transition-colors"
+                    className="w-full rounded-lg bg-seafoam-700 px-4 py-2 text-sm font-semibold text-white hover:bg-seafoam-800 disabled:opacity-50 transition-colors"
                   >
                     {loading ? "Submitting…" : "Request my city"}
                   </button>

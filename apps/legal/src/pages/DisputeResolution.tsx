@@ -21,7 +21,7 @@ export function DisputeResolution() {
         <p>
           Before initiating formal proceedings, you agree to first contact our
           support team at{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>{" "}
           and attempt to resolve the dispute informally. Most issues can be

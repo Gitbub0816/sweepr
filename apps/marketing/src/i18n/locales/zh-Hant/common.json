@@ -123,7 +123,8 @@
     "contractor": "承包商揭露聲明",
     "status": "系統狀態",
     "cookieSettings": "Cookie 設定",
-    "rights": "版權所有，翻印必究。"
+    "rights": "版權所有，翻印必究。",
+    "doNotSell": "請勿出售或分享我的個人資訊"
   },
   "languageSelector": {
     "label": "語言"

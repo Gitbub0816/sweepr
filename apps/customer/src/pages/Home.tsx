@@ -46,14 +46,14 @@ export function Home() {
           to="/book/service"
           className="mt-6 flex items-center gap-4 rounded-3xl border-2 border-seafoam-400 bg-seafoam-50 px-5 py-4 shadow-sm transition hover:bg-seafoam-100 dark:bg-seafoam-900/20 dark:border-seafoam-600 dark:hover:bg-seafoam-900/30"
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-seafoam-500 text-white flex-shrink-0">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-seafoam-700 text-white flex-shrink-0">
             <RotateCcw className="h-5 w-5" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-black text-seafoam-800 dark:text-seafoam-200">
               {t("home.pickUpWhereYouLeftOff")}
             </p>
-            <p className="text-xs text-seafoam-600 dark:text-seafoam-400 truncate">
+            <p className="text-xs text-seafoam-700 dark:text-seafoam-400 truncate">
               {t(`serviceTypes.${draft.serviceType!}`)} · {t("home.savedDraft")}
             </p>
           </div>
@@ -67,7 +67,7 @@ export function Home() {
           <div className="h-1.5 bg-seafoam-500" />
           <div className="p-6">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-wide text-seafoam-600">
+              <p className="text-xs font-bold uppercase tracking-wide text-seafoam-700">
                 {t("home.upcomingClean")}
               </p>
               <StatusBadge status={upcoming.status} />
@@ -81,7 +81,7 @@ export function Home() {
             </p>
             <Link
               to={`/bookings/${upcoming.id}`}
-              className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-seafoam-600 hover:text-seafoam-700"
+              className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-seafoam-700 hover:text-seafoam-700"
             >
               {t("home.viewDetails")} <ArrowRight className="h-4 w-4" />
             </Link>
@@ -102,7 +102,7 @@ export function Home() {
           </div>
           <Link
             to="/book/address"
-            className="rounded-2xl bg-seafoam-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-seafoam-600"
+            className="rounded-2xl bg-seafoam-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-seafoam-800"
           >
             {t("home.rebook")}
           </Link>
@@ -121,7 +121,7 @@ export function Home() {
             className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-seafoam-300 dark:border-slate-700 dark:bg-slate-900"
             style={{ borderLeft: "6px solid #14b8a6" }}
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-seafoam-50 text-seafoam-600 dark:bg-slate-800">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-seafoam-50 text-seafoam-700 dark:bg-slate-800">
               <s.icon className="h-6 w-6" />
             </div>
             <div className="flex-1">

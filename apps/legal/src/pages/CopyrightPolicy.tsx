@@ -59,7 +59,7 @@ export function CopyrightPolicy() {
         <p>
           Send copyright notices to {COMPANY_NAME}, Attn: DMCA Agent,{" "}
           {REGISTERED_ADDRESS}, or by email to{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${LEGAL_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${LEGAL_EMAIL}`}>
             {LEGAL_EMAIL}
           </a>
           .

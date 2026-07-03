@@ -43,7 +43,18 @@ export const SENDERS = {
  * Wrap plain-text body paragraphs in the Sweepr branded email template.
  * Double newlines become paragraph breaks; single newlines become <br/>.
  */
-export function wrapBodyInTemplate(subject: string, body: string, lang?: string): string {
+export function wrapBodyInTemplate(
+  subject: string,
+  body: string,
+  lang?: string,
+  opts?: {
+    /**
+     * Marketing emails must carry a visible unsubscribe mechanism in the body
+     * (CAN-SPAM) — the List-Unsubscribe header alone is not sufficient.
+     */
+    unsubscribe?: boolean;
+  }
+): string {
   const dir = lang === "ar" ? "rtl" : "ltr";
   const paragraphs = body
     .split(/\n{2,}/)
@@ -58,7 +69,9 @@ export function wrapBodyInTemplate(subject: string, body: string, lang?: string)
   ${paragraphs}
   <a href="https://getsweepr.com" style="display:inline-block;background:#14b8a6;color:#fff;font-weight:600;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:14px;margin-top:8px">Visit Sweepr</a>
   <hr style="margin:32px 0;border:none;border-top:1px solid #e5e7eb" />
-  <p style="font-size:12px;color:#9ca3af;margin:0">You're receiving this from Sweepr.</p>
+  <p style="font-size:12px;color:#6b7280;margin:0">You're receiving this from Sweepr.</p>${opts?.unsubscribe ? `
+  <p style="font-size:12px;color:#6b7280;margin:8px 0 0">Don't want these emails? <a href="https://api.getsweepr.com/unsubscribe" style="color:#0f766e;text-decoration:underline">Unsubscribe</a> at any time.</p>
+  <p style="font-size:12px;color:#6b7280;margin:8px 0 0">Sweepr · a ClearKey Solutions product · United States</p>` : ""}
 </div>`;
 }
 

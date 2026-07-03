@@ -31,7 +31,7 @@ export function MarketingShell({
               <a
                 key={l.href}
                 href={l.href}
-                className="text-sm font-medium text-slate-600 transition-colors hover:text-seafoam-600 dark:text-slate-300"
+                className="text-sm font-medium text-slate-600 transition-colors hover:text-seafoam-700 dark:text-slate-300"
               >
                 {l.label}
               </a>

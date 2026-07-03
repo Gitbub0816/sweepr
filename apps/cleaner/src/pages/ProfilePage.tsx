@@ -78,7 +78,7 @@ export function ProfilePage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
         <Card className="space-y-4">
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-seafoam-500 text-xl font-bold text-white">
+            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-seafoam-700 text-xl font-bold text-white">
               {user?.imageUrl ? <img src={user.imageUrl} alt="" className="h-full w-full object-cover" /> : initials}
             </div>
             <div>

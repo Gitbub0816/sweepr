@@ -26,7 +26,7 @@ function Row({
 }) {
   return (
     <div className="flex items-start gap-3 py-2">
-      <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg bg-seafoam-50 text-seafoam-600 dark:bg-slate-800">
+      <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg bg-seafoam-50 text-seafoam-700 dark:bg-slate-800">
         <Icon className="h-4 w-4" />
       </span>
       <div>

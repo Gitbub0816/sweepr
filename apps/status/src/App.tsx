@@ -128,7 +128,7 @@ function IncidentCard({ incident }: { incident: Incident }) {
 
       <div className="border-t border-slate-100 pt-4">
         {subDone ? (
-          <p className="text-sm text-seafoam-600 font-medium">Subscribed! We'll email you with updates.</p>
+          <p className="text-sm text-seafoam-700 font-medium">Subscribed! We'll email you with updates.</p>
         ) : (
           <form onSubmit={(e) => void subscribe(e)} className="flex gap-2">
             <label htmlFor="incident-email-input" className="sr-only">Email address</label>
@@ -136,7 +136,7 @@ function IncidentCard({ incident }: { incident: Incident }) {
               placeholder="your@email.com"
               className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400" />
             <button type="submit" disabled={subLoading}
-              className="rounded-lg bg-seafoam-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-seafoam-600 disabled:opacity-50 transition-colors whitespace-nowrap">
+              className="rounded-lg bg-seafoam-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-seafoam-800 disabled:opacity-50 transition-colors whitespace-nowrap">
               Subscribe to updates
             </button>
           </form>
@@ -199,7 +199,7 @@ function NewsletterSection() {
       <h2 className="text-xl font-bold text-charcoal mb-2">Stay in the loop</h2>
       <p className="text-slate-600 mb-6">Get notified when Sweepr launches and for important status updates.</p>
       {done ? (
-        <p className="text-seafoam-600 font-semibold">You're subscribed!</p>
+        <p className="text-seafoam-700 font-semibold">You're subscribed!</p>
       ) : (
         <form onSubmit={(e) => void subscribe(e)} className="flex flex-col sm:flex-row gap-3 max-w-sm mx-auto">
           <label htmlFor="newsletter-email-input" className="sr-only">Email address</label>
@@ -207,7 +207,7 @@ function NewsletterSection() {
             placeholder="your@email.com"
             className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400 bg-white" />
           <button type="submit" disabled={loading}
-            className="rounded-lg bg-seafoam-500 px-5 py-2 text-sm font-semibold text-white hover:bg-seafoam-600 disabled:opacity-50 transition-colors">
+            className="rounded-lg bg-seafoam-700 px-5 py-2 text-sm font-semibold text-white hover:bg-seafoam-800 disabled:opacity-50 transition-colors">
             {loading ? "…" : "Subscribe"}
           </button>
         </form>
@@ -264,7 +264,7 @@ export default function App() {
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
           <img src="/brand/sweepr-logo.png" className="h-14 w-auto" alt="Sweepr" />
-          <a href="https://getsweepr.com" className="text-sm text-slate-500 hover:text-seafoam-600 transition-colors">
+          <a href="https://getsweepr.com" className="text-sm text-slate-500 hover:text-seafoam-700 transition-colors">
             getsweepr.com
           </a>
         </div>
@@ -328,7 +328,7 @@ export default function App() {
       <footer className="mt-12 border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-6">
           <img src="/brand/sweepr-logo.png" className="h-10 w-auto opacity-60" alt="Sweepr" />
-          <p className="text-xs text-slate-400">&copy; {new Date().getFullYear()} Sweepr, Inc.</p>
+          <p className="text-xs text-slate-600">&copy; {new Date().getFullYear()} Sweepr, Inc.</p>
         </div>
       </footer>
     </div>

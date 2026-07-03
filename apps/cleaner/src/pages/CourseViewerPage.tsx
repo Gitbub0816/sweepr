@@ -136,7 +136,7 @@ function CoursePlayer({ courseId }: { courseId: string }) {
           <CheckCircle2 className="mx-auto h-14 w-14 text-emerald-500" />
           <h2 className="mt-4 text-xl font-bold text-slate-900">Course complete</h2>
           <p className="mt-1 text-sm text-slate-500">{title}</p>
-          <button onClick={() => navigate("/courses")} className="mt-6 rounded-lg bg-seafoam-500 px-5 py-2 text-sm font-semibold text-white hover:bg-seafoam-600">
+          <button onClick={() => navigate("/courses")} className="mt-6 rounded-lg bg-seafoam-700 px-5 py-2 text-sm font-semibold text-white hover:bg-seafoam-800">
             Back to courses
           </button>
         </div>
@@ -179,7 +179,7 @@ function CoursePlayer({ courseId }: { courseId: string }) {
         >
           <ChevronLeft className="h-4 w-4" /> Back
         </button>
-        <button onClick={next} className="flex items-center gap-1 rounded-lg bg-seafoam-500 px-5 py-2 text-sm font-semibold text-white hover:bg-seafoam-600">
+        <button onClick={next} className="flex items-center gap-1 rounded-lg bg-seafoam-700 px-5 py-2 text-sm font-semibold text-white hover:bg-seafoam-800">
           {index === slides.length - 1 ? "Finish" : "Next"} <ChevronRight className="h-4 w-4" />
         </button>
       </div>

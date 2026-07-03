@@ -342,7 +342,7 @@ export function BookingDetailPage() {
                       <span
                         className={`flex h-6 w-6 items-center justify-center rounded-full ${
                           done
-                            ? "bg-seafoam-500 text-white"
+                            ? "bg-seafoam-700 text-white"
                             : current
                               ? "bg-seafoam-500"
                               : "bg-slate-100 dark:bg-slate-800"

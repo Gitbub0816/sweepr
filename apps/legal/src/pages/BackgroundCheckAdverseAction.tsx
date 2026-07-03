@@ -67,11 +67,11 @@ export function BackgroundCheckAdverseAction() {
         <p>
           Sweepr receives only the report status and results needed to assess
           eligibility and handles that information under the{" "}
-          <Link className="text-seafoam-600 underline" to="/privacy">
+          <Link className="text-seafoam-700 underline" to="/privacy">
             Privacy Policy
           </Link>
           . Questions? Contact{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>
           .

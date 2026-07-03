@@ -55,7 +55,7 @@ export function ESignConsent() {
       <Section id="withdraw" title="5. Withdrawing Consent">
         <p>
           You may withdraw consent to receive records electronically by contacting{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>
           . Withdrawal does not affect the validity of records provided before
@@ -67,7 +67,7 @@ export function ESignConsent() {
         <p>
           You may request a paper copy of a record by contacting support. A
           reasonable fee may apply where permitted. See also the{" "}
-          <Link className="text-seafoam-600 underline" to="/privacy">
+          <Link className="text-seafoam-700 underline" to="/privacy">
             Privacy Policy
           </Link>
           .

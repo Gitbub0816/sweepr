@@ -34,7 +34,7 @@ adminNewsletterRouter.post(
   zValidator("json", sendSchema),
   async (c) => {
     const { subject, body, previewTo } = c.req.valid("json");
-    const html = wrapBodyInTemplate(subject, body);
+    const html = wrapBodyInTemplate(subject, body, undefined, { unsubscribe: true });
     const sql = getDb(c.env.DATABASE_URL);
 
     if (previewTo) {

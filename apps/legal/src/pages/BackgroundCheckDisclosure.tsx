@@ -57,7 +57,7 @@ export function BackgroundCheckDisclosure() {
           Background checks are performed by a third-party consumer reporting
           agency such as Checkr. Their handling of your data is governed by their
           own terms and privacy notices, and by Sweepr's{" "}
-          <Link className="text-seafoam-600 underline" to="/privacy">
+          <Link className="text-seafoam-700 underline" to="/privacy">
             Privacy Policy
           </Link>
           .
@@ -70,7 +70,7 @@ export function BackgroundCheckDisclosure() {
           including the right to receive a summary of your rights, to be notified
           if information in a report may result in an adverse decision, and to
           dispute inaccurate information. See the{" "}
-          <Link className="text-seafoam-600 underline" to="/background-check-adverse-action">
+          <Link className="text-seafoam-700 underline" to="/background-check-adverse-action">
             Adverse Action Policy
           </Link>
           .
@@ -90,11 +90,11 @@ export function BackgroundCheckDisclosure() {
           Sweepr may obtain updated reports periodically to maintain platform
           safety, subject to any required renewed authorization. Questions?
           Contact{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>
           . After reading this disclosure, you will be asked to provide your{" "}
-          <Link className="text-seafoam-600 underline" to="/background-check-authorization">
+          <Link className="text-seafoam-700 underline" to="/background-check-authorization">
             authorization
           </Link>
           .

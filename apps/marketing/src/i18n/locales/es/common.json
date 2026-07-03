@@ -123,7 +123,8 @@
     "contractor": "Divulgación del contratista",
     "status": "Estado",
     "cookieSettings": "Configuración de cookies",
-    "rights": "Todos los derechos reservados."
+    "rights": "Todos los derechos reservados.",
+    "doNotSell": "No vender ni compartir mi información personal"
   },
   "languageSelector": {
     "label": "Idioma"

@@ -35,7 +35,7 @@ export function ConfirmedStep() {
           initial={{ scale: 0.6, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", stiffness: 200, damping: 14 }}
-          className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-seafoam-500 text-white"
+          className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-seafoam-700 text-white"
         >
           <CheckCircle2 className="h-9 w-9" />
         </motion.div>
@@ -56,7 +56,7 @@ export function ConfirmedStep() {
         }`}>
           {cleanerAssigned ? (
             <>
-              <UserCheck className="h-5 w-5 text-seafoam-600" />
+              <UserCheck className="h-5 w-5 text-seafoam-700" />
               <span className="text-sm font-semibold text-seafoam-800 dark:text-seafoam-200">
                 {t("booking.confirmed.cleanerAssignedBadge")}
               </span>

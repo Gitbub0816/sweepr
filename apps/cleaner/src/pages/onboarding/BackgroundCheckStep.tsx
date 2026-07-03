@@ -160,7 +160,7 @@ export function BackgroundCheckStep({ n, workState = "CA", getToken, onComplete,
           <iframe src={phase.invitationUrl} title="Background check — powered by Checkr" className="h-[640px] w-full" allow="camera; microphone" sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-top-navigation-by-user-activation" onLoad={pollStatus} />
         </div>
         <p className="text-center text-xs text-slate-400">Secured by <a href="https://checkr.com" target="_blank" rel="noopener noreferrer" className="underline">Checkr</a>. Results are typically available within 1–3 business days.</p>
-        <div className="flex gap-3"><a href={phase.invitationUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-seafoam-600 underline underline-offset-2 hover:text-seafoam-700"><ExternalLink className="h-4 w-4" />Open in new tab</a><Button variant="secondary" onClick={pollStatus} className="ml-auto">I've completed the form</Button></div>
+        <div className="flex gap-3"><a href={phase.invitationUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-seafoam-700 underline underline-offset-2 hover:text-seafoam-700"><ExternalLink className="h-4 w-4" />Open in new tab</a><Button variant="secondary" onClick={pollStatus} className="ml-auto">I've completed the form</Button></div>
       </div>
     );
   }
@@ -173,7 +173,7 @@ export function BackgroundCheckStep({ n, workState = "CA", getToken, onComplete,
 }
 
 function StepHeader({ n }: { n: number }) {
-  return <div><span className="text-xs font-semibold uppercase tracking-wide text-seafoam-600">Step {n}</span><h2 className="mt-1 text-xl font-bold text-charcoal dark:text-white">Background check</h2></div>;
+  return <div><span className="text-xs font-semibold uppercase tracking-wide text-seafoam-700">Step {n}</span><h2 className="mt-1 text-xl font-bold text-charcoal dark:text-white">Background check</h2></div>;
 }
 
 function FcraDisclosure() {
@@ -182,7 +182,7 @@ function FcraDisclosure() {
       <div className="flex items-center gap-2 font-semibold text-seafoam-800 dark:text-seafoam-200"><ShieldCheck className="h-5 w-5" /><span>Background check disclosure</span></div>
       <p className="text-sm text-seafoam-700 dark:text-seafoam-300">Sweepr will obtain a consumer report for screening purposes. You have the right to request a free copy of the report and to dispute inaccurate information.</p>
       <p className="text-sm text-seafoam-700 dark:text-seafoam-300">The background check is conducted by <a href="https://checkr.com" target="_blank" rel="noopener noreferrer" className="font-medium underline">Checkr, Inc.</a> (a consumer reporting agency).</p>
-      <p className="text-xs text-seafoam-600 dark:text-seafoam-400">By clicking "Continue" you acknowledge receipt of this disclosure. Your authorization will be collected by Checkr.</p>
+      <p className="text-xs text-seafoam-700 dark:text-seafoam-400">By clicking "Continue" you acknowledge receipt of this disclosure. Your authorization will be collected by Checkr.</p>
     </Card>
   );
 }

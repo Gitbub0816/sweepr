@@ -47,11 +47,11 @@ export function Subprocessors() {
           The vendors below help us provide and secure the services. Each vendor
           processes only the data needed for its purpose. For more on how we handle
           data, see the{" "}
-          <Link className="text-seafoam-600 underline" to="/privacy">
+          <Link className="text-seafoam-700 underline" to="/privacy">
             Privacy Policy
           </Link>{" "}
           and{" "}
-          <Link className="text-seafoam-600 underline" to="/dpa">
+          <Link className="text-seafoam-700 underline" to="/dpa">
             Data Processing Addendum
           </Link>
           .
@@ -92,7 +92,7 @@ export function Subprocessors() {
         <p>
           We may add or replace subprocessors as the platform evolves and will
           update this page accordingly. Questions?{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${PRIVACY_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${PRIVACY_EMAIL}`}>
             {PRIVACY_EMAIL}
           </a>
           .

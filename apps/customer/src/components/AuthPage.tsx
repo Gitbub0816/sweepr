@@ -21,7 +21,7 @@ export function AuthPage({
       </div>
 
       <div className="mb-8 flex flex-col items-center text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-seafoam-500 text-xl font-bold text-white shadow-lg shadow-seafoam-500/30">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-seafoam-700 text-xl font-bold text-white shadow-lg shadow-seafoam-500/30">
           S
         </div>
         <h1 className="mt-4 text-2xl font-bold text-charcoal dark:text-white">

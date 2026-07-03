@@ -96,7 +96,7 @@ function OrderSummary() {
               <p className="text-xs font-semibold text-seafoam-800 dark:text-seafoam-200">
                 {t("booking.payment.subscription", { cadence: activeCadence.charAt(0).toUpperCase() + activeCadence.slice(1) })}
               </p>
-              <p className="text-xs text-seafoam-600 dark:text-seafoam-400">
+              <p className="text-xs text-seafoam-700 dark:text-seafoam-400">
                 {t("booking.payment.subscriptionPrice", { price: formatCurrency(recurringPrice), savings: formatCurrency(savings) })}
               </p>
             </div>

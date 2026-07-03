@@ -152,7 +152,7 @@ export function ReportProblem({ app, apiUrl, getToken }: Props) {
                   {done ? <>Your Case Code is <span className="font-mono font-semibold text-charcoal dark:text-white">{done}</span>. Reference it if you contact us. </> : ""}
                   We'll follow up by email if needed.
                 </p>
-                <button onClick={() => setOpen(false)} className="mt-6 rounded-xl bg-seafoam-500 px-5 py-2.5 text-sm font-medium text-white hover:bg-seafoam-600">
+                <button onClick={() => setOpen(false)} className="mt-6 rounded-xl bg-seafoam-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-seafoam-800">
                   Done
                 </button>
               </div>
@@ -205,7 +205,7 @@ export function ReportProblem({ app, apiUrl, getToken }: Props) {
 
                 {error && <p className="text-sm text-red-500">{error}</p>}
                 <button type="submit" disabled={submitting}
-                  className="w-full rounded-xl bg-seafoam-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-seafoam-600 disabled:opacity-50">
+                  className="w-full rounded-xl bg-seafoam-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-seafoam-800 disabled:opacity-50">
                   {submitting ? "Submitting…" : kind === "security" ? "Submit Security Report" : "Submit to IT Help Desk"}
                 </button>
               </form>

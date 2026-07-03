@@ -65,7 +65,7 @@ const sendSchema = z.object({
 
 adminBroadcastsRouter.post("/send", zValidator("json", sendSchema), async (c) => {
   const { audience, broadcastType, areaSlug, subject, body, previewTo } = c.req.valid("json");
-  const html = wrapBodyInTemplate(subject, body);
+  const html = wrapBodyInTemplate(subject, body, undefined, { unsubscribe: true });
   const sql = getDb(c.env.DATABASE_URL);
   const actorClerkId = c.get("user").clerkId;
 
@@ -131,7 +131,7 @@ adminBroadcastsRouter.post("/send", zValidator("json", sendSchema), async (c) =>
         const tBody = await translateText(c.env.ANTHROPIC_API_KEY!, body, langName(lang));
         translations.set(lang, {
           subject: tSubject,
-          html: wrapBodyInTemplate(tSubject, tBody, lang),
+          html: wrapBodyInTemplate(tSubject, tBody, lang, { unsubscribe: true }),
         });
       }),
     );

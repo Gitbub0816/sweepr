@@ -96,7 +96,7 @@ function Section({
         bookings.map((b) => (
           <Link key={b.id} to={`/bookings/${b.id}`}>
             <Card className="flex items-center gap-4 transition-colors hover:border-seafoam-300">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-seafoam-50 text-seafoam-600 dark:bg-slate-800">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-seafoam-50 text-seafoam-700 dark:bg-slate-800">
                 <CalendarClock className="h-5 w-5" />
               </div>
               <div className="min-w-0 flex-1">

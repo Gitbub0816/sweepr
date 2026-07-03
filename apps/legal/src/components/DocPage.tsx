@@ -66,7 +66,7 @@ export function DocPage({
             {version && <span>Version: {version}</span>}
             <span>
               Owner:{" "}
-              <a className="text-seafoam-600 underline" href={`mailto:${owner}`}>
+              <a className="text-seafoam-700 underline" href={`mailto:${owner}`}>
                 {owner}
               </a>
             </span>

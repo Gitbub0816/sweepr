@@ -126,14 +126,14 @@ export function PlatformFeePolicy() {
           later effective date is selected). Effective changes take effect at
           11:59 PM platform local time on the effective date unless otherwise
           required. This internal governance is described further in the{" "}
-          <Link className="text-seafoam-600 underline" to="/legal-updates">
+          <Link className="text-seafoam-700 underline" to="/legal-updates">
             Legal Updates Policy
           </Link>
           .
         </p>
         <p>
           Questions about fees? Contact{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>
           .

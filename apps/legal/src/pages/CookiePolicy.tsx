@@ -67,7 +67,7 @@ export function CookiePolicy() {
       <Section id="contact" title="5. Contact">
         <p>
           Questions about cookies? Contact{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${PRIVACY_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${PRIVACY_EMAIL}`}>
             {PRIVACY_EMAIL}
           </a>
           .

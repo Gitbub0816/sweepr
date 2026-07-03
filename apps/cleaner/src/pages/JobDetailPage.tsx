@@ -253,13 +253,13 @@ export function JobDetailPage() {
                       done
                         ? "bg-emerald-500 text-white"
                         : active
-                        ? "bg-seafoam-500 text-white"
+                        ? "bg-seafoam-700 text-white"
                         : "bg-slate-200 text-slate-400"
                     }`}
                   >
                     {done ? "✓" : i + 1}
                   </div>
-                  <span className={`text-[10px] text-center leading-tight ${active ? "text-seafoam-600 font-semibold" : "text-slate-400"}`}>
+                  <span className={`text-[10px] text-center leading-tight ${active ? "text-seafoam-700 font-semibold" : "text-slate-400"}`}>
                     {t(`cleaner.jobs.steps.${step}`, { defaultValue: step })}
                   </span>
                 </div>
@@ -425,7 +425,7 @@ function Detail({
 }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-seafoam-50 text-seafoam-600 dark:bg-slate-800">
+      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-seafoam-50 text-seafoam-700 dark:bg-slate-800">
         <Icon className="h-4 w-4" />
       </span>
       <div>

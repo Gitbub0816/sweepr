@@ -287,7 +287,7 @@ export function InsurancePage() {
                     href="https://legal.getsweepr.com/insurance-protection"
                     target="_blank"
                     rel="noreferrer"
-                    className="font-medium text-seafoam-600 underline"
+                    className="font-medium text-seafoam-700 underline"
                   >
                     Insurance Protection Policy
                   </a>

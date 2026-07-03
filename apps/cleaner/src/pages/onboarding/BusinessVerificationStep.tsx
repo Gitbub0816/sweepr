@@ -44,7 +44,7 @@ function FileUpload({
         className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 px-3 py-5 text-sm text-slate-400 transition-colors hover:border-seafoam-400 dark:border-slate-700"
       >
         {value ? (
-          <span className="flex items-center gap-2 text-seafoam-600">
+          <span className="flex items-center gap-2 text-seafoam-700">
             <CheckCircle2 className="h-5 w-5" /> {value}
           </span>
         ) : (
@@ -102,7 +102,7 @@ export function BusinessVerificationStep({
   return (
     <div className="space-y-4">
       <div className="mb-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-seafoam-600">
+        <span className="text-xs font-semibold uppercase tracking-wide text-seafoam-700">
           Step {n}
         </span>
         <h2 className="mt-1 text-xl font-bold text-charcoal dark:text-white">

@@ -63,11 +63,11 @@ export function SecurityPolicy() {
       <Section id="reporting" title="6. Reporting a Concern">
         <p>
           Report suspected vulnerabilities under the{" "}
-          <Link className="text-seafoam-600 underline" to="/vulnerability-disclosure">
+          <Link className="text-seafoam-700 underline" to="/vulnerability-disclosure">
             Vulnerability Disclosure Policy
           </Link>{" "}
           or email{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SECURITY_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SECURITY_EMAIL}`}>
             {SECURITY_EMAIL}
           </a>
           .

@@ -63,7 +63,7 @@ export function PaymentMethodsPage() {
         <div className="space-y-3">
           {methods.map((pm) => (
             <Card key={pm.id} className="flex items-center gap-4">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-seafoam-50 text-seafoam-600 dark:bg-slate-800">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-seafoam-50 text-seafoam-700 dark:bg-slate-800">
                 <CreditCard className="h-5 w-5" />
               </div>
               <div className="flex-1">

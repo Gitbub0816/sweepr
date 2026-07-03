@@ -24,7 +24,7 @@ export function LawEnforcementRequests() {
         <p>
           Subpoenas, court orders, and other legal process should be directed to{" "}
           {COMPANY_NAME}, Attn: Legal, {REGISTERED_ADDRESS}, or by email to{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${LEGAL_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${LEGAL_EMAIL}`}>
             {LEGAL_EMAIL}
           </a>
           .

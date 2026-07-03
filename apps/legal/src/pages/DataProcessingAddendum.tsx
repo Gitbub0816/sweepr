@@ -30,7 +30,7 @@ export function DataProcessingAddendum() {
           the customer is the controller and Sweepr is the processor. Where Sweepr
           determines purposes and means (for example, its own platform operations),
           Sweepr acts as a controller under the{" "}
-          <Link className="text-seafoam-600 underline" to="/privacy">
+          <Link className="text-seafoam-700 underline" to="/privacy">
             Privacy Policy
           </Link>
           .
@@ -48,7 +48,7 @@ export function DataProcessingAddendum() {
       <Section id="subprocessors" title="3. Subprocessors">
         <p>
           Sweepr engages the subprocessors listed on the{" "}
-          <Link className="text-seafoam-600 underline" to="/subprocessors">
+          <Link className="text-seafoam-700 underline" to="/subprocessors">
             Subprocessors
           </Link>{" "}
           page and imposes data-protection obligations on them consistent with this
@@ -60,7 +60,7 @@ export function DataProcessingAddendum() {
         <p>
           Sweepr maintains appropriate technical and organizational measures as
           described in the{" "}
-          <Link className="text-seafoam-600 underline" to="/security">
+          <Link className="text-seafoam-700 underline" to="/security">
             Security Policy
           </Link>
           .
@@ -103,7 +103,7 @@ export function DataProcessingAddendum() {
           Sweepr will make available information reasonably necessary to demonstrate
           compliance with this DPA and allow for audits subject to reasonable
           confidentiality and security conditions. To request a signed DPA, contact{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${LEGAL_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${LEGAL_EMAIL}`}>
             {LEGAL_EMAIL}
           </a>
           .

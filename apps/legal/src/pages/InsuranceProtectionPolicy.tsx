@@ -38,7 +38,7 @@ export function InsuranceProtectionPolicy() {
           Subject to the terms, limits, and exclusions of any applicable policy,
           certain validated property-damage claims arising from a cleaning may be
           eligible for consideration, coordinated with the{" "}
-          <Link className="text-seafoam-600 underline" to="/damage-claims">
+          <Link className="text-seafoam-700 underline" to="/damage-claims">
             Damage Claims Policy
           </Link>
           .
@@ -67,7 +67,7 @@ export function InsuranceProtectionPolicy() {
       <Section id="process" title="5. Claims Process">
         <p>
           Claims are investigated under the{" "}
-          <Link className="text-seafoam-600 underline" to="/damage-claims">
+          <Link className="text-seafoam-700 underline" to="/damage-claims">
             Damage Claims Policy
           </Link>
           , including review of before-and-after photos and a Cleaner statement.
@@ -80,7 +80,7 @@ export function InsuranceProtectionPolicy() {
           Cleaners are encouraged to maintain their own insurance and are
           responsible for damage caused by their negligence or misconduct as
           described in the{" "}
-          <Link className="text-seafoam-600 underline" to="/cleaner-agreement">
+          <Link className="text-seafoam-700 underline" to="/cleaner-agreement">
             Cleaner Platform Agreement
           </Link>
           .
@@ -98,7 +98,7 @@ export function InsuranceProtectionPolicy() {
         <p>
           No person is a third-party beneficiary of any Sweepr insurance policy by
           virtue of this document. Questions? Contact{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>
           .

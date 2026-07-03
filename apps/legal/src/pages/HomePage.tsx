@@ -37,7 +37,7 @@ export function HomePage() {
                 >
                   <span
                     aria-hidden="true"
-                    className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-seafoam-50 text-seafoam-600"
+                    className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-seafoam-50 text-seafoam-700"
                   >
                     <FileText className="h-5 w-5" />
                   </span>
@@ -49,7 +49,7 @@ export function HomePage() {
                   </p>
                   <span className="mt-4 flex items-center justify-between text-sm">
                     <span className="text-slate-500">Updated {LAST_UPDATED}</span>
-                    <span className="flex items-center gap-1 font-medium text-seafoam-600 group-hover:gap-2">
+                    <span className="flex items-center gap-1 font-medium text-seafoam-700 group-hover:gap-2">
                       Read <ArrowRight className="h-4 w-4 transition-all" />
                     </span>
                   </span>
