@@ -26,6 +26,7 @@ import {
   adverseActionEarliestDate,
   type CheckrReport,
 } from "../lib/checkr";
+import { adjudicateConsiderReport } from "../lib/adjudication";
 import { serverTrack } from "../lib/posthog";
 import type { AppBindings } from "../types";
 
@@ -158,11 +159,13 @@ checkrRouter.post("/webhook", async (c) => {
   const rawBody = await c.req.text();
   const sig = c.req.header("x-checkr-signature") ?? "";
 
-  if (!c.env.CHECKR_WEBHOOK_SECRET) {
-    logger.warn("Checkr webhook: CHECKR_WEBHOOK_SECRET not configured");
+  // Checkr signs webhooks with the partner app client_secret (X-Checkr-Signature).
+  const signingKey = c.env.CHECKR_CLIENT_SECRET ?? c.env.CHECKR_WEBHOOK_SECRET;
+  if (!signingKey) {
+    logger.warn("Checkr webhook: CHECKR_CLIENT_SECRET not configured");
     return c.json({ error: "Webhook not configured" }, 503);
   }
-  const valid = await verifyCheckrSignature(rawBody, sig, c.env.CHECKR_WEBHOOK_SECRET);
+  const valid = await verifyCheckrSignature(rawBody, sig, signingKey);
   if (!valid) {
     logger.warn("Checkr webhook: invalid signature");
     return c.json({ error: "Invalid signature" }, 401);
@@ -202,26 +205,54 @@ checkrRouter.post("/webhook", async (c) => {
 
     case "report.completed": {
       const report = payload.data.object as unknown as CheckrReport;
-      const status = report.status === "clear" ? "clear" : "consider";
+      const rawStatus = report.status === "clear" ? "clear" : "consider";
       await sql`
         UPDATE cleaners
         SET checkr_report_id    = ${report.id},
-            checkr_status       = ${status},
+            checkr_status       = ${rawStatus},
             checkr_completed_at = NOW()
         WHERE checkr_candidate_id = ${report.candidate_id}
       `;
-      if (status === "consider") {
-        await sql`
-          INSERT INTO notifications (user_id, type, body, created_at)
-          SELECT u.id, 'checkr_consider',
-                 'A background check requires adjudication.',
-                 NOW()
-          FROM users u
-          WHERE u.role = 'admin'
-          LIMIT 5
-        `;
+
+      if (rawStatus === "consider") {
+        // Ask Claude Haiku to adjudicate. If it recommends "engage", mark clear
+        // and call Checkr's adjudication API. If it recommends "flag" (or if the
+        // API key is absent), route to a human admin.
+        // FCRA: we NEVER auto-adverse; only Haiku "engage" is acted on automatically.
+        const haiku = await adjudicateConsiderReport(report, c.env);
+
+        let autoEngaged = false;
+        if (haiku?.recommendation === "engage") {
+          const client = checkrClient(c.env);
+          try {
+            await client.adjudicate(report.id, "engaged");
+            await sql`
+              UPDATE cleaners SET checkr_status = 'clear'
+              WHERE checkr_candidate_id = ${report.candidate_id}
+            `;
+            logger.info("Haiku adjudicated: engage", { reportId: report.id, reasoning: haiku.reasoning });
+            autoEngaged = true;
+          } catch (err) {
+            logger.error("Checkr adjudication API failed; falling back to admin review", { err: String(err) });
+          }
+        }
+
+        if (!autoEngaged) {
+          const reasoning = haiku?.reasoning ?? "No AI adjudication available — manual review required.";
+          await sql`
+            INSERT INTO notifications (user_id, type, body, created_at)
+            SELECT u.id, 'checkr_consider',
+                   ${"Background check requires adjudication. AI note: " + reasoning},
+                   NOW()
+            FROM users u
+            WHERE u.role = 'admin'
+            LIMIT 5
+          `;
+          logger.info("Haiku adjudicated: flag (or unavailable)", { reportId: report.id, reasoning });
+        }
       }
-      serverTrack(c.env, report.candidate_id, "checkr_report_completed", { status });
+
+      serverTrack(c.env, report.candidate_id, "checkr_report_completed", { status: rawStatus });
       break;
     }
 

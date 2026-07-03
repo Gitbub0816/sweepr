@@ -20,6 +20,7 @@ export interface Env {
   /** Optional override for staging/sandbox Checkr hosts. Defaults to https://api.checkr.com/v1. */
   CHECKR_API_URL?: string;
   CHECKR_PACKAGE?: string;
+  CHECKR_CLIENT_SECRET?: string;
   CHECKR_WEBHOOK_SECRET?: string;
   DIDIT_API_KEY?: string;
   DIDIT_WEBHOOK_SECRET?: string;
