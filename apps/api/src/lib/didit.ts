@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 /**
  * Didit identity-verification client — hosted Session v3 flow.
  *
@@ -101,7 +102,7 @@ export function diditClient(env: DiditEnv) {
         const id = `stub_didit_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
         return {
           session_id: id,
-          url: `https://app.getsweepr.com/didit-simulate?session=${id}&workflow=${opts.workflow}`,
+          url: `https://clean.getsweepr.com/didit-simulate?session=${id}&workflow=${opts.workflow}`,
           status: "Not Started",
           workflow: opts.workflow,
           stub: true,
@@ -129,7 +130,7 @@ export function diditClient(env: DiditEnv) {
 
       if (!res.ok) {
         const text = await res.text().catch(() => "");
-        console.error(`[didit] POST /v3/session/ → ${res.status}`, { body, response: text });
+        logger.error(`Didit POST /v3/session/ → ${res.status}`, { workflow: opts.workflow, response: text.slice(0, 300) });
         throw new Error(`Didit POST /session → ${res.status}: ${text}`);
       }
 

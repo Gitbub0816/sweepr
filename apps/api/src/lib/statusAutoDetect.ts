@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 /**
  * Automatic incident detection from error_logs patterns.
  *
@@ -216,7 +217,7 @@ export async function detectAndCreateIncidents(
     }
   } catch (err) {
     // Non-fatal — don't block the cron handler
-    console.error("statusAutoDetect failed", err);
+    logger.error("statusAutoDetect failed", err);
   }
 
   return created;
