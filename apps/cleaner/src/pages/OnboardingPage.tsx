@@ -396,6 +396,7 @@ export function OnboardingPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token ?? ""}`,
         },
+        body: JSON.stringify({ qr: !isMobile }),
       });
       const data = (await res.json()) as { url?: string; stub?: boolean; error?: string; detail?: string };
       if (!res.ok) {

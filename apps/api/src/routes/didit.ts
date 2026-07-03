@@ -46,12 +46,19 @@ diditRouter.post("/session", requireAuth, async (c) => {
 
   const client = diditClient(c.env);
 
+  const body = await c.req.json<{ qr?: boolean }>().catch(() => ({ qr: false }));
+  // QR flow: phone lands on /verify-done ("return to desktop").
+  // Mobile direct flow: redirects back into onboarding.
+  const callbackUrl = (body as { qr?: boolean }).qr
+    ? "https://clean.getsweepr.com/verify-done"
+    : "https://clean.getsweepr.com/onboarding";
+
   let session;
   try {
     session = await client.createSession({
       workflow,
       vendorData: user.id,
-      callbackUrl: "https://clean.getsweepr.com/onboarding",
+      callbackUrl,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
