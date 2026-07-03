@@ -106,7 +106,7 @@ export function SlackSettings() {
     <div className="max-w-2xl space-y-4">
       <Card className="space-y-3">
         <div className="flex items-center gap-2">
-          <Slack className="h-5 w-5 text-seafoam-600" />
+          <Slack className="h-5 w-5 text-seafoam-700" />
           <h2 className="text-sm font-semibold text-charcoal dark:text-white">Slack connection</h2>
         </div>
         {!connected ? (

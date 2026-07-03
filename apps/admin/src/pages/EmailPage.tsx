@@ -33,7 +33,7 @@ function SubTabs({ active, onChange }: { active: TabId; onChange: (t: TabId) => 
         <button key={id} onClick={() => onChange(id)}
           className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition -mb-px ${
             active === id
-              ? "border-seafoam-500 text-seafoam-600 dark:text-seafoam-400"
+              ? "border-seafoam-500 text-seafoam-700 dark:text-seafoam-400"
               : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
           }`}>
           <Icon className="h-4 w-4" />
@@ -213,7 +213,7 @@ function ComposeTab() {
           <div className="flex flex-wrap gap-2 pt-2">
             {BLOCK_BUTTONS.map(({ type, label, icon }) => (
               <button key={type} onClick={() => addBlock(type)}
-                className="flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs text-slate-500 hover:border-seafoam-400 hover:text-seafoam-600 dark:border-slate-600 dark:text-slate-400 transition">
+                className="flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs text-slate-500 hover:border-seafoam-400 hover:text-seafoam-700 dark:border-slate-600 dark:text-slate-400 transition">
                 {icon} {label}
               </button>
             ))}
@@ -385,7 +385,7 @@ function BroadcastsTab() {
               {BROADCAST_CATEGORIES.map(c => (
                 <button key={c.value} onClick={() => setCategory(c.value)}
                   className={`w-full flex items-start gap-3 rounded-xl border p-3 text-left transition ${category === c.value ? "border-seafoam-400 bg-seafoam-50 dark:bg-seafoam-900/20" : "border-slate-200 hover:border-slate-300 dark:border-slate-700"}`}>
-                  <span className={`mt-0.5 ${category === c.value ? "text-seafoam-600" : "text-slate-600"}`}>{c.icon}</span>
+                  <span className={`mt-0.5 ${category === c.value ? "text-seafoam-700" : "text-slate-600"}`}>{c.icon}</span>
                   <div>
                     <p className="text-sm font-medium text-charcoal dark:text-white">{c.label}</p>
                     <p className="text-xs text-slate-500">{c.description}</p>

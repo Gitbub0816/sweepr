@@ -504,7 +504,7 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
                   <div className="space-y-2">
                     {/* Ticket creation */}
                     <div className="flex gap-2 text-xs">
-                      <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-seafoam-100 text-seafoam-600">
+                      <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-seafoam-100 text-seafoam-700">
                         <Clock className="h-3 w-3" />
                       </div>
                       <div>

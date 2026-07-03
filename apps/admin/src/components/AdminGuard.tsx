@@ -22,7 +22,7 @@ function Forbidden() {
         If you believe this is a mistake, contact{" "}
         <a
           href="mailto:support@getsweepr.com"
-          className="font-medium text-seafoam-600"
+          className="font-medium text-seafoam-700"
         >
           support@getsweepr.com
         </a>

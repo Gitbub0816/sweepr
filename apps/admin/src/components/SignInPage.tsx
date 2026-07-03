@@ -81,7 +81,7 @@ export function SignInPage() {
       <div className="absolute right-4 top-4"><ThemeToggle /></div>
       <div className="mb-8 flex flex-col items-center text-center">
         <SweeprLogo size="md" />
-        <p className="mt-1 text-sm font-semibold uppercase tracking-wide text-seafoam-600 dark:text-seafoam-400">Ops Console</p>
+        <p className="mt-1 text-sm font-semibold uppercase tracking-wide text-seafoam-700 dark:text-seafoam-400">Ops Console</p>
         <h1 className="mt-4 text-2xl font-bold text-charcoal dark:text-white">
           {stage === "email" ? "Sign in to Admin" : "Check your email"}
         </h1>

@@ -81,7 +81,7 @@ export function NewsletterPage() {
             {loadingSubs ? (
               <p className="text-sm text-slate-600">Loading…</p>
             ) : (
-              <p className="text-3xl font-bold text-seafoam-600">{subscribers.length}</p>
+              <p className="text-3xl font-bold text-seafoam-700">{subscribers.length}</p>
             )}
             {subscribers.length > 0 && (
               <div className="mt-4 max-h-64 overflow-y-auto space-y-1">

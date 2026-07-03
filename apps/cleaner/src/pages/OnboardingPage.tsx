@@ -1064,7 +1064,7 @@ function StepServices({
                       className={`flex-1 px-1 py-1.5 text-xs font-medium transition-colors ${
                         active
                           ? "bg-seafoam-700 text-white"
-                          : "bg-white text-slate-500 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800"
+                          : "bg-white text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800"
                       }`}
                     >
                       {opt.label}

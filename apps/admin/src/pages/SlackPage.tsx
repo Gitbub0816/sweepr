@@ -111,7 +111,7 @@ export function SlackPage() {
       <DashboardShell title="Slack" description="Embedded Slack workspace.">
         <Card className="max-w-lg space-y-3">
           <p className="text-sm text-slate-500">No Slack workspace is connected yet. Connect one under{" "}
-            <Link to="/settings" className="text-seafoam-600 underline">Settings → Slack</Link>.</p>
+            <Link to="/settings" className="text-seafoam-700 underline">Settings → Slack</Link>.</p>
         </Card>
       </DashboardShell>
     );
@@ -120,7 +120,7 @@ export function SlackPage() {
     return (
       <DashboardShell title="Slack" description={`Workspace: ${me.workspaceName ?? ""}`}>
         <Card className="max-w-lg space-y-3">
-          <div className="flex items-center gap-2"><Slack className="h-5 w-5 text-seafoam-600" /><h2 className="text-sm font-semibold text-charcoal dark:text-white">Connect your Slack account</h2></div>
+          <div className="flex items-center gap-2"><Slack className="h-5 w-5 text-seafoam-700" /><h2 className="text-sm font-semibold text-charcoal dark:text-white">Connect your Slack account</h2></div>
           <p className="text-sm text-slate-500">To view and send messages as yourself, connect your personal Slack account. You'll only see channels and DMs your Slack account can access.</p>
           <Button onClick={connectAccount}>Connect my Slack account</Button>
         </Card>
@@ -182,7 +182,7 @@ export function SlackPage() {
                   )}
                   <div className="mt-1 flex items-center gap-3">
                     {m.reactions.length > 0 && <span className="text-xs text-slate-600">{m.reactions.map((r) => `:${r.name}: ${r.count}`).join("  ")}</span>}
-                    <button onClick={() => openThread(m)} className="flex items-center gap-1 text-xs text-slate-600 hover:text-seafoam-600">
+                    <button onClick={() => openThread(m)} className="flex items-center gap-1 text-xs text-slate-600 hover:text-seafoam-700">
                       <CornerDownRight className="h-3 w-3" /> {m.reply_count > 0 ? `${m.reply_count} replies` : "Reply"}
                     </button>
                   </div>

@@ -167,7 +167,7 @@ export function AdminsPage() {
       {/* Invite form */}
       <div className="rounded-xl border border-slate-200 bg-white p-5">
         <div className="flex items-center gap-2 mb-4">
-          <UserPlus className="h-4 w-4 text-seafoam-600" />
+          <UserPlus className="h-4 w-4 text-seafoam-700" />
           <h2 className="text-sm font-semibold text-charcoal">Invite admin</h2>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -191,7 +191,7 @@ export function AdminsPage() {
         {inviteLink && (
           <div className="mt-3 rounded-lg bg-seafoam-50 border border-seafoam-200 px-3 py-2">
             <p className="text-xs text-seafoam-700 font-medium mb-1">Invite link (share if email fails):</p>
-            <p className="text-xs font-mono text-seafoam-600 break-all">{inviteLink}</p>
+            <p className="text-xs font-mono text-seafoam-700 break-all">{inviteLink}</p>
           </div>
         )}
       </div>
@@ -246,7 +246,7 @@ export function AdminsPage() {
                 return (
                   <tr key={a.id} className={`hover:bg-slate-50 ${isSelf ? "bg-seafoam-50/50" : ""}`}>
                     <td className="px-4 py-3 text-charcoal">
-                      {a.email} {isSelf && <span className="ml-1 text-xs text-seafoam-600">(you)</span>}
+                      {a.email} {isSelf && <span className="ml-1 text-xs text-seafoam-700">(you)</span>}
                     </td>
                     <td className="px-4 py-3"><RoleBadge role={a.admin_role ?? a.role} /></td>
                     <td className="px-4 py-3 text-slate-600 text-xs">{new Date(a.created_at).toLocaleDateString()}</td>

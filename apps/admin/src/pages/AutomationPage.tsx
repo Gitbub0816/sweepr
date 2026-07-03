@@ -67,7 +67,7 @@ function StatCard({
         <Icon className={`h-4 w-4 ${tc}`} />
         {onRun && (
           <button onClick={onRun} disabled={running}
-            className="flex items-center gap-1 text-xs text-seafoam-600 hover:text-seafoam-700 disabled:opacity-40 font-medium">
+            className="flex items-center gap-1 text-xs text-seafoam-700 hover:text-seafoam-700 disabled:opacity-40 font-medium">
             {running ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
             Run
           </button>
@@ -193,7 +193,7 @@ export function AutomationPage() {
                     <td className="px-3 py-2 text-charcoal capitalize">{row.service_type}</td>
                     <td className="px-3 py-2 text-slate-500">{new Date(row.scheduled_at).toLocaleDateString()}</td>
                     <td className="px-3 py-2 text-charcoal">{row.cleaner_name}</td>
-                    <td className="px-3 py-2 text-right font-medium text-seafoam-600">{row.score?.toFixed(1)}</td>
+                    <td className="px-3 py-2 text-right font-medium text-seafoam-700">{row.score?.toFixed(1)}</td>
                     <td className="px-3 py-2"><StatusBadge status={row.status} /></td>
                     <td className="px-3 py-2 text-slate-600">
                       {row.expires_at ? new Date(row.expires_at).toLocaleTimeString() : "—"}

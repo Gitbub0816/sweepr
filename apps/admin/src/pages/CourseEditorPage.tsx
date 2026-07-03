@@ -900,7 +900,7 @@ function StreamUploader({
           href={`https://iframe.videodelivery.net/${streamId}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-seafoam-600 hover:underline"
+          className="text-xs text-seafoam-700 hover:underline"
         >Preview in Stream ↗</a>
       </div>
     );
@@ -940,7 +940,7 @@ function StreamUploader({
         type="button"
         onClick={() => fileRef.current?.click()}
         disabled={state === "requesting"}
-        className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 px-4 py-3 text-sm text-slate-500 hover:border-seafoam-400 hover:text-seafoam-600 disabled:opacity-50 transition-colors"
+        className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 px-4 py-3 text-sm text-slate-500 hover:border-seafoam-400 hover:text-seafoam-700 disabled:opacity-50 transition-colors"
       >
         <Upload className="h-4 w-4" />
         Upload video to Cloudflare Stream
