@@ -30,7 +30,7 @@ export function SMSOptIn({ value, onChange, legalUrl }: SMSOptInProps) {
           rates may apply. Reply STOP to opt out or HELP for assistance.
         </span>
       </label>
-      <p className="px-1 text-xs text-slate-400 dark:text-slate-500">
+      <p className="px-1 text-xs text-slate-600 dark:text-slate-400">
         By continuing you agree to the{" "}
         <a href={`${base}/terms`} target="_blank" rel="noreferrer" className={link}>
           Terms of Service
