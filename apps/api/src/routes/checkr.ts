@@ -1,18 +1,3 @@
-/**
- * Checkr routes — Native Invitation (Hosted) flow.
- *
- * FCRA compliance summary:
- *  • We NEVER receive, log, or store SSN, DOB, or full address.
- *  • Checkr's hosted form presents the federally-required standalone Disclosure
- *    & Authorization to the candidate and obtains consent before collecting PII.
- *  • Pre-adverse action: Checkr fires report.pre_adverse_action webhook; we
- *    record the timestamp and enforce a 7-calendar-day hold (exceeds the federal
- *    5-business-day minimum and satisfies CA/NY/other state requirements).
- *  • Adverse action: fired by Checkr webhook; we mark the account accordingly.
- *    Checkr delivers the final notice + report to the candidate directly.
- *  • All webhook events are HMAC-SHA256 signature-verified.
- */
-
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
@@ -32,16 +17,20 @@ import type { AppBindings } from "../types";
 
 export const checkrRouter = new Hono<AppBindings>();
 
-// ─── POST /checkr/invite ──────────────────────────────────────────────────────
-
 const inviteSchema = z.object({
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
   workState: z.string().length(2).default("CA"),
+  /**
+   * Candidate ID created in the browser by Checkr.js using the publishable key.
+   * This lets sensitive fields such as SSN/DOB/phone go directly to Checkr and
+   * prevents Sweepr's Worker from calling POST /candidates or receiving PII.
+   */
+  candidateId: z.string().min(3).max(100).optional(),
 });
 
 checkrRouter.post("/invite", requireAuth, zValidator("json", inviteSchema), async (c) => {
-  const { firstName, lastName, workState } = c.req.valid("json");
+  const { firstName, lastName, workState, candidateId: clientCandidateId } = c.req.valid("json");
   const sql = getDb(c.env.DATABASE_URL);
   const authUser = c.get("user");
 
@@ -53,9 +42,12 @@ checkrRouter.post("/invite", requireAuth, zValidator("json", inviteSchema), asyn
     return c.json({ error: "Database error", detail: String(err) }, 500);
   }
   if (!user) {
-    // Auto-sync user into DB on first request (Clerk webhook may not have fired yet)
     try {
-      user = await upsertUser(sql, { clerkId: authUser.clerkId, email: authUser.email ?? `${authUser.clerkId}@unknown.sweepr`, role: "cleaner" });
+      user = await upsertUser(sql, {
+        clerkId: authUser.clerkId,
+        email: authUser.email ?? `${authUser.clerkId}@unknown.sweepr`,
+        role: "cleaner",
+      });
     } catch (err) {
       logger.error("checkr/invite: failed to auto-create user", err);
       return c.json({ error: "User not found and could not be created" }, 404);
@@ -64,24 +56,24 @@ checkrRouter.post("/invite", requireAuth, zValidator("json", inviteSchema), asyn
 
   const client = checkrClient(c.env);
 
-  // Check for an existing Checkr candidate to enable check reuse.
-  // Checkr requires reusing the same candidate_id rather than creating duplicates.
   const cleanerRows = (await sql`
     SELECT id, checkr_candidate_id FROM cleaners WHERE user_id = ${user.id} LIMIT 1
   `) as { id: string; checkr_candidate_id: string | null }[];
   const existingCandidateId = cleanerRows[0]?.checkr_candidate_id ?? null;
 
   let candidateId: string;
+  const candidateWasCreatedByCheckrJs = Boolean(clientCandidateId && !existingCandidateId);
   if (existingCandidateId) {
-    // Reuse existing Checkr candidate — create a new invitation on the same record.
     candidateId = existingCandidateId;
+  } else if (clientCandidateId) {
+    candidateId = clientCandidateId;
   } else {
-    // First-time: create a candidate with name + email only. No PII.
+    // Legacy/server fallback for environments that still allow server-side candidate creation.
+    // Preferred path is Checkr.js in the browser so Sweepr never receives SSN/DOB/phone.
     const candidate = await client.createCandidate(user.email ?? "", firstName, lastName);
     candidateId = candidate.id;
   }
 
-  // Create invitation; Checkr returns a hosted-apply URL.
   const invitation = existingCandidateId
     ? await client.reInvite(candidateId, workState)
     : await client.createInvitation(candidateId, workState);
@@ -107,7 +99,10 @@ checkrRouter.post("/invite", requireAuth, zValidator("json", inviteSchema), asyn
     return c.json({ error: "Database error saving invitation", detail: String(err) }, 500);
   }
 
-  serverTrack(c.env, user.id, "checkr_invite_sent", { workState });
+  serverTrack(c.env, user.id, "checkr_invite_sent", {
+    workState,
+    candidateSource: candidateWasCreatedByCheckrJs ? "checkr_js" : existingCandidateId ? "existing" : "server",
+  });
 
   return c.json({
     invitationUrl: invitation.invitation_url,
@@ -115,8 +110,6 @@ checkrRouter.post("/invite", requireAuth, zValidator("json", inviteSchema), asyn
     expiresAt:     invitation.expires_at,
   });
 });
-
-// ─── GET /checkr/status ───────────────────────────────────────────────────────
 
 checkrRouter.get("/status", requireAuth, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
@@ -152,14 +145,10 @@ checkrRouter.get("/status", requireAuth, async (c) => {
   });
 });
 
-// ─── POST /webhooks/checkr ────────────────────────────────────────────────────
-// Public route — authenticated by HMAC signature, not Clerk JWT.
-
 checkrRouter.post("/webhook", async (c) => {
   const rawBody = await c.req.text();
   const sig = c.req.header("x-checkr-signature") ?? "";
 
-  // Checkr signs webhooks with the partner app client_secret (X-Checkr-Signature).
   const signingKey = c.env.CHECKR_CLIENT_SECRET ?? c.env.CHECKR_WEBHOOK_SECRET;
   if (!signingKey) {
     logger.warn("Checkr webhook: CHECKR_CLIENT_SECRET not configured");
@@ -215,10 +204,6 @@ checkrRouter.post("/webhook", async (c) => {
       `;
 
       if (rawStatus === "consider") {
-        // Ask Claude Haiku to adjudicate. If it recommends "engage", mark clear
-        // and call Checkr's adjudication API. If it recommends "flag" (or if the
-        // API key is absent), route to a human admin.
-        // FCRA: we NEVER auto-adverse; only Haiku "engage" is acted on automatically.
         const haiku = await adjudicateConsiderReport(report, c.env);
 
         let autoEngaged = false;
@@ -257,9 +242,6 @@ checkrRouter.post("/webhook", async (c) => {
     }
 
     case "report.pre_adverse_action": {
-      // FCRA § 615(a): pre-adverse notice includes report + Summary of Rights.
-      // Checkr delivers these to the candidate. We record the timestamp and
-      // enforce the 7-calendar-day wait before final adverse action.
       const report = payload.data.object as unknown as CheckrReport;
       await sql`
         UPDATE cleaners
@@ -272,7 +254,6 @@ checkrRouter.post("/webhook", async (c) => {
     }
 
     case "report.adverse_action": {
-      // Checkr has delivered the final adverse action notice + report.
       const report = payload.data.object as unknown as CheckrReport;
       await sql`
         UPDATE cleaners
