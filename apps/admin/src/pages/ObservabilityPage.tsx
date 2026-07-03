@@ -72,7 +72,7 @@ function StatCard({ label, value, sub, color = "slate" }: { label: string; value
   };
   return (
     <div className={`rounded-xl border p-4 ${colors[color]}`}>
-      <p className="text-xs text-slate-500 mb-1">{label}</p>
+      <p className="text-xs text-slate-700 mb-1">{label}</p>
       <p className="text-2xl font-bold">{value}</p>
       {sub && <p className="text-xs text-slate-600 mt-0.5">{sub}</p>}
     </div>
