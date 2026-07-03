@@ -21,7 +21,7 @@ export default function Terms() {
         <h1 className="text-4xl font-black text-charcoal dark:text-white">
           Terms of Service
         </h1>
-        <p className="mt-2 text-sm text-slate-400">Last updated: June 21, 2026</p>
+        <p className="mt-2 text-sm text-slate-500">Last updated: June 21, 2026</p>
 
         <P>
           These Terms of Service ("Terms") govern your access to and use of

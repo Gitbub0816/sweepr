@@ -62,19 +62,19 @@ export function Subprocessors() {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-left text-slate-400">
-                <th className="py-2 pr-4">Vendor</th>
-                <th className="py-2 pr-4">Purpose</th>
-                <th className="py-2 pr-4">Data</th>
-                <th className="py-2 pr-4">Region</th>
-                <th className="py-2 pr-4">Role</th>
-                <th className="py-2">Status</th>
+              <tr className="border-b border-slate-200 text-left text-slate-600">
+                <th scope="col" className="py-2 pr-4">Vendor</th>
+                <th scope="col" className="py-2 pr-4">Purpose</th>
+                <th scope="col" className="py-2 pr-4">Data</th>
+                <th scope="col" className="py-2 pr-4">Region</th>
+                <th scope="col" className="py-2 pr-4">Role</th>
+                <th scope="col" className="py-2">Status</th>
               </tr>
             </thead>
             <tbody>
               {SUBS.map((s) => (
                 <tr key={s.vendor} className="border-b border-slate-100 align-top">
-                  <td className="py-2 pr-4 font-semibold">{s.vendor}</td>
+                  <th scope="row" className="py-2 pr-4 text-left font-semibold">{s.vendor}</th>
                   <td className="py-2 pr-4 text-slate-600">{s.purpose}</td>
                   <td className="py-2 pr-4 text-slate-600">{s.data}</td>
                   <td className="py-2 pr-4 text-slate-600">{s.region}</td>
@@ -85,7 +85,7 @@ export function Subprocessors() {
             </tbody>
           </table>
         </div>
-        <p className="mt-3 text-sm text-slate-400">Last reviewed: {LAST_UPDATED}.</p>
+        <p className="mt-3 text-sm text-slate-500">Last reviewed: {LAST_UPDATED}.</p>
       </Section>
 
       <Section id="changes" title="3. Changes">

@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useRef, type ReactNode } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { Printer, AlertTriangle } from "lucide-react";
 import { LAST_UPDATED, LEGAL_EMAIL } from "../docs";
 import { TableOfContents, type TocItem } from "./TableOfContents";
@@ -34,17 +34,33 @@ export function DocPage({
   toc: TocItem[];
   children: ReactNode;
 } & DocMetaProps) {
+  const prefersReducedMotion = useReducedMotion();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    document.title = `${title} — Sweepr Legal`;
+    // Move focus to the page heading on route change so keyboard/screen
+    // reader users land on new content instead of staying on stale focus.
+    headingRef.current?.focus();
+  }, [title]);
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: prefersReducedMotion ? 0 : 0.3 }}
       className="legal-doc flex gap-10"
     >
       <article className="min-w-0 flex-1">
         <header className="border-b border-slate-200 pb-6">
-          <h1 className="text-3xl font-bold text-charcoal">{title}</h1>
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-400">
+          <h1
+            ref={headingRef}
+            tabIndex={-1}
+            className="text-3xl font-bold text-charcoal outline-none"
+          >
+            {title}
+          </h1>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
             <span>Effective: {effectiveDate ?? LAST_UPDATED}</span>
             <span>Last updated: {LAST_UPDATED}</span>
             {version && <span>Version: {version}</span>}

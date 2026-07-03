@@ -1,7 +1,17 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { initAnalytics } from "@sweepr/ui";
 
 const STORAGE_KEY = "sweepr_cookie_consent";
+
+/** Global Privacy Control — treat as a standing opt-out signal (CCPA/CPRA). */
+function gpcSignaled(): boolean {
+  try {
+    return (navigator as unknown as { globalPrivacyControl?: boolean }).globalPrivacyControl === true;
+  } catch {
+    return false;
+  }
+}
 
 type Consent = "all" | "essential" | "custom";
 
@@ -41,7 +51,19 @@ export function CookieConsent() {
   const [marketing, setMarketing] = useState(false);
 
   useEffect(() => {
-    if (!read()) setVisible(true);
+    const existing = read();
+    if (existing) {
+      if (existing.analytics) void initAnalytics();
+      return;
+    }
+    if (gpcSignaled()) {
+      // Global Privacy Control is a legally-recognized opt-out signal
+      // (CCPA/CPRA) — record it as a reject-non-essential choice and skip
+      // the prompt instead of asking the visitor to opt in anyway.
+      save({ choice: "essential", analytics: false, marketing: false, at: new Date().toISOString() });
+      return;
+    }
+    setVisible(true);
   }, []);
 
   if (!visible) return null;
@@ -49,13 +71,14 @@ export function CookieConsent() {
   const commit = (choice: Consent, a: boolean, m: boolean) => {
     save({ choice, analytics: a, marketing: m, at: new Date().toISOString() });
     setVisible(false);
+    if (a) void initAnalytics();
   };
 
   return (
     <div
       role="dialog"
       aria-label="Cookie consent"
-      aria-live="polite"
+      aria-modal="false"
       className="fixed inset-x-0 bottom-0 z-50 p-4"
     >
       <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900">

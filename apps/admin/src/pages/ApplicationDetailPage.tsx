@@ -121,7 +121,7 @@ export function ApplicationDetailPage() {
   if (!app) {
     return (
       <DashboardShell title="Application not found">
-        <Button variant="ghost" onClick={() => navigate("/applications")}>
+        <Button variant="ghost" onClick={() => navigate("/applications")} aria-label="Back to applications">
           <ArrowLeft className="h-4 w-4" /> Back to applications
         </Button>
       </DashboardShell>
@@ -138,7 +138,7 @@ export function ApplicationDetailPage() {
       title={name}
       description={`Application submitted ${formatDateTime(app.created_at)}`}
       actions={
-        <Button variant="ghost" onClick={() => navigate("/applications")}>
+        <Button variant="ghost" onClick={() => navigate("/applications")} aria-label="Back to applications">
           <ArrowLeft className="h-4 w-4" /> Back
         </Button>
       }

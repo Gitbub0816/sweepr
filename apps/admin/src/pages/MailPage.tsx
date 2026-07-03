@@ -227,8 +227,8 @@ export function MailPage() {
               <h2 className="font-semibold">
                 {replyTo ? "Reply" : "New message"} — from {activeBox}@getsweepr.com
               </h2>
-              <Input placeholder="To" value={to} onChange={(e) => setTo(e.target.value)} />
-              <Input placeholder="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
+              <Input label="To" placeholder="To" value={to} onChange={(e) => setTo(e.target.value)} />
+              <Input label="Subject" placeholder="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
               <textarea
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
@@ -284,24 +284,32 @@ export function MailPage() {
           </div>
 
           <div className="mb-4 flex flex-wrap items-end gap-2">
-            <select
-              value={grantUser}
-              onChange={(e) => setGrantUser(e.target.value)}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
-            >
-              <option value="">Select admin…</option>
-              {admins.filter((a) => a.role !== "super_admin" && a.admin_role !== "super_admin").map((a) => (
-                <option key={a.id} value={a.id}>{a.email}{a.admin_role ? ` (${a.admin_role})` : ""}</option>
-              ))}
-            </select>
-            <select
-              value={grantBox}
-              onChange={(e) => setGrantBox(e.target.value)}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
-            >
-              <option value="">Select mailbox…</option>
-              {permBoxes.map((b) => <option key={b} value={b}>{b}@getsweepr.com</option>)}
-            </select>
+            <div>
+              <label htmlFor="grant-admin-select" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Admin</label>
+              <select
+                id="grant-admin-select"
+                value={grantUser}
+                onChange={(e) => setGrantUser(e.target.value)}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+              >
+                <option value="">Select admin…</option>
+                {admins.filter((a) => a.role !== "super_admin" && a.admin_role !== "super_admin").map((a) => (
+                  <option key={a.id} value={a.id}>{a.email}{a.admin_role ? ` (${a.admin_role})` : ""}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="grant-box-select" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Mailbox</label>
+              <select
+                id="grant-box-select"
+                value={grantBox}
+                onChange={(e) => setGrantBox(e.target.value)}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+              >
+                <option value="">Select mailbox…</option>
+                {permBoxes.map((b) => <option key={b} value={b}>{b}@getsweepr.com</option>)}
+              </select>
+            </div>
             <Button onClick={() => void addGrant()}>Grant access</Button>
           </div>
 
@@ -311,10 +319,10 @@ export function MailPage() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-xs uppercase text-slate-400 dark:border-slate-700">
-                  <th className="py-2">Admin</th>
-                  <th className="py-2">Mailbox</th>
-                  <th className="py-2">Granted by</th>
-                  <th className="py-2" />
+                  <th scope="col" className="py-2">Admin</th>
+                  <th scope="col" className="py-2">Mailbox</th>
+                  <th scope="col" className="py-2">Granted by</th>
+                  <th scope="col" className="py-2" />
                 </tr>
               </thead>
               <tbody>

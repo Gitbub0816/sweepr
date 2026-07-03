@@ -20,7 +20,7 @@ export function HomePage() {
 
       {groups.map((group) => (
         <section key={group.category} className="mt-10">
-          <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
             {group.category}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -33,9 +33,12 @@ export function HomePage() {
               >
                 <Link
                   to={`/${doc.slug}`}
-                  className="group flex h-full flex-col rounded-2xl border border-slate-200 p-5 transition-all hover:border-seafoam-300 hover:shadow-md"
+                  className="group flex h-full flex-col rounded-2xl border border-slate-200 p-5 transition-all hover:border-seafoam-300 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-seafoam-600"
                 >
-                  <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-seafoam-50 text-seafoam-600">
+                  <span
+                    aria-hidden="true"
+                    className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-seafoam-50 text-seafoam-600"
+                  >
                     <FileText className="h-5 w-5" />
                   </span>
                   <h3 className="text-lg font-semibold text-charcoal">
@@ -45,7 +48,7 @@ export function HomePage() {
                     {doc.description}
                   </p>
                   <span className="mt-4 flex items-center justify-between text-sm">
-                    <span className="text-slate-400">Updated {LAST_UPDATED}</span>
+                    <span className="text-slate-500">Updated {LAST_UPDATED}</span>
                     <span className="flex items-center gap-1 font-medium text-seafoam-600 group-hover:gap-2">
                       Read <ArrowRight className="h-4 w-4 transition-all" />
                     </span>

@@ -51,6 +51,21 @@ body {
   pointer-events: none;
 }
 
+/* ─── Reduced motion ─────────────────────────────────────────────────────────
+   WCAG 2.3.3 / prefers-reduced-motion: neutralize custom keyframe animations
+   (confetti, spinners, pulses) for users who have asked the OS to minimize
+   motion. Tailwind's motion-safe:/motion-reduce: variants only affect
+   utility classes applied with those prefixes in JSX, so this blanket rule
+   covers plain-CSS keyframe animations too. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* ─── Mobile native feel ──────────────────────────────────────────────────────
    - text-size-adjust: stops iOS/Android inflating text after rotation, which
      breaks layouts most visibly in ar/hi/ko/zh where glyphs are taller.

@@ -77,8 +77,8 @@ export function SMSConsentPolicy() {
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           {done ? (
-            <div className="space-y-3 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-seafoam-100 text-2xl">✓</div>
+            <div role="status" className="space-y-3 text-center">
+              <div aria-hidden="true" className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-seafoam-100 text-2xl">✓</div>
               <h2 className="text-lg font-semibold text-slate-900" style={{ fontFamily: SANS }}>You're all set</h2>
               <p className="text-sm text-slate-500">
                 If this number is linked to a Sweepr account, your SMS
@@ -91,13 +91,17 @@ export function SMSConsentPolicy() {
             <form onSubmit={submit} className="space-y-5" noValidate>
               <div>
                 <label htmlFor="phone" className="mb-1.5 block text-sm font-medium text-slate-700">
-                  Mobile phone number
+                  Mobile phone number <span aria-hidden="true">*</span>
+                  <span className="sr-only"> (required)</span>
                 </label>
                 <input
                   id="phone"
                   type="tel"
                   autoComplete="tel"
                   required
+                  aria-required="true"
+                  aria-invalid={error ? "true" : undefined}
+                  aria-describedby={error ? "sms-consent-error" : undefined}
                   placeholder="(555) 123-4567"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
@@ -112,6 +116,8 @@ export function SMSConsentPolicy() {
                   type="checkbox"
                   checked={consent}
                   onChange={(e) => setConsent(e.target.checked)}
+                  required
+                  aria-required="true"
                   className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 accent-teal-500"
                 />
                 <span className="text-slate-600">
@@ -125,7 +131,7 @@ export function SMSConsentPolicy() {
               </label>
 
               {error && (
-                <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
+                <p id="sms-consent-error" role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
                   {error}
                 </p>
               )}
@@ -170,7 +176,7 @@ export function SMSConsentPolicy() {
             </ul>
           </div>
 
-          <p className="border-t border-slate-200 pt-4 text-xs text-slate-400">
+          <p className="border-t border-slate-200 pt-4 text-xs text-slate-500">
             See our{" "}
             <a href="/privacy" className="text-seafoam-600 underline">Privacy Policy</a> and{" "}
             <a href="/terms" className="text-seafoam-600 underline">Terms of Service</a>.

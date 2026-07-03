@@ -41,3 +41,27 @@ body {
   /* iOS momentum scrolling for a native feel in scroll containers. */
   body { -webkit-overflow-scrolling: touch; }
 }
+
+/* ─── Accessibility: reduced motion ────────────────────────────────────────
+   Users with vestibular disorders (or who've simply asked the OS to reduce
+   motion) get near-instant transitions instead of slides/springs/pulses.
+   This catches CSS transitions/animations (incl. Tailwind's animate-pulse /
+   animate-spin utility classes); JS-driven (framer-motion) animations are
+   additionally guarded per-component with the `motion-reduce:` variant or a
+   `useReducedMotion()` check where the motion is significant. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─── Accessibility: visible focus ring ────────────────────────────────────
+   Ensures every keyboard-focusable element gets a clear focus indicator even
+   if a component forgot its own focus-visible styling. */
+:focus-visible {
+  outline: 2px solid #14b8a6;
+  outline-offset: 2px;
+}

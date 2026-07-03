@@ -181,7 +181,7 @@ function CoverageMap({ areas, pins }: { areas: ServiceArea[]; pins: Array<{ lat:
   if (!TOKEN) {
     return (
       <div className="flex h-full items-center justify-center bg-slate-100 rounded-2xl">
-        <p className="text-slate-400 text-sm">Map unavailable (no token)</p>
+        <p className="text-slate-500 text-sm">Map unavailable (no token)</p>
       </div>
     );
   }
@@ -306,17 +306,24 @@ export function CoverageMapSection() {
               <p className="text-xs text-slate-500 mb-4">Tell us where you'd like Sweepr.</p>
 
               {submitted ? (
-                <p className="text-sm text-seafoam-600 font-medium">
+                <p role="status" className="text-sm text-seafoam-700 font-medium">
                   Request received! We'll let you know when we expand there.
                 </p>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-3">
+                  <label htmlFor="city-request-input" className="sr-only">
+                    City, state or ZIP code
+                  </label>
                   <input
+                    id="city-request-input"
                     type="text"
                     placeholder="City, state or ZIP code"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     required
+                    aria-required="true"
+                    aria-invalid={error ? "true" : undefined}
+                    aria-describedby={error ? "city-request-error" : undefined}
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400"
                   />
 
@@ -333,17 +340,28 @@ export function CoverageMapSection() {
                   </label>
 
                   {subscribe && (
-                    <input
-                      type="email"
-                      placeholder="your@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required={subscribe}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400"
-                    />
+                    <>
+                      <label htmlFor="city-request-email" className="sr-only">
+                        Email address
+                      </label>
+                      <input
+                        id="city-request-email"
+                        type="email"
+                        placeholder="your@email.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required={subscribe}
+                        aria-required="true"
+                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400"
+                      />
+                    </>
                   )}
 
-                  {error && <p className="text-xs text-red-500">{error}</p>}
+                  {error && (
+                    <p id="city-request-error" role="alert" className="text-xs text-red-600">
+                      {error}
+                    </p>
+                  )}
 
                   <button
                     type="submit"
@@ -357,7 +375,7 @@ export function CoverageMapSection() {
             </div>
 
             {pins.length > 0 && (
-              <p className="text-xs text-slate-400 text-center">
+              <p className="text-xs text-slate-500 text-center">
                 {pins.length} cit{pins.length === 1 ? "y" : "ies"} requested on the map
               </p>
             )}

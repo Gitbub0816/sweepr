@@ -169,22 +169,35 @@ export function AddressStep() {
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => suggestions.length > 0 && setShowDropdown(true)}
           autoComplete="off"
+          role="combobox"
+          aria-expanded={showDropdown && suggestions.length > 0}
+          aria-controls="address-suggestions"
+          aria-autocomplete="list"
         />
 
         {loading && (
-          <div className="absolute right-3 top-9 h-4 w-4 animate-spin rounded-full border-2 border-seafoam-400 border-t-transparent" />
+          <div
+            className="absolute right-3 top-9 h-4 w-4 animate-spin motion-reduce:animate-none rounded-full border-2 border-seafoam-400 border-t-transparent"
+            role="status"
+          >
+            <span className="sr-only">{t("common.loading", { defaultValue: "Loading…" })}</span>
+          </div>
         )}
 
         {showDropdown && suggestions.length > 0 && (
-          <ul className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+          <ul
+            id="address-suggestions"
+            role="listbox"
+            className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900"
+          >
             {suggestions.map((f) => (
-              <li key={f.id}>
+              <li key={f.id} role="option" aria-selected="false">
                 <button
                   type="button"
                   onMouseDown={() => handleSelect(f)}
                   className="flex w-full items-start gap-3 px-4 py-3 text-left text-sm hover:bg-seafoam-50 dark:hover:bg-slate-800"
                 >
-                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-seafoam-500" />
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-seafoam-500" aria-hidden="true" />
                   <span className="text-slate-700 dark:text-slate-200">{f.place_name}</span>
                 </button>
               </li>
@@ -194,7 +207,7 @@ export function AddressStep() {
       </div>
 
       {outOfArea && (
-        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+        <div role="alert" className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           <p className="font-bold">{t("booking.address.outOfAreaTitle")}</p>
           <p className="mt-1">{t("booking.address.outOfAreaBody")}</p>
         </div>
@@ -204,7 +217,7 @@ export function AddressStep() {
         <div className="mt-4">
           <AddressMapPreview lat={address.lat} lng={address.lng} />
           <div className="mt-3 flex items-center gap-2 text-sm text-slate-500">
-            <MapPin className="h-4 w-4 text-seafoam-500" />
+            <MapPin className="h-4 w-4 text-seafoam-500" aria-hidden="true" />
             {[address.line1, address.city, address.state, address.zip]
               .filter(Boolean)
               .join(", ")}

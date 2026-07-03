@@ -42,12 +42,20 @@ export function BookingLayout() {
             <SweeprLogo size="lg" />
           </a>
           <div className="flex-1">
-            <p className="text-xs font-medium text-slate-500">
+            <p className="text-xs font-medium text-slate-500" role="status" aria-live="polite">
               Step {idx + 1} of {BOOKING_STEPS.length}
+              <span className="sr-only">: {BOOKING_STEPS[idx]?.label}</span>
             </p>
-            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+            <div
+              className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
+              role="progressbar"
+              aria-valuenow={idx + 1}
+              aria-valuemin={1}
+              aria-valuemax={BOOKING_STEPS.length}
+              aria-label="Booking progress"
+            >
               <motion.div
-                className="h-full rounded-full bg-seafoam-500"
+                className="h-full rounded-full bg-seafoam-500 motion-reduce:transition-none"
                 animate={{
                   width: `${((idx + 1) / BOOKING_STEPS.length) * 100}%`,
                 }}
@@ -70,7 +78,7 @@ export function BookingLayout() {
         </div>
       )}
 
-      <div className="mx-auto grid max-w-5xl gap-8 px-4 py-8 lg:grid-cols-[1fr_320px]">
+      <main id="main" className="mx-auto grid max-w-5xl gap-8 px-4 py-8 lg:grid-cols-[1fr_320px]">
         <div className="overflow-hidden">
           <AnimatePresence mode="wait">
             <motion.div
@@ -79,6 +87,7 @@ export function BookingLayout() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -40 }}
               transition={{ duration: 0.25 }}
+              className="motion-reduce:transition-none"
             >
               <Outlet />
             </motion.div>
@@ -89,12 +98,12 @@ export function BookingLayout() {
           {quote ? (
             <PriceSummary quote={quote} />
           ) : (
-            <div className="sticky top-24 rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400 dark:border-slate-700">
+            <div className="sticky top-24 rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500 dark:border-slate-700">
               Your price will appear here once you pick a service.
             </div>
           )}
         </aside>
-      </div>
+      </main>
 
       {/* Mobile price bar */}
       {quote && (

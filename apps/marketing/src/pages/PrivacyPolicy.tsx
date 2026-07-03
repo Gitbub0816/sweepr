@@ -26,7 +26,7 @@ export default function PrivacyPolicy() {
         <h1 className="text-4xl font-black text-charcoal dark:text-white">
           Privacy Policy
         </h1>
-        <p className="mt-2 text-sm text-slate-400">Last updated: {updated}</p>
+        <p className="mt-2 text-sm text-slate-500">Last updated: {updated}</p>
 
         <P>
           This Privacy Policy explains how Sweepr, Inc. ("Sweepr", "we", "us")

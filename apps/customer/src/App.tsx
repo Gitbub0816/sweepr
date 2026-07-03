@@ -11,7 +11,7 @@ import {
   Home as HomeIcon,
   Repeat,
 } from "lucide-react";
-import { AppShell, PrelaunchGate, ReportProblem } from "@sweepr/ui";
+import { AppShell, PrelaunchGate, ReportProblem, CookieConsent } from "@sweepr/ui";
 import { useAuth } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
 import { OnboardingPage } from "./pages/OnboardingPage";
@@ -59,6 +59,19 @@ function Shell({ children }: { children: React.ReactNode }) {
     <AppShell brand="Customer" nav={nav} headerRight={<NavAuth />}>
       {children}
     </AppShell>
+  );
+}
+
+/** Visually-hidden until focused; lets keyboard/screen-reader users bypass
+ * repeated nav/header content and jump straight to the page's main content. */
+function SkipToMainContent() {
+  return (
+    <a
+      href="#main"
+      className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-seafoam-500 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white focus:shadow-lg"
+    >
+      Skip to main content
+    </a>
   );
 }
 
@@ -169,9 +182,11 @@ function GateLayout() {
 export default function App() {
   return (
     <ErrorBoundary>
+      <SkipToMainContent />
       <LanguagePersistence />
       <OfflineIndicator />
       <ReportProblemMount />
+      <CookieConsent />
       <Routes>
         {/* OAuth SSO callback — outside prelaunch gate, handles token exchange */}
         <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback continueSignUpUrl="/sign-up/continue" />} />
