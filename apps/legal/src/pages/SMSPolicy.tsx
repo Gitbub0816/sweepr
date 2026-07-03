@@ -55,7 +55,7 @@ export function SMSPolicy() {
         <ul className="list-disc space-y-1 pl-6">
           <li>Replying <strong>STOP</strong> to any message from Sweepr;</li>
           <li>Updating your communication preferences in your account settings; or</li>
-          <li>Contacting support at <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</li>
+          <li>Contacting support at <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</li>
         </ul>
         <p><strong>5.2</strong> After you reply STOP, you will receive a single confirmation message confirming your opt-out. No further messages will be sent to that number unless you re-enroll.</p>
         <p><strong>5.3</strong> Opting out of marketing messages does not affect transactional messages necessary for the performance of a confirmed Booking (e.g., cleaner en-route notifications), which may be sent pursuant to our legitimate interest in fulfilling your service contract.</p>
@@ -63,7 +63,7 @@ export function SMSPolicy() {
 
       <Section id="help" title="6. Help">
         <p><strong>6.1</strong> Reply <strong>HELP</strong> to any Sweepr message to receive assistance information.</p>
-        <p><strong>6.2</strong> For additional support, contact us at <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>
+        <p><strong>6.2</strong> For additional support, contact us at <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>
       </Section>
 
       <Section id="carriers" title="7. Carrier Limitations">
@@ -72,14 +72,14 @@ export function SMSPolicy() {
       </Section>
 
       <Section id="privacy" title="8. Privacy">
-        <p><strong>8.1</strong> Your mobile number and SMS consent status are stored securely and used only as described in this Policy and our <a className="text-seafoam-600 underline" href={`${LEGAL_URL}/privacy`}>Privacy Policy</a>.</p>
+        <p><strong>8.1</strong> Your mobile number and SMS consent status are stored securely and used only as described in this Policy and our <a className="text-seafoam-700 underline" href={`${LEGAL_URL}/privacy`}>Privacy Policy</a>.</p>
         <p><strong>8.2</strong> We do not share your mobile number with unaffiliated third parties for their own marketing purposes. Your number may be shared with SMS delivery providers (e.g., Twilio) solely to transmit messages on our behalf.</p>
       </Section>
 
       <Section id="contact" title="9. Contact">
         <p>
           For questions or concerns regarding this SMS Policy, contact us at{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>
           .

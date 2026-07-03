@@ -16,7 +16,7 @@ export function SubmitButton({ loading, disabled, label }: { loading: boolean; d
     <button
       type="submit"
       disabled={loading || disabled}
-      className="flex w-full items-center justify-center gap-2 rounded-xl bg-seafoam-500 py-3 text-sm font-semibold text-white shadow-md shadow-seafoam-500/30 transition hover:bg-seafoam-600 disabled:opacity-60"
+      className="flex w-full items-center justify-center gap-2 rounded-xl bg-seafoam-700 py-3 text-sm font-semibold text-white shadow-md shadow-seafoam-500/30 transition hover:bg-seafoam-800 disabled:opacity-60"
     >
       {loading && <Loader2 className="h-4 w-4 animate-spin" />}
       {label}
@@ -43,7 +43,7 @@ export function MethodTabs({ method, onChange }: { method: "email" | "phone"; on
           type="button"
           onClick={() => onChange(m)}
           className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${
-            method === m ? "bg-seafoam-500 text-white shadow-sm" : "text-slate-500 hover:text-slate-700 dark:text-slate-400"
+            method === m ? "bg-seafoam-700 text-white shadow-sm" : "text-slate-500 hover:text-slate-700 dark:text-slate-400"
           }`}
         >
           {m === "email" ? "Email" : "Phone"}

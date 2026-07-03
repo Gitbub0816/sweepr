@@ -68,7 +68,7 @@ export function TaxReportingPolicy() {
       <Section id="delivery" title="6. Delivery & Electronic Consent">
         <p>
           Where you consent, tax forms may be delivered electronically. See the{" "}
-          <Link className="text-seafoam-600 underline" to="/e-sign">
+          <Link className="text-seafoam-700 underline" to="/e-sign">
             Electronic Communications &amp; E-Sign Consent
           </Link>
           .
@@ -86,7 +86,7 @@ export function TaxReportingPolicy() {
         <p>
           You are responsible for obtaining any business licenses and permits
           required for your cleaning business. Questions? Contact{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>
           .

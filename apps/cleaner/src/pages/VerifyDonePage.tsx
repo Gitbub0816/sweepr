@@ -13,7 +13,7 @@ export function VerifyDonePage() {
 
       <div className="flex flex-col items-center gap-4">
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-seafoam-100 dark:bg-seafoam-900/30">
-          <CheckCircle2 className="h-10 w-10 text-seafoam-600 dark:text-seafoam-400" />
+          <CheckCircle2 className="h-10 w-10 text-seafoam-700 dark:text-seafoam-400" />
         </div>
 
         <div className="space-y-2">

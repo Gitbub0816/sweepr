@@ -91,7 +91,7 @@ export function JobCard({
     <Card className={cn("space-y-4", expired && "opacity-60")}>
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-seafoam-600">
+          <p className="text-xs font-semibold uppercase tracking-wide text-seafoam-700">
             {t(`serviceTypes.${job.serviceType}`)}
           </p>
           <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">

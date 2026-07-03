@@ -39,7 +39,7 @@ export function AIDisclosure() {
       <Section id="data" title="3. Data Used">
         <p>
           Automated systems operate on platform data handled under the{" "}
-          <Link className="text-seafoam-600 underline" to="/privacy">
+          <Link className="text-seafoam-700 underline" to="/privacy">
             Privacy Policy
           </Link>
           . Sensitive data is not entered into unapproved AI systems.
@@ -50,7 +50,7 @@ export function AIDisclosure() {
         <p>
           Automated systems can make mistakes. If you believe an automated decision
           was wrong, you may contact support for human review at{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>
           .

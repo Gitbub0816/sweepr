@@ -43,7 +43,7 @@ export function WaitlistForm({ type, apiUrl, onSuccess }: WaitlistFormProps) {
 
   if (submitted) {
     return (
-      <p className="text-sm text-seafoam-600 font-medium text-center">
+      <p className="text-sm text-seafoam-700 font-medium text-center">
         You're on the list! We'll reach out when we launch.
       </p>
     );
@@ -84,7 +84,7 @@ export function WaitlistForm({ type, apiUrl, onSuccess }: WaitlistFormProps) {
       <button
         type="submit"
         disabled={loading}
-        className="rounded-lg bg-seafoam-500 px-4 py-2 text-sm font-semibold text-white hover:bg-seafoam-600 disabled:opacity-50 transition-colors"
+        className="rounded-lg bg-seafoam-700 px-4 py-2 text-sm font-semibold text-white hover:bg-seafoam-800 disabled:opacity-50 transition-colors"
       >
         {loading ? "Joining…" : "Join Waitlist"}
       </button>

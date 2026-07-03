@@ -59,7 +59,7 @@ export function CleanerView() {
       <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-seafoam-100">
-            <Truck className="h-4 w-4 text-seafoam-600" />
+            <Truck className="h-4 w-4 text-seafoam-700" />
           </span>
           <div>
             <p className="text-sm font-bold text-charcoal">Cleaner — {state.cleaner.name}</p>
@@ -83,11 +83,11 @@ export function CleanerView() {
                 <div key={step} className="flex flex-1 items-center">
                   <div className="flex flex-col items-center gap-0.5">
                     <div className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold transition-colors ${
-                      done ? "bg-emerald-500 text-white" : active ? "bg-seafoam-500 text-white" : "bg-slate-100 text-slate-400"
+                      done ? "bg-emerald-500 text-white" : active ? "bg-seafoam-700 text-white" : "bg-slate-100 text-slate-400"
                     }`}>
                       {done ? "✓" : i + 1}
                     </div>
-                    <span className={`text-[9px] text-center leading-tight ${active ? "text-seafoam-600 font-semibold" : "text-slate-300"}`}>
+                    <span className={`text-[9px] text-center leading-tight ${active ? "text-seafoam-700 font-semibold" : "text-slate-300"}`}>
                       {STEP_LABELS[step]}
                     </span>
                   </div>
@@ -186,7 +186,7 @@ function ActionBtn({
   variant?: "primary" | "secondary";
 }) {
   const cls = variant === "primary"
-    ? "bg-seafoam-500 hover:bg-seafoam-600 text-white"
+    ? "bg-seafoam-700 hover:bg-seafoam-800 text-white"
     : "bg-white hover:bg-slate-50 text-charcoal border border-slate-200";
   return (
     <button
@@ -203,7 +203,7 @@ function InfoRow({ icon: Icon, label, value, muted }: { icon: typeof Clock; labe
   return (
     <div className="flex items-center gap-3 px-4 py-3">
       <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-seafoam-50 shrink-0">
-        <Icon className="h-4 w-4 text-seafoam-600" />
+        <Icon className="h-4 w-4 text-seafoam-700" />
       </span>
       <div>
         <p className="text-xs text-slate-400">{label}</p>
@@ -226,7 +226,7 @@ function FullError({ msg }: { msg: string }) {
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="text-center space-y-3">
         <p className="text-lg font-bold text-charcoal">{msg}</p>
-        <Link to="/" className="text-sm text-seafoam-600 hover:underline">← Back to demo landing</Link>
+        <Link to="/" className="text-sm text-seafoam-700 hover:underline">← Back to demo landing</Link>
       </div>
     </div>
   );

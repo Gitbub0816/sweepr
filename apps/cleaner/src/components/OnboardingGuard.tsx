@@ -16,7 +16,7 @@ function UnderReview() {
       <div className="absolute right-4 top-4">
         <ThemeToggle />
       </div>
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-seafoam-500 text-white shadow-lg shadow-seafoam-500/30">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-seafoam-700 text-white shadow-lg shadow-seafoam-500/30">
         <Clock className="h-7 w-7" />
       </div>
       <h1 className="mt-6 text-2xl font-bold text-charcoal dark:text-white">
@@ -46,7 +46,7 @@ function JobsLocked() {
       </p>
       <a
         href="/onboarding"
-        className="mt-4 inline-block rounded-xl bg-seafoam-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-seafoam-600 transition-colors"
+        className="mt-4 inline-block rounded-xl bg-seafoam-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-seafoam-800 transition-colors"
       >
         Continue onboarding →
       </a>

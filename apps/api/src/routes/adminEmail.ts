@@ -119,6 +119,33 @@ adminEmailRouter.post(
 // ── One-click unsubscribe (RFC 8058 — public POST, email in query param) ─────
 export const unsubscribeRouter = new Hono<AppBindings>();
 
+// Human-visitable unsubscribe page (CAN-SPAM: a clear and conspicuous
+// mechanism inside the message body links here). Plain accessible HTML.
+unsubscribeRouter.get("/", (c) => {
+  const email = c.req.query("email") ?? "";
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+  return c.html(`<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Unsubscribe — Sweepr</title>
+<style>body{font-family:sans-serif;max-width:26rem;margin:12vh auto;padding:0 1rem;color:#111}
+label{display:block;font-weight:600;margin-bottom:.4rem}input{width:100%;padding:.6rem;font-size:1rem;border:1px solid #cbd5e1;border-radius:.5rem}
+button{margin-top:1rem;padding:.6rem 1.4rem;font-size:1rem;font-weight:600;background:#0f766e;color:#fff;border:0;border-radius:.5rem;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:2px solid #0d9488;outline-offset:2px}
+p[role=status]{font-weight:600}</style></head>
+<body><h1>Unsubscribe from Sweepr marketing emails</h1>
+<p>Enter your email address to stop receiving marketing messages. Transactional emails (receipts, booking updates) are unaffected.</p>
+<form id="f"><label for="e">Email address</label>
+<input id="e" name="email" type="email" required value="${esc(email)}" autocomplete="email">
+<button type="submit">Unsubscribe</button></form>
+<p role="status" aria-live="polite" id="m"></p>
+<script>document.getElementById('f').addEventListener('submit',async function(ev){ev.preventDefault();
+var e=document.getElementById('e').value,m=document.getElementById('m');
+try{var r=await fetch('/unsubscribe?email='+encodeURIComponent(e),{method:'POST'});
+m.textContent=r.ok?'You have been unsubscribed.':'Something went wrong - email unsubscribe@getsweepr.com instead.';}
+catch(_){m.textContent='Something went wrong - email unsubscribe@getsweepr.com instead.';}});</script>
+</body></html>`);
+});
+
 unsubscribeRouter.post("/", async (c) => {
   const emailParam = c.req.query("email") ?? "";
   const parsed = z.string().email().safeParse(decodeURIComponent(emailParam));

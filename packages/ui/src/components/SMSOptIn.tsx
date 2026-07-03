@@ -12,7 +12,7 @@ export interface SMSOptInProps {
  */
 export function SMSOptIn({ value, onChange, legalUrl }: SMSOptInProps) {
   const base = legalUrl ?? "https://legal.getsweepr.com";
-  const link = "text-seafoam-600 underline";
+  const link = "text-seafoam-700 underline";
   return (
     <div className="space-y-2">
       <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 text-sm dark:border-slate-700">

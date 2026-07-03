@@ -95,7 +95,7 @@ export function CustomerView() {
           <div className={`inline-flex h-14 w-14 items-center justify-center rounded-full mb-3 ${
             state.dayStatus === "completed" ? "bg-emerald-100" : "bg-seafoam-100"
           }`}>
-            <StatusIcon className={`h-7 w-7 ${state.dayStatus === "completed" ? "text-emerald-600" : "text-seafoam-600"}`} />
+            <StatusIcon className={`h-7 w-7 ${state.dayStatus === "completed" ? "text-emerald-600" : "text-seafoam-700"}`} />
           </div>
           <p className="text-lg font-bold text-charcoal">{STEP_LABELS[state.dayStatus]}</p>
           <p className="mt-1 text-sm text-slate-500">{STATUS_MSGS[state.dayStatus]}</p>
@@ -125,7 +125,7 @@ export function CustomerView() {
                 <li key={step} className="flex gap-3">
                   <div className="flex flex-col items-center">
                     <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors ${
-                      done ? "bg-emerald-500 text-white" : current ? "bg-seafoam-500 text-white" : "bg-slate-100 text-slate-300"
+                      done ? "bg-emerald-500 text-white" : current ? "bg-seafoam-700 text-white" : "bg-slate-100 text-slate-300"
                     }`}>
                       <StepIcon className="h-3.5 w-3.5" />
                     </span>
@@ -139,7 +139,7 @@ export function CustomerView() {
                   }`}>
                     {STEP_LABELS[step]}
                     {current && (
-                      <span className="ml-2 inline-flex items-center gap-1 text-xs font-normal text-seafoam-600">
+                      <span className="ml-2 inline-flex items-center gap-1 text-xs font-normal text-seafoam-700">
                         <span className="h-1.5 w-1.5 rounded-full bg-seafoam-500 animate-pulse" /> now
                       </span>
                     )}
@@ -200,7 +200,7 @@ function FullError({ msg }: { msg: string }) {
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="text-center space-y-3">
         <p className="text-lg font-bold text-charcoal">{msg}</p>
-        <Link to="/" className="text-sm text-seafoam-600 hover:underline">← Back to demo landing</Link>
+        <Link to="/" className="text-sm text-seafoam-700 hover:underline">← Back to demo landing</Link>
       </div>
     </div>
   );

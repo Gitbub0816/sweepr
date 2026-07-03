@@ -123,7 +123,8 @@
     "contractor": "Công bố nhà thầu",
     "status": "Trạng thái",
     "cookieSettings": "Cài đặt cookie",
-    "rights": "Bảo lưu mọi quyền."
+    "rights": "Bảo lưu mọi quyền.",
+    "doNotSell": "Không bán hoặc chia sẻ thông tin cá nhân của tôi"
   },
   "languageSelector": {
     "label": "Ngôn ngữ"

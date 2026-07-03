@@ -158,7 +158,7 @@ export function ScheduleStep() {
                   <p className="text-sm font-semibold text-charcoal dark:text-white">
                     {c.label}
                   </p>
-                  <p className="text-xs text-seafoam-600">${price}{t("booking.schedule.perVisit")}</p>
+                  <p className="text-xs text-seafoam-700">${price}{t("booking.schedule.perVisit")}</p>
                   {savings > 0 && (
                     <p className="mt-1 text-[10px] font-medium text-amber-600">
                       {t("booking.schedule.save", { amount: savings })}

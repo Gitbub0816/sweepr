@@ -59,7 +59,7 @@ export function ReviewPolicy() {
         <p>
           If you believe a moderation decision was incorrect, you may appeal by
           contacting{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>
           .
@@ -70,7 +70,7 @@ export function ReviewPolicy() {
         <p>
           Aggregate ratings may affect a Cleaner's tier and standing, as described
           in the{" "}
-          <Link className="text-seafoam-600 underline" to="/cleaner-agreement">
+          <Link className="text-seafoam-700 underline" to="/cleaner-agreement">
             Cleaner Platform Agreement
           </Link>
           . Review manipulation is itself a violation that may affect standing.

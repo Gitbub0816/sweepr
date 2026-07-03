@@ -200,7 +200,7 @@ export function SignInPage() {
 
         <p className="mt-6 text-center text-sm text-slate-500">
           {t("auth.dontHaveAccount")}{" "}
-          <Link to="/sign-up" className="font-medium text-seafoam-600 hover:underline dark:text-seafoam-400">{t("auth.createOne")}</Link>
+          <Link to="/sign-up" className="font-medium text-seafoam-700 hover:underline dark:text-seafoam-400">{t("auth.createOne")}</Link>
         </p>
       </div>
     </div>

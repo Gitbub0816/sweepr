@@ -1,6 +1,30 @@
 import { useEffect, useState } from "react";
 import { getAnalyticsConsent, setAnalyticsConsent } from "../lib/analytics";
 
+/** Stable anonymous id so consent records can be audited/updated (GDPR Art. 7). */
+function anonymousId(): string | undefined {
+  try {
+    const k = "sweepr_anon_id";
+    let v = localStorage.getItem(k);
+    if (!v) {
+      v = crypto.randomUUID();
+      localStorage.setItem(k, v);
+    }
+    return v;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Fire-and-forget server-side consent record — proof of the choice made. */
+export function persistConsentRecord(apiUrl: string, analytics: boolean, gpcDetected = false) {
+  fetch(`${apiUrl}/privacy/consent`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ analytics, gpcDetected, anonymousId: anonymousId() }),
+  }).catch(() => null);
+}
+
 /**
  * Cookie/analytics consent banner (GDPR opt-in, CCPA opt-out compatible).
  *
@@ -12,7 +36,10 @@ import { getAnalyticsConsent, setAnalyticsConsent } from "../lib/analytics";
  *  • Accessible: region landmark, labelled buttons, keyboard operable,
  *    ≥24px targets, no focus trap (non-blocking banner).
  */
-export function CookieConsent({ privacyUrl = "https://legal.getsweepr.com/privacy" }: { privacyUrl?: string }) {
+export function CookieConsent({
+  privacyUrl = "https://legal.getsweepr.com/privacy",
+  apiUrl = "https://api.getsweepr.com",
+}: { privacyUrl?: string; apiUrl?: string }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -23,6 +50,7 @@ export function CookieConsent({ privacyUrl = "https://legal.getsweepr.com/privac
 
   function choose(granted: boolean) {
     setAnalyticsConsent(granted);
+    persistConsentRecord(apiUrl, granted);
     setVisible(false);
   }
 
@@ -54,7 +82,7 @@ export function CookieConsent({ privacyUrl = "https://legal.getsweepr.com/privac
           <button
             type="button"
             onClick={() => choose(true)}
-            className="rounded-xl bg-seafoam-500 px-4 py-2 text-sm font-semibold text-white hover:bg-seafoam-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-seafoam-400 focus-visible:ring-offset-2"
+            className="rounded-xl bg-seafoam-700 px-4 py-2 text-sm font-semibold text-white hover:bg-seafoam-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-seafoam-400 focus-visible:ring-offset-2"
           >
             Accept analytics
           </button>

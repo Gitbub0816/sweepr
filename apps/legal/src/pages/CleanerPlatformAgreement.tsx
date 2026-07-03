@@ -37,7 +37,7 @@ export function CleanerPlatformAgreement() {
           partner, or joint venturer of {COMPANY_NAME}. You control how you
           perform cleanings, set your own schedule and service area, and may work
           for others. See the{" "}
-          <Link className="text-seafoam-600 underline" to="/contractor-agreement">
+          <Link className="text-seafoam-700 underline" to="/contractor-agreement">
             Independent Contractor Agreement
           </Link>
           .
@@ -57,15 +57,15 @@ export function CleanerPlatformAgreement() {
           Onboarding includes identity verification and a background check through
           a third-party vendor, subject to your separate disclosure and
           authorization. See the{" "}
-          <Link className="text-seafoam-600 underline" to="/background-check-disclosure">
+          <Link className="text-seafoam-700 underline" to="/background-check-disclosure">
             Background Check Disclosure
           </Link>
           ,{" "}
-          <Link className="text-seafoam-600 underline" to="/background-check-authorization">
+          <Link className="text-seafoam-700 underline" to="/background-check-authorization">
             Authorization
           </Link>
           , and{" "}
-          <Link className="text-seafoam-600 underline" to="/background-check-adverse-action">
+          <Link className="text-seafoam-700 underline" to="/background-check-adverse-action">
             Adverse Action Policy
           </Link>
           . Sweepr may periodically re-check eligibility.
@@ -84,11 +84,11 @@ export function CleanerPlatformAgreement() {
         <p>
           You agree to perform Services competently, professionally, and within
           the booked scope described in the{" "}
-          <Link className="text-seafoam-600 underline" to="/service-scope">
+          <Link className="text-seafoam-700 underline" to="/service-scope">
             Service Scope Policy
           </Link>
           , and to follow the{" "}
-          <Link className="text-seafoam-600 underline" to="/community-guidelines">
+          <Link className="text-seafoam-700 underline" to="/community-guidelines">
             Community Guidelines
           </Link>
           .
@@ -132,7 +132,7 @@ export function CleanerPlatformAgreement() {
       <Section id="safety" title="10. Safety Refusal Rights">
         <p>
           You may decline or stop work in unsafe conditions. See the{" "}
-          <Link className="text-seafoam-600 underline" to="/trust-safety">
+          <Link className="text-seafoam-700 underline" to="/trust-safety">
             Trust &amp; Safety Policy
           </Link>
           .
@@ -143,7 +143,7 @@ export function CleanerPlatformAgreement() {
         <p>
           You are responsible for damage caused by your negligence or willful
           misconduct and agree to cooperate with the{" "}
-          <Link className="text-seafoam-600 underline" to="/damage-claims">
+          <Link className="text-seafoam-700 underline" to="/damage-claims">
             Damage Claims Policy
           </Link>
           . Sweepr may offset or recover validated negligence amounts consistent
@@ -154,14 +154,14 @@ export function CleanerPlatformAgreement() {
       <Section id="payouts" title="12. Payouts, Holds & Reversals">
         <p>
           Payouts are processed through Stripe Connect under the{" "}
-          <Link className="text-seafoam-600 underline" to="/payment-terms">
+          <Link className="text-seafoam-700 underline" to="/payment-terms">
             Payment Services Terms
           </Link>
           . Sweepr may hold or reverse payouts for fraud, chargebacks, breach,
           validated damage claims, or as required by law. Sweepr will not
           retroactively reduce payout for a booking you already accepted before an
           effective fee change, except as permitted under the{" "}
-          <Link className="text-seafoam-600 underline" to="/platform-fee-policy">
+          <Link className="text-seafoam-700 underline" to="/platform-fee-policy">
             Platform Fee Policy
           </Link>
           .
@@ -182,7 +182,7 @@ export function CleanerPlatformAgreement() {
           compensation, unemployment insurance, or employee benefits from Sweepr,
           and you are responsible for your own taxes, licenses, and permits. See
           the{" "}
-          <Link className="text-seafoam-600 underline" to="/tax-reporting">
+          <Link className="text-seafoam-700 underline" to="/tax-reporting">
             Tax Reporting Policy
           </Link>
           .
@@ -191,15 +191,15 @@ export function CleanerPlatformAgreement() {
 
       <Section id="related" title="15. Related Policies">
         <ul className="list-disc space-y-1 pl-6">
-          <li><Link className="text-seafoam-600 underline" to="/contractor-agreement">Independent Contractor Agreement</Link></li>
-          <li><Link className="text-seafoam-600 underline" to="/insurance-protection">Insurance &amp; Protection Policy</Link></li>
-          <li><Link className="text-seafoam-600 underline" to="/tax-reporting">Tax Reporting Policy</Link></li>
-          <li><Link className="text-seafoam-600 underline" to="/trust-safety">Trust &amp; Safety Policy</Link></li>
-          <li><Link className="text-seafoam-600 underline" to="/payment-terms">Payment Services Terms</Link></li>
+          <li><Link className="text-seafoam-700 underline" to="/contractor-agreement">Independent Contractor Agreement</Link></li>
+          <li><Link className="text-seafoam-700 underline" to="/insurance-protection">Insurance &amp; Protection Policy</Link></li>
+          <li><Link className="text-seafoam-700 underline" to="/tax-reporting">Tax Reporting Policy</Link></li>
+          <li><Link className="text-seafoam-700 underline" to="/trust-safety">Trust &amp; Safety Policy</Link></li>
+          <li><Link className="text-seafoam-700 underline" to="/payment-terms">Payment Services Terms</Link></li>
         </ul>
         <p>
           Cleaner support:{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>
           .

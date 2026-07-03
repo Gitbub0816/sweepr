@@ -37,7 +37,7 @@ export function LegalShell({ children }: { children: ReactNode }) {
             </span>
             <a
               href={back.url}
-              className="font-medium text-seafoam-600 hover:text-seafoam-700"
+              className="font-medium text-seafoam-700 hover:text-seafoam-700"
             >
               ← Back to {back.label}
             </a>

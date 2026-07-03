@@ -141,7 +141,7 @@ export function JobsPage() {
       description={t("cleaner.jobs.description")}
       actions={<OnlineToggle online={online} onChange={setOnline} />}
     >
-      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-seafoam-600">
+      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-seafoam-700">
         <span className="relative flex h-2.5 w-2.5">
           {!reduced && (
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-seafoam-400 opacity-75" />
@@ -202,7 +202,7 @@ function OnlineToggle({
       aria-label={online ? "Go offline" : "Go online"}
       className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
         online
-          ? "bg-seafoam-500 text-white"
+          ? "bg-seafoam-700 text-white"
           : "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
       }`}
     >

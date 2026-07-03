@@ -31,7 +31,7 @@ export function AddOnGrid({
               className={cn(
                 "flex h-6 w-6 items-center justify-center rounded-full",
                 isSelected
-                  ? "bg-seafoam-500 text-white"
+                  ? "bg-seafoam-700 text-white"
                   : "bg-slate-100 text-slate-400 dark:bg-slate-800"
               )}
             >

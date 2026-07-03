@@ -33,7 +33,7 @@ export function CommunityGuidelines() {
           Provide accurate information and genuine reviews. Manipulating reviews,
           retaliating for honest feedback, or posting fake content is prohibited.
           See the{" "}
-          <Link className="text-seafoam-600 underline" to="/reviews">
+          <Link className="text-seafoam-700 underline" to="/reviews">
             Review Policy
           </Link>
           .
@@ -60,7 +60,7 @@ export function CommunityGuidelines() {
           Depending on severity, violations may result in warnings, temporary
           suspension, removal of content, or permanent deactivation. Serious safety
           violations may result in immediate removal. Report issues to{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>
           .

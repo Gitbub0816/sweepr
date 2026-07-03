@@ -41,7 +41,7 @@ export function LegalUpdatesPolicy() {
       <Section id="fees" title="3. Fee & Pricing Changes">
         <p>
           Changes to fees and pricing follow the{" "}
-          <Link className="text-seafoam-600 underline" to="/platform-fee-policy">
+          <Link className="text-seafoam-700 underline" to="/platform-fee-policy">
             Platform Fee Policy
           </Link>
           , including the customer-facing fee, cleaner payout-affecting fee, notice,
@@ -88,7 +88,7 @@ export function LegalUpdatesPolicy() {
         <p>
           We retain versions and effective dates of our legal documents and record
           user acceptances where required. Questions?{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${LEGAL_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${LEGAL_EMAIL}`}>
             {LEGAL_EMAIL}
           </a>
           .

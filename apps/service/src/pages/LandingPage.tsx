@@ -42,7 +42,7 @@ export function LandingPage() {
           <button
             onClick={handleCreate}
             disabled={loading}
-            className="w-full rounded-xl bg-seafoam-500 py-3 text-sm font-semibold text-white hover:bg-seafoam-600 disabled:opacity-50 transition-colors"
+            className="w-full rounded-xl bg-seafoam-700 py-3 text-sm font-semibold text-white hover:bg-seafoam-800 disabled:opacity-50 transition-colors"
           >
             {loading ? "Creating session…" : "Create new session"}
           </button>
@@ -108,7 +108,7 @@ function SessionLink({
   onClick: () => void;
 }) {
   const cls = color === "seafoam"
-    ? "bg-seafoam-50 text-seafoam-600"
+    ? "bg-seafoam-50 text-seafoam-700"
     : "bg-violet-50 text-violet-600";
   return (
     <div className="flex items-center gap-4 px-5 py-4">
@@ -122,7 +122,7 @@ function SessionLink({
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-seafoam-600 hover:underline font-mono"
+          className="text-xs text-seafoam-700 hover:underline font-mono"
           onClick={(e) => e.stopPropagation()}
         >
           {href}
@@ -130,7 +130,7 @@ function SessionLink({
       </div>
       <button
         onClick={onClick}
-        className="text-xs font-semibold text-seafoam-600 hover:text-seafoam-700 whitespace-nowrap"
+        className="text-xs font-semibold text-seafoam-700 hover:text-seafoam-700 whitespace-nowrap"
       >
         Open →
       </button>

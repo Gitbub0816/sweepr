@@ -18,7 +18,7 @@ export function Stepper({ steps, current, className }: StepperProps) {
             <div
               className={cn(
                 "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors",
-                done && "bg-seafoam-500 text-white",
+                done && "bg-seafoam-700 text-white",
                 active && "bg-seafoam-100 text-seafoam-700 ring-2 ring-seafoam-400",
                 !done && !active && "bg-slate-100 text-slate-400 dark:bg-slate-800"
               )}

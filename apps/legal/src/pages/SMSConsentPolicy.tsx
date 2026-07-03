@@ -63,7 +63,7 @@ export function SMSConsentPolicy() {
       <div className="mx-auto max-w-xl px-4 py-16">
         {/* Brand header */}
         <div className="mb-8 text-center">
-          <a href="https://getsweepr.com" className="text-3xl font-black tracking-tight text-seafoam-600" style={{ fontFamily: SANS }}>
+          <a href="https://getsweepr.com" className="text-3xl font-black tracking-tight text-seafoam-700" style={{ fontFamily: SANS }}>
             Sweepr
           </a>
           <h1 className="mt-4 text-2xl font-bold text-slate-900" style={{ fontFamily: SANS }}>
@@ -139,7 +139,7 @@ export function SMSConsentPolicy() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full rounded-xl bg-seafoam-500 px-4 py-3 font-semibold text-white transition-colors hover:bg-seafoam-600 disabled:opacity-60"
+                className="w-full rounded-xl bg-seafoam-700 px-4 py-3 font-semibold text-white transition-colors hover:bg-seafoam-800 disabled:opacity-60"
                 style={{ fontFamily: SANS }}
               >
                 {submitting ? "Submitting…" : "Opt in to SMS updates"}
@@ -178,10 +178,10 @@ export function SMSConsentPolicy() {
 
           <p className="border-t border-slate-200 pt-4 text-xs text-slate-500">
             See our{" "}
-            <a href="/privacy" className="text-seafoam-600 underline">Privacy Policy</a> and{" "}
-            <a href="/terms" className="text-seafoam-600 underline">Terms of Service</a>.
+            <a href="/privacy" className="text-seafoam-700 underline">Privacy Policy</a> and{" "}
+            <a href="/terms" className="text-seafoam-700 underline">Terms of Service</a>.
             Questions? Contact{" "}
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-seafoam-600 underline">{SUPPORT_EMAIL}</a>.
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-seafoam-700 underline">{SUPPORT_EMAIL}</a>.
           </p>
         </div>
       </div>

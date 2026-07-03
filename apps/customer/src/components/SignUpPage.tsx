@@ -152,7 +152,7 @@ export function SignUpPage() {
                 </Field>
                 {hasAccount && (
                   <div className="flex items-start gap-3 rounded-xl border border-seafoam-200 bg-seafoam-50 px-4 py-3 dark:border-seafoam-800/40 dark:bg-seafoam-900/20">
-                    <LogIn className="mt-0.5 h-4 w-4 shrink-0 text-seafoam-600 dark:text-seafoam-400" />
+                    <LogIn className="mt-0.5 h-4 w-4 shrink-0 text-seafoam-700 dark:text-seafoam-400" />
                     <div>
                       <p className="text-sm font-medium text-seafoam-800 dark:text-seafoam-300">{t("auth.readyToJoin")}</p>
                       <p className="mt-0.5 text-xs text-seafoam-700 dark:text-seafoam-400">
@@ -204,7 +204,7 @@ export function SignUpPage() {
 
             <p className="mt-4 text-center text-sm text-slate-500">
               {t("auth.alreadyHaveAccount")}{" "}
-              <Link to="/sign-in" className="font-medium text-seafoam-600 hover:underline dark:text-seafoam-400">{t("auth.signIn")}</Link>
+              <Link to="/sign-in" className="font-medium text-seafoam-700 hover:underline dark:text-seafoam-400">{t("auth.signIn")}</Link>
             </p>
           </>
         ) : (

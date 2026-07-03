@@ -63,7 +63,7 @@ export function PrivacyPolicy() {
           <li>Technical data: IP address, device type, browser type and version, operating system;</li>
           <li>Usage data: pages visited, features used, session duration, clickstream data;</li>
           <li>Location data: service address coordinates (used for Cleaner matching and mapping);</li>
-          <li>Cookies and similar tracking technologies as described in our <a className="text-seafoam-600 underline" href={`${LEGAL_URL}/cookie-policy`}>Cookie Policy</a>.</li>
+          <li>Cookies and similar tracking technologies as described in our <a className="text-seafoam-700 underline" href={`${LEGAL_URL}/cookie-policy`}>Cookie Policy</a>.</li>
         </ul>
         <p><strong>3.3 Information from Third Parties:</strong></p>
         <ul className="list-disc space-y-1 pl-6">
@@ -135,7 +135,7 @@ export function PrivacyPolicy() {
           <li>Regular security assessments and monitoring.</li>
         </ul>
         <p><strong>8.2</strong> No security system is perfect. We cannot guarantee absolute security, and we are not liable for unauthorized access resulting from circumstances beyond our reasonable control.</p>
-        <p><strong>8.3</strong> To report a security vulnerability, contact <a className="text-seafoam-600 underline" href={`mailto:${SECURITY_EMAIL}`}>{SECURITY_EMAIL}</a>.</p>
+        <p><strong>8.3</strong> To report a security vulnerability, contact <a className="text-seafoam-700 underline" href={`mailto:${SECURITY_EMAIL}`}>{SECURITY_EMAIL}</a>.</p>
       </Section>
 
       <Section id="transfers" title="9. International Data Transfers">
@@ -158,7 +158,7 @@ export function PrivacyPolicy() {
           <li><strong>Right to Limit Use of Sensitive Personal Information:</strong> Not applicable as we do not collect Sensitive Personal Information directly.</li>
           <li><strong>Right to Non-Discrimination:</strong> We will not discriminate against you for exercising any of these rights.</li>
         </ul>
-        <p><strong>11.2</strong> To exercise your CCPA rights, submit a verifiable consumer request to <a className="text-seafoam-600 underline" href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>. We will respond within forty-five (45) days of receipt.</p>
+        <p><strong>11.2</strong> To exercise your CCPA rights, submit a verifiable consumer request to <a className="text-seafoam-700 underline" href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>. We will respond within forty-five (45) days of receipt.</p>
       </Section>
 
       <Section id="gdpr" title="12. EEA and UK Privacy Rights (GDPR / UK GDPR)">
@@ -172,12 +172,12 @@ export function PrivacyPolicy() {
           <li><strong>Right to Object (Art. 21):</strong> Object to processing based on legitimate interests or for direct marketing;</li>
           <li><strong>Right to Withdraw Consent:</strong> Where processing is based on consent, withdraw it at any time without affecting the lawfulness of prior processing.</li>
         </ul>
-        <p><strong>12.2</strong> To exercise GDPR rights, contact <a className="text-seafoam-600 underline" href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>. We will respond within thirty (30) days. You also have the right to lodge a complaint with your national supervisory authority.</p>
+        <p><strong>12.2</strong> To exercise GDPR rights, contact <a className="text-seafoam-700 underline" href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>. We will respond within thirty (30) days. You also have the right to lodge a complaint with your national supervisory authority.</p>
       </Section>
 
       <Section id="minors" title="13. Children's Privacy">
         <p><strong>13.1</strong> The Platform is not directed to children under the age of eighteen (18). We do not knowingly collect Personal Information from persons under 18. If we learn that we have inadvertently collected such information, we will delete it promptly.</p>
-        <p><strong>13.2</strong> If you believe we have collected information from a child under 18, please contact us at <a className="text-seafoam-600 underline" href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>.</p>
+        <p><strong>13.2</strong> If you believe we have collected information from a child under 18, please contact us at <a className="text-seafoam-700 underline" href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>.</p>
       </Section>
 
       <Section id="changes" title="14. Changes to This Policy">
@@ -190,7 +190,7 @@ export function PrivacyPolicy() {
         <address className="not-italic mt-3 space-y-1 text-sm text-slate-700">
           <p><strong>Privacy Team — {COMPANY_NAME}</strong></p>
           <p>{REGISTERED_ADDRESS}</p>
-          <p>Email: <a className="text-seafoam-600 underline" href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a></p>
+          <p>Email: <a className="text-seafoam-700 underline" href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a></p>
         </address>
       </Section>
     </DocPage>

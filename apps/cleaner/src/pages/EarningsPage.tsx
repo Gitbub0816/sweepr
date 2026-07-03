@@ -73,7 +73,7 @@ export function EarningsPage() {
           {!data.stripeConnected && (
             <Card className="flex flex-col items-start gap-3 border-seafoam-200 bg-seafoam-50 dark:border-seafoam-900/40 dark:bg-seafoam-900/10 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-seafoam-500 text-white">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-seafoam-700 text-white">
                   <Building2 className="h-5 w-5" />
                 </div>
                 <div>

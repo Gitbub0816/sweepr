@@ -175,7 +175,7 @@ export function PerformancePage() {
       {!isElite && (
         <Card className="bg-gradient-to-r from-seafoam-50 to-transparent dark:from-seafoam-900/20">
           <div className="flex items-start gap-3">
-            <TrendingUp className="mt-0.5 h-5 w-5 text-seafoam-600 dark:text-seafoam-400" />
+            <TrendingUp className="mt-0.5 h-5 w-5 text-seafoam-700 dark:text-seafoam-400" />
             <div>
               <h2 className="font-semibold text-charcoal dark:text-white">
                 Tips to reach the next tier

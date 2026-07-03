@@ -46,7 +46,7 @@ export function TrustSafetyPolicy() {
           Cleaners may decline or stop work in conditions involving aggressive
           pets, hazardous materials, biohazards, severe unsanitary conditions, or
           other risks. Customers must disclose known hazards in advance. See the{" "}
-          <Link className="text-seafoam-600 underline" to="/service-scope">
+          <Link className="text-seafoam-700 underline" to="/service-scope">
             Service Scope Policy
           </Link>
           .
@@ -89,12 +89,12 @@ export function TrustSafetyPolicy() {
       <Section id="reporting" title="8. Incident Reporting & Enforcement">
         <p>
           Report safety incidents through the app's "Report a problem" flow or to{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>
           . Sweepr may temporarily suspend accounts during investigation and
           enforces a zero-tolerance approach to serious misconduct under the{" "}
-          <Link className="text-seafoam-600 underline" to="/community-guidelines">
+          <Link className="text-seafoam-700 underline" to="/community-guidelines">
             Community Guidelines
           </Link>
           .

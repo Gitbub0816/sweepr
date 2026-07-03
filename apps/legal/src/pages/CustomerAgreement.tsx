@@ -87,7 +87,7 @@ export function CustomerAgreement() {
           private documents, and irreplaceable, fragile, or high-value items
           before the cleaning. Sweepr and Cleaners are not responsible for items
           that were not reasonably secured, except as provided in the{" "}
-          <Link className="text-seafoam-600 underline" to="/damage-claims">
+          <Link className="text-seafoam-700 underline" to="/damage-claims">
             Damage Claims Policy
           </Link>
           .
@@ -99,11 +99,11 @@ export function CustomerAgreement() {
           Cleaners may decline or stop work in conditions that are unsafe,
           unsanitary beyond the booked scope, or that involve hazards, aggressive
           animals, harassment, or unlawful activity. See the{" "}
-          <Link className="text-seafoam-600 underline" to="/trust-safety">
+          <Link className="text-seafoam-700 underline" to="/trust-safety">
             Trust &amp; Safety Policy
           </Link>{" "}
           and{" "}
-          <Link className="text-seafoam-600 underline" to="/service-scope">
+          <Link className="text-seafoam-700 underline" to="/service-scope">
             Service Scope Policy
           </Link>
           .
@@ -116,7 +116,7 @@ export function CustomerAgreement() {
           the home and the work performed. These photos may be used for quality
           assurance, dispute resolution, and claims handling, and are handled in
           accordance with the{" "}
-          <Link className="text-seafoam-600 underline" to="/privacy">
+          <Link className="text-seafoam-700 underline" to="/privacy">
             Privacy Policy
           </Link>
           .
@@ -127,7 +127,7 @@ export function CustomerAgreement() {
         <p>
           Standard cleaning does not include every possible task. What is and is
           not included is described in the{" "}
-          <Link className="text-seafoam-600 underline" to="/service-scope">
+          <Link className="text-seafoam-700 underline" to="/service-scope">
             Service Scope Policy
           </Link>
           . Additional tasks may require add-ons or a different service type and
@@ -138,7 +138,7 @@ export function CustomerAgreement() {
       <Section id="recurring" title="9. Recurring Bookings">
         <p>
           If you select a recurring cadence, the{" "}
-          <Link className="text-seafoam-600 underline" to="/subscription-terms">
+          <Link className="text-seafoam-700 underline" to="/subscription-terms">
             Subscription Terms
           </Link>{" "}
           apply, including billing timing, rescheduling, skipped visits, and
@@ -150,7 +150,7 @@ export function CustomerAgreement() {
         <p>
           Cancellation windows, no-show charges, lockout/no-access charges, and
           rescheduling are governed by the{" "}
-          <Link className="text-seafoam-600 underline" to="/refund-policy">
+          <Link className="text-seafoam-700 underline" to="/refund-policy">
             Refund &amp; Cancellation Policy
           </Link>
           .
@@ -161,11 +161,11 @@ export function CustomerAgreement() {
         <p>
           Claims for property damage must be reported within the deadline and
           with the evidence described in the{" "}
-          <Link className="text-seafoam-600 underline" to="/damage-claims">
+          <Link className="text-seafoam-700 underline" to="/damage-claims">
             Damage Claims Policy
           </Link>
           . Service-quality concerns and re-clean requests are handled under the{" "}
-          <Link className="text-seafoam-600 underline" to="/refund-policy">
+          <Link className="text-seafoam-700 underline" to="/refund-policy">
             Refund Policy
           </Link>
           .
@@ -193,11 +193,11 @@ export function CustomerAgreement() {
         </ul>
         <p>
           SMS marketing is optional and governed by the{" "}
-          <Link className="text-seafoam-600 underline" to="/sms-policy">
+          <Link className="text-seafoam-700 underline" to="/sms-policy">
             SMS Policy
           </Link>
           . Electronic communications and signatures are governed by the{" "}
-          <Link className="text-seafoam-600 underline" to="/e-sign">
+          <Link className="text-seafoam-700 underline" to="/e-sign">
             E-Sign Consent
           </Link>
           .
@@ -206,17 +206,17 @@ export function CustomerAgreement() {
 
       <Section id="related" title="14. Related Policies">
         <ul className="list-disc space-y-1 pl-6">
-          <li><Link className="text-seafoam-600 underline" to="/terms">Terms of Service</Link></li>
-          <li><Link className="text-seafoam-600 underline" to="/privacy">Privacy Policy</Link></li>
-          <li><Link className="text-seafoam-600 underline" to="/refund-policy">Refund &amp; Cancellation Policy</Link></li>
-          <li><Link className="text-seafoam-600 underline" to="/service-scope">Service Scope Policy</Link></li>
-          <li><Link className="text-seafoam-600 underline" to="/damage-claims">Damage Claims Policy</Link></li>
-          <li><Link className="text-seafoam-600 underline" to="/dispute-resolution">Dispute Resolution</Link></li>
-          <li><Link className="text-seafoam-600 underline" to="/community-guidelines">Community Guidelines</Link></li>
+          <li><Link className="text-seafoam-700 underline" to="/terms">Terms of Service</Link></li>
+          <li><Link className="text-seafoam-700 underline" to="/privacy">Privacy Policy</Link></li>
+          <li><Link className="text-seafoam-700 underline" to="/refund-policy">Refund &amp; Cancellation Policy</Link></li>
+          <li><Link className="text-seafoam-700 underline" to="/service-scope">Service Scope Policy</Link></li>
+          <li><Link className="text-seafoam-700 underline" to="/damage-claims">Damage Claims Policy</Link></li>
+          <li><Link className="text-seafoam-700 underline" to="/dispute-resolution">Dispute Resolution</Link></li>
+          <li><Link className="text-seafoam-700 underline" to="/community-guidelines">Community Guidelines</Link></li>
         </ul>
         <p>
           Questions? Contact{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>
           .

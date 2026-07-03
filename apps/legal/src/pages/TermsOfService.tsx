@@ -53,7 +53,7 @@ export function TermsOfService() {
       </Section>
 
       <Section id="acceptance" title="2. Acceptance of Terms">
-        <p><strong>2.1</strong> By creating an account, clicking "I agree," or otherwise accessing or using the Platform, you acknowledge that you have read, understood, and agree to be bound by this Agreement and our <a className="text-seafoam-600 underline" href={`${LEGAL_URL}/privacy`}>Privacy Policy</a>, which is incorporated herein by reference.</p>
+        <p><strong>2.1</strong> By creating an account, clicking "I agree," or otherwise accessing or using the Platform, you acknowledge that you have read, understood, and agree to be bound by this Agreement and our <a className="text-seafoam-700 underline" href={`${LEGAL_URL}/privacy`}>Privacy Policy</a>, which is incorporated herein by reference.</p>
         <p><strong>2.2</strong> If you are using the Platform on behalf of a business entity, you represent and warrant that you have authority to bind that entity to this Agreement, and "you" refers to both you individually and the entity.</p>
         <p><strong>2.3</strong> You must be at least eighteen (18) years of age to use the Platform. By using the Platform, you represent that you meet this age requirement.</p>
         <p><strong>2.4</strong> If you do not agree to any part of this Agreement, you must not use the Platform.</p>
@@ -68,19 +68,19 @@ export function TermsOfService() {
       <Section id="contractor" title="4. Independent Contractor Status">
         <p><strong>4.1</strong> Cleaners are independent contractors and not employees, agents, partners, or joint venturers of the Company. The Company does not control the means or methods by which Cleaners perform cleaning services, including tools, supplies, techniques, or timing.</p>
         <p><strong>4.2</strong> Nothing in this Agreement creates an employment, agency, partnership, or fiduciary relationship between the Company and any Cleaner or Customer.</p>
-        <p><strong>4.3 California Residents.</strong> Sweepr classifies Cleaners as independent contractors consistent with applicable California law, including Assembly Bill 5 (AB5) and the Borello multi-factor analysis. Cleaners set their own schedules, supply their own equipment, are free to accept or decline any job, and may work for other platforms or directly for their own clients. See the <a className="text-seafoam-600 underline" href="/contractor-agreement">Independent Contractor Agreement</a> and <a className="text-seafoam-600 underline" href="/cleaner-agreement">Cleaner Platform Agreement</a>.</p>
+        <p><strong>4.3 California Residents.</strong> Sweepr classifies Cleaners as independent contractors consistent with applicable California law, including Assembly Bill 5 (AB5) and the Borello multi-factor analysis. Cleaners set their own schedules, supply their own equipment, are free to accept or decline any job, and may work for other platforms or directly for their own clients. See the <a className="text-seafoam-700 underline" href="/contractor-agreement">Independent Contractor Agreement</a> and <a className="text-seafoam-700 underline" href="/cleaner-agreement">Cleaner Platform Agreement</a>.</p>
       </Section>
 
       <Section id="accounts" title="5. Accounts and Security">
         <p><strong>5.1</strong> Account creation and authentication are managed through our identity provider. You agree to provide accurate, current, and complete information during registration and to update such information as necessary.</p>
         <p><strong>5.2</strong> You are solely responsible for maintaining the confidentiality of your account credentials and for all activity that occurs under your account.</p>
-        <p><strong>5.3</strong> You agree to notify us immediately at <a className="text-seafoam-600 underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> of any unauthorized use of your account or any other security breach.</p>
+        <p><strong>5.3</strong> You agree to notify us immediately at <a className="text-seafoam-700 underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> of any unauthorized use of your account or any other security breach.</p>
         <p><strong>5.4</strong> We will not be liable for any loss or damage arising from your failure to maintain the security of your account.</p>
       </Section>
 
       <Section id="booking" title="6. Bookings and Cancellations">
         <p><strong>6.1</strong> When you submit a Booking request, you are making an offer to engage a Cleaner. A Booking is confirmed when a Cleaner accepts your request and payment is authorized.</p>
-        <p><strong>6.2</strong> Cancellation and refund rights are governed exclusively by our <a className="text-seafoam-600 underline" href={`${LEGAL_URL}/refund-policy`}>Refund Policy</a>, which is incorporated into this Agreement.</p>
+        <p><strong>6.2</strong> Cancellation and refund rights are governed exclusively by our <a className="text-seafoam-700 underline" href={`${LEGAL_URL}/refund-policy`}>Refund Policy</a>, which is incorporated into this Agreement.</p>
         <p><strong>6.3</strong> The Company reserves the right to cancel a Booking at any time if a Cleaner becomes unavailable, if we determine that a Booking poses a safety risk, or for any other legitimate operational reason. In such cases, you will receive a full refund.</p>
       </Section>
 
@@ -88,11 +88,11 @@ export function TermsOfService() {
         <p><strong>7.1 Transparent Pricing.</strong> <strong>All prices displayed on the Platform are final and all-inclusive. There are no hidden fees.</strong> The price shown at checkout is the total amount you will be charged, including the service fee, supply fee, and any applicable taxes.</p>
         <p><strong>7.2</strong> Sweepr sets all pricing displayed on the Platform. Cleaners do not negotiate or adjust prices directly with Customers.</p>
         <p><strong>7.3</strong> Subscription plans are billed at the per-visit price displayed at enrollment for the selected cadence (e.g., weekly, biweekly). Prices are subject to change upon thirty (30) days' written notice.</p>
-        <p><strong>7.4</strong> The Company reserves the right to modify pricing and fees prospectively. Changes will not affect Bookings that have already been confirmed, and changes to Cleaner payout-affecting fees will not reduce payment for bookings already accepted by a Cleaner before the effective date, except as permitted under the <a className="text-seafoam-600 underline" href="/platform-fee-policy">Platform Fee Policy</a>. Material fee changes are provided with advance notice as described in the Platform Fee Policy and the <a className="text-seafoam-600 underline" href="/legal-updates">Legal Updates Policy</a>.</p>
+        <p><strong>7.4</strong> The Company reserves the right to modify pricing and fees prospectively. Changes will not affect Bookings that have already been confirmed, and changes to Cleaner payout-affecting fees will not reduce payment for bookings already accepted by a Cleaner before the effective date, except as permitted under the <a className="text-seafoam-700 underline" href="/platform-fee-policy">Platform Fee Policy</a>. Material fee changes are provided with advance notice as described in the Platform Fee Policy and the <a className="text-seafoam-700 underline" href="/legal-updates">Legal Updates Policy</a>.</p>
       </Section>
 
       <Section id="payment" title="8. Payment Processing">
-        <p><strong>8.1</strong> Payment processing services are provided by Stripe, Inc. ("Stripe") and are subject to the <a className="text-seafoam-600 underline" href="https://stripe.com/legal/ssa" target="_blank" rel="noreferrer">Stripe Services Agreement</a>. By using the Platform, you authorize the Company and Stripe to charge your designated payment method for all confirmed Bookings.</p>
+        <p><strong>8.1</strong> Payment processing services are provided by Stripe, Inc. ("Stripe") and are subject to the <a className="text-seafoam-700 underline" href="https://stripe.com/legal/ssa" target="_blank" rel="noreferrer">Stripe Services Agreement</a>. By using the Platform, you authorize the Company and Stripe to charge your designated payment method for all confirmed Bookings.</p>
         <p><strong>8.2</strong> The Company does not store full payment card numbers. Payment information is tokenized and stored by Stripe in accordance with PCI-DSS standards.</p>
         <p><strong>8.3</strong> By saving a payment method to your account, you authorize the Company to charge that method for future Bookings without additional authorization, unless you remove it from your account.</p>
         <p><strong>8.4</strong> All payments are final when a Booking is completed. Chargebacks initiated outside the Platform's refund process may result in suspension of your account.</p>
@@ -141,18 +141,18 @@ export function TermsOfService() {
       </Section>
 
       <Section id="termination" title="15. Termination">
-        <p><strong>15.1</strong> You may terminate your account at any time by contacting us at <a className="text-seafoam-600 underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p>
+        <p><strong>15.1</strong> You may terminate your account at any time by contacting us at <a className="text-seafoam-700 underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p>
         <p><strong>15.2</strong> The Company may suspend or terminate your account, at its sole discretion, immediately and without notice, if you breach any provision of this Agreement, engage in conduct that we determine poses a risk to any user or the Platform, or for any other legitimate business reason.</p>
         <p><strong>15.3</strong> Upon termination, your right to use the Platform ceases immediately. Sections 10, 11, 12, 13, 14, 16, and 17 shall survive termination.</p>
       </Section>
 
       <Section id="disputes" title="16. Dispute Resolution; Arbitration Agreement; Class Action Waiver">
         <p><strong>PLEASE READ THIS SECTION CAREFULLY. IT AFFECTS YOUR RIGHTS AND CONTAINS A BINDING ARBITRATION CLAUSE AND CLASS ACTION WAIVER.</strong></p>
-        <p><strong>16.1 Informal Resolution.</strong> Before initiating formal proceedings, you agree to contact us at <a className="text-seafoam-600 underline" href={`mailto:${LEGAL_EMAIL}`}>{LEGAL_EMAIL}</a> and provide a written description of the dispute and the relief sought. The parties will attempt to resolve the dispute informally for at least thirty (30) days before initiating arbitration.</p>
+        <p><strong>16.1 Informal Resolution.</strong> Before initiating formal proceedings, you agree to contact us at <a className="text-seafoam-700 underline" href={`mailto:${LEGAL_EMAIL}`}>{LEGAL_EMAIL}</a> and provide a written description of the dispute and the relief sought. The parties will attempt to resolve the dispute informally for at least thirty (30) days before initiating arbitration.</p>
         <p><strong>16.2 Binding Arbitration.</strong> If informal resolution fails, any dispute, claim, or controversy arising out of or relating to this Agreement or the Platform shall be resolved by binding individual arbitration administered by JAMS in {STATE_OF_INCORPORATION}, under JAMS's then-current rules. The arbitrator's decision is final and binding and may be entered as a judgment in any court of competent jurisdiction.</p>
         <p><strong>16.3 Class Action Waiver.</strong> YOU AND THE COMPANY EACH WAIVE THE RIGHT TO A TRIAL BY JURY AND THE RIGHT TO PARTICIPATE IN A CLASS ACTION, CLASS ARBITRATION, OR ANY OTHER REPRESENTATIVE PROCEEDING.</p>
         <p><strong>16.4 Exceptions.</strong> Either party may seek emergency injunctive or other equitable relief from a court of competent jurisdiction. Claims for individual relief arising under consumer protection statutes may be excluded from arbitration where required by applicable law.</p>
-        <p><strong>16.5</strong> See our full <a className="text-seafoam-600 underline" href={`${LEGAL_URL}/dispute-resolution`}>Dispute Resolution Policy</a> for complete procedures.</p>
+        <p><strong>16.5</strong> See our full <a className="text-seafoam-700 underline" href={`${LEGAL_URL}/dispute-resolution`}>Dispute Resolution Policy</a> for complete procedures.</p>
       </Section>
 
       <Section id="governing" title="17. Governing Law">
@@ -176,7 +176,7 @@ export function TermsOfService() {
         <address className="not-italic mt-3 space-y-1 text-sm text-slate-700">
           <p><strong>{COMPANY_NAME}</strong></p>
           <p>{REGISTERED_ADDRESS}</p>
-          <p>Email: <a className="text-seafoam-600 underline" href={`mailto:${LEGAL_EMAIL}`}>{LEGAL_EMAIL}</a></p>
+          <p>Email: <a className="text-seafoam-700 underline" href={`mailto:${LEGAL_EMAIL}`}>{LEGAL_EMAIL}</a></p>
         </address>
       </Section>
     </DocPage>

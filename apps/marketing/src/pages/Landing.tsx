@@ -275,10 +275,10 @@ export default function Landing() {
               variants={fadeUp}
               className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900"
             >
-              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-seafoam-500 text-white">
+              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-seafoam-700 text-white">
                 <s.icon aria-hidden="true" className="h-5 w-5" />
               </div>
-              <p className="text-xs font-bold text-seafoam-600">{t("howItWorks.stepLabel", { n: i + 1 })}</p>
+              <p className="text-xs font-bold text-seafoam-700">{t("howItWorks.stepLabel", { n: i + 1 })}</p>
               <h3 className="mt-1 text-lg font-bold text-charcoal dark:text-white">{t(s.titleKey)}</h3>
               <p className="mt-2 text-sm text-slate-500">{t(s.bodyKey)}</p>
             </motion.div>
@@ -309,7 +309,7 @@ export default function Landing() {
                 style={{ borderLeft: "6px solid #14b8a6" }}
               >
                 <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-seafoam-50 text-seafoam-600 dark:bg-slate-800">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-seafoam-50 text-seafoam-700 dark:bg-slate-800">
                     <s.icon aria-hidden="true" className="h-6 w-6" />
                   </div>
                   <div className="flex-1">
@@ -327,7 +327,7 @@ export default function Landing() {
                   </div>
                   <a
                     href={customerUrl}
-                    className="inline-flex items-center gap-1 text-sm font-bold text-seafoam-600 hover:text-seafoam-700 whitespace-nowrap"
+                    className="inline-flex items-center gap-1 text-sm font-bold text-seafoam-700 hover:text-seafoam-700 whitespace-nowrap"
                   >
                     {t("services.bookNow")} <ArrowRight aria-hidden="true" className="h-4 w-4" />
                   </a>
@@ -358,7 +358,7 @@ export default function Landing() {
               variants={fadeUp}
               className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900"
             >
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-seafoam-50 text-seafoam-600 dark:bg-slate-800">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-seafoam-50 text-seafoam-700 dark:bg-slate-800">
                 <item.icon aria-hidden="true" className="h-6 w-6" />
               </div>
               <h3 className="font-bold text-charcoal dark:text-white">{t(item.titleKey)}</h3>
@@ -442,10 +442,10 @@ export default function Landing() {
               <SweeprLogo size="sm" />
             </div>
             <nav className="flex flex-wrap items-center gap-6 text-sm text-slate-500">
-              <a href="#services" className="hover:text-seafoam-600">{t("nav.services")}</a>
-              <a href="#pricing" className="hover:text-seafoam-600">{t("nav.pricing")}</a>
-              <a href="#faq" className="hover:text-seafoam-600">{t("nav.faq")}</a>
-              <a href="/status" className="hover:text-seafoam-600">{t("footer.status")}</a>
+              <a href="#services" className="hover:text-seafoam-700">{t("nav.services")}</a>
+              <a href="#pricing" className="hover:text-seafoam-700">{t("nav.pricing")}</a>
+              <a href="#faq" className="hover:text-seafoam-700">{t("nav.faq")}</a>
+              <a href="/status" className="hover:text-seafoam-700">{t("footer.status")}</a>
             </nav>
           </div>
 
@@ -459,7 +459,7 @@ export default function Landing() {
             </p>
             <a
               href={cleanerUrl}
-              className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-seafoam-600 hover:text-seafoam-700"
+              className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-seafoam-700 hover:text-seafoam-700"
             >
               {t("cleaner.cta")} <ArrowRight aria-hidden="true" className="h-4 w-4" />
             </a>
@@ -467,16 +467,17 @@ export default function Landing() {
 
           <div className="flex flex-col items-center justify-between gap-4 border-t border-slate-100 pt-6 dark:border-slate-800 sm:flex-row">
             <nav className="flex flex-wrap items-center gap-6 text-xs text-slate-500">
-              <a href="https://legal.getsweepr.com/privacy?ref=marketing" className="hover:text-seafoam-600">{t("footer.privacy")}</a>
-              <a href="https://legal.getsweepr.com/terms?ref=marketing" className="hover:text-seafoam-600">{t("footer.terms")}</a>
-              <a href="https://legal.getsweepr.com/contractor-agreement?ref=marketing" className="hover:text-seafoam-600">{t("footer.contractor")}</a>
-              <a href="https://legal.getsweepr.com/privacy-notice-at-collection?ref=marketing#do-not-sell" className="hover:text-seafoam-600">{t("footer.doNotSell")}</a>
+              <a href="https://legal.getsweepr.com/privacy?ref=marketing" className="hover:text-seafoam-700">{t("footer.privacy")}</a>
+              <a href="https://legal.getsweepr.com/terms?ref=marketing" className="hover:text-seafoam-700">{t("footer.terms")}</a>
+              <a href="https://legal.getsweepr.com/contractor-agreement?ref=marketing" className="hover:text-seafoam-700">{t("footer.contractor")}</a>
+              <a href="/privacy-request?type=opt_out" className="hover:text-seafoam-700">{t("footer.doNotSell")}</a>
+              <a href="/accessibility" className="hover:text-seafoam-700">Accessibility</a>
               <button
                 onClick={() => {
                   try { localStorage.removeItem("sweepr_cookie_consent"); } catch { /* noop */ }
                   window.location.reload();
                 }}
-                className="hover:text-seafoam-600"
+                className="hover:text-seafoam-700"
               >
                 {t("footer.cookieSettings")}
               </button>
@@ -492,7 +493,7 @@ export default function Landing() {
 function SectionHeading({ eyebrow, title, subtitle }: { eyebrow: string; title: string; subtitle?: string }) {
   return (
     <motion.div className="text-center" variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}>
-      <p className="text-sm font-bold uppercase tracking-wide text-seafoam-600">{eyebrow}</p>
+      <p className="text-sm font-bold uppercase tracking-wide text-seafoam-700">{eyebrow}</p>
       <h2 className="mt-2 text-3xl font-black text-charcoal dark:text-white sm:text-4xl">{title}</h2>
       {subtitle && <p className="mx-auto mt-3 max-w-xl text-slate-500">{subtitle}</p>}
     </motion.div>

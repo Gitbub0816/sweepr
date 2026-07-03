@@ -26,7 +26,7 @@ export function BackgroundCheckAuthorization() {
       <Section id="authorization" title="1. Authorization">
         <p>
           Having read the{" "}
-          <Link className="text-seafoam-600 underline" to="/background-check-disclosure">
+          <Link className="text-seafoam-700 underline" to="/background-check-disclosure">
             Background Check Disclosure
           </Link>
           , you authorize Sweepr and its screening vendor to obtain a consumer
@@ -56,7 +56,7 @@ export function BackgroundCheckAuthorization() {
           When you authorize a background check, Sweepr records the disclosure and
           authorization versions, the timestamp, and related metadata to
           demonstrate informed consent. This record is handled under the{" "}
-          <Link className="text-seafoam-600 underline" to="/privacy">
+          <Link className="text-seafoam-700 underline" to="/privacy">
             Privacy Policy
           </Link>
           .
@@ -66,11 +66,11 @@ export function BackgroundCheckAuthorization() {
       <Section id="questions" title="5. Questions">
         <p>
           For help or to dispute report information, see the{" "}
-          <Link className="text-seafoam-600 underline" to="/background-check-adverse-action">
+          <Link className="text-seafoam-700 underline" to="/background-check-adverse-action">
             Adverse Action Policy
           </Link>{" "}
           or contact{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>
           .

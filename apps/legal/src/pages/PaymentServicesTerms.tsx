@@ -39,7 +39,7 @@ export function PaymentServicesTerms() {
           for the amount shown, including applicable fees and taxes, and for
           permitted post-service adjustments (for example, customer-requested
           add-ons or disclosed cancellation fees) under the{" "}
-          <Link className="text-seafoam-600 underline" to="/refund-policy">
+          <Link className="text-seafoam-700 underline" to="/refund-policy">
             Refund Policy
           </Link>
           .
@@ -57,7 +57,7 @@ export function PaymentServicesTerms() {
         <p>
           For recurring plans, you authorize charges for each visit as described in
           the{" "}
-          <Link className="text-seafoam-600 underline" to="/subscription-terms">
+          <Link className="text-seafoam-700 underline" to="/subscription-terms">
             Subscription Terms
           </Link>
           .
@@ -78,7 +78,7 @@ export function PaymentServicesTerms() {
           processor may delay, hold, or reserve payouts for risk, fraud review,
           disputes, validated damage claims, or as required by law. Fee and payout
           changes follow the{" "}
-          <Link className="text-seafoam-600 underline" to="/platform-fee-policy">
+          <Link className="text-seafoam-700 underline" to="/platform-fee-policy">
             Platform Fee Policy
           </Link>
           .
@@ -88,7 +88,7 @@ export function PaymentServicesTerms() {
       <Section id="chargebacks" title="7. Chargebacks & Refunds">
         <p>
           Refunds are handled under the{" "}
-          <Link className="text-seafoam-600 underline" to="/refund-policy">
+          <Link className="text-seafoam-700 underline" to="/refund-policy">
             Refund Policy
           </Link>
           . Sweepr may dispute illegitimate chargebacks and recover associated
@@ -115,15 +115,15 @@ export function PaymentServicesTerms() {
       <Section id="fees" title="10. Fees">
         <p>
           Platform fees, commissions, and processing costs are described in the{" "}
-          <Link className="text-seafoam-600 underline" to="/platform-fee-policy">
+          <Link className="text-seafoam-700 underline" to="/platform-fee-policy">
             Platform Fee Policy
           </Link>
           . Tax forms and reporting are described in the{" "}
-          <Link className="text-seafoam-600 underline" to="/tax-reporting">
+          <Link className="text-seafoam-700 underline" to="/tax-reporting">
             Tax Reporting Policy
           </Link>
           . Questions? Contact{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>
           .

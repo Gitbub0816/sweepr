@@ -529,7 +529,7 @@ export function OnboardingPage() {
           <button
             type="button"
             onClick={() => navigate("/")}
-            className="flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-seafoam-600"
+            className="flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-seafoam-700"
           >
             <ArrowLeft className="h-4 w-4" /> {t("nav.dashboard")}
           </button>
@@ -549,7 +549,7 @@ export function OnboardingPage() {
             onClick={() => switchMode("individual")}
             className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
               mode === "individual"
-                ? "bg-seafoam-500 text-white shadow"
+                ? "bg-seafoam-700 text-white shadow"
                 : "text-slate-600 hover:text-charcoal dark:text-slate-300"
             }`}
             aria-pressed={mode === "individual"}
@@ -561,7 +561,7 @@ export function OnboardingPage() {
             onClick={() => switchMode("business")}
             className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
               mode === "business"
-                ? "bg-seafoam-500 text-white shadow"
+                ? "bg-seafoam-700 text-white shadow"
                 : "text-slate-600 hover:text-charcoal dark:text-slate-300"
             }`}
             aria-pressed={mode === "business"}
@@ -572,7 +572,7 @@ export function OnboardingPage() {
 
         {/* Progress */}
         <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
-          <span className="font-medium text-seafoam-600">{STEPS[step]}</span>
+          <span className="font-medium text-seafoam-700">{STEPS[step]}</span>
           <span>
             Step {step + 1} of {STEPS.length}
           </span>
@@ -717,7 +717,7 @@ function StepTitle({
 }) {
   return (
     <div className="mb-6">
-      <span className="text-xs font-semibold uppercase tracking-wide text-seafoam-600">
+      <span className="text-xs font-semibold uppercase tracking-wide text-seafoam-700">
         Step {n}
       </span>
       <h2 className="mt-1 text-xl font-bold text-charcoal dark:text-white">
@@ -748,7 +748,7 @@ function PhotoUpload({
       className="flex h-32 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 text-sm text-slate-400 transition-colors hover:border-seafoam-400 dark:border-slate-700"
     >
       {value ? (
-        <span className="flex items-center gap-2 text-seafoam-600">
+        <span className="flex items-center gap-2 text-seafoam-700">
           <CheckCircle2 className="h-5 w-5" /> {label} added
         </span>
       ) : (
@@ -1063,7 +1063,7 @@ function StepServices({
                       }
                       className={`flex-1 px-1 py-1.5 text-xs font-medium transition-colors ${
                         active
-                          ? "bg-seafoam-500 text-white"
+                          ? "bg-seafoam-700 text-white"
                           : "bg-white text-slate-500 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800"
                       }`}
                     >
@@ -1178,7 +1178,7 @@ function StepIdentity({
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm font-medium text-seafoam-600 underline underline-offset-2 hover:text-seafoam-700 dark:text-seafoam-400"
+            className="text-sm font-medium text-seafoam-700 underline underline-offset-2 hover:text-seafoam-700 dark:text-seafoam-400"
           >
             Open in this browser instead →
           </a>
@@ -1296,7 +1296,7 @@ function StepReview({
           I confirm I am an independent contractor and agree to the{" "}
           <a
             href="/independent-contractor"
-            className="font-medium text-seafoam-600 underline"
+            className="font-medium text-seafoam-700 underline"
           >
             Sweepr Independent Contractor Agreement
           </a>

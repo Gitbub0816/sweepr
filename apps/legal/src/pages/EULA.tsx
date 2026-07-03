@@ -72,7 +72,7 @@ export function EULA() {
       <Section id="contact" title="7. Contact">
         <p>
           Questions? Contact{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${CONTACT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${CONTACT_EMAIL}`}>
             {CONTACT_EMAIL}
           </a>
           .

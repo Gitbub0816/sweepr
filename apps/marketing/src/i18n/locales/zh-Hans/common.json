@@ -123,7 +123,8 @@
     "contractor": "承包商披露",
     "status": "状态",
     "cookieSettings": "Cookie 设置",
-    "rights": "保留所有权利。"
+    "rights": "保留所有权利。",
+    "doNotSell": "请勿出售或共享我的个人信息"
   },
   "languageSelector": {
     "label": "语言"

@@ -117,7 +117,7 @@ export function SubscriptionsPage() {
           <Card key={sub.id}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="flex items-start gap-3">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-seafoam-50 text-seafoam-600 dark:bg-slate-800">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-seafoam-50 text-seafoam-700 dark:bg-slate-800">
                   <Repeat className="h-5 w-5" />
                 </span>
                 <div>

@@ -96,11 +96,11 @@ export function IndependentContractorAgreement() {
           notice and will not be applied retroactively to reduce payment for a
           booking already accepted before the effective date, except as permitted
           under the{" "}
-          <a className="text-seafoam-600 underline" href="/platform-fee-policy">
+          <a className="text-seafoam-700 underline" href="/platform-fee-policy">
             Platform Fee Policy
           </a>
           . Payouts are processed under the{" "}
-          <a className="text-seafoam-600 underline" href="/payment-terms">
+          <a className="text-seafoam-700 underline" href="/payment-terms">
             Payment Services Terms
           </a>
           .
@@ -169,7 +169,7 @@ export function IndependentContractorAgreement() {
         <p>
           This Agreement is governed by the laws of the State of{" "}
           {STATE_OF_INCORPORATION}. Questions may be directed to{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${CONTACT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${CONTACT_EMAIL}`}>
             {CONTACT_EMAIL}
           </a>
           .

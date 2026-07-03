@@ -140,13 +140,13 @@ export function PrelaunchGate({ type, apiUrl, children, forcePrelaunch = false }
         <div className="flex gap-3">
           <a
             href="https://status.getsweepr.com"
-            className="rounded-lg border border-seafoam-500 px-4 py-2 text-sm font-semibold text-seafoam-600 hover:bg-seafoam-50 transition-colors"
+            className="rounded-lg border border-seafoam-500 px-4 py-2 text-sm font-semibold text-seafoam-700 hover:bg-seafoam-50 transition-colors"
           >
             View Status Page
           </a>
           <a
             href="https://status.getsweepr.com#newsletter"
-            className="rounded-lg bg-seafoam-500 px-4 py-2 text-sm font-semibold text-white hover:bg-seafoam-600 transition-colors"
+            className="rounded-lg bg-seafoam-700 px-4 py-2 text-sm font-semibold text-white hover:bg-seafoam-800 transition-colors"
           >
             Subscribe for Updates
           </a>
@@ -199,7 +199,7 @@ export function PrelaunchGate({ type, apiUrl, children, forcePrelaunch = false }
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 rounded-lg bg-seafoam-500 px-3 py-2 text-sm font-semibold text-white hover:bg-seafoam-600"
+                  className="flex-1 rounded-lg bg-seafoam-700 px-3 py-2 text-sm font-semibold text-white hover:bg-seafoam-800"
                 >
                   Unlock
                 </button>

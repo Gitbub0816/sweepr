@@ -29,7 +29,7 @@ export function SavedPaymentCard({
   return (
     <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-14 items-center justify-center rounded-lg bg-seafoam-50 text-seafoam-600 dark:bg-slate-800">
+        <div className="flex h-10 w-14 items-center justify-center rounded-lg bg-seafoam-50 text-seafoam-700 dark:bg-slate-800">
           <CreditCard className="h-5 w-5" />
         </div>
         <div>

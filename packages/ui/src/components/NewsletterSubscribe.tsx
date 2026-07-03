@@ -34,7 +34,7 @@ export function NewsletterSubscribe({ apiUrl, className }: NewsletterSubscribePr
     return (
       <div className={`rounded-lg bg-seafoam-50 border border-seafoam-200 px-4 py-3 text-center ${className ?? ""}`}>
         <p className="text-sm font-semibold text-seafoam-700">You're on the list! 🎉</p>
-        <p className="text-xs text-seafoam-600 mt-0.5">We'll be in touch as soon as it's ready.</p>
+        <p className="text-xs text-seafoam-700 mt-0.5">We'll be in touch as soon as it's ready.</p>
       </div>
     );
   }
@@ -53,7 +53,7 @@ export function NewsletterSubscribe({ apiUrl, className }: NewsletterSubscribePr
         <button
           type="submit"
           disabled={loading}
-          className="rounded-lg bg-seafoam-500 px-4 py-2 text-sm font-semibold text-white hover:bg-seafoam-600 disabled:opacity-50 transition-colors whitespace-nowrap"
+          className="rounded-lg bg-seafoam-700 px-4 py-2 text-sm font-semibold text-white hover:bg-seafoam-800 disabled:opacity-50 transition-colors whitespace-nowrap"
         >
           {loading ? "…" : "Subscribe"}
         </button>

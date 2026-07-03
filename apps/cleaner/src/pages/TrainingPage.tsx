@@ -168,7 +168,7 @@ function ModuleCard({
               ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30"
               : locked
                 ? "bg-slate-200 text-slate-400 dark:bg-slate-800"
-                : "bg-seafoam-100 text-seafoam-600 dark:bg-seafoam-900/30"
+                : "bg-seafoam-100 text-seafoam-700 dark:bg-seafoam-900/30"
           }`}
         >
           {passed ? (
@@ -208,7 +208,7 @@ function ModuleCard({
       )}
 
       {!locked && (
-        <span className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-seafoam-600 group-hover:gap-2">
+        <span className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-seafoam-700 group-hover:gap-2">
           {passed ? t("common.edit") : inProgress ? t("common.continue") : t("common.getStarted")}
           <ChevronRight className="h-4 w-4 transition-all" />
         </span>
@@ -450,7 +450,7 @@ function LessonViewer({
       {/* Module header */}
       <div className="rounded-2xl border border-seafoam-100 bg-seafoam-50 p-5 dark:border-seafoam-900/40 dark:bg-seafoam-950/20">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-seafoam-500 text-white">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-seafoam-700 text-white">
             <BookOpen className="h-5 w-5" />
           </div>
           <div>
@@ -488,7 +488,7 @@ function LessonViewer({
                   ) : (
                     <span
                       className={`flex h-6 w-6 items-center justify-center rounded-full border-2 text-xs ${
-                        active ? "border-seafoam-500 text-seafoam-600" : "border-slate-300 text-slate-400"
+                        active ? "border-seafoam-500 text-seafoam-700" : "border-slate-300 text-slate-400"
                       }`}
                     >
                       {idx + 1}
@@ -655,7 +655,7 @@ function Quiz({
           <span>
             {t("cleaner.training.questionOf", { current: current + 1, total: questions.length })}
           </span>
-          <span className="text-seafoam-600">{pct}%</span>
+          <span className="text-seafoam-700">{pct}%</span>
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
           <div
@@ -684,7 +684,7 @@ function Quiz({
                 <span
                   className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 text-xs font-semibold ${
                     selected
-                      ? "border-seafoam-500 bg-seafoam-500 text-white"
+                      ? "border-seafoam-500 bg-seafoam-700 text-white"
                       : "border-slate-300 text-slate-400"
                   }`}
                 >

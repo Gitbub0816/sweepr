@@ -59,7 +59,7 @@ export function QuoteCalculator({ pricingGated = false }: { pricingGated?: boole
 
   return (
     <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white/95 p-6 text-left shadow-2xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/95">
-      <p className="text-xs font-bold uppercase tracking-wide text-seafoam-600">
+      <p className="text-xs font-bold uppercase tracking-wide text-seafoam-700">
         Instant quote
       </p>
       <h3 className="mt-1 text-xl font-black text-charcoal dark:text-white">
@@ -98,7 +98,7 @@ export function QuoteCalculator({ pricingGated = false }: { pricingGated?: boole
 
       <button
         onClick={() => (window.location.href = CUSTOMER_URL)}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-seafoam-500 px-4 py-3.5 text-base font-bold text-white transition hover:bg-seafoam-600"
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-seafoam-700 px-4 py-3.5 text-base font-bold text-white transition hover:bg-seafoam-800"
       >
         Book this clean <ArrowRight aria-hidden="true" className="h-4 w-4" />
       </button>

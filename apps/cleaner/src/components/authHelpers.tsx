@@ -21,7 +21,7 @@ export function SubmitButton({ loading, disabled, label }: { loading: boolean; d
       type="submit"
       disabled={loading || disabled}
       aria-busy={loading}
-      className="flex w-full items-center justify-center gap-2 rounded-xl bg-seafoam-500 py-3 text-sm font-semibold text-white shadow-md shadow-seafoam-500/30 transition hover:bg-seafoam-600 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-seafoam-400 focus-visible:ring-offset-2"
+      className="flex w-full items-center justify-center gap-2 rounded-xl bg-seafoam-700 py-3 text-sm font-semibold text-white shadow-md shadow-seafoam-500/30 transition hover:bg-seafoam-800 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-seafoam-400 focus-visible:ring-offset-2"
     >
       {loading && (
         <span aria-live="polite" className="flex items-center gap-2">

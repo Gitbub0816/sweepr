@@ -32,7 +32,7 @@ export function NavAuth() {
     return (
       <Link
         to="/sign-in"
-        className="rounded-lg px-3 py-1.5 text-sm font-medium text-seafoam-600 transition hover:bg-seafoam-50 dark:text-seafoam-400 dark:hover:bg-slate-800"
+        className="rounded-lg px-3 py-1.5 text-sm font-medium text-seafoam-700 transition hover:bg-seafoam-50 dark:text-seafoam-400 dark:hover:bg-slate-800"
       >
         {t("auth.signIn")}
       </Link>

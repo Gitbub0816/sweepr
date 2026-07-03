@@ -31,7 +31,7 @@ export function ServiceCard({
       )}
     >
       {selected && (
-        <span className="absolute right-4 top-4 flex h-5 w-5 items-center justify-center rounded-full bg-seafoam-500 text-white">
+        <span className="absolute right-4 top-4 flex h-5 w-5 items-center justify-center rounded-full bg-seafoam-700 text-white">
           <Check className="h-3 w-3" />
         </span>
       )}
@@ -39,8 +39,8 @@ export function ServiceCard({
         className={cn(
           "mb-3 flex h-10 w-10 items-center justify-center rounded-xl",
           selected
-            ? "bg-seafoam-500 text-white"
-            : "bg-seafoam-50 text-seafoam-600 dark:bg-slate-800"
+            ? "bg-seafoam-700 text-white"
+            : "bg-seafoam-50 text-seafoam-700 dark:bg-slate-800"
         )}
       >
         <Icon className="h-5 w-5" />

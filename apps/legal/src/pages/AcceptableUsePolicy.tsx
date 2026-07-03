@@ -37,7 +37,7 @@ export function AcceptableUsePolicy() {
         </ul>
         <p>
           Report vulnerabilities responsibly under the{" "}
-          <Link className="text-seafoam-600 underline" to="/vulnerability-disclosure">
+          <Link className="text-seafoam-700 underline" to="/vulnerability-disclosure">
             Vulnerability Disclosure Policy
           </Link>
           .
@@ -55,7 +55,7 @@ export function AcceptableUsePolicy() {
         <p>
           Violations may result in content removal, suspension, or termination, and
           may be reported to authorities where appropriate. Report misuse to{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>
           .

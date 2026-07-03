@@ -129,7 +129,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <button
               type="button"
               onClick={this.reset}
-              className="mt-6 rounded-xl bg-seafoam-500 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-seafoam-600"
+              className="mt-6 rounded-xl bg-seafoam-700 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-seafoam-800"
             >
               Reload
             </button>
@@ -153,7 +153,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <button
           type="button"
           onClick={this.reset}
-          className="mt-6 rounded-2xl bg-seafoam-500 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-seafoam-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-seafoam-500 focus-visible:ring-offset-2"
+          className="mt-6 rounded-2xl bg-seafoam-700 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-seafoam-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-seafoam-500 focus-visible:ring-offset-2"
         >
           Reload
         </button>

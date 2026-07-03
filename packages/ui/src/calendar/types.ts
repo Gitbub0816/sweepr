@@ -33,7 +33,7 @@ export interface CalendarProps {
 }
 
 export const SLOT_COLORS: Record<SlotType, string> = {
-  recurring: "bg-seafoam-500 text-white",
+  recurring: "bg-seafoam-700 text-white",
   flexible: "bg-seafoam-300 text-seafoam-900",
   available_now: "bg-amber-400 text-amber-950",
   booked: "bg-slate-700 text-white",

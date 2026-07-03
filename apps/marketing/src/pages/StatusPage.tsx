@@ -175,7 +175,7 @@ export default function StatusPage() {
             )}
 
             {allGood && (
-              <div className="mt-8 flex items-center gap-2 text-sm text-slate-400">
+              <div className="mt-8 flex items-center gap-2 text-sm text-slate-600">
                 <Clock className="h-4 w-4" />
                 <span>Last checked {new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
               </div>

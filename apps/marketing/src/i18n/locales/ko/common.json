@@ -123,7 +123,8 @@
     "contractor": "계약자 공시",
     "status": "상태",
     "cookieSettings": "쿠키 설정",
-    "rights": "모든 권리 보유."
+    "rights": "모든 권리 보유.",
+    "doNotSell": "내 개인정보를 판매하거나 공유하지 마세요"
   },
   "languageSelector": {
     "label": "언어"

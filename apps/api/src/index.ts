@@ -51,6 +51,7 @@ import { securityRouter } from "./routes/security";
 import { itInboundRouter } from "./routes/itInbound";
 import { mailboxInboundRouter } from "./routes/mailboxInbound";
 import { adminMailRouter } from "./routes/adminMail";
+import { privacyPublicRouter } from "./routes/privacyPublic";
 import { reportRouter } from "./routes/report";
 import { responseTemplatesRouter } from "./routes/responseTemplates";
 import { adminEmailRouter, mailersendWebhookRouter, unsubscribeRouter } from "./routes/adminEmail";
@@ -86,6 +87,7 @@ app.use("/pricing/*", rateLimit({ limit: 60, windowMs: 60_000, keyPrefix: "prici
 app.use("/client-errors/*", rateLimit({ limit: 20, windowMs: 60_000, keyPrefix: "clienterr" }));
 app.use("/slack/*", rateLimit({ limit: 300, windowMs: 60_000, keyPrefix: "slack" }));
 app.use("/unsubscribe/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "unsub" }));
+app.use("/privacy/*", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "privacy" }));
 
 app.get("/", (c) => c.json({ name: "sweepr-api", status: "ok" }));
 app.get("/health", (c) => c.json({ ok: true }));
@@ -164,6 +166,7 @@ app.route("/admin/email", adminEmailRouter);
 app.route("/admin/settings", adminSettingsRouter);
 app.route("/webhooks/mailersend", mailersendWebhookRouter);
 app.route("/unsubscribe", unsubscribeRouter);
+app.route("/privacy", privacyPublicRouter);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 

@@ -53,7 +53,7 @@ export function ServiceScopePolicy() {
         <p>
           Recurring cleanings maintain a home cleaned to standard. The first
           visit of a heavily soiled home may require a deep clean. See{" "}
-          <Link className="text-seafoam-600 underline" to="/subscription-terms">
+          <Link className="text-seafoam-700 underline" to="/subscription-terms">
             Subscription Terms
           </Link>
           .
@@ -89,7 +89,7 @@ export function ServiceScopePolicy() {
         <p>
           Cleaners may skip unsafe areas and are not required to move heavy items,
           clean unsafe heights, or handle hazardous materials. See the{" "}
-          <Link className="text-seafoam-600 underline" to="/trust-safety">
+          <Link className="text-seafoam-700 underline" to="/trust-safety">
             Trust &amp; Safety Policy
           </Link>
           .
@@ -102,14 +102,14 @@ export function ServiceScopePolicy() {
           laundry, or pet-hair removal) may be added at booking for an additional
           charge. Add-ons requested on-site may not be accommodated and may affect
           price and payout. Pricing is described in the{" "}
-          <Link className="text-seafoam-600 underline" to="/platform-fee-policy">
+          <Link className="text-seafoam-700 underline" to="/platform-fee-policy">
             Platform Fee Policy
           </Link>
           .
         </p>
         <p>
           Questions? Contact{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>
           .

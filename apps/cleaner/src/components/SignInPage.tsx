@@ -113,7 +113,7 @@ export function SignInPage() {
       <div className="absolute right-4 top-4"><ThemeToggle /></div>
       <div className="mb-8 flex flex-col items-center text-center">
         <SweeprLogo size="md" />
-        <p className="mt-1 text-sm font-medium text-seafoam-600 dark:text-seafoam-400">Sweepr Pro</p>
+        <p className="mt-1 text-sm font-medium text-seafoam-700 dark:text-seafoam-400">Sweepr Pro</p>
         <h1 className="mt-4 text-2xl font-bold text-charcoal dark:text-white">{t("auth.welcomeBack")}</h1>
         <p className="mt-1 text-sm text-slate-500">{t("auth.signInToManageCleans")}</p>
       </div>
@@ -141,7 +141,7 @@ export function SignInPage() {
         <div className="mb-5 flex rounded-xl border border-slate-200 p-1 dark:border-slate-700">
           {(["email", "phone"] as Method[]).map((m) => (
             <button key={m} type="button" onClick={() => { setMethod(m); setError(""); setNoAccount(false); setPhoneStage("form"); }}
-              className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${method === m ? "bg-seafoam-500 text-white shadow-sm" : "text-slate-500 hover:text-slate-700 dark:text-slate-400"}`}>
+              className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${method === m ? "bg-seafoam-700 text-white shadow-sm" : "text-slate-500 hover:text-slate-700 dark:text-slate-400"}`}>
               {m === "email" ? t("auth.email") : t("auth.phone")}
             </button>
           ))}
@@ -217,7 +217,7 @@ export function SignInPage() {
 
         <p className="mt-6 text-center text-sm text-slate-500">
           {t("auth.dontHaveAccount")}{" "}
-          <Link to="/sign-up" className="font-medium text-seafoam-600 hover:underline dark:text-seafoam-400">{t("auth.createOne")}</Link>
+          <Link to="/sign-up" className="font-medium text-seafoam-700 hover:underline dark:text-seafoam-400">{t("auth.createOne")}</Link>
         </p>
       </div>
     </main>

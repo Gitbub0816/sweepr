@@ -69,7 +69,7 @@ export function DamageClaimsPolicy() {
         <p>
           Claim resolutions may be subject to maximum limits unless covered under
           an applicable insurance program described in the{" "}
-          <Link className="text-seafoam-600 underline" to="/insurance-protection">
+          <Link className="text-seafoam-700 underline" to="/insurance-protection">
             Insurance &amp; Protection Policy
           </Link>
           . Sweepr does not guarantee payment of any claim.
@@ -90,7 +90,7 @@ export function DamageClaimsPolicy() {
         <p>
           Where applicable, claims may be submitted to an insurance program and
           coordinated with any Cleaner-negligence process. See the{" "}
-          <Link className="text-seafoam-600 underline" to="/insurance-protection">
+          <Link className="text-seafoam-700 underline" to="/insurance-protection">
             Insurance &amp; Protection Policy
           </Link>
           .
@@ -100,11 +100,11 @@ export function DamageClaimsPolicy() {
       <Section id="disputes" title="8. Disputes">
         <p>
           If you disagree with a claim decision, the{" "}
-          <Link className="text-seafoam-600 underline" to="/dispute-resolution">
+          <Link className="text-seafoam-700 underline" to="/dispute-resolution">
             Dispute Resolution
           </Link>{" "}
           process applies. To open a claim, contact{" "}
-          <a className="text-seafoam-600 underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          <a className="text-seafoam-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>
           .

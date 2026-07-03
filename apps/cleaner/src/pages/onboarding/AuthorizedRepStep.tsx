@@ -33,7 +33,7 @@ export function AuthorizedRepStep({
   return (
     <div className="space-y-4">
       <div className="mb-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-seafoam-600">
+        <span className="text-xs font-semibold uppercase tracking-wide text-seafoam-700">
           Step {n}
         </span>
         <h2 className="mt-1 text-xl font-bold text-charcoal dark:text-white">
