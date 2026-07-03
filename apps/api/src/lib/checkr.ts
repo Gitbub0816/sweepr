@@ -327,7 +327,11 @@ export async function verifyCheckrSignature(
   const hex = Array.from(new Uint8Array(mac))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
-  return hex === signature;
+  // Constant-time comparison — a plain === leaks match length via timing.
+  if (hex.length !== signature.length) return false;
+  let diff = 0;
+  for (let i = 0; i < hex.length; i++) diff |= hex.charCodeAt(i) ^ signature.charCodeAt(i);
+  return diff === 0;
 }
 
 // ─── FCRA timing helpers ──────────────────────────────────────────────────────

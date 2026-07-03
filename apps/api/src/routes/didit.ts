@@ -135,17 +135,21 @@ diditWebhookRouter.post("/", async (c) => {
   const sigV2 = c.req.header("x-signature-v2") ?? "";
   const timestamp = c.req.header("x-timestamp") ?? "";
 
-  if (c.env.DIDIT_WEBHOOK_SECRET) {
-    const valid = await verifyDiditSignature(
-      rawBody,
-      sigV2,
-      c.env.DIDIT_WEBHOOK_SECRET,
-      timestamp
-    );
-    if (!valid) {
-      logger.warn("Didit webhook: invalid signature or stale timestamp");
-      return c.json({ error: "Invalid signature" }, 401);
-    }
+  // Fail closed: without the shared secret we cannot authenticate the caller,
+  // and this endpoint writes verification decisions — never accept unsigned.
+  if (!c.env.DIDIT_WEBHOOK_SECRET) {
+    logger.warn("Didit webhook: DIDIT_WEBHOOK_SECRET not configured");
+    return c.json({ error: "Webhook not configured" }, 503);
+  }
+  const valid = await verifyDiditSignature(
+    rawBody,
+    sigV2,
+    c.env.DIDIT_WEBHOOK_SECRET,
+    timestamp
+  );
+  if (!valid) {
+    logger.warn("Didit webhook: invalid signature or stale timestamp");
+    return c.json({ error: "Invalid signature" }, 401);
   }
 
   let payload: {
