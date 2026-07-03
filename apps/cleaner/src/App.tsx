@@ -38,6 +38,7 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { TrainingPage } from "./pages/TrainingPage";
 import { CourseViewerPage } from "./pages/CourseViewerPage";
 import { InsurancePage } from "./pages/InsurancePage";
+import { VerifyDonePage } from "./pages/VerifyDonePage";
 import { SignInPage } from "./components/SignInPage";
 import { SignUpPage } from "./components/SignUpPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -158,6 +159,9 @@ export default function App() {
       <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback continueSignUpUrl="/sign-up/continue" />} />
       <Route path="/sign-up/continue" element={<ContinueSignUp />} />
       <Route path="/checkr-simulate" element={<CheckrSimulatePage />} />
+
+      {/* Didit QR callback — phone lands here after completing verification */}
+      <Route path="/verify-done" element={<VerifyDonePage />} />
 
       {/* Everything else is gated during prelaunch */}
       <Route element={<GateLayout />}>
