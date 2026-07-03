@@ -281,7 +281,7 @@ export function DashboardPage() {
           <Card>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="font-semibold text-charcoal dark:text-white">Recent audit events</h2>
-              <a href="/events" className="text-xs text-seafoam-600 hover:underline">View all →</a>
+              <a href="/events" className="text-xs text-seafoam-700 hover:underline">View all →</a>
             </div>
             {(data?.recentAudit ?? []).length === 0 ? (
               <p className="py-4 text-sm text-slate-600">No audit events yet. Events are recorded when admin actions are taken.</p>

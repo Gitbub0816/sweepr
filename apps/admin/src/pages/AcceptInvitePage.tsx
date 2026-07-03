@@ -143,7 +143,7 @@ export function AcceptInvitePage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-seafoam-50 via-offwhite to-seafoam-100 px-4 py-12 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       <div className="mb-8 flex flex-col items-center text-center">
         <SweeprLogo size="md" />
-        <p className="mt-1 text-sm font-semibold uppercase tracking-wide text-seafoam-600 dark:text-seafoam-400">Ops Console</p>
+        <p className="mt-1 text-sm font-semibold uppercase tracking-wide text-seafoam-700 dark:text-seafoam-400">Ops Console</p>
         <h1 className="mt-4 text-2xl font-bold text-charcoal dark:text-white">
           {stage === "enter_code" ? "Check your email" : "Admin Invitation"}
         </h1>

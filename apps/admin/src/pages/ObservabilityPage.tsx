@@ -540,7 +540,7 @@ function BookingFunnelTab() {
                     <span className="text-charcoal font-medium">
                       {s?.count ?? 0}
                       {dropoff !== null && dropoff > 0 && (
-                        <span className="ml-2 text-red-400">−{dropoff}</span>
+                        <span className="ml-2 text-red-700">−{dropoff}</span>
                       )}
                     </span>
                   </div>
@@ -791,7 +791,7 @@ function IntegrationCard({ tile }: { tile: IntegrationTile }) {
       </div>
       {tile.href && (
         <a href={tile.href} target="_blank" rel="noopener noreferrer"
-          className="shrink-0 text-xs text-seafoam-600 hover:underline mt-1">
+          className="shrink-0 text-xs text-seafoam-700 hover:underline mt-1">
           Open ↗
         </a>
       )}

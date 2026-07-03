@@ -120,7 +120,7 @@ export function NotificationsPage() {
                       <p className="text-xs text-slate-500">{item.description}</p>
                       <p className="mt-0.5 font-mono text-[10px] text-slate-300">{item.key}</p>
                     </div>
-                    <span className={`text-xs ${item.enabled ? "text-seafoam-600" : "text-slate-600"}`}>
+                    <span className={`text-xs ${item.enabled ? "text-seafoam-700" : "text-slate-600"}`}>
                       {item.enabled ? "On" : "Off"}
                     </span>
                     <Toggle on={item.enabled} onClick={() => toggle(item)} />
