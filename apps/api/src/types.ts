@@ -17,6 +17,10 @@ export interface Env {
   R2_PUBLIC_URL: string;
   CUSTOMER_URL?: string;
   CHECKR_API_KEY?: string;
+  /** Optional public Checkr.js key. Safe to expose to the cleaner app. */
+  VITE_CHECKR_PUBLISHABLE_KEY?: string;
+  /** Optional public Checkr.js key alias for Worker-side runtime config. */
+  CHECKR_PUBLISHABLE_KEY?: string;
   /** Optional override for staging/sandbox Checkr hosts. Defaults to https://api.checkr.com/v1. */
   CHECKR_API_URL?: string;
   CHECKR_PACKAGE?: string;
