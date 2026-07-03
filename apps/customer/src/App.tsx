@@ -187,6 +187,7 @@ export default function App() {
       <OfflineIndicator />
       <ReportProblemMount />
       <CookieConsent />
+      <div id="main" tabIndex={-1} className="contents">
       <Routes>
         {/* OAuth SSO callback — outside prelaunch gate, handles token exchange */}
         <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback continueSignUpUrl="/sign-up/continue" />} />
@@ -236,6 +237,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/home" replace />} />
         </Route>
       </Routes>
+      </div>
     </ErrorBoundary>
   );
 }
