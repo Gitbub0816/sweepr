@@ -17,6 +17,8 @@ export interface Env {
   R2_PUBLIC_URL: string;
   CUSTOMER_URL?: string;
   CHECKR_API_KEY?: string;
+  /** Optional override for staging/sandbox Checkr hosts. Defaults to https://api.checkr.com/v1. */
+  CHECKR_API_URL?: string;
   CHECKR_PACKAGE?: string;
   CHECKR_WEBHOOK_SECRET?: string;
   DIDIT_API_KEY?: string;
