@@ -15,6 +15,15 @@
  */
 
 const CHECKR_BASE = "https://api.checkr.com/v1";
+const CHECKR_STAGING_BASE = "https://api.checkr-staging.com/v1";
+
+/**
+ * Once a host has authenticated successfully for a given key, remember it for
+ * the isolate's lifetime so subsequent calls skip the detection round-trip.
+ * Keyed by a short prefix of the key — enough to distinguish rotations without
+ * holding the whole secret in the map.
+ */
+const workingHostCache = new Map<string, string>();
 
 export type CheckrStatus =
   | "not_started"
@@ -205,25 +214,60 @@ function mockClient(packageSlug: string) {
 
 // ─── Live implementation ──────────────────────────────────────────────────────
 
-function liveClient(apiKey: string, packageSlug: string, baseUrl: string) {
+function liveClient(apiKey: string, packageSlug: string, explicitBaseUrl?: string) {
+  const cacheKey = apiKey.slice(0, 12);
+
+  /**
+   * Hosts to try, in order. When CHECKR_API_URL is set explicitly we honor it
+   * and never fall back. When it's unset we auto-detect: production first,
+   * then the staging host. Staging keys against api.checkr.com fail with
+   * 401 "Bad authentication error" or a WAF-level 403 "Request blocked" —
+   * both mean "wrong environment", so retrying the staging host resolves a
+   * staging account without any config change. Nothing is created on the
+   * failing host (auth is rejected before the request body is processed),
+   * so the cross-host retry is safe for POSTs.
+   */
+  function candidateHosts(): string[] {
+    if (explicitBaseUrl) return [normalizeCheckrBaseUrl(explicitBaseUrl)];
+    const cached = workingHostCache.get(cacheKey);
+    const order = [CHECKR_BASE, CHECKR_STAGING_BASE];
+    if (cached) return [cached, ...order.filter((h) => h !== cached)];
+    return order;
+  }
+
   async function req<T>(
     method: string,
     path: string,
     body?: unknown
   ): Promise<T> {
-    const res = await fetch(`${baseUrl}${path}`, {
-      method,
-      headers: authHeader(apiKey),
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    if (!res.ok) {
+    const hosts = candidateHosts();
+    let lastError: Error | null = null;
+
+    for (const host of hosts) {
+      const res = await fetch(`${host}${path}`, {
+        method,
+        headers: authHeader(apiKey),
+        body: body ? JSON.stringify(body) : undefined,
+      });
+
+      if (res.ok) {
+        workingHostCache.set(cacheKey, host);
+        return res.json() as Promise<T>;
+      }
+
       const text = await res.text().catch(() => "");
-      const authHint = res.status === 401
-        ? " Check CHECKR_API_KEY and CHECKR_API_URL; staging keys must be used with the staging API host, and the secret should be the raw API key, not a dashboard URL."
+      const environmentMismatch = res.status === 401 || res.status === 403;
+      const authHint = environmentMismatch
+        ? " Check CHECKR_API_KEY and CHECKR_API_URL; staging keys must be used with the staging API host (https://api.checkr-staging.com), and the secret should be the raw API key, not a dashboard URL."
         : "";
-      throw new Error(`Checkr ${method} ${path} → ${res.status}: ${text}${authHint}`);
+      lastError = new Error(`Checkr ${method} ${path} → ${res.status}: ${text}${authHint}`);
+
+      // Only an auth/blocked failure suggests the wrong environment — anything
+      // else (404, 422, 5xx) is a real answer from the right host; don't retry.
+      if (!environmentMismatch) throw lastError;
     }
-    return res.json() as Promise<T>;
+
+    throw lastError ?? new Error(`Checkr ${method} ${path} failed with no response`);
   }
 
   return {
@@ -298,7 +342,9 @@ export function checkrClient(env: {
 }) {
   const pkg = env.CHECKR_PACKAGE ?? "tasker_standard";
   if (!env.CHECKR_API_KEY) return mockClient(pkg);
-  return liveClient(env.CHECKR_API_KEY, pkg, normalizeCheckrBaseUrl(env.CHECKR_API_URL));
+  // Pass the raw configured URL (may be undefined) — liveClient normalizes it
+  // and auto-detects production vs staging when it's unset.
+  return liveClient(env.CHECKR_API_KEY, pkg, stripWrappingQuotes(env.CHECKR_API_URL ?? "").trim() || undefined);
 }
 
 // ─── Webhook signature verification ──────────────────────────────────────────
