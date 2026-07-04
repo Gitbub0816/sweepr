@@ -65,6 +65,22 @@ stripeWebhookRouter.post("/", async (c) => {
   switch (event.type) {
     case "payment_intent.succeeded": {
       const intent = event.data.object;
+      // Tips are a separate PaymentIntent (metadata.type === 'tip'). Settle the
+      // tip row and stop — tips never affect booking status or payout ledgers.
+      if (intent.metadata?.type === "tip") {
+        await sql`
+          UPDATE booking_tips SET status = 'succeeded', updated_at = NOW()
+          WHERE stripe_payment_intent_id = ${intent.id} AND status = 'pending'
+        `;
+        await recordPaymentEvent(sql, {
+          eventType: "tip_succeeded",
+          bookingId: intent.metadata?.booking_id ?? null,
+          amountCents: intent.amount,
+          providerEventId: intent.id,
+          success: true,
+        });
+        break;
+      }
       const bookingId = intent.metadata?.bookingId;
       await recordPaymentEvent(sql, {
         eventType: "payment_intent_succeeded",
@@ -145,6 +161,23 @@ stripeWebhookRouter.post("/", async (c) => {
     }
     case "payment_intent.payment_failed": {
       const intent = event.data.object;
+      // Tip PI failure: mark the tip failed so the customer can retry.
+      if (intent.metadata?.type === "tip") {
+        await sql`
+          UPDATE booking_tips SET status = 'failed', updated_at = NOW()
+          WHERE stripe_payment_intent_id = ${intent.id} AND status = 'pending'
+        `;
+        await recordPaymentEvent(sql, {
+          eventType: "tip_failed",
+          bookingId: intent.metadata?.booking_id ?? null,
+          amountCents: intent.amount,
+          providerEventId: intent.id,
+          success: false,
+          errorCode: intent.last_payment_error?.code ?? null,
+          errorMessage: intent.last_payment_error?.message ?? null,
+        });
+        break;
+      }
       const bookingId = intent.metadata?.bookingId;
       await recordPaymentEvent(sql, {
         eventType: "payment_intent_failed",

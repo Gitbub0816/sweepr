@@ -35,13 +35,24 @@ reviewsRouter.post(
     if (!customer) return c.json({ error: "Forbidden" }, 403);
 
     const bookingRows = (await sql`
-      SELECT id, customer_id, cleaner_id, status FROM bookings WHERE id = ${input.bookingId} LIMIT 1
-    `) as Array<{ id: string; customer_id: string; cleaner_id: string | null; status: string }>;
+      SELECT id, customer_id, cleaner_id, status, completed_at FROM bookings WHERE id = ${input.bookingId} LIMIT 1
+    `) as Array<{ id: string; customer_id: string; cleaner_id: string | null; status: string; completed_at: string | null }>;
     const booking = bookingRows[0];
     if (!booking) return c.json({ error: "Booking not found" }, 404);
     if (booking.customer_id !== customer.id) return c.json({ error: "Forbidden" }, 403);
     if (booking.status !== "completed") {
       return c.json({ error: "Booking must be completed before it can be reviewed" }, 409);
+    }
+    // Reviews (create or edit) are only allowed within 3 days of completion.
+    const REVIEW_WINDOW_DAYS = 3;
+    if (booking.completed_at) {
+      const ageMs = Date.now() - new Date(booking.completed_at).getTime();
+      if (ageMs > REVIEW_WINDOW_DAYS * 24 * 60 * 60 * 1000) {
+        return c.json(
+          { error: "review_window_closed", message: `Reviews can only be left or edited within ${REVIEW_WINDOW_DAYS} days of the service` },
+          400,
+        );
+      }
     }
     if (booking.cleaner_id !== input.cleanerId) {
       return c.json({ error: "cleanerId does not match this booking" }, 400);

@@ -96,12 +96,25 @@ paymentsRouter.post(
     }
 
     // Idempotency: return existing intent if already created within 24 h.
+    // Only reuse a MANUAL-capture intent — the platform authorizes at booking
+    // time and captures after the service is completed (capture cron in
+    // index.ts gates on status === "requires_capture"). A cached auto-capture
+    // intent left over from before this behavior is cancelled and replaced.
     if (booking.stripe_payment_intent_id && booking.stripe_payment_intent_created_at) {
       const age = Date.now() - new Date(booking.stripe_payment_intent_created_at).getTime();
       if (age < 24 * 60 * 60 * 1000) {
         const existing = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id);
-        if (existing.status !== "canceled") {
+        if (existing.status !== "canceled" && existing.capture_method === "manual") {
           return c.json({ clientSecret: existing.client_secret, id: existing.id });
+        }
+        // Stale auto-capture intent: cancel it (only cancelable pre-capture)
+        // and fall through to create a fresh manual-capture intent.
+        if (existing.status !== "canceled" && existing.capture_method !== "manual") {
+          try {
+            await stripe.paymentIntents.cancel(existing.id);
+          } catch {
+            // Already uncancelable (e.g. captured) — nothing to reuse; continue.
+          }
         }
       }
     }
@@ -110,9 +123,14 @@ paymentsRouter.post(
       return c.json({ error: "Booking has no valid price" }, 400);
     }
 
+    // Manual capture: authorize now, capture after the clean is completed.
+    // NOTE: Stripe automatically cancels an uncaptured manual-capture
+    // PaymentIntent after 7 days, so the booking must be captured within that
+    // window (the hourly capture cron handles completed bookings promptly).
     const intent = await stripe.paymentIntents.create({
       amount: booking.total_price,
       currency: "usd",
+      capture_method: "manual",
       automatic_payment_methods: { enabled: true },
       metadata: {
         clerkId: user.clerkId,
@@ -264,7 +282,63 @@ paymentsRouter.post(
       platformFee,
     });
 
-    return c.json({ ok: true, transferId: transfer.id, cleanerPayout, platformFee });
+    // Tip payout: a succeeded tip is transferred 100% to the cleaner (no
+    // platform fee, no tier multiplier) as a SEPARATE transfer. Claim-then-act:
+    // flip paid_out_at first so a retry can't double-transfer, then send. The
+    // idempotency key (tip_${id}) makes the Stripe call itself safe on retry.
+    let tipTransferId: string | null = null;
+    let tipAmount = 0;
+    try {
+      const tipRows = (await sql`
+        SELECT id, amount_cents FROM booking_tips
+        WHERE booking_id = ${bookingId} AND status = 'succeeded' AND paid_out_at IS NULL
+        LIMIT 1
+      `) as Array<{ id: string; amount_cents: number }>;
+      const tip = tipRows[0];
+      if (tip) {
+        const claimedTip = (await sql`
+          UPDATE booking_tips
+          SET paid_out_at = NOW(), visible_to_cleaner = TRUE, updated_at = NOW()
+          WHERE id = ${tip.id} AND paid_out_at IS NULL
+          RETURNING id
+        `) as Array<{ id: string }>;
+        if (claimedTip[0]) {
+          try {
+            const tipTransfer = await stripe.transfers.create(
+              {
+                amount: tip.amount_cents,
+                currency: "usd",
+                destination: cleaner.stripe_connect_id,
+                transfer_group: `booking_${bookingId}`,
+                metadata: { type: "tip", booking_id: bookingId, tip_id: tip.id },
+              },
+              { idempotencyKey: `tip_${tip.id}` },
+            );
+            tipTransferId = tipTransfer.id;
+            tipAmount = tip.amount_cents;
+            await audit(sql, {
+              action: "tip.paid_out",
+              actorClerkId: c.get("user").clerkId,
+              targetType: "booking",
+              targetId: bookingId,
+              metadata: { tipId: tip.id, amount: tip.amount_cents, transferId: tipTransfer.id },
+              timestamp: new Date().toISOString(),
+            });
+          } catch (err) {
+            // Release the claim so a legitimate retry can pay the tip out later.
+            await sql`
+              UPDATE booking_tips SET paid_out_at = NULL, visible_to_cleaner = FALSE, updated_at = NOW()
+              WHERE id = ${tip.id}
+            `;
+            logger.error("tip-transfer failed", err, { bookingId, tipId: tip.id });
+          }
+        }
+      }
+    } catch (err) {
+      logger.error("tip payout lookup failed", err, { bookingId });
+    }
+
+    return c.json({ ok: true, transferId: transfer.id, cleanerPayout, platformFee, tipTransferId, tipAmount });
   }
 );
 

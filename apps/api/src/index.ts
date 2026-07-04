@@ -6,6 +6,7 @@ import { authRouter } from "./routes/auth";
 import { bookingsRouter } from "./routes/bookings";
 import { pricingRouter } from "./routes/pricing";
 import { paymentsRouter } from "./routes/payments";
+import { tipsRouter } from "./routes/tips";
 import { stripeWebhookRouter } from "./routes/stripe-webhook";
 import { cleanersRouter } from "./routes/cleaners";
 import { reviewsRouter } from "./routes/reviews";
@@ -82,6 +83,7 @@ app.use("*", rateLimit({ limit: 100, windowMs: 60_000, keyPrefix: "general" }));
 // Tighter, route-specific limits.
 app.use("/auth/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "auth" }));
 app.use("/payments/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "payments" }));
+app.use("/tips/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "tips" }));
 app.use("/storage/*", rateLimit({ limit: 20, windowMs: 60 * 60_000, keyPrefix: "storage" }));
 app.use("/pricing/*", rateLimit({ limit: 60, windowMs: 60_000, keyPrefix: "pricing" }));
 app.use("/client-errors/*", rateLimit({ limit: 20, windowMs: 60_000, keyPrefix: "clienterr" }));
@@ -98,6 +100,7 @@ app.route("/customer-profile", customerProfileRouter);
 app.route("/bookings", bookingsRouter);
 app.route("/pricing", pricingRouter);
 app.route("/payments", paymentsRouter);
+app.route("/tips", tipsRouter);
 app.route("/webhooks/stripe", stripeWebhookRouter);
 app.route("/webhooks/clerk", clerkWebhookRouter);
 app.route("/cleaners", cleanersRouter);
@@ -239,23 +242,40 @@ export default {
       const { getStripe } = await import("./lib/stripe");
       const stripe = getStripe(env.STRIPE_SECRET_KEY as string);
 
-      // Capture completed payments.
+      // Capture completed payments. Intents are created with manual capture
+      // (authorize at booking, capture after service), so completed bookings
+      // sit in `requires_capture` until this runs.
       const pendingCaptures = await sql`
-        SELECT b.id, b.stripe_payment_intent_id
+        SELECT b.id, b.stripe_payment_intent_id, b.total_price
         FROM bookings b
         LEFT JOIN payments p ON p.booking_id = b.id AND p.status = 'captured'
         WHERE b.status = 'completed'
           AND b.stripe_payment_intent_id IS NOT NULL
           AND p.id IS NULL
         LIMIT 50
-      ` as { id: string; stripe_payment_intent_id: string }[];
+      ` as { id: string; stripe_payment_intent_id: string; total_price: number | null }[];
 
       for (const row of pendingCaptures) {
         try {
           const pi = await stripe.paymentIntents.retrieve(row.stripe_payment_intent_id);
           if (pi.status === "requires_capture") {
-            await stripe.paymentIntents.capture(pi.id);
-            await sql`UPDATE payments SET status = 'captured' WHERE booking_id = ${row.id}`;
+            // Honor post-authorization total decreases (e.g. ledger adjustments):
+            // never capture more than was authorized, never more than the final
+            // total. Stripe forbids capturing above the authorized amount.
+            const authorized = pi.amount;
+            const target = Math.min(row.total_price ?? authorized, authorized);
+            await stripe.paymentIntents.capture(pi.id, { amount_to_capture: target });
+            // Record/settle the payments row so this booking exits the capture
+            // set (an UPDATE alone would no-op when no row exists yet).
+            const upd = await sql`
+              UPDATE payments SET status = 'captured' WHERE booking_id = ${row.id} RETURNING id
+            ` as { id: string }[];
+            if (!upd[0]) {
+              await sql`
+                INSERT INTO payments (booking_id, stripe_payment_intent_id, amount, status)
+                VALUES (${row.id}, ${pi.id}, ${target}, 'captured')
+              `;
+            }
           }
         } catch (err) {
           logger.error("cron.capture failed", err, { bookingId: row.id });
