@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Wallet, TrendingUp, BarChart3, DollarSign, Building2, ArrowRight } from "lucide-react";
+import { Wallet, TrendingUp, BarChart3, DollarSign, Building2, ArrowRight, Gift } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
 import { DashboardShell, StatCard, Card, Button, toast } from "@sweepr/ui";
@@ -16,6 +16,9 @@ interface EarningSummary {
   nextPayoutDate: string | null;
   stripeConnected: boolean;
   recent: { date: string; amount: number; status: string; booking_id: string }[];
+  tipsThisMonth?: number;
+  tipsAllTime?: number;
+  recentTips?: { booking_id: string; amount_cents: number; date: string }[];
 }
 
 export function EarningsPage() {
@@ -95,6 +98,29 @@ export function EarningsPage() {
             <StatCard label={t("cleaner.earnings.lastMonth")} value={formatCurrency(data.lastMonth / 100)} icon={BarChart3} />
             <StatCard label={t("cleaner.earnings.allTime")}   value={formatCurrency(data.allTime / 100)}   icon={DollarSign} />
           </div>
+
+          {(!!data.tipsThisMonth || !!data.tipsAllTime) && (
+            <Card className="space-y-3">
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-charcoal dark:text-white">
+                <Gift className="h-4 w-4 text-seafoam-700" /> {t("cleaner.earnings.tips")}
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <StatCard label={t("cleaner.earnings.tipsThisMonth")} value={formatCurrency((data.tipsThisMonth ?? 0) / 100)} icon={Gift} />
+                <StatCard label={t("cleaner.earnings.tipsAllTime")} value={formatCurrency((data.tipsAllTime ?? 0) / 100)} icon={Gift} />
+              </div>
+              {data.recentTips && data.recentTips.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs text-slate-500">{t("cleaner.earnings.recentTips")}</p>
+                  {data.recentTips.slice(0, 5).map((tip) => (
+                    <div key={`${tip.booking_id}-${tip.date}`} className="flex items-center justify-between text-sm">
+                      <span className="text-slate-600 dark:text-slate-300">{new Date(tip.date).toLocaleDateString()}</span>
+                      <span className="font-medium text-charcoal dark:text-white">{formatCurrency(tip.amount_cents / 100)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
 
           {data.pendingPayout > 0 && (
             <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
