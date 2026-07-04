@@ -4,6 +4,10 @@ import { z } from "zod";
 import { createPresignedUploadUrl, parseR2Config, parseR2LegalConfig } from "../lib/r2";
 import { requireAuth } from "../middleware/auth";
 import { MAX_UPLOAD_BYTES } from "../lib/constants";
+import { getDb } from "../lib/db";
+import { getUserByClerkId, getCleanerByUserId } from "@sweepr/db";
+import { getBookingAuthCtx, canUploadPhotos } from "../lib/bookingAuthorization";
+import { isOwnerClerkId } from "../lib/owner";
 import type { AppBindings } from "../types";
 
 export const storageRouter = new Hono<AppBindings>();
@@ -35,6 +39,37 @@ storageRouter.post(
   zValidator("json", signSchema),
   async (c) => {
     const input = c.req.valid("json");
+    const clerkId = c.get("user").clerkId;
+    const sql = getDb(c.env.DATABASE_URL);
+
+    // Scope refId to the caller — otherwise any authenticated user could mint
+    // an upload URL under someone else's booking/cleaner id (IDOR).
+    if (input.scope === "booking") {
+      const ctx = await getBookingAuthCtx(sql, input.refId, clerkId);
+      if (!ctx || !canUploadPhotos(ctx)) {
+        return c.json({ error: "Booking not found" }, 404);
+      }
+    } else if (input.scope === "avatar" || input.scope === "certificate" || input.scope === "insurance") {
+      // These are cleaner-owned assets — refId must be the caller's own cleaner id.
+      const isOwner = isOwnerClerkId(clerkId, c.env);
+      if (!isOwner) {
+        const user = await getUserByClerkId(sql, clerkId);
+        const cleaner = user ? await getCleanerByUserId(sql, user.id) : null;
+        const isAdmin = user?.role === "admin" || user?.role === "super_admin";
+        if (!isAdmin && (!cleaner || cleaner.id !== input.refId)) {
+          return c.json({ error: "Forbidden" }, 403);
+        }
+      }
+    } else if (input.scope === "training") {
+      // Training assets are admin-authored content.
+      const isOwner = isOwnerClerkId(clerkId, c.env);
+      if (!isOwner) {
+        const user = await getUserByClerkId(sql, clerkId);
+        if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
+          return c.json({ error: "Forbidden" }, 403);
+        }
+      }
+    }
 
     const prefix = {
       booking: "bookings",

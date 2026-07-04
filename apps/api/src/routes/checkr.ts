@@ -119,24 +119,27 @@ checkrRouter.post("/invite", requireAuth, zValidator("json", inviteSchema), asyn
 checkrRouter.get("/status", requireAuth, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const authUser = c.get("user");
-  const user = await getUserByClerkId(sql, authUser.clerkId);
-  if (!user) return c.json({ error: "User not found" }, 404);
-
+  // Single JOIN instead of a user lookup followed by a dependent cleaner
+  // lookup. With no cleaner row, fields come back NULL, which resolves to
+  // the same "not_started"/null defaults as the previous two-query version.
   const rows = (await sql`
-    SELECT cl.checkr_status, cl.checkr_invited_at,
-           cl.checkr_report_id, cl.checkr_pre_adverse_at
-    FROM cleaners cl
-    WHERE cl.user_id = ${user.id}
+    SELECT users.id AS user_id, cleaners.checkr_status, cleaners.checkr_invited_at,
+           cleaners.checkr_report_id, cleaners.checkr_pre_adverse_at
+    FROM users
+    LEFT JOIN cleaners ON cleaners.user_id = users.id
+    WHERE users.clerk_id = ${authUser.clerkId}
     LIMIT 1
   `) as {
-    checkr_status: string;
+    user_id: string;
+    checkr_status: string | null;
     checkr_invited_at: string | null;
     checkr_report_id: string | null;
     checkr_pre_adverse_at: string | null;
   }[];
 
-  const row = rows[0];
-  if (!row) return c.json({ status: "not_started", invitedAt: null, reportId: null, adverseActionEarliestAt: null });
+  const userRow = rows[0];
+  if (!userRow) return c.json({ error: "User not found" }, 404);
+  const row = userRow;
 
   const adverseEarliest = row.checkr_pre_adverse_at
     ? adverseActionEarliestDate(new Date(row.checkr_pre_adverse_at)).toISOString()

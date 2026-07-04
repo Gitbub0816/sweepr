@@ -8,7 +8,7 @@
 -- This file is GENERATED. Do not edit by hand — edit the migrations in
 -- src/migrations/ and re-run: node packages/db/build-schema.mjs
 --
--- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql, 034_fee_approval_engine.sql, 035_slack_user_tokens.sql, 036_pricing_engine.sql, 037_security_tickets.sql, 038_compact_ticket_ids.sql, 039_report_submitter.sql, 040_classification_and_templates.sql, 041_fix_security_templates.sql, 042_email_deliverability.sql, 043_slack_purpose_security.sql, 044_senior_admin_roles.sql, 045_status_autodetect.sql, 046_seed_pricing_rule.sql, 047_seed_super_admin_invite.sql, 048_customer_home_profile.sql, 049_reset_bootstrap_invite.sql, 050_customers_user_id_unique.sql, 051_preferred_language.sql, 052_payouts_booking_id_unique.sql, 053_sms_consent.sql, 054_strict_rls.sql, 055_mailbox_messages.sql, 056_admin_mail_center.sql, 057_public_privacy_intake.sql, 058_scope_review_engine.sql, 059_scope_review_links.sql
+-- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql, 034_fee_approval_engine.sql, 035_slack_user_tokens.sql, 036_pricing_engine.sql, 037_security_tickets.sql, 038_compact_ticket_ids.sql, 039_report_submitter.sql, 040_classification_and_templates.sql, 041_fix_security_templates.sql, 042_email_deliverability.sql, 043_slack_purpose_security.sql, 044_senior_admin_roles.sql, 045_status_autodetect.sql, 046_seed_pricing_rule.sql, 047_seed_super_admin_invite.sql, 048_customer_home_profile.sql, 049_reset_bootstrap_invite.sql, 050_customers_user_id_unique.sql, 051_preferred_language.sql, 052_payouts_booking_id_unique.sql, 053_sms_consent.sql, 054_strict_rls.sql, 055_mailbox_messages.sql, 056_admin_mail_center.sql, 057_public_privacy_intake.sql, 058_scope_review_engine.sql, 059_scope_review_links.sql, 060_performance_indexes.sql
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -3383,3 +3383,40 @@ CREATE TABLE IF NOT EXISTS scope_review_action_links (
 
 CREATE INDEX IF NOT EXISTS idx_scope_review_action_links_token ON scope_review_action_links (token_hash);
 CREATE INDEX IF NOT EXISTS idx_scope_review_action_links_request ON scope_review_action_links (request_id);
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 060_performance_indexes.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Migration 060: Performance indexes.
+--
+-- Adds indexes on foreign-key / status / lookup columns that the API filters
+-- and joins on but that were previously unindexed (verified against the live
+-- database: these columns had no index with them as the leading key). All are
+-- IF NOT EXISTS so the migration is idempotent and safe to re-run. Plain
+-- (non-CONCURRENT) index builds so the migration runs inside a transaction.
+
+-- Ownership / foreign-key lookups (scoped reads in the API filter by these).
+CREATE INDEX IF NOT EXISTS idx_addresses_user_id            ON addresses (user_id);
+CREATE INDEX IF NOT EXISTS idx_booking_addons_booking_id    ON booking_addons (booking_id);
+CREATE INDEX IF NOT EXISTS idx_payments_customer_id         ON payments (customer_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_customer_id          ON reviews (customer_id);
+CREATE INDEX IF NOT EXISTS idx_booking_tips_customer_id     ON booking_tips (customer_id);
+CREATE INDEX IF NOT EXISTS idx_disputes_booking_id          ON disputes (booking_id);
+CREATE INDEX IF NOT EXISTS idx_error_logs_user_id           ON error_logs (user_id);
+CREATE INDEX IF NOT EXISTS idx_damage_claims_customer_id    ON damage_claims (customer_id);
+CREATE INDEX IF NOT EXISTS idx_damage_claims_cleaner_id     ON damage_claims (cleaner_id);
+CREATE INDEX IF NOT EXISTS idx_consent_log_user_id          ON consent_log (user_id);
+CREATE INDEX IF NOT EXISTS idx_dsr_user_id                  ON data_subject_requests (user_id);
+CREATE INDEX IF NOT EXISTS idx_insurance_status_log_cleaner ON insurance_status_log (cleaner_id);
+CREATE INDEX IF NOT EXISTS idx_cleaner_service_areas_cleaner ON cleaner_service_areas (cleaner_id);
+CREATE INDEX IF NOT EXISTS idx_cleaner_location_pings_cleaner ON cleaner_location_pings (cleaner_id);
+CREATE INDEX IF NOT EXISTS idx_subscription_bookings_booking ON subscription_bookings (booking_id);
+CREATE INDEX IF NOT EXISTS idx_slack_user_links_user_id     ON slack_user_links (user_id);
+
+-- Email lookups (invite acceptance / waitlist dedupe).
+CREATE INDEX IF NOT EXISTS idx_admin_invites_email          ON admin_invites (LOWER(email));
+CREATE INDEX IF NOT EXISTS idx_waitlist_email               ON waitlist (LOWER(email));
+
+-- Status-filtered work queues (cron + admin list pages scan by status).
+CREATE INDEX IF NOT EXISTS idx_assignment_queue_status      ON assignment_queue (status);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status         ON subscriptions (status);

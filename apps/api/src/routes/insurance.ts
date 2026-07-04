@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { requireAuth } from "../middleware/auth";
+import { requireAdmin } from "../middleware/adminRoles";
 import { getDb } from "../lib/db";
 import { audit } from "../lib/audit";
 import { createPresignedUploadUrl, parseR2Config } from "../lib/r2";
@@ -191,7 +192,7 @@ insuranceRouter.post(
 // Admin routes — review personal policy submissions
 
 export const insuranceAdminRouter = new Hono<AppBindings>();
-insuranceAdminRouter.use("*", requireAuth);
+insuranceAdminRouter.use("*", requireAuth, requireAdmin);
 
 const reviewSchema = z.object({
   decision: z.enum(["approved", "rejected"]),
