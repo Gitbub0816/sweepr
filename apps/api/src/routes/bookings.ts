@@ -284,11 +284,16 @@ bookingsRouter.post(
 
 bookingsRouter.get("/", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
-  const user = await getUserByClerkId(sql, c.get("user").clerkId);
-  if (!user) return c.json({ bookings: [] });
-  const customer = await getCustomerByUserId(sql, user.id);
-  if (!customer) return c.json({ bookings: [] });
-  const bookings = await listBookingsForCustomer(sql, customer.id);
+  // Collapsed from 3 sequential round-trips (user -> customer -> bookings)
+  // into a single JOIN; scoping is identical (bookings for the customer
+  // owned by this clerk user), just resolved in one query.
+  const bookings = (await sql`
+    SELECT bookings.* FROM bookings
+    JOIN customers ON customers.id = bookings.customer_id
+    JOIN users ON users.id = customers.user_id
+    WHERE users.clerk_id = ${c.get("user").clerkId}
+    ORDER BY bookings.created_at DESC
+  `) as BookingRow[];
   return c.json({ bookings });
 });
 
@@ -439,10 +444,16 @@ bookingsRouter.post(
     const bookingId = c.req.param("id");
     const { addOnKeys } = c.req.valid("json");
 
-    // Ownership: only the booking's customer may add services.
-    const user = await getUserByClerkId(sql, c.get("user").clerkId);
-    if (!user) return c.json({ error: "Forbidden" }, 403);
-    const customer = await getCustomerByUserId(sql, user.id);
+    // Ownership: only the booking's customer may add services. Collapsed the
+    // user-lookup + customer-lookup into one JOIN (both prior paths returned
+    // an identical 403 Forbidden on a miss, so this preserves semantics).
+    const customerRows = (await sql`
+      SELECT customers.id FROM users
+      JOIN customers ON customers.user_id = users.id
+      WHERE users.clerk_id = ${c.get("user").clerkId}
+      LIMIT 1
+    `) as Array<{ id: string }>;
+    const customer = customerRows[0];
     if (!customer) return c.json({ error: "Forbidden" }, 403);
 
     const rows = (await sql`

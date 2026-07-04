@@ -6,25 +6,6 @@ import { TrainingGate } from "../TrainingPage";
 import type { CheckrStatus } from "../../types/checkr";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
-const BUILD_CHECKR_PUBLISHABLE_KEY = import.meta.env.VITE_CHECKR_PUBLISHABLE_KEY ?? "";
-const CHECKR_JS_URL = "https://js.checkr.com/checkr-2.0.0.min.js";
-
-interface CheckrCandidateResponse {
-  candidate_id?: string;
-  error?: string;
-  errors?: unknown;
-}
-
-interface CheckrGlobal {
-  setPublishableKey: (key: string) => void;
-  candidate: {
-    create: (data: Record<string, string>, cb: (status: number, response: CheckrCandidateResponse) => void) => void;
-  };
-}
-
-declare global {
-  interface Window { Checkr?: CheckrGlobal }
-}
 
 interface Props {
   n: number;
@@ -42,51 +23,6 @@ type Phase =
   | { kind: "waiting"; status: CheckrStatus }
   | { kind: "error"; message: string };
 
-function loadCheckrJs(): Promise<CheckrGlobal> {
-  if (window.Checkr) return Promise.resolve(window.Checkr);
-  return new Promise((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>(`script[src="${CHECKR_JS_URL}"]`);
-    if (existing) {
-      existing.addEventListener("load", () => window.Checkr ? resolve(window.Checkr) : reject(new Error("Checkr.js did not initialize.")), { once: true });
-      existing.addEventListener("error", () => reject(new Error("Unable to load Checkr.js.")), { once: true });
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = CHECKR_JS_URL;
-    script.async = true;
-    script.onload = () => window.Checkr ? resolve(window.Checkr) : reject(new Error("Checkr.js did not initialize."));
-    script.onerror = () => reject(new Error("Unable to load Checkr.js."));
-    document.head.appendChild(script);
-  });
-}
-
-async function resolvePublishableKey(getToken: () => Promise<string | null>): Promise<string> {
-  if (BUILD_CHECKR_PUBLISHABLE_KEY) return BUILD_CHECKR_PUBLISHABLE_KEY;
-
-  const token = await getToken();
-  const res = await fetch(`${API_URL}/checkr/config`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  if (!res.ok) throw new Error(`Unable to load Checkr config (${res.status}).`);
-  const data = (await res.json()) as { publishableKey?: string; configured?: boolean };
-  if (!data.publishableKey) throw new Error("Checkr publishable key is not configured on the API Worker. Set VITE_CHECKR_PUBLISHABLE_KEY or CHECKR_PUBLISHABLE_KEY on sweepr-api and redeploy.");
-  return data.publishableKey;
-}
-
-async function createCheckrCandidate(data: Record<string, string>, getToken: () => Promise<string | null>): Promise<string> {
-  const publishableKey = await resolvePublishableKey(getToken);
-  const checkr = await loadCheckrJs();
-  checkr.setPublishableKey(publishableKey);
-  return new Promise((resolve, reject) => {
-    checkr.candidate.create(data, (_status, response) => {
-      if (response?.error) return reject(new Error(response.error));
-      if (response?.errors) return reject(new Error(JSON.stringify(response.errors)));
-      if (!response?.candidate_id) return reject(new Error("Checkr did not return a candidate ID."));
-      resolve(response.candidate_id);
-    });
-  });
-}
-
 export function BackgroundCheckStep({ n, workState = "CA", getToken, onComplete, trainingComplete = false, isPrelaunch = false }: Props) {
   const { user } = useUser();
   const [firstName, setFirstName] = useState("");
@@ -98,11 +34,6 @@ export function BackgroundCheckStep({ n, workState = "CA", getToken, onComplete,
     if (!firstName.trim() || !lastName.trim() || !email) return;
     setPhase({ kind: "loading" });
     try {
-      const candidateId = await createCheckrCandidate({
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        email,
-      }, getToken);
       const token = await getToken();
       const res = await fetch(`${API_URL}/checkr/invite`, {
         method: "POST",
@@ -110,7 +41,7 @@ export function BackgroundCheckStep({ n, workState = "CA", getToken, onComplete,
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), workState, candidateId }),
+        body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), workState }),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = (await res.json()) as { invitationUrl: string; expiresAt: string };
@@ -142,7 +73,7 @@ export function BackgroundCheckStep({ n, workState = "CA", getToken, onComplete,
           <Input label="Legal first name" value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" />
           <Input label="Legal last name" value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" />
         </div>
-        <p className="text-xs text-slate-500">Checkr creates your candidate record in the browser, then Sweepr creates a hosted Checkr invitation from that candidate ID.</p>
+        <p className="text-xs text-slate-500">Sweepr creates your Checkr candidate record and sends you to a secure, Checkr-hosted page to complete your background check.</p>
         {!email && <Card className="border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">We could not read your account email yet. Refresh or sign in again before starting the check.</Card>}
         <Button onClick={startInvitation} disabled={!firstName.trim() || !lastName.trim() || !email} className="w-full">Continue to background check</Button>
       </div>

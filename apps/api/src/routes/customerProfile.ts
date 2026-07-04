@@ -36,49 +36,53 @@ customerProfileRouter.get("/", async (c) => {
   const user = await resolveUser(sql, authUser.clerkId, authUser.email);
   await ensureCustomer(sql, user.id);
 
-  const rows = (await sql`
-    SELECT c.home_bedrooms, c.home_bathrooms, c.home_sqft, c.home_type,
-           c.has_pets, c.onboarded, c.default_address_id
-    FROM customers c
-    WHERE c.user_id = ${user.id}
-    LIMIT 1
-  `) as Array<{
-    home_bedrooms: number | null;
-    home_bathrooms: number | null;
-    home_sqft: number | null;
-    home_type: string | null;
-    has_pets: boolean;
-    onboarded: boolean;
-    default_address_id: string | null;
-  }>;
+  // These four reads are independent of one another (all keyed only on the
+  // already-resolved user.id) — run them concurrently instead of one round
+  // trip at a time.
+  const [rows, addresses, smsConsent, langRows] = await Promise.all([
+    sql`
+      SELECT c.home_bedrooms, c.home_bathrooms, c.home_sqft, c.home_type,
+             c.has_pets, c.onboarded, c.default_address_id
+      FROM customers c
+      WHERE c.user_id = ${user.id}
+      LIMIT 1
+    ` as unknown as Promise<Array<{
+      home_bedrooms: number | null;
+      home_bathrooms: number | null;
+      home_sqft: number | null;
+      home_type: string | null;
+      has_pets: boolean;
+      onboarded: boolean;
+      default_address_id: string | null;
+    }>>,
+    sql`
+      SELECT id, label, street AS line1, unit, city, state, zip, lat, lng, is_default
+      FROM addresses
+      WHERE user_id = ${user.id}
+      ORDER BY is_default DESC, created_at DESC
+    ` as unknown as Promise<Array<{
+      id: string;
+      label: string | null;
+      line1: string;
+      unit: string | null;
+      city: string;
+      state: string;
+      zip: string;
+      lat: number | null;
+      lng: number | null;
+      is_default: boolean;
+    }>>,
+    getSmsConsent(sql, user.id),
+    sql`
+      SELECT preferred_language FROM users WHERE id = ${user.id} LIMIT 1
+    ` as unknown as Promise<Array<{ preferred_language: string | null }>>,
+  ]);
 
   const p = rows[0] ?? {
     home_bedrooms: null, home_bathrooms: null, home_sqft: null,
     home_type: null, has_pets: false, onboarded: false, default_address_id: null,
   };
-
-  const addresses = (await sql`
-    SELECT id, label, street AS line1, unit, city, state, zip, lat, lng, is_default
-    FROM addresses
-    WHERE user_id = ${user.id}
-    ORDER BY is_default DESC, created_at DESC
-  `) as Array<{
-    id: string;
-    label: string | null;
-    line1: string;
-    unit: string | null;
-    city: string;
-    state: string;
-    zip: string;
-    lat: number | null;
-    lng: number | null;
-    is_default: boolean;
-  }>;
-
-  const smsConsent = await getSmsConsent(sql, user.id);
-  const [langRow] = (await sql`
-    SELECT preferred_language FROM users WHERE id = ${user.id} LIMIT 1
-  `) as Array<{ preferred_language: string | null }>;
+  const langRow = langRows[0];
 
   return c.json({
     profile: {

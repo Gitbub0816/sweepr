@@ -3,11 +3,12 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { getDb } from "../../lib/db";
 import { requireAuth } from "../../middleware/auth";
+import { requireAdmin } from "../../middleware/adminRoles";
 import type { AppBindings } from "../../types";
 
 export const statusAdminRouter = new Hono<AppBindings>();
 
-statusAdminRouter.use("*", requireAuth);
+statusAdminRouter.use("*", requireAuth, requireAdmin);
 
 interface IncidentRow {
   id: string;

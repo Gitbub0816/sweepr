@@ -34,15 +34,20 @@ export const diditRouter = new Hono<AppBindings>();
 diditRouter.post("/session", requireAuth, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const authUser = c.get("user");
-  const user = await getUserByClerkId(sql, authUser.clerkId);
-  if (!user) return c.json({ error: "User not found" }, 404);
-
-  // Pick the workflow based on the cleaner's account type.
+  // Single JOIN instead of a user lookup followed by a dependent cleaner
+  // lookup — same scoping (cleaner row for this clerk user), one round trip.
   const rows = (await sql`
-    SELECT account_type FROM cleaners WHERE user_id = ${user.id} LIMIT 1
-  `) as { account_type: string | null }[];
+    SELECT users.id AS user_id, cleaners.account_type
+    FROM users
+    LEFT JOIN cleaners ON cleaners.user_id = users.id
+    WHERE users.clerk_id = ${authUser.clerkId}
+    LIMIT 1
+  `) as { user_id: string; account_type: string | null }[];
+  const userRow = rows[0];
+  if (!userRow) return c.json({ error: "User not found" }, 404);
+  const user = { id: userRow.user_id };
   const workflow: DiditWorkflow =
-    rows[0]?.account_type === "business" ? "business" : "personal";
+    userRow.account_type === "business" ? "business" : "personal";
 
   const client = diditClient(c.env);
 
@@ -93,15 +98,18 @@ diditRouter.post("/session", requireAuth, async (c) => {
 diditRouter.get("/status", requireAuth, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const authUser = c.get("user");
-  const user = await getUserByClerkId(sql, authUser.clerkId);
-  if (!user) return c.json({ error: "User not found" }, 404);
-
-  const rows = (await sql`
-    SELECT didit_status, didit_verification_id
-    FROM cleaners WHERE user_id = ${user.id} LIMIT 1
-  `) as { didit_status: string | null; didit_verification_id: string | null }[];
-
-  const row = rows[0];
+  // Single JOIN instead of user lookup + dependent cleaner lookup.
+  const joined = (await sql`
+    SELECT users.id AS user_id, cleaners.didit_status, cleaners.didit_verification_id
+    FROM users
+    LEFT JOIN cleaners ON cleaners.user_id = users.id
+    WHERE users.clerk_id = ${authUser.clerkId}
+    LIMIT 1
+  `) as { user_id: string; didit_status: string | null; didit_verification_id: string | null }[];
+  const userRow = joined[0];
+  if (!userRow) return c.json({ error: "User not found" }, 404);
+  const user = { id: userRow.user_id };
+  const row = userRow;
   const sessionId = row?.didit_verification_id ?? null;
   let status = row?.didit_status ?? "not_started";
 
