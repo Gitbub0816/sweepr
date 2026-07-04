@@ -27,11 +27,14 @@ interface BookingRow {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  completed_at?: string | null;
   // optional joined address fields (present on detail endpoint)
   address_line1?: string | null;
   address_city?: string | null;
   address_state?: string | null;
   address_zip?: string | null;
+  // add-ons currently on the booking (present on detail endpoint)
+  addon_keys?: string[];
 }
 
 /** Adapt a DB booking row to the app's Booking type. */
@@ -56,7 +59,7 @@ export function toBooking(r: BookingRow): Booking {
       state: r.address_state ?? "",
       zip: r.address_zip ?? "",
     },
-    addOnKeys: [],
+    addOnKeys: r.addon_keys ?? [],
     cadence: "none",
     scheduledFor: r.scheduled_at ?? r.created_at,
     quote: {
@@ -70,6 +73,7 @@ export function toBooking(r: BookingRow): Booking {
       total: (r.total_price ?? 0) / 100,
     },
     notes: r.notes ?? undefined,
+    completedAt: r.completed_at ?? undefined,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };

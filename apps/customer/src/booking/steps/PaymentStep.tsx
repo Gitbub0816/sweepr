@@ -36,7 +36,10 @@ function OrderSummary() {
   const subscriptionCadence = useBookingStore((s) => s.subscriptionCadence);
   const cadence = useBookingStore((s) => s.cadence);
   const isEmergency = useBookingStore((s) => s.isEmergency);
-  const quote = serviceType ? calculateQuote({ serviceType, home, addOnKeys, isEmergency }) : null;
+  const cleaningLevel = useBookingStore((s) => s.cleaningLevel);
+  const quote = serviceType
+    ? calculateQuote({ serviceType, home, addOnKeys, isEmergency, cleaningLevel: cleaningLevel ?? undefined })
+    : null;
 
   if (!quote) return null;
 
@@ -296,7 +299,10 @@ export function PaymentStep() {
   const addOnKeys = useBookingStore((s) => s.addOnKeys);
   const bookingId = useBookingStore((s) => s.bookingId);
   const isEmergency = useBookingStore((s) => s.isEmergency);
-  const quote = serviceType ? calculateQuote({ serviceType, home, addOnKeys, isEmergency }) : null;
+  const cleaningLevel = useBookingStore((s) => s.cleaningLevel);
+  const quote = serviceType
+    ? calculateQuote({ serviceType, home, addOnKeys, isEmergency, cleaningLevel: cleaningLevel ?? undefined })
+    : null;
   const isSubscription = useBookingStore((s) => s.isSubscription);
   const subscriptionCadence = useBookingStore((s) => s.subscriptionCadence);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -361,7 +367,7 @@ export function PaymentStep() {
   );
 
   if (!quote) {
-    navigate("/book/service");
+    navigate("/book/package");
     return null;
   }
 

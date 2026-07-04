@@ -160,7 +160,24 @@
       "rushBooking": "Đặt lịch khẩn",
       "then": "Sau đó",
       "every": "mỗi",
-      "savePerVisit": "Tiết kiệm {{amount}} mỗi lần"
+      "savePerVisit": "Tiết kiệm {{amount}} mỗi lần",
+      "sectionPackage": "Cleaning Package",
+      "sectionPackageDesc": "What gets cleaned.",
+      "sectionLevel": "Cleaning Level",
+      "sectionLevelDesc": "How much effort your home needs.",
+      "sectionAddOns": "Add-ons",
+      "sectionAddOnsDesc": "Extra services you selected.",
+      "levelSurcharge": "Cleaning level surcharge",
+      "noExtraCharge": "No extra charge",
+      "noAddOns": "No add-ons selected.",
+      "ackTitle": "I understand and agree",
+      "ackScope": "I've reviewed what is included and excluded from my selected package and cleaning level.",
+      "ackDirty": "Excessively dirty homes may require additional fees or refusal of service.",
+      "ackExcluded": "Hoarding, biohazards, excessive clutter, and unsafe conditions are excluded from all packages.",
+      "ackAddOns": "Add-ons remain available to purchase until my cleaner checks in.",
+      "ackDecline": "Sweepr may decline service if conditions exceed the purchased scope.",
+      "ackRefusalFee": "Applicable refusal fees may apply where permitted by law.",
+      "ackDisclosure": "Your cleaner cannot change your price. If your home appears to exceed the selected scope, your cleaner may submit photos to Sweepr for review. Sweepr may approve an additional fee, modify the service scope, or cancel the booking where permitted by law."
     },
     "confirmed": {
       "title": "Bạn đã đặt lịch thành công!",
@@ -192,6 +209,39 @@
       "subscriptionPrice": "{{price}} / lần dọn — tiết kiệm {{savings}} mỗi lần",
       "subtitle": "Mọi mức giá đều đã bao gồm tất cả. Không phát sinh phí bất ngờ.",
       "total": "Tổng cộng"
+    },
+    "package": {
+      "title": "Choose your cleaning package",
+      "subtitle": "Pick the level of cleaning that fits your home. You'll set the condition next.",
+      "from": "from",
+      "includesEverythingFrom": "Includes everything from {{tier}}",
+      "viewFullScope": "View complete inclusions & exclusions",
+      "viewCompleteInclusions": "View complete inclusions & exclusions",
+      "helper": "Not sure which to pick?",
+      "included": "Included",
+      "notIncluded": "Not included",
+      "universalExclusions": "Never included in any package",
+      "fullScopeTitle": "Complete inclusions & exclusions",
+      "fullScopeIntro": "This is the full scope of what each package includes and excludes. Services outside this scope may require a scope review before they can be performed.",
+      "legalNote": "For the complete, binding terms see the",
+      "serviceScopePolicy": "Service Scope Policy",
+      "standardTagline": "Routine top-to-bottom tidy.",
+      "deepTagline": "Detailed, intensive reset.",
+      "moveInOutTagline": "Empty-home spotless clean.",
+      "recurringTagline": "Save with weekly or biweekly visits."
+    },
+    "condition": {
+      "title": "How's your home doing?",
+      "subtitle": "Tell us the current condition so we can plan the right amount of effort. This is required.",
+      "recommendedFor": "Best for:",
+      "surchargeAmount": "Adds {{amount}} to your total.",
+      "significantWarning": "Not for hoarding, biohazards, excessive clutter, or unsafe environments. Sweepr may decline service if the scope exceeds what can be safely or reasonably completed."
+    },
+    "addons": {
+      "title": "Add a little extra",
+      "subtitle": "Optional services to round out your clean.",
+      "includedInPackage": "Included in your selected package",
+      "forgotSomething": "Forgot something? Don't worry! You can add services anytime before your cleaner checks in."
     }
   },
   "bookings": {
@@ -222,7 +272,36 @@
     },
     "starRating": "Đánh giá sao",
     "starLabel": "{{n}} sao",
-    "starsLabel": "{{n}} sao"
+    "starsLabel": "{{n}} sao",
+    "reviewHelpsMatch": "Leaving reviews helps us better match you with cleaners who best fit your preferences.",
+    "tip": {
+      "title": "Tip your cleaner",
+      "subtitle": "100% of your tip goes directly to your cleaner. Sweepr never deducts fees from tips.",
+      "addTip": "Add tip",
+      "confirm": "Send tip",
+      "custom": "Custom",
+      "customAmount": "Custom tip amount",
+      "sentTitle": "Tip sent",
+      "sentBody": "You tipped {{amount}}. Thank you!",
+      "windowClosed": "The tipping window for this booking has closed.",
+      "invalidAmount": "Please enter a tip between $1 and $500.",
+      "error": "Could not send your tip. Please try again."
+    },
+    "addServices": {
+      "title": "Add services",
+      "subtitle": "Add extra services any time before your cleaner checks in.",
+      "alreadyAdded": "✓ Already Added",
+      "includedInPackage": "Included in package",
+      "review": "Review services (+{{amount}})",
+      "confirmTitle": "You are adding the following services:",
+      "confirmButton": "Confirm & add",
+      "additional": "Additional amount",
+      "newTotal": "New total",
+      "consent": "By continuing, you authorize Sweepr to increase your payment authorization to the new total shown above.",
+      "added": "Services added to your booking.",
+      "error": "Could not add services. Please try again.",
+      "alreadyStarted": "Services can no longer be added once your cleaner has checked in."
+    }
   },
   "profile": {
     "title": "Hồ sơ",

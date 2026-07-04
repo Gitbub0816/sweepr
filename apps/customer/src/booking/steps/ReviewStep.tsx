@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MapPin, Home, CalendarClock, Sparkles, Zap, Repeat } from "lucide-react";
+import { MapPin, Home, CalendarClock, Sparkles, Zap, Repeat, Check } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
 import { Card, Textarea, toast } from "@sweepr/ui";
@@ -8,6 +8,7 @@ import {
   formatDateTime,
   formatCurrency,
   getAddOn,
+  getCleaningLevelInfo,
   recurringDisplayPrice,
 } from "@sweepr/utils";
 import { useBookingStore } from "../../store/booking";
@@ -39,6 +40,25 @@ function Row({
   );
 }
 
+function LineRow({ label, amount }: { label: string; amount: number }) {
+  return (
+    <div className="flex items-center justify-between py-1 text-sm">
+      <span className="text-slate-600 dark:text-slate-400">{label}</span>
+      <span className="font-medium text-charcoal dark:text-white">
+        {formatCurrency(amount)}
+      </span>
+    </div>
+  );
+}
+
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mt-4 mb-1 text-xs font-semibold uppercase tracking-wide text-seafoam-700 first:mt-0 dark:text-seafoam-300">
+      {children}
+    </p>
+  );
+}
+
 export function ReviewStep() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -48,6 +68,7 @@ export function ReviewStep() {
     address,
     home,
     serviceType,
+    cleaningLevel,
     addOnKeys,
     scheduledFor,
     notes,
@@ -58,11 +79,13 @@ export function ReviewStep() {
     setBookingId,
   } = state;
   const [submitting, setSubmitting] = useState(false);
+  const [acknowledged, setAcknowledged] = useState(false);
 
-  const missingRequiredFields = !address || !serviceType || !scheduledFor;
+  const missingRequiredFields = !address || !serviceType || !scheduledFor || !cleaningLevel;
   useEffect(() => {
-    if (missingRequiredFields) navigate("/book/address");
-  }, [missingRequiredFields, navigate]);
+    if (!address || !serviceType || !scheduledFor) navigate("/book/address");
+    else if (!cleaningLevel) navigate("/book/condition");
+  }, [address, serviceType, scheduledFor, cleaningLevel, navigate]);
 
   if (missingRequiredFields) return null;
 
@@ -72,6 +95,15 @@ export function ReviewStep() {
     isSubscription && subscriptionCadence
       ? recurringDisplayPrice(total, subscriptionCadence)
       : null;
+
+  // Split the itemized line items into three logical sections.
+  const addOnNames = new Set(addOnKeys.map((k) => getAddOn(k)?.name).filter(Boolean));
+  const packageItems = (quote?.lineItems ?? []).filter(
+    (li) => li.label !== "Cleaning level surcharge" && !addOnNames.has(li.label),
+  );
+  const levelItems = (quote?.lineItems ?? []).filter((li) => li.label === "Cleaning level surcharge");
+  const addOnItems = (quote?.lineItems ?? []).filter((li) => addOnNames.has(li.label));
+  const levelInfo = cleaningLevel ? getCleaningLevelInfo(cleaningLevel) : undefined;
 
   async function handleContinueToPayment() {
     setSubmitting(true);
@@ -115,6 +147,7 @@ export function ReviewStep() {
           sqft: home.sqft,
           homeType: home.homeType,
           hasPets: home.pets,
+          cleaningLevel,
           addOnKeys,
           scheduledAt: scheduledFor,
           notes: notes || undefined,
@@ -162,7 +195,7 @@ export function ReviewStep() {
       onBack={() => navigate("/book/schedule")}
       onNext={handleContinueToPayment}
       nextLabel={submitting ? t("booking.review.creatingBooking") : t("booking.review.continueToPayment")}
-      nextDisabled={submitting}
+      nextDisabled={submitting || !acknowledged}
     >
       <Card className="divide-y divide-slate-100 dark:divide-slate-800">
         <Row
@@ -185,13 +218,36 @@ export function ReviewStep() {
           label={t("booking.review.scheduledFor")}
           value={formatDateTime(scheduledFor)}
         />
-        {addOnKeys.length > 0 && (
-          <div className="py-2">
-            <p className="text-xs text-slate-600">{t("booking.review.addOns")}</p>
-            <p className="text-sm font-medium text-charcoal dark:text-white">
-              {addOnKeys.map((k) => getAddOn(k)?.name).join(", ")}
-            </p>
+      </Card>
+
+      {/* Itemized breakdown — three clearly separated sections. */}
+      <Card className="mt-4">
+        <SectionHeading>{t("booking.review.sectionPackage")}</SectionHeading>
+        <p className="mb-2 text-xs text-slate-500">{t("booking.review.sectionPackageDesc")}</p>
+        {packageItems.map((li) => (
+          <LineRow key={li.label} label={li.label} amount={li.amount} />
+        ))}
+
+        <SectionHeading>{t("booking.review.sectionLevel")}</SectionHeading>
+        <p className="mb-2 text-xs text-slate-500">{t("booking.review.sectionLevelDesc")}</p>
+        {levelInfo && (
+          <p className="py-1 text-sm font-medium text-charcoal dark:text-white">{levelInfo.title}</p>
+        )}
+        {levelItems.length > 0 ? (
+          levelItems.map((li) => <LineRow key={li.label} label={li.label} amount={li.amount} />)
+        ) : (
+          <div className="flex items-center justify-between py-1 text-sm">
+            <span className="text-slate-600 dark:text-slate-400">{t("booking.review.levelSurcharge")}</span>
+            <span className="font-medium text-charcoal dark:text-white">{t("booking.review.noExtraCharge")}</span>
           </div>
+        )}
+
+        <SectionHeading>{t("booking.review.sectionAddOns")}</SectionHeading>
+        <p className="mb-2 text-xs text-slate-500">{t("booking.review.sectionAddOnsDesc")}</p>
+        {addOnItems.length > 0 ? (
+          addOnItems.map((li) => <LineRow key={li.label} label={li.label} amount={li.amount} />)
+        ) : (
+          <p className="py-1 text-sm text-slate-500">{t("booking.review.noAddOns")}</p>
         )}
       </Card>
 
@@ -237,6 +293,34 @@ export function ReviewStep() {
           value={notes}
           onChange={(e) => state.setNotes(e.target.value)}
         />
+      </div>
+
+      {/* Required scope acknowledgement — blocks payment until checked. */}
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/40">
+        <label className="flex cursor-pointer items-start gap-3">
+          <span className="relative mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center">
+            <input
+              type="checkbox"
+              checked={acknowledged}
+              onChange={(e) => setAcknowledged(e.target.checked)}
+              className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-slate-300 bg-white checked:border-seafoam-600 checked:bg-seafoam-600 dark:border-slate-600 dark:bg-slate-900"
+              aria-describedby="ack-details"
+            />
+            <Check className="pointer-events-none absolute h-3.5 w-3.5 text-white opacity-0 peer-checked:opacity-100" />
+          </span>
+          <span className="text-sm font-medium text-charcoal dark:text-white">
+            {t("booking.review.ackTitle")}
+          </span>
+        </label>
+        <ul id="ack-details" className="mt-3 space-y-1.5 pl-8 text-xs text-slate-600 dark:text-slate-400">
+          <li>{t("booking.review.ackScope")}</li>
+          <li>{t("booking.review.ackDirty")}</li>
+          <li>{t("booking.review.ackExcluded")}</li>
+          <li>{t("booking.review.ackAddOns")}</li>
+          <li>{t("booking.review.ackDecline")}</li>
+          <li>{t("booking.review.ackRefusalFee")}</li>
+          <li className="font-medium text-charcoal dark:text-slate-200">{t("booking.review.ackDisclosure")}</li>
+        </ul>
       </div>
     </StepShell>
   );

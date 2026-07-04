@@ -77,7 +77,7 @@ export function ScheduleStep() {
     <StepShell
       title={t("booking.schedule.title")}
       subtitle={t("booking.schedule.subtitle")}
-      onBack={() => navigate("/book/service")}
+      onBack={() => navigate("/book/addons")}
       onNext={() => navigate("/book/review")}
       nextDisabled={!scheduledAt || !timeWindow}
     >
