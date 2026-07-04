@@ -490,8 +490,21 @@ cleanerDashboardRouter.post("/stripe-connect/onboard", async (c) => {
   const { getStripe } = await import("../lib/stripe");
   const stripe = getStripe(c.env.STRIPE_SECRET_KEY);
   const sql = getDb(c.env.DATABASE_URL);
-  const ctx = await getCleanerCtx(sql, c.get("user").clerkId);
-  if (!ctx) return c.json({ error: "Cleaner not found" }, 404);
+  let ctx = await getCleanerCtx(sql, c.get("user").clerkId);
+  if (!ctx) {
+    // "Set up payouts" is reachable during onboarding, before any other step
+    // has created the cleaners row. Starting Stripe Connect is a legitimate
+    // first action for a signed-in cleaner, so create the row lazily instead
+    // of 404ing. ON CONFLICT keeps a concurrent create (e.g. the Checkr step)
+    // from racing to a duplicate.
+    await sql`
+      INSERT INTO cleaners (user_id)
+      SELECT id FROM users WHERE clerk_id = ${c.get("user").clerkId}
+      ON CONFLICT (user_id) DO NOTHING
+    `;
+    ctx = await getCleanerCtx(sql, c.get("user").clerkId);
+    if (!ctx) return c.json({ error: "Cleaner not found" }, 404);
+  }
 
   const adminUrl = c.env.ADMIN_URL as string ?? "https://admin.getsweepr.com";
   const baseUrl  = c.env.CLEANER_APP_URL as string ?? "https://clean.getsweepr.com";
