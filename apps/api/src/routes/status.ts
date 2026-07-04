@@ -273,3 +273,35 @@ statusRouter.post(
     return c.json({ ok: true });
   }
 );
+
+// ─── Prelaunch bypass code verification ──────────────────────────────────────
+// The bypass code lives ONLY server-side (site_settings 'prelaunch_bypass_code',
+// with the PRELAUNCH_BYPASS_CODE Worker secret as fallback) — it is never baked
+// into a frontend bundle. Public but rate-limited at the app level; returns a
+// bare ok/false with no hint of whether a code is configured.
+statusRouter.post(
+  "/bypass",
+  zValidator("json", z.object({ code: z.string().min(1).max(64) }).strict()),
+  async (c) => {
+    const { code } = c.req.valid("json");
+    let expected = "";
+    try {
+      const sql = getDb(c.env.DATABASE_URL);
+      const rows = (await sql`
+        SELECT value FROM site_settings WHERE key = 'prelaunch_bypass_code' LIMIT 1
+      `) as SettingRow[];
+      expected = rows[0]?.value?.trim() ?? "";
+    } catch { /* fall through to env */ }
+    if (!expected) expected = ((c.env as { PRELAUNCH_BYPASS_CODE?: string }).PRELAUNCH_BYPASS_CODE ?? "").trim();
+    if (!expected) return c.json({ ok: false });
+
+    // Constant-time comparison — same pattern as webhook signature checks.
+    const a = new TextEncoder().encode(code);
+    const b = new TextEncoder().encode(expected);
+    let diff = a.length ^ b.length;
+    for (let i = 0; i < Math.max(a.length, b.length); i++) {
+      diff |= (a[i] ?? 0) ^ (b[i] ?? 0);
+    }
+    return c.json({ ok: diff === 0 });
+  }
+);
