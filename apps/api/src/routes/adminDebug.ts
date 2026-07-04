@@ -104,3 +104,36 @@ adminDebugRouter.get("/", async (c) => {
     },
   });
 });
+
+/**
+ * Probe Checkr connectivity from the Worker's own egress. Answers, for each
+ * host: does the configured key authenticate, and does Checkr's edge accept
+ * traffic from Cloudflare Workers at all? Uses a read-only GET (no candidate
+ * or invitation is created). Never echoes the key beyond a short prefix.
+ */
+adminDebugRouter.get("/checkr", async (c) => {
+  const key = c.env.CHECKR_API_KEY ?? "";
+  const hosts = [
+    "https://api.checkr.com/v1",
+    "https://api.checkr-staging.com/v1",
+  ];
+  const results = [];
+  for (const host of hosts) {
+    try {
+      const res = await fetch(`${host}/packages`, {
+        headers: { Authorization: `Basic ${btoa(key + ":")}` },
+      });
+      const body = await res.text().catch(() => "");
+      results.push({ host, status: res.status, body: body.slice(0, 300) });
+    } catch (err) {
+      results.push({ host, status: 0, body: `fetch failed: ${String(err).slice(0, 200)}` });
+    }
+  }
+  return c.json({
+    keyPresent: Boolean(key),
+    keyPrefix: key ? key.slice(0, 8) : null,
+    configuredCheckrUrl: c.env.CHECKR_API_URL ?? "(unset — auto-detect)",
+    packageSlug: c.env.CHECKR_PACKAGE ?? "tasker_standard (default)",
+    results,
+  });
+});
