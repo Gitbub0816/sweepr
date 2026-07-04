@@ -100,7 +100,8 @@ cleanerDashboardRouter.get("/dashboard", async (c) => {
 cleanerDashboardRouter.get("/my-jobs", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const ctx = await getCleanerCtx(sql, c.get("user").clerkId);
-  if (!ctx) return c.json({ error: "Cleaner not found" }, 404);
+  // Onboarding: no cleaner row yet — render an empty job list instead of 404.
+  if (!ctx) return c.json({ jobs: [] });
 
   const raw = c.req.query();
   const limit = Math.min(Math.max(1, Number(raw.limit ?? "20") || 20), 100);
@@ -168,7 +169,23 @@ cleanerDashboardRouter.post("/jobs/:id/decline", (c) => respondToOffer(c, "decli
 cleanerDashboardRouter.get("/earnings", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const ctx = await getCleanerCtx(sql, c.get("user").clerkId);
-  if (!ctx) return c.json({ error: "Cleaner not found" }, 404);
+  // Onboarding: no cleaner row yet — return zeroed earnings instead of 404.
+  if (!ctx) {
+    return c.json({
+      thisWeek: 0,
+      thisMonth: 0,
+      lastMonth: 0,
+      allTime: 0,
+      pendingPayout: 0,
+      nextPayoutDate: null,
+      stripeConnected: false,
+      onboardingUrl: null,
+      recent: [],
+      tipsThisMonth: 0,
+      tipsAllTime: 0,
+      recentTips: [],
+    });
+  }
 
   const now = new Date();
   const weekStart  = new Date(now); weekStart.setDate(now.getDate() - 7);
@@ -217,7 +234,23 @@ cleanerDashboardRouter.get("/earnings", async (c) => {
 cleanerDashboardRouter.get("/performance-stats", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const ctx = await getCleanerCtx(sql, c.get("user").clerkId);
-  if (!ctx) return c.json({ error: "Cleaner not found" }, 404);
+  // Onboarding: no cleaner row yet — return zeroed performance stats instead of 404.
+  if (!ctx) {
+    return c.json({
+      completionRate: 0,
+      onTimeRate: 0,
+      acceptanceRate: 0,
+      disputeRate: 0,
+      avgRating: 0,
+      reviewCount: 0,
+      tier: "standard",
+      nextTier: null,
+      tierProgress: 0,
+      thisMonthJobs: 0,
+      totalJobs: 0,
+      recentReviews: [],
+    });
+  }
 
   const [completion, ontime, rating, disputes, offered, accepted, reviews, tiers] =
     await Promise.all([
@@ -273,7 +306,8 @@ cleanerDashboardRouter.get("/performance-stats", async (c) => {
 cleanerDashboardRouter.get("/availability", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const ctx = await getCleanerCtx(sql, c.get("user").clerkId);
-  if (!ctx) return c.json({ error: "Cleaner not found" }, 404);
+  // Onboarding: no cleaner row yet — return empty availability instead of 404.
+  if (!ctx) return c.json({ slots: [] });
 
   const slots = await sql`
     SELECT day_of_week, start_time, end_time, active
@@ -318,7 +352,8 @@ cleanerDashboardRouter.put("/availability", zValidator("json", availabilitySchem
 cleanerDashboardRouter.get("/blocked-dates", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const ctx = await getCleanerCtx(sql, c.get("user").clerkId);
-  if (!ctx) return c.json({ error: "Cleaner not found" }, 404);
+  // Onboarding: no cleaner row yet — return empty blocked dates instead of 404.
+  if (!ctx) return c.json({ dates: [] });
 
   const dates = await sql`
     SELECT id, blocked_date::text, reason

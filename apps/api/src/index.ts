@@ -288,7 +288,14 @@ export default {
             const target = Math.min(row.total_price ?? authorized, authorized);
             await stripe.paymentIntents.capture(pi.id, { amount_to_capture: target });
             // Record/settle the payments row so this booking exits the capture
-            // set (an UPDATE alone would no-op when no row exists yet).
+            // set. Two cron ticks racing on the same booking (e.g. an overlap
+            // during a slow run) could both reach this point after both
+            // Stripe-capturing successfully is a no-op on Stripe's side, but
+            // without a DB-level guard both could still insert a payments
+            // row. `payments.booking_id` now has a unique constraint
+            // (migration 062); ON CONFLICT DO NOTHING makes this insert
+            // idempotent, and the UPDATE-first path keeps handling the
+            // pre-existing (pre-migration) row-already-exists case.
             const upd = await sql`
               UPDATE payments SET status = 'captured' WHERE booking_id = ${row.id} RETURNING id
             ` as { id: string }[];
@@ -296,6 +303,7 @@ export default {
               await sql`
                 INSERT INTO payments (booking_id, stripe_payment_intent_id, amount, status)
                 VALUES (${row.id}, ${pi.id}, ${target}, 'captured')
+                ON CONFLICT (booking_id) DO UPDATE SET status = 'captured'
               `;
             }
           }

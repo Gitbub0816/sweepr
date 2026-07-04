@@ -97,6 +97,14 @@ function computeLevelSurchargeCents(
   return Math.round((baseTotalCents * pct) / 100);
 }
 
+/** True if `err` is the unique-violation from migration 062's dedupe index. */
+function isDuplicateBookingViolation(err: unknown): boolean {
+  const e = err as { code?: string; constraint?: string; message?: string } | null;
+  if (!e) return false;
+  if (e.constraint === "uq_bookings_customer_slot_active") return true;
+  return e.code === "23505" && /uq_bookings_customer_slot_active/.test(e.message ?? "");
+}
+
 // Customers may only cancel via the status endpoint.
 const statusSchema = z.object({
   status: z.enum(["cancelled_by_customer"]),
@@ -202,24 +210,44 @@ bookingsRouter.post(
   );
   const totalPrice = baseTotalPrice + levelSurchargeCents;
 
-  const rows = (await sql`
-    INSERT INTO bookings (
-      customer_id, address_id, status, service_type, bedrooms, bathrooms,
-      sqft, home_type, scheduled_at, base_price, addons_total, service_fee,
-      tax, total_price, notes, cleaning_level, cleaning_level_surcharge_cents,
-      pricing_rule_id, pricing_rule_version, pricing_line_items_json, estimated_cleaner_payout_cents
-    ) VALUES (
-      ${customer.id}, ${input.addressId ?? null}, 'booked', ${input.serviceType},
-      ${input.bedrooms}, ${input.bathrooms}, ${input.sqft}, ${input.homeType},
-      ${input.scheduledAt}, ${basePrice}, ${addonsTotal},
-      ${resolved ? 0 : price.serviceFee}, ${resolved ? 0 : price.tax}, ${totalPrice}, ${input.notes ?? null},
-      ${input.cleaningLevel}, ${levelSurchargeCents},
-      ${resolved ? resolved.ruleId : null}, ${resolved ? resolved.ruleVersion : null},
-      ${resolved ? JSON.stringify(resolved.breakdown.line_items) : null}, ${cleanerPayout}
-    ) RETURNING *
-  `) as BookingRow[];
-
-  const created = rows[0];
+  // Duplicate-submit guard: a partial unique index on
+  // (customer_id, address_id, scheduled_at) for non-terminal bookings (see
+  // migration 062) makes a double-click's second INSERT fail with 23505
+  // instead of silently creating a second booking (and, downstream, a second
+  // PaymentIntent). On that race we return the booking the first request just
+  // created rather than erroring the customer's screen.
+  let created: BookingRow | undefined;
+  try {
+    const rows = (await sql`
+      INSERT INTO bookings (
+        customer_id, address_id, status, service_type, bedrooms, bathrooms,
+        sqft, home_type, scheduled_at, base_price, addons_total, service_fee,
+        tax, total_price, notes, cleaning_level, cleaning_level_surcharge_cents,
+        pricing_rule_id, pricing_rule_version, pricing_line_items_json, estimated_cleaner_payout_cents
+      ) VALUES (
+        ${customer.id}, ${input.addressId ?? null}, 'booked', ${input.serviceType},
+        ${input.bedrooms}, ${input.bathrooms}, ${input.sqft}, ${input.homeType},
+        ${input.scheduledAt}, ${basePrice}, ${addonsTotal},
+        ${resolved ? 0 : price.serviceFee}, ${resolved ? 0 : price.tax}, ${totalPrice}, ${input.notes ?? null},
+        ${input.cleaningLevel}, ${levelSurchargeCents},
+        ${resolved ? resolved.ruleId : null}, ${resolved ? resolved.ruleVersion : null},
+        ${resolved ? JSON.stringify(resolved.breakdown.line_items) : null}, ${cleanerPayout}
+      ) RETURNING *
+    `) as BookingRow[];
+    created = rows[0];
+  } catch (err) {
+    if (!isDuplicateBookingViolation(err)) throw err;
+    const existingRows = (await sql`
+      SELECT * FROM bookings
+      WHERE customer_id = ${customer.id}
+        AND COALESCE(address_id, '00000000-0000-0000-0000-000000000000') = COALESCE(${input.addressId ?? null}, '00000000-0000-0000-0000-000000000000')
+        AND scheduled_at = ${input.scheduledAt}
+        AND status NOT IN ('cancelled_by_customer', 'cancelled_by_cleaner', 'cancelled', 'refunded')
+      LIMIT 1
+    `) as BookingRow[];
+    if (existingRows[0]) return c.json({ booking: existingRows[0] }, 201);
+    throw err;
+  }
   if (!created) return c.json({ error: "Failed to create booking" }, 500);
 
   // Seed the append-only price ledger with the itemized initial quote.
@@ -499,7 +527,10 @@ bookingsRouter.post(
       );
     }
 
-    // Reject keys already on the booking.
+    // Reject keys already on the booking. This is advisory only (surfaces a
+    // friendly error in the common case) — the actual guarantee against
+    // double-purchase is the unique (booking_id, addon_key) constraint
+    // (migration 062) enforced by the guarded INSERT below.
     const existing = (await sql`
       SELECT addon_key FROM booking_addons WHERE booking_id = ${bookingId}
     `) as Array<{ addon_key: string }>;
@@ -512,16 +543,56 @@ bookingsRouter.post(
       );
     }
 
-    // Price server-side (catalogue is in dollars → cents).
+    // Insert each add-on atomically, re-checking the "not started yet" and
+    // "not already purchased" invariants as part of the INSERT itself:
+    //   - WHERE EXISTS (...) guards against a concurrent check-in (arrival
+    //     verification) landing between our initial SELECT above and this
+    //     write — the guard is evaluated against the row's live, committed
+    //     state at INSERT time, not the stale snapshot we read earlier.
+    //   - ON CONFLICT (booking_id, addon_key) DO NOTHING guards against a
+    //     concurrent duplicate request for the same add-on key.
+    // Only keys that actually got inserted are billed.
+    const preServiceStatuses = Array.from(PRE_SERVICE_STATUSES);
     let adjustmentCents = 0;
+    const addedKeys: string[] = [];
     for (const key of requested) {
       const addOn = getAddOn(key)!;
       const priceCents = Math.round(addOn.price * 100);
-      adjustmentCents += priceCents;
-      await sql`
+      const inserted = (await sql`
         INSERT INTO booking_addons (booking_id, addon_key, addon_name, price)
-        VALUES (${bookingId}, ${key}, ${addOn.name}, ${priceCents})
-      `;
+        SELECT ${bookingId}, ${key}, ${addOn.name}, ${priceCents}
+        WHERE EXISTS (
+          SELECT 1 FROM bookings
+          WHERE id = ${bookingId}
+            AND arrival_verified_at IS NULL
+            AND status = ANY(${preServiceStatuses})
+        )
+        ON CONFLICT (booking_id, addon_key) DO NOTHING
+        RETURNING addon_key
+      `) as Array<{ addon_key: string }>;
+      if (inserted[0]) {
+        adjustmentCents += priceCents;
+        addedKeys.push(key);
+      }
+    }
+
+    if (addedKeys.length === 0) {
+      // Nothing was actually inserted: either the job started (check-in raced
+      // us) or every key was already purchased by a concurrent request.
+      const recheck = (await sql`
+        SELECT arrival_verified_at, status FROM bookings WHERE id = ${bookingId} LIMIT 1
+      `) as Array<{ arrival_verified_at: string | null; status: string }>;
+      const b = recheck[0];
+      if (b && (b.arrival_verified_at || !PRE_SERVICE_STATUSES.has(b.status))) {
+        return c.json(
+          { error: "booking_already_started", message: "Services can no longer be added once your cleaner has checked in." },
+          409,
+        );
+      }
+      return c.json(
+        { error: "addon_already_purchased", message: `Already added: ${requested.join(", ")}` },
+        409,
+      );
     }
 
     await sql`
@@ -534,7 +605,7 @@ bookingsRouter.post(
       bookingId,
       adjustmentCents,
       eventType: "addon_purchase",
-      reason: `Customer added add-ons: ${requested.join(", ")}`,
+      reason: `Customer added add-ons: ${addedKeys.join(", ")}`,
       source: "customer",
     });
 
@@ -543,7 +614,7 @@ bookingsRouter.post(
       actorClerkId: c.get("user").clerkId,
       targetType: "booking",
       targetId: bookingId,
-      metadata: { addOnKeys: requested, adjustmentCents, newTotal: result.newTotal },
+      metadata: { addOnKeys: addedKeys, adjustmentCents, newTotal: result.newTotal },
       ipAddress: c.req.header("CF-Connecting-IP"),
       userAgent: c.req.header("User-Agent"),
       timestamp: new Date().toISOString(),
@@ -551,7 +622,7 @@ bookingsRouter.post(
 
     return c.json({
       ok: true,
-      addOnKeys: requested,
+      addOnKeys: addedKeys,
       addedCents: adjustmentCents,
       previousTotal: result.previousTotal,
       newTotal: result.newTotal,
@@ -680,12 +751,35 @@ bookingsRouter.post(
           403,
         );
       }
-      await sql`UPDATE job_offers SET status = 'accepted' WHERE id = ${offerId}`;
-      await sql`
+      // Claim-then-act: the earlier `offer.status !== "offered"` check reads a
+      // stale snapshot — two concurrent accept requests (double-tap, or a
+      // retry racing the original) could both pass it. This conditional
+      // UPDATE re-checks status = 'offered' at write time and only one
+      // concurrent request can win the row.
+      const claimedOffer = (await sql`
+        UPDATE job_offers SET status = 'accepted'
+        WHERE id = ${offerId} AND status = 'offered'
+        RETURNING id
+      `) as Array<{ id: string }>;
+      if (!claimedOffer[0]) {
+        return c.json({ error: "Offer is no longer active" }, 409);
+      }
+      // Likewise guard the booking assignment itself: only claim it if no
+      // cleaner has been assigned yet, so two different accepted offers for
+      // the same booking can't both land (last-write-wins on cleaner_id).
+      const claimedBooking = (await sql`
         UPDATE bookings SET cleaner_id = ${offer.cleaner_id},
           status = 'cleaner_accepted', updated_at = now()
-        WHERE id = ${bookingId}
-      `;
+        WHERE id = ${bookingId} AND cleaner_id IS NULL
+        RETURNING id
+      `) as Array<{ id: string }>;
+      if (!claimedBooking[0]) {
+        // Someone else's offer already claimed this booking — roll our
+        // acceptance back to avoid stranding an "accepted" offer that never
+        // actually got the job.
+        await sql`UPDATE job_offers SET status = 'declined' WHERE id = ${offerId}`;
+        return c.json({ error: "Booking already has an assigned cleaner" }, 409);
+      }
       await notifyBookingCustomer(sql, booking, {
         type: "cleaner_assigned",
         title: "Your cleaner is confirmed",
@@ -695,8 +789,16 @@ bookingsRouter.post(
       return c.json({ ok: true, status: "cleaner_accepted" });
     }
 
-    // Declined -> offer the next queued cleaner.
-    await sql`UPDATE job_offers SET status = 'declined' WHERE id = ${offerId}`;
+    // Declined -> offer the next queued cleaner. Claim the decline atomically
+    // (only from 'offered') so a decline racing an accept can't both "win".
+    const claimedDecline = (await sql`
+      UPDATE job_offers SET status = 'declined'
+      WHERE id = ${offerId} AND status = 'offered'
+      RETURNING id
+    `) as Array<{ id: string }>;
+    if (!claimedDecline[0]) {
+      return c.json({ error: "Offer is no longer active" }, 409);
+    }
     const next = (await sql`
       SELECT * FROM job_offers
       WHERE booking_id = ${bookingId} AND status = 'queued'
@@ -705,7 +807,7 @@ bookingsRouter.post(
 
     const nextOffer = next[0];
     if (nextOffer) {
-      await sql`UPDATE job_offers SET status = 'offered' WHERE id = ${nextOffer.id}`;
+      await sql`UPDATE job_offers SET status = 'offered' WHERE id = ${nextOffer.id} AND status = 'queued'`;
       await notifyCleaner(sql, nextOffer.cleaner_id, {
         type: "job_offered",
         title: "New job offer",

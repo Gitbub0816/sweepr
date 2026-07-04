@@ -123,20 +123,67 @@ paymentsRouter.post(
       return c.json({ error: "Booking has no valid price" }, 400);
     }
 
+    // Claim-then-act: the reuse check above reads a snapshot, so two
+    // concurrent create-intent calls for the same booking (double-tap on
+    // checkout, or a client retry racing the original) could both pass it and
+    // each call Stripe, leaving one PaymentIntent orphaned and racing to
+    // overwrite bookings.stripe_payment_intent_id. Claim the row with a
+    // sentinel value FIRST — only one request can win — before calling
+    // Stripe. A losing request either reuses the winner's real intent (once
+    // it lands) or gets a 409 telling the client to retry.
+    const CLAIM_SENTINEL = "pending:creating";
+    const claim = (await sql`
+      UPDATE bookings
+      SET stripe_payment_intent_id = ${CLAIM_SENTINEL}, stripe_payment_intent_created_at = NOW()
+      WHERE id = ${bookingId}
+        AND (
+          stripe_payment_intent_id IS NULL
+          OR (stripe_payment_intent_id = ${CLAIM_SENTINEL} AND stripe_payment_intent_created_at < NOW() - INTERVAL '30 seconds')
+          OR (stripe_payment_intent_created_at IS NOT NULL AND stripe_payment_intent_created_at < NOW() - INTERVAL '24 hours')
+        )
+      RETURNING id
+    `) as Array<{ id: string }>;
+    if (!claim[0]) {
+      // Someone else is actively creating (or already holds) an intent for
+      // this booking. Re-check: if a real intent has since landed, hand it
+      // back instead of erroring the client.
+      const recheck = (await sql`
+        SELECT stripe_payment_intent_id FROM bookings WHERE id = ${bookingId} LIMIT 1
+      `) as Array<{ stripe_payment_intent_id: string | null }>;
+      const pid = recheck[0]?.stripe_payment_intent_id;
+      if (pid && pid !== CLAIM_SENTINEL) {
+        const existing = await stripe.paymentIntents.retrieve(pid);
+        if (existing.status !== "canceled") {
+          return c.json({ clientSecret: existing.client_secret, id: existing.id });
+        }
+      }
+      return c.json({ error: "payment_intent_in_progress", message: "Please retry in a moment." }, 409);
+    }
+
     // Manual capture: authorize now, capture after the clean is completed.
     // NOTE: Stripe automatically cancels an uncaptured manual-capture
     // PaymentIntent after 7 days, so the booking must be captured within that
     // window (the hourly capture cron handles completed bookings promptly).
-    const intent = await stripe.paymentIntents.create({
-      amount: booking.total_price,
-      currency: "usd",
-      capture_method: "manual",
-      automatic_payment_methods: { enabled: true },
-      metadata: {
-        clerkId: user.clerkId,
-        bookingId,
-      },
-    });
+    let intent;
+    try {
+      intent = await stripe.paymentIntents.create({
+        amount: booking.total_price,
+        currency: "usd",
+        capture_method: "manual",
+        automatic_payment_methods: { enabled: true },
+        metadata: {
+          clerkId: user.clerkId,
+          bookingId,
+        },
+      });
+    } catch (err) {
+      // Release the claim so a legitimate retry isn't permanently blocked.
+      await sql`
+        UPDATE bookings SET stripe_payment_intent_id = NULL, stripe_payment_intent_created_at = NULL
+        WHERE id = ${bookingId} AND stripe_payment_intent_id = ${CLAIM_SENTINEL}
+      `;
+      throw err;
+    }
 
     await sql`
       UPDATE bookings
