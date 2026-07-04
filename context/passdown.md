@@ -2,7 +2,15 @@
 
 Last updated: 2026-07-04. Branch: `claude/wonderful-fermi-nmlpre` (all work merged to `main`). Standing instruction: merge current and future work to `main`.
 
-## Latest session — production error-log fixes
+## Session — security + performance (IDOR, Neon, Checkr)
+Merged to `main` at `4a4d74a`.
+- **IDOR fixes**: `/admin/status` and `/admin/insurance` routers were missing `requireAdmin` (any authed user could edit status incidents / list+approve insurance) — added. `/storage/sign-upload` accepted an arbitrary `refId` for the R2 key with no ownership check (a user could mint upload URLs under another user's booking/avatar/certificate/insurance path) — now verifies booking access (`getBookingAuthCtx`/`canUploadPhotos`) or that `refId` == caller's own cleaner id. Full audit report: every other route already scopes by owner or stacks `requireAdmin` (see commit body).
+- **Neon**: `getDb` now memoizes the HTTP client per connection string (was rebuilt every call). No dead connections — the HTTP driver is stateless (verified live: 1 active session). Collapsed query waterfalls to `Promise.all` in GET /customer-profile, bookings, didit. Migration 060 (20 FK/status/email indexes) + 061 (partial `assignment_queue(expires_at) WHERE status='pending'` + composite `subscriptions(customer_id,status)`) — **already applied to prod Neon** (project `calm-salad-01545586`) and in schema.sql. Enabled `pg_stat_statements` on prod for future slow-query visibility.
+- **Checkr**: official `checkr-js` is only the browser tokenization widget (not the server Partner API), so `lib/checkr.ts` server code was confirmed correct and left unchanged. Found+fixed a real bug: cleaner `BackgroundCheckStep.tsx` called `checkr.candidate.create({name,email})` but checkr-js validates SSN/DOB/phone client-side before any network call, so it always failed — removed that dead client path; onboarding now always uses the server-side hosted-invitation flow (POST /checkr/invite, no candidateId).
+- **Hard-tested** live API (curl + a saved Postman collection "Sweepr API — Security & Smoke Tests" in workspace 13831d84…): all auth walls (401), IDOR routes blocked, webhook signature rejection (401), client-error ingest (200), owner check-email authorized. 17/17 typecheck, 45/45 tests on the merge.
+- **Follow-ups**: N+1 cron loops flagged but not batched (low-volume): pricingApproval/approvalEngine cron transitions (per-row UPDATE/INSERT → batch with `= ANY`), assignment.ts admin notification fan-out, index.ts audit loop. Cleaner `dob/ssn/phone` are intentionally never collected. **API + frontends must be redeployed** for these fixes to take effect in prod.
+
+## Session — production error-log fixes (earlier)
 - **Stale-Clerk-account 500s** (`users_email_key` on /bookings, /customer-profile, invites): `upsertUser` in `packages/db/src/index.ts` now relinks the stale email-owning row to the new clerk_id (Clerk verifies emails, so a conflict means the account was recreated); owner self-heal in `middleware/auth.ts` does the same instead of forking a synthetic row.
 - **Admin sign-in**: `/admin/check-email` now case-insensitive and always authorizes owner emails (`lib/owner.ts`) so a stale/synthetic users row can't lock the founder out.
 - **Cleaner /sign-in React #300**: SignInPage/SignUpPage returned `<Navigate>` before their hooks; early return moved below all hooks.
