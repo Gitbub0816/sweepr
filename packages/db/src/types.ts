@@ -17,6 +17,9 @@ export interface CustomerRow {
   last_name: string | null;
   phone: string | null;
   stripe_customer_id: string | null;
+  account_status: string;
+  account_status_until: string | null;
+  account_status_reason: string | null;
   created_at: string;
 }
 
@@ -86,6 +89,8 @@ export interface BookingRow {
   platform_fee: number | null;
   cleaner_payout: number | null;
   notes: string | null;
+  cleaning_level: string | null;
+  cleaning_level_surcharge_cents: number;
   created_at: string;
   updated_at: string;
 }
@@ -140,4 +145,93 @@ export interface NotificationRow {
   read: boolean;
   data: Record<string, unknown> | null;
   created_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Scope review engine (migration 058)
+// ---------------------------------------------------------------------------
+
+export interface ScopeReviewRequestRow {
+  id: string;
+  booking_id: string;
+  cleaner_id: string | null;
+  customer_id: string | null;
+  request_type: string;
+  status: string;
+  selected_package: string | null;
+  selected_condition: string | null;
+  cleaner_notes: string | null;
+  refusal_reason: string | null;
+  ai_confidence: number | null;
+  ai_recommendation: string | null;
+  ai_response_json: Record<string, unknown> | null;
+  admin_decision: string | null;
+  admin_id: string | null;
+  admin_decided_at: string | null;
+  fee_code: string | null;
+  fee_amount_cents: number | null;
+  photos: string[];
+  created_at: string;
+  updated_at: string;
+  expires_at: string | null;
+}
+
+export interface BookingPriceLedgerRow {
+  id: string;
+  booking_id: string;
+  event_type: string;
+  previous_total_cents: number;
+  adjustment_cents: number;
+  new_total_cents: number;
+  reason: string | null;
+  source: string;
+  approved_by: string | null;
+  customer_consent_id: string | null;
+  scope_review_request_id: string | null;
+  stripe_payment_intent_id: string | null;
+  created_at: string;
+}
+
+export interface CleanerPrivilegesRow {
+  cleaner_id: string;
+  additional_attention_enabled: boolean;
+  refusal_request_enabled: boolean;
+  disabled_reason: string | null;
+  disabled_until: string | null;
+  stats_window_start: string | null;
+  stats_window_end: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AddressGreylistRow {
+  id: string;
+  street_address: string;
+  unit: string;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  normalized_key: string;
+  reason: string | null;
+  source_booking_id: string | null;
+  customer_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  expires_at: string | null;
+}
+
+export interface BookingTipRow {
+  id: string;
+  booking_id: string;
+  customer_id: string | null;
+  cleaner_id: string | null;
+  amount_cents: number;
+  stripe_payment_intent_id: string | null;
+  status: string;
+  visible_to_cleaner: boolean;
+  paid_out_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
