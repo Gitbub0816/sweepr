@@ -84,8 +84,11 @@ app.use("*", rateLimit({ limit: 100, windowMs: 60_000, keyPrefix: "general" }));
 
 // Tighter, route-specific limits.
 app.use("/auth/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "auth" }));
-app.use("/payments/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "payments" }));
-app.use("/tips/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "tips" }));
+// Keyed per-user (not IP) and generous enough for a real checkout flow, which
+// legitimately hits /payments/methods (read) + /create-intent plus retries as
+// the customer edits their booking. 5/15m was blocking normal checkout with 429s.
+app.use("/payments/*", rateLimit({ limit: 40, windowMs: 15 * 60_000, keyPrefix: "payments", by: "user" }));
+app.use("/tips/*", rateLimit({ limit: 20, windowMs: 15 * 60_000, keyPrefix: "tips", by: "user" }));
 // Scope review shares the sensitive-money rate profile (like /payments/*), but
 // the public action-link GET must stay reachable from email clients — the
 // general 100/min limit still applies to it.
