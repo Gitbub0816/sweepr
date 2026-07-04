@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@sweepr/ui": "workspace:*",
     "framer-motion": "^12.40.0",
     "lucide-react": "^0.441.0",
     "posthog-js": "^1.391.2",

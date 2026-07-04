@@ -2,7 +2,12 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
+import { installGlobalErrorHandlers } from "@sweepr/ui";
 import "./index.css";
+
+const API_URL =
+  (import.meta.env.VITE_API_URL as string | undefined) ?? "https://api.getsweepr.com";
+installGlobalErrorHandlers({ app: "legal", apiUrl: API_URL });
 
 const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY as string | undefined;
 if (POSTHOG_KEY && typeof window !== "undefined") {

@@ -1,4 +1,4 @@
-import { Suspense, useState } from "react";
+import { Component, Suspense, useState, type ReactNode } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Float, Sparkles, Icosahedron, Dodecahedron } from "@react-three/drei";
 import { useReducedMotion } from "framer-motion";
@@ -65,11 +65,41 @@ function FloatingShapes() {
 const STATIC_FALLBACK =
   "absolute inset-0 -z-10 bg-[radial-gradient(circle_at_70%_30%,#5eead4_0%,#ccfbf1_35%,#f0fdfa_70%)] opacity-60 dark:bg-[radial-gradient(circle_at_70%_30%,#0f766e_0%,#0b3b38_45%,#020617_80%)] dark:opacity-60";
 
+/** True when the browser can actually create a WebGL context. Some browsers
+ * expose the API but fail at context creation (blocked GPU, headless, old
+ * drivers) — three's renderer then throws "Failed to initialize WebGL". */
+function canUseWebGL(): boolean {
+  try {
+    const canvas = document.createElement("canvas");
+    return Boolean(
+      window.WebGLRenderingContext &&
+        (canvas.getContext("webgl2") || canvas.getContext("webgl")),
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Local boundary: if the 3D scene throws for any reason, fall back to the
+ * static gradient instead of crashing the whole marketing page. Decorative
+ * only, so no reporting needed here. */
+class SceneErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    if (this.state.failed) return <div className={STATIC_FALLBACK} aria-hidden="true" />;
+    return this.props.children;
+  }
+}
+
 export function HeroScene() {
   const prefersReducedMotion = useReducedMotion();
   const [contextLost, setContextLost] = useState(false);
+  const [webglOk] = useState(canUseWebGL);
 
-  if (prefersReducedMotion || contextLost) {
+  if (prefersReducedMotion || contextLost || !webglOk) {
     return <div className={STATIC_FALLBACK} aria-hidden="true" />;
   }
 
@@ -80,6 +110,7 @@ export function HeroScene() {
 
       {/* md+ : interactive 3D scene. */}
       <div className="hidden md:block">
+        <SceneErrorBoundary>
         <Suspense
           fallback={<div className={STATIC_FALLBACK} aria-hidden="true" />}
         >
@@ -114,6 +145,7 @@ export function HeroScene() {
             />
           </Canvas>
         </Suspense>
+        </SceneErrorBoundary>
       </div>
     </>
   );

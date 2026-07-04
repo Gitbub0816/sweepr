@@ -1,6 +1,14 @@
 # Sweepr — Session Passdown
 
-Last updated: 2026-07-04. Branch: `claude/wonderful-fermi-nmlpre` (all work merged to `main` at `01ff05d`).
+Last updated: 2026-07-04. Branch: `claude/wonderful-fermi-nmlpre` (all work merged to `main`). Standing instruction: merge current and future work to `main`.
+
+## Latest session — production error-log fixes
+- **Stale-Clerk-account 500s** (`users_email_key` on /bookings, /customer-profile, invites): `upsertUser` in `packages/db/src/index.ts` now relinks the stale email-owning row to the new clerk_id (Clerk verifies emails, so a conflict means the account was recreated); owner self-heal in `middleware/auth.ts` does the same instead of forking a synthetic row.
+- **Admin sign-in**: `/admin/check-email` now case-insensitive and always authorizes owner emails (`lib/owner.ts`) so a stale/synthetic users row can't lock the founder out.
+- **Cleaner /sign-in React #300**: SignInPage/SignUpPage returned `<Navigate>` before their hooks; early return moved below all hooks.
+- **Marketing WebGL crash**: HeroScene probes WebGL support and wraps the Canvas in a local boundary → static gradient fallback.
+- **Error reporting gaps**: customer's local ErrorBoundary now reports via `reportClientError`; legal/status/service apps wired with `installGlobalErrorHandlers` (enum extended in `clientErrors.ts` + ui `AppName`); all apps fall back to `https://api.getsweepr.com` for reporting in prod builds missing `VITE_API_URL`.
+- Not code-fixable (external config): Checkr 401/403 (bad/blocked `CHECKR_API_KEY`), Didit "not enough credits" (top up), Slack `token_expired` (reconnect workspace), Clerk script load failures (clerk.getsweepr.com DNS/CDN blips).
 
 ## What this session shipped
 

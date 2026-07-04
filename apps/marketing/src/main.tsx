@@ -29,7 +29,11 @@ function Root() {
   return <ClerkProvider publishableKey={PUBLISHABLE_KEY}>{tree}</ClerkProvider>;
 }
 
-const API_URL = (import.meta.env.VITE_API_URL as string) ?? "";
+// Fall back to the production API in prod builds so error reporting still
+// works when VITE_API_URL is missing from the build environment.
+const API_URL =
+  (import.meta.env.VITE_API_URL as string | undefined) ||
+  (import.meta.env.PROD ? "https://api.getsweepr.com" : "");
 
 installGlobalErrorHandlers({ app: "marketing", apiUrl: API_URL });
 
