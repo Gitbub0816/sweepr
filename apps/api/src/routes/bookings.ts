@@ -25,6 +25,7 @@ import { checkInsurance } from "../lib/cleanerRequirements";
 import { calculateBookingPrice, getAddOnCatalogue } from "../lib/pricingEngine";
 import { resolveBookingPricing, storeQuoteSnapshot } from "../lib/resolvePricing";
 import { recordLedgerEntry } from "../lib/bookingLedger";
+import { normalizedGreylistKey } from "../lib/scopeReviewEngine";
 import { isAddOnIncludedInPackage } from "@sweepr/utils";
 import type { CleaningLevel, ServiceType } from "@sweepr/types";
 import type { AppBindings } from "../types";
@@ -115,6 +116,50 @@ bookingsRouter.post(
   await sql`INSERT INTO customers (user_id) SELECT ${user.id} WHERE NOT EXISTS (SELECT 1 FROM customers WHERE user_id = ${user.id})`;
   const customer = await getCustomerByUserId(sql, user.id);
   if (!customer) return c.json({ error: "Customer not found" }, 404);
+
+  // Account-status gate: suspended/banned customers may not book. Lazily reset a
+  // suspension whose window has elapsed (suspended → normal) before deciding.
+  const statusRows = (await sql`
+    SELECT account_status, account_status_until FROM customers WHERE id = ${customer.id} LIMIT 1
+  `) as Array<{ account_status: string | null; account_status_until: string | null }>;
+  const acct = statusRows[0];
+  let accountStatus = acct?.account_status ?? "normal";
+  if (
+    accountStatus === "suspended" &&
+    acct?.account_status_until &&
+    new Date(acct.account_status_until).getTime() <= Date.now()
+  ) {
+    await sql`
+      UPDATE customers SET account_status = 'normal', account_status_until = NULL,
+        account_status_reason = NULL, updated_at = NOW() WHERE id = ${customer.id}
+    `;
+    accountStatus = "normal";
+  }
+  if (accountStatus === "suspended" || accountStatus === "banned") {
+    return c.json(
+      { error: "account_restricted", message: "Your account is not able to book at this time. Please contact support." },
+      403,
+    );
+  }
+
+  // Address greylist gate (unit-aware normalized key). Generic message — never
+  // reveal that an address is greylisted.
+  if (input.addressId) {
+    const addrRows = (await sql`
+      SELECT street, unit, zip FROM addresses WHERE id = ${input.addressId} LIMIT 1
+    `) as Array<{ street: string | null; unit: string | null; zip: string | null }>;
+    const addr = addrRows[0];
+    if (addr?.street && addr?.zip) {
+      const key = normalizedGreylistKey(addr.street, addr.unit, addr.zip);
+      const greylisted = (await sql`
+        SELECT 1 FROM address_greylist
+        WHERE normalized_key = ${key} AND (expires_at IS NULL OR expires_at > NOW()) LIMIT 1
+      `) as Array<{ "?column?": number }>;
+      if (greylisted[0]) {
+        return c.json({ error: "address_unavailable", message: "We're unable to service this address." }, 403);
+      }
+    }
+  }
 
   // Add-on / package integrity: never bill for an add-on that is already
   // included in the selected package's scope (would be duplicate billing).

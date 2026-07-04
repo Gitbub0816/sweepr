@@ -47,6 +47,7 @@ import { accountRouter } from "./routes/account";
 import { adminNotificationSettingsRouter } from "./routes/adminNotificationSettings";
 import { slackRouter } from "./routes/slack";
 import { feeProposalsRouter, feeActionRouter } from "./routes/feeProposals";
+import { scopeReviewRouter } from "./routes/scopeReview";
 import { pricingAdminRouter } from "./routes/pricingAdmin";
 import { securityRouter } from "./routes/security";
 import { itInboundRouter } from "./routes/itInbound";
@@ -84,6 +85,11 @@ app.use("*", rateLimit({ limit: 100, windowMs: 60_000, keyPrefix: "general" }));
 app.use("/auth/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "auth" }));
 app.use("/payments/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "payments" }));
 app.use("/tips/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "tips" }));
+// Scope review shares the sensitive-money rate profile (like /payments/*), but
+// the public action-link GET must stay reachable from email clients — the
+// general 100/min limit still applies to it.
+app.use("/scope-review/requests", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "scopereview" }));
+app.use("/scope-review/admin/*", rateLimit({ limit: 30, windowMs: 60_000, keyPrefix: "scopereview-admin" }));
 app.use("/storage/*", rateLimit({ limit: 20, windowMs: 60 * 60_000, keyPrefix: "storage" }));
 app.use("/pricing/*", rateLimit({ limit: 60, windowMs: 60_000, keyPrefix: "pricing" }));
 app.use("/client-errors/*", rateLimit({ limit: 20, windowMs: 60_000, keyPrefix: "clienterr" }));
@@ -157,6 +163,7 @@ app.route("/cleaner-dashboard", cleanerDashboardRouter);
 app.route("/slack", slackRouter);
 app.route("/admin/fee-proposals", feeProposalsRouter);
 app.route("/fee-action", feeActionRouter);
+app.route("/scope-review", scopeReviewRouter);
 app.route("/admin/pricing", pricingAdminRouter);
 app.route("/security", securityRouter);
 app.route("/it-mail", itInboundRouter);
@@ -329,6 +336,44 @@ export default {
         }
       } catch (err) {
         logger.error("cron.approval_engine failed", err, { cron: event.cron });
+      }
+
+      // Scope review engine time-driven transitions (idempotent).
+      try {
+        const { audit } = await import("./lib/audit");
+        // Expire pending_admin requests past their deadline.
+        const expired = await sql`
+          UPDATE scope_review_requests
+          SET status = 'expired', updated_at = NOW()
+          WHERE status = 'pending_admin' AND expires_at IS NOT NULL AND expires_at <= NOW()
+          RETURNING id
+        ` as { id: string }[];
+        for (const r of expired) {
+          await audit(sql, {
+            action: "admin.action", actorClerkId: "system:cron",
+            targetType: "scope_review_request", targetId: r.id,
+            metadata: { event: "scope_review_expired" }, timestamp: new Date().toISOString(),
+          });
+        }
+
+        // Re-enable cleaner privileges whose disable window has elapsed.
+        await sql`
+          UPDATE cleaner_privileges
+          SET additional_attention_enabled = TRUE, refusal_request_enabled = TRUE,
+              disabled_reason = NULL, disabled_until = NULL, updated_at = NOW()
+          WHERE disabled_until IS NOT NULL AND disabled_until <= NOW()
+        `;
+
+        // Reset customers whose investigating/suspended window has elapsed.
+        await sql`
+          UPDATE customers
+          SET account_status = 'normal', account_status_until = NULL,
+              account_status_reason = NULL, updated_at = NOW()
+          WHERE account_status IN ('investigating', 'suspended')
+            AND account_status_until IS NOT NULL AND account_status_until <= NOW()
+        `;
+      } catch (err) {
+        logger.error("cron.scope_review failed", err, { cron: event.cron });
       }
 
       // Auto-detect error patterns and open status incidents.

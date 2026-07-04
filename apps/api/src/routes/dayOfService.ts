@@ -418,6 +418,17 @@ dayOfServiceRouter.post(
       ON CONFLICT (booking_id) DO NOTHING
     `;
 
+    // A successful completion clears an "investigating" flag on the customer —
+    // a satisfactory service returns them to normal standing.
+    if (booking.customer_id) {
+      await sql`
+        UPDATE customers
+        SET account_status = 'normal', account_status_until = NULL,
+            account_status_reason = NULL, updated_at = NOW()
+        WHERE id = ${booking.customer_id} AND account_status = 'investigating'
+      `;
+    }
+
     await audit(sql, {
       action: "booking.completed",
       actorClerkId: clerkId,

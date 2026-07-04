@@ -63,6 +63,8 @@ preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
 # SLACK_SIGNING_SECRET      (Slack app → Basic Information → App Credentials; verifies inbound webhooks)
 # MAILERSEND_IT_INBOUND_SECRET        (MailerSend → Inbound routes → IT@ route signing secret)
 # MAILERSEND_SECURITY_INBOUND_SECRET  (MailerSend → Inbound routes → security@ route signing secret)
+# OPENAI_API_KEY            (OpenAI API key — vision scope review; server-side only)
+# OPENAI_VISION_MODEL       (optional — vision model override; defaults to gpt-4.1-mini)
 
 [env.production]
 vars = { ENVIRONMENT = "production" }
