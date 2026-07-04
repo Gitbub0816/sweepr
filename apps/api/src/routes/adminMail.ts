@@ -174,7 +174,7 @@ adminMailRouter.post("/:box/send", zValidator("json", sendSchema), async (c) => 
     });
   } catch (err) {
     logger.error("admin mail send failed", err, { box, to });
-    return c.json({ error: "Send failed", detail: String(err) }, 502);
+    return c.json({ error: "Send failed" }, 502);
   }
 
   const rows = (await sql`

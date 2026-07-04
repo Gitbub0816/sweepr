@@ -9,6 +9,8 @@ interface ImportMetaEnv {
   readonly VITE_CUSTOMER_URL?: string;
   readonly VITE_CLEANER_URL?: string;
   readonly VITE_MARKETING_URL?: string;
+  /** Prelaunch gate bypass code. Unset = bypass path fully disabled. */
+  readonly VITE_PRELAUNCH_BYPASS_CODE?: string;
 }
 
 interface ImportMeta {

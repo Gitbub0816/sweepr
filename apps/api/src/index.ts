@@ -97,6 +97,16 @@ app.use("/client-errors/*", rateLimit({ limit: 20, windowMs: 60_000, keyPrefix: 
 app.use("/slack/*", rateLimit({ limit: 300, windowMs: 60_000, keyPrefix: "slack" }));
 app.use("/unsubscribe/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "unsub" }));
 app.use("/privacy/*", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "privacy" }));
+// External/expensive identity-verification calls (Checkr, Didit) — stricter
+// than general to blunt cost-abuse. Does NOT cover /webhooks/checkr or
+// /webhooks/didit, which are mounted separately and are HMAC-verified.
+app.use("/checkr/*", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "checkr", by: "user" }));
+app.use("/didit/*", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "didit", by: "user" }));
+// Review submission — authenticated, keyed per-user so a single account can't
+// spam reviews from many IPs.
+app.use("/reviews", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "reviews", by: "user" }));
+// Public "Report a problem" intake — no signature/JWT required, so IP-keyed.
+app.use("/report/*", rateLimit({ limit: 20, windowMs: 15 * 60_000, keyPrefix: "report" }));
 
 app.get("/", (c) => c.json({ name: "sweepr-api", status: "ok" }));
 app.get("/health", (c) => c.json({ ok: true }));

@@ -68,7 +68,10 @@ diditRouter.post("/session", requireAuth, async (c) => {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     logger.error("Didit session creation failed", { msg, workflow });
-    return c.json({ error: "didit_session_failed", detail: msg }, 502);
+    return c.json(
+      { error: "didit_session_failed", message: "Could not start identity verification. Please try again shortly." },
+      502,
+    );
   }
 
   const status = session.stub ? "in_review" : "pending";

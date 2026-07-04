@@ -17,7 +17,7 @@ export const adminRouter = new Hono<AppBindings>();
 // blanket "*" here would also gate sibling routers mounted under /admin/*
 // (e.g. the public /admin/invites/verify endpoint). Scope to this router's
 // own top-level paths instead.
-for (const prefix of ["/stats", "/cleaners", "/customers", "/jobs", "/events", "/applications", "/disputes"]) {
+for (const prefix of ["/stats", "/cleaners", "/customers", "/jobs", "/events", "/applications", "/disputes", "/users"]) {
   adminRouter.use(prefix, requireAuth, requireAdmin);
   adminRouter.use(`${prefix}/*`, requireAuth, requireAdmin);
 }

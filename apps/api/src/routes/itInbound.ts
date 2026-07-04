@@ -13,15 +13,11 @@ import { sendEmail, SENDERS, TEMPLATES, formatEmailTimestamp } from "../lib/mail
 import { generateTicketId } from "../lib/ticketId";
 import { itTypeFromLabel } from "../lib/issueTypes";
 import { inferIT } from "../lib/classify";
+import { hmacHex, timingSafeEqual } from "../lib/webhookAuth";
 import type { AppBindings } from "../types";
 
 export const itInboundRouter = new Hono<AppBindings>();
 
-async function hmacHex(secret: string, raw: string): Promise<string> {
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(raw));
-  return Array.from(new Uint8Array(mac)).map((b) => b.toString(16).padStart(2, "0")).join("");
-}
 function stripHtml(html: string): string {
   return html.replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -31,7 +27,7 @@ itInboundRouter.post("/inbound", async (c) => {
   // Verify against the IT inbound route's own signing secret.
   if (!c.env.MAILERSEND_IT_INBOUND_SECRET) return c.json({ error: "Inbound not configured" }, 503);
   const sig = c.req.header("signature") ?? c.req.header("x-mailersend-signature") ?? "";
-  if (sig !== (await hmacHex(c.env.MAILERSEND_IT_INBOUND_SECRET, raw))) return c.json({ error: "bad signature" }, 401);
+  if (!timingSafeEqual(sig, await hmacHex(c.env.MAILERSEND_IT_INBOUND_SECRET, raw))) return c.json({ error: "bad signature" }, 401);
   let payload: Record<string, unknown> = {};
   try { payload = JSON.parse(raw || "{}"); } catch { return c.json({ error: "bad json" }, 400); }
   const data = (payload.data ?? payload) as Record<string, unknown>;

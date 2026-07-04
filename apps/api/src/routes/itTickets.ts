@@ -22,6 +22,7 @@ import { generateTicketId, itTypeCode } from "../lib/ticketId";
 import { sendEmail, SENDERS, TEMPLATES, formatEmailTimestamp } from "../lib/mailer";
 import { getTicketContext } from "../lib/ticketContext";
 import { inferIT } from "../lib/classify";
+import { sanitizeText } from "../lib/sanitizeText";
 import type { AppBindings } from "../types";
 
 export const itTicketsRouter = new Hono<AppBindings>();
@@ -49,14 +50,16 @@ itTicketsRouter.post("/", zValidator("json", createSchema), async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const { clerkId, email } = c.get("user");
 
-  const inf = inferIT(body.title, body.description ?? "");
+  const title = sanitizeText(body.title, 200);
+  const description = body.description ? sanitizeText(body.description, 5000) : null;
+  const inf = inferIT(title, description ?? "");
   const gen = generateTicketId("IT", itTypeCode(body.category));
   const rows = (await sql`
     INSERT INTO it_tickets (title, description, category, priority, source, app,
                             reporter_clerk_id, reporter_email, context,
                             ticket_id, case_code, ticket_prefix, encoded_date, encoded_time, issue_type, hex_suffix,
                             classification_confidence, classification_signals, auto_classified)
-    VALUES (${body.title}, ${body.description ?? null}, ${body.category},
+    VALUES (${title}, ${description}, ${body.category},
             ${body.priority ?? "normal"}, 'user_report', ${body.app ?? null},
             ${clerkId}, ${email ?? null}, ${JSON.stringify(body.context ?? {})},
             ${gen.ticketId}, ${gen.caseCode}, 'IT', ${gen.encodedDate}, ${gen.encodedTime}, ${gen.issueType}, ${gen.hex},
@@ -172,9 +175,10 @@ itTicketsRouter.post(
     const sql = getDb(c.env.DATABASE_URL);
     const id = c.req.param("id");
     const { clerkId, email } = c.get("user");
+    const commentBody = sanitizeText(c.req.valid("json").body, 5000);
     await sql`
       INSERT INTO it_ticket_comments (ticket_id, author_clerk_id, author_email, is_admin, body)
-      VALUES (${id}, ${clerkId}, ${email ?? null}, TRUE, ${c.req.valid("json").body})
+      VALUES (${id}, ${clerkId}, ${email ?? null}, TRUE, ${commentBody})
     `;
     await sql`UPDATE it_tickets SET updated_at = NOW() WHERE id = ${id}`;
     return c.json({ ok: true });
