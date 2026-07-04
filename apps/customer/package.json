@@ -22,7 +22,7 @@
     "@sweepr/utils": "workspace:*",
     "@tanstack/react-query": "^5.62.11",
     "clsx": "^2.1.1",
-    "framer-motion": "^12.40.0",
+    "framer-motion": "^12.42.2",
     "i18next": "^26.3.4",
     "i18next-browser-languagedetector": "^8.2.1",
     "lucide-react": "^0.469.0",
