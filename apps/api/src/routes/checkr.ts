@@ -90,6 +90,20 @@ checkrRouter.post("/invite", requireAuth, zValidator("json", inviteSchema), asyn
     // as an unhandled 500. Return a clean, retryable error the UI can display.
     const detail = err instanceof Error ? err.message : String(err);
     logger.error("checkr/invite: Checkr API call failed", err, { userId: user.id });
+    // Persist the full upstream detail to the admin error feed — the client
+    // only gets a generic message, so without this the real Checkr response
+    // is invisible outside Workers Logs.
+    const { recordError } = await import("../lib/errorLog");
+    await recordError(sql, {
+      source: "server",
+      app: "api",
+      message: `checkr/invite failed: ${detail}`,
+      path: "/checkr/invite",
+      method: "POST",
+      statusCode: 502,
+      clerkId: authUser.clerkId,
+      context: { configuredCheckrUrl: c.env.CHECKR_API_URL ?? "(unset — auto-detect)" },
+    });
     const blocked = /→\s*40[13]/.test(detail);
     return c.json(
       {
