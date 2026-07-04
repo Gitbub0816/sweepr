@@ -84,8 +84,11 @@ app.use("*", rateLimit({ limit: 100, windowMs: 60_000, keyPrefix: "general" }));
 
 // Tighter, route-specific limits.
 app.use("/auth/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "auth" }));
-app.use("/payments/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "payments" }));
-app.use("/tips/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "tips" }));
+// Keyed per-user (not IP) and generous enough for a real checkout flow, which
+// legitimately hits /payments/methods (read) + /create-intent plus retries as
+// the customer edits their booking. 5/15m was blocking normal checkout with 429s.
+app.use("/payments/*", rateLimit({ limit: 40, windowMs: 15 * 60_000, keyPrefix: "payments", by: "user" }));
+app.use("/tips/*", rateLimit({ limit: 20, windowMs: 15 * 60_000, keyPrefix: "tips", by: "user" }));
 // Scope review shares the sensitive-money rate profile (like /payments/*), but
 // the public action-link GET must stay reachable from email clients — the
 // general 100/min limit still applies to it.
@@ -285,7 +288,14 @@ export default {
             const target = Math.min(row.total_price ?? authorized, authorized);
             await stripe.paymentIntents.capture(pi.id, { amount_to_capture: target });
             // Record/settle the payments row so this booking exits the capture
-            // set (an UPDATE alone would no-op when no row exists yet).
+            // set. Two cron ticks racing on the same booking (e.g. an overlap
+            // during a slow run) could both reach this point after both
+            // Stripe-capturing successfully is a no-op on Stripe's side, but
+            // without a DB-level guard both could still insert a payments
+            // row. `payments.booking_id` now has a unique constraint
+            // (migration 062); ON CONFLICT DO NOTHING makes this insert
+            // idempotent, and the UPDATE-first path keeps handling the
+            // pre-existing (pre-migration) row-already-exists case.
             const upd = await sql`
               UPDATE payments SET status = 'captured' WHERE booking_id = ${row.id} RETURNING id
             ` as { id: string }[];
@@ -293,6 +303,7 @@ export default {
               await sql`
                 INSERT INTO payments (booking_id, stripe_payment_intent_id, amount, status)
                 VALUES (${row.id}, ${pi.id}, ${target}, 'captured')
+                ON CONFLICT (booking_id) DO UPDATE SET status = 'captured'
               `;
             }
           }

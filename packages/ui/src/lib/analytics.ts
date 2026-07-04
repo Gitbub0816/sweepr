@@ -71,10 +71,14 @@ async function startPosthog() {
   posthog.init(key, {
     api_host: env().VITE_POSTHOG_HOST ?? 'https://app.posthog.com',
     capture_pageview: true,
-    capture_pageleave: true,
-    autocapture: true,
+    // Trimmed to cut request volume dramatically: pageleave, autocapture (a
+    // network call per DOM interaction), and continuous session recording were
+    // flooding PostHog. Explicit track()/identify() calls still fire. Re-enable
+    // individually if a specific analysis needs them.
+    capture_pageleave: false,
+    autocapture: false,
+    disable_session_recording: true,
     persistence: 'localStorage+cookie',
-    session_recording: { maskAllInputs: true }, // never record PII input
     loaded: (ph) => {
       _posthog = ph as unknown as PostHogClient
     },
