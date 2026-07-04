@@ -68,20 +68,39 @@ checkrRouter.post("/invite", requireAuth, zValidator("json", inviteSchema), asyn
 
   let candidateId: string;
   const candidateWasCreatedByCheckrJs = Boolean(clientCandidateId && !existingCandidateId);
-  if (existingCandidateId) {
-    candidateId = existingCandidateId;
-  } else if (clientCandidateId) {
-    candidateId = clientCandidateId;
-  } else {
-    // Legacy/server fallback for environments that still allow server-side candidate creation.
-    // Preferred path is Checkr.js in the browser so Sweepr never receives SSN/DOB/phone.
-    const candidate = await client.createCandidate(user.email ?? "", firstName, lastName);
-    candidateId = candidate.id;
-  }
+  let invitation: Awaited<ReturnType<typeof client.createInvitation>>;
+  try {
+    if (existingCandidateId) {
+      candidateId = existingCandidateId;
+    } else if (clientCandidateId) {
+      candidateId = clientCandidateId;
+    } else {
+      // Server-side candidate creation with name+email only (no SSN/DOB/phone —
+      // the applicant enters those on Checkr's hosted invitation page).
+      const candidate = await client.createCandidate(user.email ?? "", firstName, lastName);
+      candidateId = candidate.id;
+    }
 
-  const invitation = existingCandidateId
-    ? await client.reInvite(candidateId, workState)
-    : await client.createInvitation(candidateId, workState);
+    invitation = existingCandidateId
+      ? await client.reInvite(candidateId, workState)
+      : await client.createInvitation(candidateId, workState);
+  } catch (err) {
+    // Checkr API failures (e.g. 403 "Request blocked" when the account isn't
+    // yet credentialed for production, 401 bad key, or network) must not surface
+    // as an unhandled 500. Return a clean, retryable error the UI can display.
+    const detail = err instanceof Error ? err.message : String(err);
+    logger.error("checkr/invite: Checkr API call failed", err, { userId: user.id });
+    const blocked = /→\s*40[13]/.test(detail);
+    return c.json(
+      {
+        error: "background_check_unavailable",
+        message: blocked
+          ? "Background checks are temporarily unavailable. Our team has been notified — please try again shortly."
+          : "Could not start your background check. Please try again in a few minutes.",
+      },
+      502,
+    );
+  }
 
   try {
     if (cleanerRows[0]) {

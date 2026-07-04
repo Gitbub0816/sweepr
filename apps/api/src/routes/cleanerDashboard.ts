@@ -34,7 +34,24 @@ async function getCleanerCtx(sql: ReturnType<typeof getDb>, clerkId: string) {
 cleanerDashboardRouter.get("/dashboard", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const ctx = await getCleanerCtx(sql, c.get("user").clerkId);
-  if (!ctx) return c.json({ error: "Cleaner not found" }, 404);
+  // A user who has authenticated but not yet completed onboarding has no
+  // cleaners row. Return an empty, onboarding-safe dashboard (200) instead of
+  // a 404 so the dashboard page renders cleanly rather than logging an error.
+  if (!ctx) {
+    return c.json({
+      onboarding: true,
+      upcomingJobs: 0,
+      completedThisMonth: 0,
+      earningsThisMonth: 0,
+      pendingPayout: 0,
+      rating: 0,
+      reviewCount: 0,
+      tier: "standard",
+      stripeConnected: false,
+      nextJobAt: null,
+      nextJobAddress: null,
+    });
+  }
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
