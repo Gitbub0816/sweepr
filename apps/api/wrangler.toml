@@ -12,6 +12,12 @@ invocation_logs = true
 
 [vars]
 ENVIRONMENT = "production"
+# The Checkr account's API keys are STAGING keys — they only authenticate
+# against the staging host. Remove this (or set to https://api.checkr.com)
+# when Checkr grants production credentials. When unset, lib/checkr.ts
+# auto-detects the right host, so this is an optimization + explicit
+# documentation of intent.
+CHECKR_API_URL = "https://api.checkr-staging.com"
 
 # 5th "site": the API + webhooks live on their own subdomain (api.getsweepr.com),
 # NOT under a path on another site. This binds the Worker to the custom domain
