@@ -121,7 +121,11 @@ adminDebugRouter.get("/checkr", async (c) => {
   for (const host of hosts) {
     try {
       const res = await fetch(`${host}/packages`, {
-        headers: { Authorization: `Basic ${btoa(key + ":")}` },
+        headers: {
+          Authorization: `Basic ${btoa(key + ":")}`,
+          Accept: "application/json",
+          "User-Agent": "Sweepr-API/1.0 (+https://getsweepr.com)",
+        },
       });
       const body = await res.text().catch(() => "");
       results.push({ host, status: res.status, body: body.slice(0, 300) });
