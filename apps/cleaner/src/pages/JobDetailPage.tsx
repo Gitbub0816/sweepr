@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { DashboardShell, Card, Button, ErrorState, Skeleton, toast } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
 import { NavigationMap } from "../components/NavigationMap";
+import { ScopeReviewSection } from "../components/ScopeReviewSection";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 
@@ -386,6 +387,9 @@ export function JobDetailPage() {
           </div>
         </Card>
       )}
+
+      {/* Additional attention / refusal requests — only once checked in and job not completed */}
+      {job.arrival_verified_at && !isCompleted && <ScopeReviewSection bookingId={job.id} />}
 
       {/* Photos taken */}
       {job.photos && job.photos.length > 0 && (

@@ -24,9 +24,10 @@ import { assertBookingAccess } from "../lib/bookingAccess";
 import { checkInsurance } from "../lib/cleanerRequirements";
 import { calculateBookingPrice, getAddOnCatalogue } from "../lib/pricingEngine";
 import { resolveBookingPricing, storeQuoteSnapshot } from "../lib/resolvePricing";
-import { recordLedgerEntry } from "../lib/bookingLedger";
+import { recordLedgerEntry, applyBookingPriceAdjustment } from "../lib/bookingLedger";
 import { normalizedGreylistKey } from "../lib/scopeReviewEngine";
-import { isAddOnIncludedInPackage } from "@sweepr/utils";
+import { getStripe } from "../lib/stripe";
+import { isAddOnIncludedInPackage, getAddOn } from "@sweepr/utils";
 import type { CleaningLevel, ServiceType } from "@sweepr/types";
 import type { AppBindings } from "../types";
 import type { BookingRow, CleanerRow } from "@sweepr/db";
@@ -349,7 +350,13 @@ bookingsRouter.get("/:id", async (c) => {
     : [];
   const addr = addrRows[0] ?? {};
 
-  return c.json({ booking: { ...booking, ...addr } });
+  // Add-ons currently on the booking (drives the customer detail UI).
+  const addonRows = (await sql`
+    SELECT addon_key FROM booking_addons WHERE booking_id = ${bookingId}
+  `) as Array<{ addon_key: string }>;
+  const addon_keys = addonRows.map((r) => r.addon_key);
+
+  return c.json({ booking: { ...booking, ...addr, addon_keys } });
 });
 
 bookingsRouter.patch(
@@ -399,6 +406,147 @@ function isValidTransitionSafe(from: string, to: string): boolean {
     return false;
   }
 }
+
+// Statuses at which a customer may still add services — i.e. before the cleaner
+// has checked in / started the job.
+const PRE_SERVICE_STATUSES = new Set([
+  "draft",
+  "quoted",
+  "payment_pending",
+  "booked",
+  "matching",
+  "offered_to_cleaner",
+  "cleaner_accepted",
+  "confirmed",
+  "cleaner_on_the_way",
+]);
+
+const addAddonsSchema = z.object({
+  addOnKeys: z.array(z.string().max(50)).min(1).max(20),
+});
+
+/**
+ * Post-booking add-on purchase. The customer may add services any time before
+ * the cleaner checks in (arrival_verified_at IS NULL and a pre-service status).
+ * Prices are computed server-side from the add-on catalogue; the booking total
+ * and Stripe authorization are updated via the price ledger.
+ */
+bookingsRouter.post(
+  "/:id/addons",
+  zValidator("json", addAddonsSchema),
+  async (c) => {
+    const sql = getDb(c.env.DATABASE_URL);
+    const bookingId = c.req.param("id");
+    const { addOnKeys } = c.req.valid("json");
+
+    // Ownership: only the booking's customer may add services.
+    const user = await getUserByClerkId(sql, c.get("user").clerkId);
+    if (!user) return c.json({ error: "Forbidden" }, 403);
+    const customer = await getCustomerByUserId(sql, user.id);
+    if (!customer) return c.json({ error: "Forbidden" }, 403);
+
+    const rows = (await sql`
+      SELECT id, customer_id, service_type, status, arrival_verified_at, total_price, addons_total
+      FROM bookings WHERE id = ${bookingId} LIMIT 1
+    `) as Array<{
+      id: string;
+      customer_id: string;
+      service_type: string;
+      status: string;
+      arrival_verified_at: string | null;
+      total_price: number | null;
+      addons_total: number | null;
+    }>;
+    const booking = rows[0];
+    if (!booking) return c.json({ error: "Not found" }, 404);
+    if (booking.customer_id !== customer.id) return c.json({ error: "Forbidden" }, 403);
+
+    // Job must not have started (cleaner has not checked in).
+    if (booking.arrival_verified_at || !PRE_SERVICE_STATUSES.has(booking.status)) {
+      return c.json(
+        { error: "booking_already_started", message: "Services can no longer be added once your cleaner has checked in." },
+        409,
+      );
+    }
+
+    // De-dupe requested keys, validate catalogue membership + package overlap.
+    const requested = Array.from(new Set(addOnKeys));
+    const unknown = requested.filter((k) => !getAddOn(k));
+    if (unknown.length > 0) {
+      return c.json({ error: "unknown_addon", message: `Unknown add-ons: ${unknown.join(", ")}` }, 400);
+    }
+    const includedDupes = requested.filter((k) =>
+      isAddOnIncludedInPackage(k, booking.service_type as ServiceType),
+    );
+    if (includedDupes.length > 0) {
+      return c.json(
+        {
+          error: "addon_included_in_package",
+          message: `These add-ons are already included in your package: ${includedDupes.join(", ")}`,
+        },
+        400,
+      );
+    }
+
+    // Reject keys already on the booking.
+    const existing = (await sql`
+      SELECT addon_key FROM booking_addons WHERE booking_id = ${bookingId}
+    `) as Array<{ addon_key: string }>;
+    const existingKeys = new Set(existing.map((r) => r.addon_key));
+    const already = requested.filter((k) => existingKeys.has(k));
+    if (already.length > 0) {
+      return c.json(
+        { error: "addon_already_purchased", message: `Already added: ${already.join(", ")}` },
+        409,
+      );
+    }
+
+    // Price server-side (catalogue is in dollars → cents).
+    let adjustmentCents = 0;
+    for (const key of requested) {
+      const addOn = getAddOn(key)!;
+      const priceCents = Math.round(addOn.price * 100);
+      adjustmentCents += priceCents;
+      await sql`
+        INSERT INTO booking_addons (booking_id, addon_key, addon_name, price)
+        VALUES (${bookingId}, ${key}, ${addOn.name}, ${priceCents})
+      `;
+    }
+
+    await sql`
+      UPDATE bookings SET addons_total = ${(booking.addons_total ?? 0) + adjustmentCents}, updated_at = NOW()
+      WHERE id = ${bookingId}
+    `;
+
+    const stripe = getStripe(c.env.STRIPE_SECRET_KEY);
+    const result = await applyBookingPriceAdjustment(sql, stripe, {
+      bookingId,
+      adjustmentCents,
+      eventType: "addon_purchase",
+      reason: `Customer added add-ons: ${requested.join(", ")}`,
+      source: "customer",
+    });
+
+    await audit(sql, {
+      action: "booking.addons_added",
+      actorClerkId: c.get("user").clerkId,
+      targetType: "booking",
+      targetId: bookingId,
+      metadata: { addOnKeys: requested, adjustmentCents, newTotal: result.newTotal },
+      ipAddress: c.req.header("CF-Connecting-IP"),
+      userAgent: c.req.header("User-Agent"),
+      timestamp: new Date().toISOString(),
+    });
+
+    return c.json({
+      ok: true,
+      addOnKeys: requested,
+      addedCents: adjustmentCents,
+      previousTotal: result.previousTotal,
+      newTotal: result.newTotal,
+    });
+  },
+);
 
 /** Helper: notify the customer that owns a booking. */
 async function notifyBookingCustomer(

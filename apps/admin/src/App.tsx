@@ -27,6 +27,8 @@ import {
   ShieldAlert,
   Radio,
   Inbox,
+  ScanEye,
+  ShieldBan,
 } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -68,6 +70,9 @@ import { SecurityPage } from "./pages/SecurityPage";
 import { BroadcastsPage } from "./pages/BroadcastsPage";
 import { NewsletterPage } from "./pages/NewsletterPage";
 import { MailPage } from "./pages/MailPage";
+import { ScopeReviewPage } from "./pages/ScopeReviewPage";
+import { ScopeReviewDetailPage } from "./pages/ScopeReviewDetailPage";
+import { TrustSafetyPage } from "./pages/TrustSafetyPage";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -77,6 +82,8 @@ const nav = [
   { to: "/applications", label: "Applications", icon: FileText },
   { to: "/pricing", label: "Pricing", icon: DollarSign },
   { to: "/approvals", label: "Approvals", icon: GitPullRequest },
+  { to: "/scope-review", label: "Scope Review", icon: ScanEye },
+  { to: "/trust-safety", label: "Trust & Safety", icon: ShieldBan },
   { to: "/insurance", label: "Insurance", icon: ShieldCheck },
   { to: "/disputes", label: "Disputes", icon: AlertTriangle },
   { to: "/payouts", label: "Payouts", icon: Wallet },
@@ -172,6 +179,9 @@ export default function App() {
       <Route path="/slack" element={<Guarded><SlackPage /></Guarded>} />
       <Route path="/approvals" element={<Guarded><ApprovalsPage /></Guarded>} />
       <Route path="/approvals/:id" element={<Guarded><ApprovalDetailPage /></Guarded>} />
+      <Route path="/scope-review" element={<Guarded><ScopeReviewPage /></Guarded>} />
+      <Route path="/scope-review/:id" element={<Guarded><ScopeReviewDetailPage /></Guarded>} />
+      <Route path="/trust-safety" element={<Guarded><TrustSafetyPage /></Guarded>} />
       <Route path="/automation" element={<Guarded><AutomationPage /></Guarded>} />
       <Route path="/admins" element={<Guarded><AdminsPage /></Guarded>} />
       <Route path="/settings" element={<Guarded><SettingsPage /></Guarded>} />

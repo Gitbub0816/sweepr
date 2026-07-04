@@ -6,7 +6,9 @@ export interface StepDef {
 export const BOOKING_STEPS: StepDef[] = [
   { path: "/book/address", label: "Address" },
   { path: "/book/home", label: "Home" },
-  { path: "/book/service", label: "Service" },
+  { path: "/book/package", label: "Package" },
+  { path: "/book/condition", label: "Condition" },
+  { path: "/book/addons", label: "Add-ons" },
   { path: "/book/schedule", label: "Schedule" },
   { path: "/book/review", label: "Review" },
   { path: "/book/payment", label: "Payment" },

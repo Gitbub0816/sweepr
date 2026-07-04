@@ -30,7 +30,9 @@ import { BookingLayout } from "./booking/BookingLayout";
 import { SubscriptionsPage } from "./pages/SubscriptionsPage";
 import { AddressStep } from "./booking/steps/AddressStep";
 import { HomeStep } from "./booking/steps/HomeStep";
-import { ServiceStep } from "./booking/steps/ServiceStep";
+import { PackageStep } from "./booking/steps/PackageStep";
+import { ConditionStep } from "./booking/steps/ConditionStep";
+import { AddOnsStep } from "./booking/steps/AddOnsStep";
 import { ScheduleStep } from "./booking/steps/ScheduleStep";
 import { ReviewStep } from "./booking/steps/ReviewStep";
 import { PaymentStep } from "./booking/steps/PaymentStep";
@@ -209,7 +211,11 @@ export default function App() {
             <Route path="/book" element={<Navigate to="/book/address" replace />} />
             <Route path="/book/address" element={<AddressStep />} />
             <Route path="/book/home" element={<HomeStep />} />
-            <Route path="/book/service" element={<ServiceStep />} />
+            <Route path="/book/package" element={<PackageStep />} />
+            <Route path="/book/condition" element={<ConditionStep />} />
+            <Route path="/book/addons" element={<AddOnsStep />} />
+            {/* Legacy route redirect for persisted/bookmarked links. */}
+            <Route path="/book/service" element={<Navigate to="/book/package" replace />} />
             <Route path="/book/schedule" element={<ScheduleStep />} />
             <Route path="/book/review" element={<ReviewStep />} />
             <Route path="/book/payment" element={<PaymentStep />} />

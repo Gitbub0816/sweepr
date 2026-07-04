@@ -12,6 +12,7 @@ export type AuditAction =
   | "payment.refunded"
   | "payment.intent_created"
   | "booking.price_adjusted"
+  | "booking.addons_added"
   | "tip.created"
   | "tip.paid_out"
   | "access_code.revealed"

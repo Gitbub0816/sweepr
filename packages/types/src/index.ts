@@ -191,6 +191,7 @@ export interface Booking extends BaseEntity {
   quote: Quote;
   notes?: string;
   paymentId?: string;
+  completedAt?: string; // ISO — set when the job is completed
 }
 
 export interface Payment extends BaseEntity {

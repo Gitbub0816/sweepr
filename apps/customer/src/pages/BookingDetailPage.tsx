@@ -24,8 +24,23 @@ import { useAuth } from "@clerk/clerk-react";
 import { fetchBooking } from "../data/bookings";
 import type { Booking } from "@sweepr/types";
 import { CleanerTracker } from "../components/CleanerTracker";
+import { TipCard } from "../components/TipCard";
+import { AddServicesCard } from "../components/AddServicesCard";
 
 const API = import.meta.env.VITE_API_URL ?? "";
+
+// Statuses at which a customer may still add services (cleaner not checked in).
+const PRE_SERVICE_STATUSES = new Set([
+  "draft",
+  "quoted",
+  "payment_pending",
+  "booked",
+  "matching",
+  "offered_to_cleaner",
+  "cleaner_accepted",
+  "confirmed",
+  "cleaner_on_the_way",
+]);
 
 const TAG_KEYS = [
   "bookingDetail.tags.arrivedOnTime",
@@ -204,6 +219,11 @@ export function BookingDetailPage() {
     getToken().then((tk) => setAuthToken(tk ?? null)).catch(() => {});
   }, [getToken]);
 
+  const reload = () => {
+    if (!id) return;
+    fetchBooking(getToken, id).then((b) => setBooking(b));
+  };
+
   useEffect(() => {
     if (!id) return;
     let active = true;
@@ -311,19 +331,43 @@ export function BookingDetailPage() {
             </Card>
           )}
 
+          {PRE_SERVICE_STATUSES.has(booking.status) && (
+            <AddServicesCard
+              bookingId={booking.id}
+              serviceType={booking.serviceType}
+              existingAddOnKeys={booking.addOnKeys}
+              currentTotal={booking.quote.total}
+              getToken={getToken}
+              onUpdated={reload}
+            />
+          )}
+
+          {(booking.status === "completed" || booking.status === "completed_pending_review") && (
+            <TipCard
+              bookingId={booking.id}
+              completedAt={booking.completedAt}
+              getToken={getToken}
+            />
+          )}
+
           {canReview && (
-            <Card className={`flex items-center justify-between ${needsReview ? "bg-seafoam-50 dark:bg-seafoam-900/20" : "bg-slate-50 dark:bg-slate-800/40"}`}>
-              <div>
-                <h2 className="text-sm font-semibold text-charcoal dark:text-white">
-                  {needsReview ? "Complete — rate your clean" : "How did it go?"}
-                </h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  {needsReview ? "Let us know how it went." : "Leave an optional rating for your cleaner."}
-                </p>
+            <Card className={`${needsReview ? "bg-seafoam-50 dark:bg-seafoam-900/20" : "bg-slate-50 dark:bg-slate-800/40"}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-semibold text-charcoal dark:text-white">
+                    {needsReview ? "Complete — rate your clean" : "How did it go?"}
+                  </h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    {needsReview ? "Let us know how it went." : "Leave an optional rating for your cleaner."}
+                  </p>
+                </div>
+                <Button variant={needsReview ? "primary" : "secondary"} onClick={() => setReviewOpen(true)}>
+                  {needsReview ? "Leave a review" : "Rate"}
+                </Button>
               </div>
-              <Button variant={needsReview ? "primary" : "secondary"} onClick={() => setReviewOpen(true)}>
-                {needsReview ? "Leave a review" : "Rate"}
-              </Button>
+              <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                {t("bookingDetail.reviewHelpsMatch")}
+              </p>
             </Card>
           )}
 

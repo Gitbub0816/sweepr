@@ -3,16 +3,23 @@ import { persist } from "zustand/middleware";
 import type {
   Address,
   Booking,
+  CleaningLevel,
   HomeDetails,
   RecurringCadence,
   ServiceType,
 } from "@sweepr/types";
-import { calculateQuote, type QuoteInput } from "@sweepr/utils";
+import {
+  calculateQuote,
+  isAddOnIncludedInPackage,
+  type QuoteInput,
+} from "@sweepr/utils";
 
 export interface BookingState {
   address: Address | null;
   home: HomeDetails;
   serviceType: ServiceType | null;
+  /** Customer-declared cleaning level (scope review). Required before Review. */
+  cleaningLevel: CleaningLevel | null;
   addOnKeys: string[];
   cadence: RecurringCadence;
   scheduledFor: string | null;
@@ -40,6 +47,7 @@ export interface BookingState {
   rebookFrom: (previousBooking: Booking) => void;
   setHome: (home: Partial<HomeDetails>) => void;
   setService: (service: ServiceType) => void;
+  setCleaningLevel: (level: CleaningLevel) => void;
   toggleAddOn: (key: string) => void;
   setCadence: (cadence: RecurringCadence) => void;
   setSchedule: (iso: string) => void;
@@ -65,6 +73,7 @@ export const useBookingStore = create<BookingState>()(
   address: null,
   home: defaultHome,
   serviceType: null,
+  cleaningLevel: null,
   addOnKeys: [],
   cadence: "none",
   scheduledFor: null,
@@ -93,6 +102,7 @@ export const useBookingStore = create<BookingState>()(
       address: prev.address,
       home: prev.home,
       serviceType: prev.serviceType,
+      cleaningLevel: null,
       addOnKeys: [...prev.addOnKeys],
       cadence: prev.cadence,
       scheduledFor: null,
@@ -102,7 +112,18 @@ export const useBookingStore = create<BookingState>()(
       rebookedFromDate: prev.scheduledFor,
     }),
   setHome: (home) => set((s) => ({ home: { ...s.home, ...home }, draftSavedAt: new Date().toISOString() })),
-  setService: (serviceType) => set({ serviceType, draftSavedAt: new Date().toISOString() }),
+  setService: (serviceType) =>
+    set((s) => ({
+      serviceType,
+      // Auto-prune any add-ons that are already included in the newly selected
+      // package's scope (they'd be redundant / rejected by the server).
+      addOnKeys: s.addOnKeys.filter(
+        (k) => !isAddOnIncludedInPackage(k, serviceType),
+      ),
+      draftSavedAt: new Date().toISOString(),
+    })),
+  setCleaningLevel: (cleaningLevel) =>
+    set({ cleaningLevel, draftSavedAt: new Date().toISOString() }),
   toggleAddOn: (key) =>
     set((s) => ({
       addOnKeys: s.addOnKeys.includes(key)
@@ -132,6 +153,7 @@ export const useBookingStore = create<BookingState>()(
       address: null,
       home: defaultHome,
       serviceType: null,
+      cleaningLevel: null,
       addOnKeys: [],
       cadence: "none",
       scheduledFor: null,
@@ -149,9 +171,15 @@ export const useBookingStore = create<BookingState>()(
     }),
 
   getQuote: () => {
-    const { serviceType, home, addOnKeys, isEmergency } = get();
+    const { serviceType, home, addOnKeys, isEmergency, cleaningLevel } = get();
     if (!serviceType) return null;
-    const input: QuoteInput = { serviceType, home, addOnKeys, isEmergency };
+    const input: QuoteInput = {
+      serviceType,
+      home,
+      addOnKeys,
+      isEmergency,
+      cleaningLevel: cleaningLevel ?? undefined,
+    };
     return calculateQuote(input);
   },
     }),
@@ -162,6 +190,7 @@ export const useBookingStore = create<BookingState>()(
         address: s.address,
         home: s.home,
         serviceType: s.serviceType,
+        cleaningLevel: s.cleaningLevel,
         addOnKeys: s.addOnKeys,
         cadence: s.cadence,
         scheduledFor: s.scheduledFor,
