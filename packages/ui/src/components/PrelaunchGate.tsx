@@ -3,7 +3,10 @@ import { SweeprLogo } from "../assets/SweeprLogo";
 import { WaitlistForm } from "./WaitlistForm";
 
 const BYPASS_KEY = "sweepr_prelaunch_bypass";
-const BYPASS_CODE = "0123";
+// Build-time secret. When unset, the code-bypass path (URL param / triple-click
+// modal) is disabled entirely — there is no default/fallback code.
+const BYPASS_CODE: string | undefined = (import.meta as { env?: Record<string, string | undefined> }).env
+  ?.VITE_PRELAUNCH_BYPASS_CODE || undefined;
 
 interface PrelaunchGateProps {
   type: "cleaner" | "customer";
@@ -31,7 +34,7 @@ export function PrelaunchGate({ type, apiUrl, children, forcePrelaunch = false }
     try {
       const params = new URLSearchParams(window.location.search);
       const code = params.get("bypass");
-      if (code === BYPASS_CODE) {
+      if (BYPASS_CODE && code === BYPASS_CODE) {
         localStorage.setItem(BYPASS_KEY, "true");
         params.delete("bypass");
         const clean = [window.location.pathname, params.toString() ? `?${params}` : ""].join("");
@@ -65,6 +68,7 @@ export function PrelaunchGate({ type, apiUrl, children, forcePrelaunch = false }
   }, [apiUrl]);
 
   function handleBypassClick() {
+    if (!BYPASS_CODE) return; // bypass disabled entirely when no code is configured
     const next = clickCount + 1;
     setClickCount(next);
     if (next >= 3) {
@@ -75,7 +79,7 @@ export function PrelaunchGate({ type, apiUrl, children, forcePrelaunch = false }
 
   function handleCodeSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (codeInput === BYPASS_CODE) {
+    if (BYPASS_CODE && codeInput === BYPASS_CODE) {
       try {
         localStorage.setItem(BYPASS_KEY, "true");
       } catch {

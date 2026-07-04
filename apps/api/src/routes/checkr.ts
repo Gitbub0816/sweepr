@@ -44,7 +44,7 @@ checkrRouter.post("/invite", requireAuth, zValidator("json", inviteSchema), asyn
     user = await getUserByClerkId(sql, authUser.clerkId);
   } catch (err) {
     logger.error("checkr/invite: DB error looking up user", err);
-    return c.json({ error: "Database error", detail: String(err) }, 500);
+    return c.json({ error: "Database error" }, 500);
   }
   if (!user) {
     try {
@@ -120,7 +120,7 @@ checkrRouter.post("/invite", requireAuth, zValidator("json", inviteSchema), asyn
     }
   } catch (err) {
     logger.error("checkr/invite: failed to upsert cleaners row", err);
-    return c.json({ error: "Database error saving invitation", detail: String(err) }, 500);
+    return c.json({ error: "Database error saving invitation" }, 500);
   }
 
   serverTrack(c.env, user.id, "checkr_invite_sent", {

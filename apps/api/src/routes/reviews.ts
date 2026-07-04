@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getDb } from "../lib/db";
 import { requireAuth } from "../middleware/auth";
 import { getUserByClerkId, getCustomerByUserId } from "@sweepr/db";
+import { sanitizeText } from "../lib/sanitizeText";
 import type { AppBindings } from "../types";
 
 export const reviewsRouter = new Hono<AppBindings>();
@@ -58,9 +59,10 @@ reviewsRouter.post(
       return c.json({ error: "cleanerId does not match this booking" }, 400);
     }
 
+    const comment = input.comment ? sanitizeText(input.comment, 2000) : null;
     const rows = (await sql`
       INSERT INTO reviews (booking_id, customer_id, cleaner_id, rating, comment)
-      VALUES (${input.bookingId}, ${customer.id}, ${input.cleanerId}, ${input.rating}, ${input.comment ?? null})
+      VALUES (${input.bookingId}, ${customer.id}, ${input.cleanerId}, ${input.rating}, ${comment})
       ON CONFLICT (booking_id) DO UPDATE
         SET rating = EXCLUDED.rating, comment = EXCLUDED.comment
       RETURNING *

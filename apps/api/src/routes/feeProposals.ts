@@ -137,6 +137,23 @@ feeProposalsRouter.get("/:id/audit-log", ...gate, async (c) => {
 });
 
 // ── Actions ──────────────────────────────────────────────────────────────────
+// Bounded, permissive schema for action bodies — different actions use
+// different subsets of these fields (comment/reason/modification), so we
+// keep it a superset rather than .strict() per-action.
+const actionBodySchema = z
+  .object({
+    comment: z.string().max(4000).optional(),
+    reason: z.string().max(4000).optional(),
+    modification: z.record(z.unknown()).optional(),
+  })
+  .partial();
+
+async function readActionBody(c: { req: { json: () => Promise<unknown> } }): Promise<Record<string, unknown>> {
+  const raw = await c.req.json().catch(() => ({}));
+  const parsed = actionBodySchema.safeParse(raw);
+  return (parsed.success ? parsed.data : {}) as Record<string, unknown>;
+}
+
 function actionRoute(
   path: string,
   fn: (sql: ReturnType<typeof getDb>, id: string, actor: Actor, body: Record<string, unknown>) => Promise<unknown>,
@@ -144,7 +161,7 @@ function actionRoute(
   feeProposalsRouter.post(path, ...gate, async (c) => {
     const sql = getDb(c.env.DATABASE_URL);
     const id = c.req.param("id") as string;
-    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+    const body = await readActionBody(c);
     const res = await handle(c, async () => {
       const r = await fn(sql, id, actorOf(c), body);
       await updateProposalCard(sql, c.env, id);
@@ -194,7 +211,7 @@ function tokenAction(
     const sql = getDb(c.env.DATABASE_URL);
     const link = await resolveToken(sql, c.req.param("token") as string);
     if (!link) return c.json({ error: "Invalid or expired link" }, 404);
-    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+    const body = await readActionBody(c);
     const actor: Actor = { clerkId: link.clerk_id as string, email: (link.email as string) ?? undefined };
     const res = await handle(c, async () => {
       const r = await fn(sql, link.proposal_id as string, actor, body);

@@ -323,11 +323,23 @@ pricingAdminRouter.get("/proposals/:id", ...editGate, async (c) => {
   return c.json({ proposal, rule: rule[0] ?? null, actions, collaborators });
 });
 
+// Bounded, permissive schema — different actions use different subsets of
+// these fields (comment/reason/modification), so kept as a superset.
+const proposalActionBodySchema = z
+  .object({
+    comment: z.string().max(4000).optional(),
+    reason: z.string().max(4000).optional(),
+    modification: z.record(z.unknown()).optional(),
+  })
+  .partial();
+
 function proposalAction(path: string, fn: (sql: ReturnType<typeof getDb>, id: string, actor: Actor, body: Record<string, unknown>) => Promise<unknown>) {
   pricingAdminRouter.post(path, ...editGate, async (c) => {
     const sql = getDb(c.env.DATABASE_URL);
     const id = c.req.param("id") as string;
-    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+    const rawBody = await c.req.json().catch(() => ({}));
+    const parsedBody = proposalActionBodySchema.safeParse(rawBody);
+    const body = (parsedBody.success ? parsedBody.data : {}) as Record<string, unknown>;
     try {
       const result = await fn(sql, id, actorOf(c), body);
       await updatePricingCard(sql, c.env, id);

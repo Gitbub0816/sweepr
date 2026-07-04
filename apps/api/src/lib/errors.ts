@@ -16,6 +16,7 @@ export function toSafeError(
   isDev: boolean
 ): { error: string; detail?: string } {
   if (err instanceof AppError) return { error: err.message };
+  if (!isDev) return { error: "An unexpected error occurred" };
   if (err instanceof Error) return { error: "An unexpected error occurred", detail: err.message };
   return { error: "An unexpected error occurred", detail: String(err) };
 }

@@ -18,6 +18,7 @@ import { logger } from "../lib/logger";
 import { sendEmail, SENDERS, TEMPLATES, formatEmailTimestamp } from "../lib/mailer";
 import { generateTicketId } from "../lib/ticketId";
 import { itTypeFromLabel, securityTypeFromLabel } from "../lib/issueTypes";
+import { sanitizeText } from "../lib/sanitizeText";
 import type { AppBindings } from "../types";
 
 export const reportRouter = new Hono<AppBindings>();
@@ -54,6 +55,9 @@ reportRouter.post("/", zValidator("json", schema), async (c) => {
     return c.json({ error: "An email address is required so we can follow up." }, 400);
   }
 
+  const title = sanitizeText(body.title, 200);
+  const description = body.description ? sanitizeText(body.description, 8000) : undefined;
+
   if (body.kind === "security") {
     const sec = securityTypeFromLabel(body.category);
     const receivedAt = new Date();
@@ -63,13 +67,13 @@ reportRouter.post("/", zValidator("json", schema), async (c) => {
         sender_email, classification, subject, source, reporter_clerk_id, received_at,
         ticket_number, ticket_id, case_code, ticket_prefix, encoded_date, encoded_time, issue_type, hex_suffix
       ) VALUES (
-        ${email}, ${body.category}, ${body.title}, 'in_app_report', ${submitter?.clerkId ?? null}, ${receivedAt.toISOString()},
+        ${email}, ${body.category}, ${title}, 'in_app_report', ${submitter?.clerkId ?? null}, ${receivedAt.toISOString()},
         ${gen.ticketId}, ${gen.ticketId}, ${gen.caseCode}, 'SR', ${gen.encodedDate}, ${gen.encodedTime}, ${gen.issueType}, ${gen.hex}
       ) RETURNING id
     `) as Array<{ id: string }>;
     await sql`
       INSERT INTO security_ticket_messages (ticket_id, direction, from_email, to_email, subject, body)
-      VALUES (${rows[0].id}, 'inbound', ${email}, 'security@getsweepr.com', ${body.title}, ${body.description ?? ""})
+      VALUES (${rows[0].id}, 'inbound', ${email}, 'security@getsweepr.com', ${title}, ${description ?? ""})
     `;
     if (c.env.MAILERSEND_API_KEY) {
       try {
@@ -101,7 +105,7 @@ reportRouter.post("/", zValidator("json", schema), async (c) => {
       title, description, category, priority, source, app, reporter_clerk_id, reporter_email, context,
       ticket_id, case_code, ticket_prefix, encoded_date, encoded_time, issue_type, hex_suffix
     ) VALUES (
-      ${body.title}, ${body.description ?? null}, ${it.dbCategory}, 'normal', 'user_report', ${body.app ?? null},
+      ${title}, ${description ?? null}, ${it.dbCategory}, 'normal', 'user_report', ${body.app ?? null},
       ${submitter?.clerkId ?? null}, ${email}, ${JSON.stringify({ ...(body.context ?? {}), classification: body.category })},
       ${gen.ticketId}, ${gen.caseCode}, 'IT', ${gen.encodedDate}, ${gen.encodedTime}, ${gen.issueType}, ${gen.hex}
     )

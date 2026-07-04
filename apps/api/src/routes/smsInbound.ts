@@ -19,6 +19,7 @@ import { getDb } from "../lib/db";
 import { logger } from "../lib/logger";
 import { grantSmsConsent, revokeSmsConsent } from "../lib/smsConsent";
 import { SMS_MESSAGES, sendCarrierReply } from "../lib/sms";
+import { hmacHex, timingSafeEqual } from "../lib/webhookAuth";
 import type { AppBindings } from "../types";
 
 export const smsInboundRouter = new Hono<AppBindings>();
@@ -27,22 +28,13 @@ const STOP_WORDS = new Set(["stop", "stopall", "unsubscribe", "cancel", "end", "
 const START_WORDS = new Set(["start", "unstop", "yes"]);
 const HELP_WORDS = new Set(["help", "info"]);
 
-async function hmacHex(secret: string, raw: string): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    "raw", new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
-  );
-  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(raw));
-  return Array.from(new Uint8Array(mac)).map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
 smsInboundRouter.post("/inbound", async (c) => {
   const raw = await c.req.text();
   if (!c.env.MAILERSEND_SMS_INBOUND_SECRET) {
     return c.json({ error: "Inbound not configured" }, 503);
   }
   const sig = c.req.header("signature") ?? c.req.header("x-mailersend-signature") ?? "";
-  if (sig !== (await hmacHex(c.env.MAILERSEND_SMS_INBOUND_SECRET, raw))) {
+  if (!timingSafeEqual(sig, await hmacHex(c.env.MAILERSEND_SMS_INBOUND_SECRET, raw))) {
     logger.warn("mailersend sms webhook: invalid signature");
     return c.json({ error: "bad signature" }, 401);
   }
