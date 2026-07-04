@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 import { ShieldCheck, RefreshCw } from "lucide-react";
-import { DashboardShell, Badge, Button, EmptyState, toast } from "@sweepr/ui";
+import { DashboardShell, Badge, Button, EmptyState, toast, TableSkeleton } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
 import { DataTable, type Column } from "../components/DataTable";
 
@@ -90,9 +90,7 @@ export function DisputesPage() {
       }
     >
       {loading ? (
-        <div className="flex h-40 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-seafoam-400 border-t-transparent" />
-        </div>
+        <TableSkeleton cols={5} />
       ) : rows.length === 0 ? (
         <EmptyState
           icon={<ShieldCheck className="h-10 w-10 text-seafoam-500" />}

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { DashboardShell, Card, Button, Input, toast, getMapStyle, getMapboxToken } from "@sweepr/ui";
+import { DashboardShell, Card, Button, Input, toast, getMapStyle, getMapboxToken, CardListSkeleton } from "@sweepr/ui";
 import { Plus, Trash2, MapPin } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
@@ -250,7 +250,7 @@ export function ServiceAreasPage() {
               </Card>
             )}
 
-            {loading ? <p className="text-sm text-slate-600">Loading…</p> : (
+            {loading ? <CardListSkeleton rows={3} /> : (
               <div className="space-y-2">
                 {areas.map((area) => (
                   <Card key={area.id} className="p-4 flex items-center justify-between">

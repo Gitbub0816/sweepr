@@ -1,5 +1,6 @@
 import type {
   AddOn,
+  CleaningLevel,
   HomeDetails,
   HomeType,
   Quote,
@@ -330,6 +331,23 @@ export interface QuoteInput {
   lotsOfClutter?: boolean;
   smokerHome?: boolean;
   isEmergency?: boolean; // same/next-day booking — adds a rush surcharge
+  // Customer-declared cleaning level (scope review). Drives a percentage
+  // surcharge on the pre-surcharge subtotal so the client preview matches the
+  // server's authoritative total. Omit / "refresh" for no surcharge.
+  cleaningLevel?: CleaningLevel;
+  levelSurchargePcts?: { extra_attention: number; significant_attention: number };
+}
+
+// Fallback percentages mirror site_settings scope_review.level_surcharge_*_pct.
+const DEFAULT_LEVEL_SURCHARGE_PCTS = { extra_attention: 15, significant_attention: 35 };
+
+function levelSurchargePct(
+  level: CleaningLevel | undefined,
+  pcts: { extra_attention: number; significant_attention: number },
+): number {
+  if (level === "extra_attention") return pcts.extra_attention;
+  if (level === "significant_attention") return pcts.significant_attention;
+  return 0;
 }
 
 export const EMERGENCY_SURCHARGE_RATE = 0.15;
@@ -381,6 +399,18 @@ export function calculateQuote(input: QuoteInput): Quote {
   if (input.heavySoil)     subtotal *= 1.20;
   if (input.lotsOfClutter) subtotal *= 1.15;
   if (input.smokerHome)    subtotal *= 1.18;
+
+  // Cleaning-level surcharge (scope review) — applied on the pre-surcharge
+  // subtotal so the preview tracks the server's authoritative total.
+  const levelPct = levelSurchargePct(
+    input.cleaningLevel,
+    input.levelSurchargePcts ?? DEFAULT_LEVEL_SURCHARGE_PCTS,
+  );
+  if (levelPct > 0) {
+    const levelAdjustment = Math.round(subtotal * (levelPct / 100) * 100) / 100;
+    subtotal += levelAdjustment;
+    lineItems.push({ label: "Cleaning level surcharge", amount: levelAdjustment });
+  }
 
   // Rush surcharge for same/next-day bookings.
   let rushFee = 0;

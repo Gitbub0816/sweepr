@@ -256,3 +256,73 @@ export interface PricingRule {
   amount: number;
   type: "base" | "per_unit" | "addon" | "threshold";
 }
+
+// ---------------------------------------------------------------------------
+// Scope review engine (cleaning levels, additional-attention / refusal
+// requests, AI triage, price ledger, tips, account status)
+// ---------------------------------------------------------------------------
+
+export type CleaningLevel = "refresh" | "extra_attention" | "significant_attention";
+
+export type ScopeReviewRequestType = "additional_attention" | "refusal";
+
+export type ScopeReviewStatus =
+  | "pending_ai"
+  | "pending_admin"
+  | "approved"
+  | "denied"
+  | "hard_denied"
+  | "expired"
+  | "cancelled";
+
+export type CustomerAccountStatus =
+  | "normal"
+  | "investigating"
+  | "restricted"
+  | "suspended"
+  | "banned";
+
+export type ScopeReviewFeeCode =
+  | "none"
+  | "additional_attention_small"
+  | "additional_attention_medium"
+  | "additional_attention_large"
+  | "refusal_fee";
+
+export type RefusalReason =
+  | "excessive_clutter"
+  | "hoarding"
+  | "unsafe_environment"
+  | "biohazard"
+  | "animal_hazard"
+  | "structural_hazard"
+  | "inaccessible"
+  | "scope_exceeded"
+  | "other";
+
+export interface AiScopeReviewSafetyFlags {
+  biohazard: boolean;
+  hoarding_indicators: boolean;
+  blocked_access: boolean;
+  animal_hazard: boolean;
+  unsafe_environment: boolean;
+  visible_damage_risk: boolean;
+}
+
+export interface AiScopeReviewResult {
+  decision_recommendation: "approve" | "deny" | "human_review" | "hard_deny";
+  confidence: number;
+  scope_level_detected:
+    | "refresh"
+    | "extra_attention"
+    | "significant_attention"
+    | "refusal_required"
+    | "unsafe_or_excluded";
+  primary_reason: string;
+  supporting_observations: string[];
+  missing_evidence: string[];
+  customer_facing_summary: string;
+  admin_summary: string;
+  recommended_fee_code: ScopeReviewFeeCode;
+  safety_flags: AiScopeReviewSafetyFlags;
+}

@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 import { Inbox, RefreshCw } from "lucide-react";
-import { DashboardShell, Badge, Button, EmptyState, toast } from "@sweepr/ui";
+import { DashboardShell, Badge, Button, EmptyState, toast, TableSkeleton } from "@sweepr/ui";
 import { DataTable, type Column } from "../components/DataTable";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -87,9 +87,7 @@ export function ApplicationsPage() {
       }
     >
       {loading ? (
-        <div className="flex h-40 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-seafoam-400 border-t-transparent" />
-        </div>
+        <TableSkeleton cols={5} />
       ) : apps.length === 0 ? (
         <EmptyState
           icon={<Inbox className="h-10 w-10 text-seafoam-500" />}

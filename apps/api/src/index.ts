@@ -6,6 +6,7 @@ import { authRouter } from "./routes/auth";
 import { bookingsRouter } from "./routes/bookings";
 import { pricingRouter } from "./routes/pricing";
 import { paymentsRouter } from "./routes/payments";
+import { tipsRouter } from "./routes/tips";
 import { stripeWebhookRouter } from "./routes/stripe-webhook";
 import { cleanersRouter } from "./routes/cleaners";
 import { reviewsRouter } from "./routes/reviews";
@@ -46,6 +47,7 @@ import { accountRouter } from "./routes/account";
 import { adminNotificationSettingsRouter } from "./routes/adminNotificationSettings";
 import { slackRouter } from "./routes/slack";
 import { feeProposalsRouter, feeActionRouter } from "./routes/feeProposals";
+import { scopeReviewRouter } from "./routes/scopeReview";
 import { pricingAdminRouter } from "./routes/pricingAdmin";
 import { securityRouter } from "./routes/security";
 import { itInboundRouter } from "./routes/itInbound";
@@ -82,6 +84,12 @@ app.use("*", rateLimit({ limit: 100, windowMs: 60_000, keyPrefix: "general" }));
 // Tighter, route-specific limits.
 app.use("/auth/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "auth" }));
 app.use("/payments/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "payments" }));
+app.use("/tips/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "tips" }));
+// Scope review shares the sensitive-money rate profile (like /payments/*), but
+// the public action-link GET must stay reachable from email clients — the
+// general 100/min limit still applies to it.
+app.use("/scope-review/requests", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "scopereview" }));
+app.use("/scope-review/admin/*", rateLimit({ limit: 30, windowMs: 60_000, keyPrefix: "scopereview-admin" }));
 app.use("/storage/*", rateLimit({ limit: 20, windowMs: 60 * 60_000, keyPrefix: "storage" }));
 app.use("/pricing/*", rateLimit({ limit: 60, windowMs: 60_000, keyPrefix: "pricing" }));
 app.use("/client-errors/*", rateLimit({ limit: 20, windowMs: 60_000, keyPrefix: "clienterr" }));
@@ -98,6 +106,7 @@ app.route("/customer-profile", customerProfileRouter);
 app.route("/bookings", bookingsRouter);
 app.route("/pricing", pricingRouter);
 app.route("/payments", paymentsRouter);
+app.route("/tips", tipsRouter);
 app.route("/webhooks/stripe", stripeWebhookRouter);
 app.route("/webhooks/clerk", clerkWebhookRouter);
 app.route("/cleaners", cleanersRouter);
@@ -154,6 +163,7 @@ app.route("/cleaner-dashboard", cleanerDashboardRouter);
 app.route("/slack", slackRouter);
 app.route("/admin/fee-proposals", feeProposalsRouter);
 app.route("/fee-action", feeActionRouter);
+app.route("/scope-review", scopeReviewRouter);
 app.route("/admin/pricing", pricingAdminRouter);
 app.route("/security", securityRouter);
 app.route("/it-mail", itInboundRouter);
@@ -239,23 +249,40 @@ export default {
       const { getStripe } = await import("./lib/stripe");
       const stripe = getStripe(env.STRIPE_SECRET_KEY as string);
 
-      // Capture completed payments.
+      // Capture completed payments. Intents are created with manual capture
+      // (authorize at booking, capture after service), so completed bookings
+      // sit in `requires_capture` until this runs.
       const pendingCaptures = await sql`
-        SELECT b.id, b.stripe_payment_intent_id
+        SELECT b.id, b.stripe_payment_intent_id, b.total_price
         FROM bookings b
         LEFT JOIN payments p ON p.booking_id = b.id AND p.status = 'captured'
         WHERE b.status = 'completed'
           AND b.stripe_payment_intent_id IS NOT NULL
           AND p.id IS NULL
         LIMIT 50
-      ` as { id: string; stripe_payment_intent_id: string }[];
+      ` as { id: string; stripe_payment_intent_id: string; total_price: number | null }[];
 
       for (const row of pendingCaptures) {
         try {
           const pi = await stripe.paymentIntents.retrieve(row.stripe_payment_intent_id);
           if (pi.status === "requires_capture") {
-            await stripe.paymentIntents.capture(pi.id);
-            await sql`UPDATE payments SET status = 'captured' WHERE booking_id = ${row.id}`;
+            // Honor post-authorization total decreases (e.g. ledger adjustments):
+            // never capture more than was authorized, never more than the final
+            // total. Stripe forbids capturing above the authorized amount.
+            const authorized = pi.amount;
+            const target = Math.min(row.total_price ?? authorized, authorized);
+            await stripe.paymentIntents.capture(pi.id, { amount_to_capture: target });
+            // Record/settle the payments row so this booking exits the capture
+            // set (an UPDATE alone would no-op when no row exists yet).
+            const upd = await sql`
+              UPDATE payments SET status = 'captured' WHERE booking_id = ${row.id} RETURNING id
+            ` as { id: string }[];
+            if (!upd[0]) {
+              await sql`
+                INSERT INTO payments (booking_id, stripe_payment_intent_id, amount, status)
+                VALUES (${row.id}, ${pi.id}, ${target}, 'captured')
+              `;
+            }
           }
         } catch (err) {
           logger.error("cron.capture failed", err, { bookingId: row.id });
@@ -309,6 +336,44 @@ export default {
         }
       } catch (err) {
         logger.error("cron.approval_engine failed", err, { cron: event.cron });
+      }
+
+      // Scope review engine time-driven transitions (idempotent).
+      try {
+        const { audit } = await import("./lib/audit");
+        // Expire pending_admin requests past their deadline.
+        const expired = await sql`
+          UPDATE scope_review_requests
+          SET status = 'expired', updated_at = NOW()
+          WHERE status = 'pending_admin' AND expires_at IS NOT NULL AND expires_at <= NOW()
+          RETURNING id
+        ` as { id: string }[];
+        for (const r of expired) {
+          await audit(sql, {
+            action: "admin.action", actorClerkId: "system:cron",
+            targetType: "scope_review_request", targetId: r.id,
+            metadata: { event: "scope_review_expired" }, timestamp: new Date().toISOString(),
+          });
+        }
+
+        // Re-enable cleaner privileges whose disable window has elapsed.
+        await sql`
+          UPDATE cleaner_privileges
+          SET additional_attention_enabled = TRUE, refusal_request_enabled = TRUE,
+              disabled_reason = NULL, disabled_until = NULL, updated_at = NOW()
+          WHERE disabled_until IS NOT NULL AND disabled_until <= NOW()
+        `;
+
+        // Reset customers whose investigating/suspended window has elapsed.
+        await sql`
+          UPDATE customers
+          SET account_status = 'normal', account_status_until = NULL,
+              account_status_reason = NULL, updated_at = NOW()
+          WHERE account_status IN ('investigating', 'suspended')
+            AND account_status_until IS NOT NULL AND account_status_until <= NOW()
+        `;
+      } catch (err) {
+        logger.error("cron.scope_review failed", err, { cron: event.cron });
       }
 
       // Auto-detect error patterns and open status incidents.

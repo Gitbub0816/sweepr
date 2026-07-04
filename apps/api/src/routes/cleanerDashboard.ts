@@ -159,7 +159,9 @@ cleanerDashboardRouter.get("/earnings", async (c) => {
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const lastMonthEnd   = new Date(now.getFullYear(), now.getMonth(), 0);
 
-  const [week, month, lastMonth, allTime, pending, nextPayout, recent] = await Promise.all([
+  // Tips are only ever surfaced once visible_to_cleaner = TRUE (set when the
+  // booking payout is released). Pre-payout tips stay completely hidden.
+  const [week, month, lastMonth, allTime, pending, nextPayout, recent, tipsMonth, tipsAllTime, recentTips] = await Promise.all([
     sql`SELECT COALESCE(SUM(amount),0) v FROM payouts WHERE cleaner_id = ${ctx.cleaner_id} AND status IN ('paid','transferred') AND paid_at >= ${weekStart.toISOString()}`,
     sql`SELECT COALESCE(SUM(amount),0) v FROM payouts WHERE cleaner_id = ${ctx.cleaner_id} AND status IN ('paid','transferred') AND paid_at >= ${monthStart.toISOString()}`,
     sql`SELECT COALESCE(SUM(amount),0) v FROM payouts WHERE cleaner_id = ${ctx.cleaner_id} AND status IN ('paid','transferred') AND paid_at BETWEEN ${lastMonthStart.toISOString()} AND ${lastMonthEnd.toISOString()}`,
@@ -167,6 +169,9 @@ cleanerDashboardRouter.get("/earnings", async (c) => {
     sql`SELECT COALESCE(SUM(amount),0) v FROM payouts WHERE cleaner_id = ${ctx.cleaner_id} AND status = 'pending'`,
     sql`SELECT scheduled_for FROM payouts WHERE cleaner_id = ${ctx.cleaner_id} AND status = 'scheduled' ORDER BY scheduled_for ASC LIMIT 1`,
     sql`SELECT p.paid_at AS date, p.amount, p.status, p.booking_id FROM payouts p WHERE p.cleaner_id = ${ctx.cleaner_id} ORDER BY p.created_at DESC LIMIT 10`,
+    sql`SELECT COALESCE(SUM(amount_cents),0) v FROM booking_tips WHERE cleaner_id = ${ctx.cleaner_id} AND status = 'succeeded' AND visible_to_cleaner = TRUE AND paid_out_at >= ${monthStart.toISOString()}`,
+    sql`SELECT COALESCE(SUM(amount_cents),0) v FROM booking_tips WHERE cleaner_id = ${ctx.cleaner_id} AND status = 'succeeded' AND visible_to_cleaner = TRUE`,
+    sql`SELECT booking_id, amount_cents, paid_out_at AS date FROM booking_tips WHERE cleaner_id = ${ctx.cleaner_id} AND status = 'succeeded' AND visible_to_cleaner = TRUE ORDER BY paid_out_at DESC LIMIT 10`,
   ]);
 
   const stripeAcc = ctx.stripe_connect_id
@@ -183,6 +188,10 @@ cleanerDashboardRouter.get("/earnings", async (c) => {
     stripeConnected: !!(stripeAcc[0]?.charges_enabled && stripeAcc[0]?.payouts_enabled),
     onboardingUrl:   stripeAcc[0]?.onboarding_url ?? null,
     recent:          recent,
+    // Tips (only visible-to-cleaner, i.e. after the booking payout was released).
+    tipsThisMonth:   Number((tipsMonth as Array<{ v: number }>)[0]?.v ?? 0),
+    tipsAllTime:     Number((tipsAllTime as Array<{ v: number }>)[0]?.v ?? 0),
+    recentTips:      recentTips,
   });
 });
 

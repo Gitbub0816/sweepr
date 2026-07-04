@@ -24,6 +24,10 @@ import { assertBookingAccess } from "../lib/bookingAccess";
 import { checkInsurance } from "../lib/cleanerRequirements";
 import { calculateBookingPrice, getAddOnCatalogue } from "../lib/pricingEngine";
 import { resolveBookingPricing, storeQuoteSnapshot } from "../lib/resolvePricing";
+import { recordLedgerEntry } from "../lib/bookingLedger";
+import { normalizedGreylistKey } from "../lib/scopeReviewEngine";
+import { isAddOnIncludedInPackage } from "@sweepr/utils";
+import type { CleaningLevel, ServiceType } from "@sweepr/types";
 import type { AppBindings } from "../types";
 import type { BookingRow, CleanerRow } from "@sweepr/db";
 
@@ -44,8 +48,53 @@ const createSchema = z.object({
   scheduledAt: z.string().datetime(),
   addressId: z.string().uuid().optional(),
   notes: z.string().max(2000).optional(),
+  // Customer-declared cleaning level drives the scope-review level surcharge.
+  // Defaults to 'refresh' (no surcharge) for backward compatibility with
+  // clients that predate the level picker.
+  cleaningLevel: z
+    .enum(["refresh", "extra_attention", "significant_attention"])
+    .default("refresh"),
   // Client must NOT submit prices — server always calculates.
 });
+
+/**
+ * Load the level-surcharge percentages from site_settings (TEXT key/value).
+ * refresh is always 0%. Missing/invalid rows fall back to the migration
+ * defaults so pricing never silently drops the surcharge.
+ */
+async function loadLevelSurchargePcts(
+  sql: ReturnType<typeof getDb>,
+): Promise<{ extra_attention: number; significant_attention: number }> {
+  const rows = (await sql`
+    SELECT key, value FROM site_settings
+    WHERE key IN (
+      'scope_review.level_surcharge_extra_attention_pct',
+      'scope_review.level_surcharge_significant_attention_pct'
+    )
+  `) as Array<{ key: string; value: string }>;
+  const map = new Map(rows.map((r) => [r.key, Number(r.value)]));
+  const extra = map.get("scope_review.level_surcharge_extra_attention_pct");
+  const sig = map.get("scope_review.level_surcharge_significant_attention_pct");
+  return {
+    extra_attention: Number.isFinite(extra) ? (extra as number) : 15,
+    significant_attention: Number.isFinite(sig) ? (sig as number) : 35,
+  };
+}
+
+/** Surcharge in cents for a given level, computed on the pre-surcharge total. */
+function computeLevelSurchargeCents(
+  level: CleaningLevel,
+  baseTotalCents: number,
+  pcts: { extra_attention: number; significant_attention: number },
+): number {
+  const pct =
+    level === "extra_attention"
+      ? pcts.extra_attention
+      : level === "significant_attention"
+        ? pcts.significant_attention
+        : 0;
+  return Math.round((baseTotalCents * pct) / 100);
+}
 
 // Customers may only cancel via the status endpoint.
 const statusSchema = z.object({
@@ -68,6 +117,65 @@ bookingsRouter.post(
   const customer = await getCustomerByUserId(sql, user.id);
   if (!customer) return c.json({ error: "Customer not found" }, 404);
 
+  // Account-status gate: suspended/banned customers may not book. Lazily reset a
+  // suspension whose window has elapsed (suspended → normal) before deciding.
+  const statusRows = (await sql`
+    SELECT account_status, account_status_until FROM customers WHERE id = ${customer.id} LIMIT 1
+  `) as Array<{ account_status: string | null; account_status_until: string | null }>;
+  const acct = statusRows[0];
+  let accountStatus = acct?.account_status ?? "normal";
+  if (
+    accountStatus === "suspended" &&
+    acct?.account_status_until &&
+    new Date(acct.account_status_until).getTime() <= Date.now()
+  ) {
+    await sql`
+      UPDATE customers SET account_status = 'normal', account_status_until = NULL,
+        account_status_reason = NULL, updated_at = NOW() WHERE id = ${customer.id}
+    `;
+    accountStatus = "normal";
+  }
+  if (accountStatus === "suspended" || accountStatus === "banned") {
+    return c.json(
+      { error: "account_restricted", message: "Your account is not able to book at this time. Please contact support." },
+      403,
+    );
+  }
+
+  // Address greylist gate (unit-aware normalized key). Generic message — never
+  // reveal that an address is greylisted.
+  if (input.addressId) {
+    const addrRows = (await sql`
+      SELECT street, unit, zip FROM addresses WHERE id = ${input.addressId} LIMIT 1
+    `) as Array<{ street: string | null; unit: string | null; zip: string | null }>;
+    const addr = addrRows[0];
+    if (addr?.street && addr?.zip) {
+      const key = normalizedGreylistKey(addr.street, addr.unit, addr.zip);
+      const greylisted = (await sql`
+        SELECT 1 FROM address_greylist
+        WHERE normalized_key = ${key} AND (expires_at IS NULL OR expires_at > NOW()) LIMIT 1
+      `) as Array<{ "?column?": number }>;
+      if (greylisted[0]) {
+        return c.json({ error: "address_unavailable", message: "We're unable to service this address." }, 403);
+      }
+    }
+  }
+
+  // Add-on / package integrity: never bill for an add-on that is already
+  // included in the selected package's scope (would be duplicate billing).
+  const includedDupes = input.addOnKeys.filter((key) =>
+    isAddOnIncludedInPackage(key, input.serviceType as ServiceType),
+  );
+  if (includedDupes.length > 0) {
+    return c.json(
+      {
+        error: "addon_included_in_package",
+        message: `These add-ons are already included in the ${input.serviceType} package and cannot be added: ${includedDupes.join(", ")}`,
+      },
+      400,
+    );
+  }
+
   // Server-side price calculation — client values are never trusted.
   // Prefer the active algorithmic pricing rule; fall back to the legacy
   // calculator when no rule is active for this market.
@@ -78,22 +186,33 @@ bookingsRouter.post(
   } catch (err) {
     logger.error("resolveBookingPricing failed", err, {});
   }
-  const totalPrice = resolved ? resolved.breakdown.customer_total_cents : price.totalPrice;
+  const baseTotalPrice = resolved ? resolved.breakdown.customer_total_cents : price.totalPrice;
   const basePrice = resolved ? resolved.breakdown.base_fee_cents : price.basePrice;
   const addonsTotal = resolved ? resolved.breakdown.add_ons_total_cents : price.addonsTotal;
   const cleanerPayout = resolved ? resolved.breakdown.estimated_cleaner_payout_cents : null;
+
+  // Cleaning-level surcharge (scope review). Computed on the pre-surcharge
+  // total and folded into the authoritative total we charge/authorize.
+  const levelPcts = await loadLevelSurchargePcts(sql);
+  const levelSurchargeCents = computeLevelSurchargeCents(
+    input.cleaningLevel,
+    baseTotalPrice,
+    levelPcts,
+  );
+  const totalPrice = baseTotalPrice + levelSurchargeCents;
 
   const rows = (await sql`
     INSERT INTO bookings (
       customer_id, address_id, status, service_type, bedrooms, bathrooms,
       sqft, home_type, scheduled_at, base_price, addons_total, service_fee,
-      tax, total_price, notes,
+      tax, total_price, notes, cleaning_level, cleaning_level_surcharge_cents,
       pricing_rule_id, pricing_rule_version, pricing_line_items_json, estimated_cleaner_payout_cents
     ) VALUES (
       ${customer.id}, ${input.addressId ?? null}, 'booked', ${input.serviceType},
       ${input.bedrooms}, ${input.bathrooms}, ${input.sqft}, ${input.homeType},
       ${input.scheduledAt}, ${basePrice}, ${addonsTotal},
       ${resolved ? 0 : price.serviceFee}, ${resolved ? 0 : price.tax}, ${totalPrice}, ${input.notes ?? null},
+      ${input.cleaningLevel}, ${levelSurchargeCents},
       ${resolved ? resolved.ruleId : null}, ${resolved ? resolved.ruleVersion : null},
       ${resolved ? JSON.stringify(resolved.breakdown.line_items) : null}, ${cleanerPayout}
     ) RETURNING *
@@ -101,6 +220,21 @@ bookingsRouter.post(
 
   const created = rows[0];
   if (!created) return c.json({ error: "Failed to create booking" }, 500);
+
+  // Seed the append-only price ledger with the itemized initial quote.
+  try {
+    await recordLedgerEntry(sql, {
+      bookingId: created.id,
+      eventType: "initial_quote",
+      previousTotalCents: 0,
+      adjustmentCents: totalPrice,
+      newTotalCents: totalPrice,
+      reason: `Initial quote (${input.cleaningLevel}); base ${baseTotalPrice}¢ + level surcharge ${levelSurchargeCents}¢`,
+      source: "system",
+    });
+  } catch (err) {
+    logger.error("initial_quote ledger write failed", err, { bookingId: created.id });
+  }
 
   // Persist the immutable quote snapshot and stamp it on the booking.
   if (resolved) {
@@ -162,14 +296,24 @@ bookingsRouter.post("/quote", zValidator("json", createSchema), async (c) => {
   const input = c.req.valid("json");
   const sql = getDb(c.env.DATABASE_URL);
   const catalogue = getAddOnCatalogue();
+  const levelPcts = await loadLevelSurchargePcts(sql);
   try {
     const resolved = await resolveBookingPricing(sql, input);
     if (resolved) {
       // Algorithmic pricing active: expose only the customer total + line items.
+      const baseTotal = resolved.breakdown.customer_total_cents;
+      const levelSurchargeCents = computeLevelSurchargeCents(input.cleaningLevel, baseTotal, levelPcts);
+      const lineItems = [
+        ...resolved.breakdown.line_items,
+        ...(levelSurchargeCents > 0
+          ? [{ label: "Cleaning level surcharge", cents: levelSurchargeCents }]
+          : []),
+      ];
       return c.json({
         price: {
-          totalPrice: resolved.breakdown.customer_total_cents,
-          lineItems: resolved.breakdown.line_items,
+          totalPrice: baseTotal + levelSurchargeCents,
+          levelSurchargeCents,
+          lineItems,
           requiresCustomQuote: resolved.breakdown.requires_custom_quote,
         },
         catalogue,
@@ -179,7 +323,13 @@ bookingsRouter.post("/quote", zValidator("json", createSchema), async (c) => {
   } catch {
     /* fall through to legacy */
   }
-  return c.json({ price: calculateBookingPrice(input), catalogue, engine: "legacy" });
+  const legacy = calculateBookingPrice(input);
+  const levelSurchargeCents = computeLevelSurchargeCents(input.cleaningLevel, legacy.totalPrice, levelPcts);
+  return c.json({
+    price: { ...legacy, levelSurchargeCents, totalPrice: legacy.totalPrice + levelSurchargeCents },
+    catalogue,
+    engine: "legacy",
+  });
 });
 
 bookingsRouter.get("/:id", async (c) => {

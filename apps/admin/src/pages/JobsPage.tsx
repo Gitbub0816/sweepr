@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { Link } from "react-router-dom";
 import { Search, RefreshCw } from "lucide-react";
-import { DashboardShell, Input, Select, Button, toast } from "@sweepr/ui";
+import { DashboardShell, Input, Select, Button, TableSkeleton, toast } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
 import { DataTable, type Column } from "../components/DataTable";
 
@@ -150,9 +150,7 @@ export function JobsPage() {
         </div>
       </div>
       {loading ? (
-        <div className="flex h-40 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-seafoam-400 border-t-transparent" />
-        </div>
+        <TableSkeleton cols={columns.length} />
       ) : (
         <DataTable columns={columns} rows={filtered} />
       )}
