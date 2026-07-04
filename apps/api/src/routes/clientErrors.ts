@@ -14,7 +14,7 @@ import type { AppBindings } from "../types";
 export const clientErrorsRouter = new Hono<AppBindings>();
 
 const schema = z.object({
-  app: z.enum(["admin", "customer", "cleaner", "marketing", "service"]),
+  app: z.enum(["admin", "customer", "cleaner", "marketing", "service", "legal", "status"]),
   message: z.string().min(1).max(2000),
   stack: z.string().max(8000).optional(),
   path: z.string().max(512).optional(),

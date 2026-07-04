@@ -39,14 +39,44 @@ export async function upsertUser(
   sql: Sql,
   input: { clerkId: string; email: string; role?: string }
 ): Promise<UserRow> {
-  const rows = (await sql`
-    INSERT INTO users (clerk_id, email, role)
-    VALUES (${input.clerkId}, ${input.email}, ${input.role ?? "customer"})
-    ON CONFLICT (clerk_id) DO UPDATE
-      SET email = EXCLUDED.email, updated_at = NOW()
-    RETURNING *
-  `) as UserRow[];
-  return rows[0];
+  try {
+    const rows = (await sql`
+      INSERT INTO users (clerk_id, email, role)
+      VALUES (${input.clerkId}, ${input.email}, ${input.role ?? "customer"})
+      ON CONFLICT (clerk_id) DO UPDATE
+        SET email = EXCLUDED.email, updated_at = NOW()
+      RETURNING *
+    `) as UserRow[];
+    return rows[0];
+  } catch (err) {
+    if (!isEmailUniqueViolation(err)) throw err;
+    // The email is owned by a row with a DIFFERENT clerk_id. Clerk enforces
+    // unique verified emails per instance, so this means the Clerk account
+    // was recreated (new clerk_id, same person) and the old row is stale.
+    // If the caller already has their own row, keep it (don't clobber its
+    // email); otherwise relink the stale row to the new clerk_id so the
+    // account (role, customer/cleaner links) is preserved instead of 500ing.
+    const own = await getUserByClerkId(sql, input.clerkId);
+    if (own) return own;
+    const relinked = (await sql`
+      UPDATE users
+      SET clerk_id = ${input.clerkId}, updated_at = NOW()
+      WHERE LOWER(email) = LOWER(${input.email})
+      RETURNING *
+    `) as UserRow[];
+    if (relinked[0]) return relinked[0];
+    throw err;
+  }
+}
+
+function isEmailUniqueViolation(err: unknown): boolean {
+  const e = err as { code?: string; message?: string; constraint?: string } | null;
+  if (!e) return false;
+  if (e.constraint === "users_email_key") return true;
+  return (
+    (e.code === "23505" || /unique constraint/i.test(e.message ?? "")) &&
+    /users_email_key/.test(e.message ?? "")
+  );
 }
 
 export async function getCustomerByUserId(

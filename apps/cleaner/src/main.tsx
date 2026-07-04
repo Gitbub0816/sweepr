@@ -40,7 +40,11 @@ function Providers({ children }: { children: React.ReactNode }) {
   );
 }
 
-const API_URL = (import.meta.env.VITE_API_URL as string) ?? "";
+// Fall back to the production API in prod builds so error reporting still
+// works when VITE_API_URL is missing from the build environment.
+const API_URL =
+  (import.meta.env.VITE_API_URL as string | undefined) ||
+  (import.meta.env.PROD ? "https://api.getsweepr.com" : "");
 
 installGlobalErrorHandlers({ app: "cleaner", apiUrl: API_URL });
 

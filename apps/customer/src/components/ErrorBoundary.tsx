@@ -1,4 +1,9 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { reportClientError } from "@sweepr/ui";
+
+const API_URL =
+  (import.meta.env.VITE_API_URL as string | undefined) ||
+  (import.meta.env.PROD ? "https://api.getsweepr.com" : "");
 
 interface Props {
   children: ReactNode;
@@ -19,6 +24,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("ErrorBoundary caught:", error, info);
+    reportClientError(error, {
+      app: "customer",
+      apiUrl: API_URL,
+      context: { componentStack: info.componentStack?.slice(0, 4000) },
+    });
   }
 
   render() {

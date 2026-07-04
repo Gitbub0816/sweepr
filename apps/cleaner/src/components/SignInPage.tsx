@@ -16,8 +16,6 @@ export function SignInPage() {
   const { signIn, setActive, isLoaded } = useSignIn();
   const navigate = useNavigate();
 
-  if (userLoaded && isSignedIn) return <Navigate to="/" replace />;
-
   const [method, setMethod] = useState<Method>("email");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -48,6 +46,11 @@ export function SignInPage() {
       } catch { /* non-fatal */ }
     }, 600);
   }, []);
+
+  // After all hooks — an early return above any hook call changes the hook
+  // count between renders and crashes with React error #300 when isSignedIn
+  // flips mid-session.
+  if (userLoaded && isSignedIn) return <Navigate to="/" replace />;
 
   async function handleOAuth(provider: "oauth_google" | "oauth_apple") {
     if (!isLoaded) return;
