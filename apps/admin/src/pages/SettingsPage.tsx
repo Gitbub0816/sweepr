@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { DashboardShell, Card, Input, Button, toast } from "@sweepr/ui";
 import { SlackSettings } from "../components/SlackSettings";
@@ -164,12 +164,171 @@ function GeneralSettingsPanel() {
   );
 }
 
+// Scope Review settings — a flat key/value bag stored under `scope_review.*` in
+// site_settings, edited here in dollars/days/percent and converted at the boundary.
+const SR_KEYS = {
+  feeSmall: "scope_review.fee_additional_attention_small_cents",
+  feeMedium: "scope_review.fee_additional_attention_medium_cents",
+  feeLarge: "scope_review.fee_additional_attention_large_cents",
+  refusalMin: "scope_review.refusal_fee_min_cents",
+  refusalMax: "scope_review.refusal_fee_max_cents",
+  refusalPct: "scope_review.refusal_fee_pct",
+  surchargeExtra: "scope_review.level_surcharge_extra_attention_pct",
+  surchargeSignificant: "scope_review.level_surcharge_significant_attention_pct",
+  abuseRequestRate: "scope_review.abuse_request_rate_pct",
+  abuseDenialRate: "scope_review.abuse_denial_rate_pct",
+  abuseMinJobs: "scope_review.abuse_min_jobs",
+  privilegeDisableDays: "scope_review.privilege_disable_days",
+  suspensionDays: "scope_review.suspension_days",
+  investigatingDays: "scope_review.investigating_days",
+  autoCancel: "scope_review.auto_cancel_on_high_confidence_refusal",
+} as const;
+
+const CENTS_FIELDS = new Set(["feeSmall", "feeMedium", "feeLarge", "refusalMin", "refusalMax"]);
+
+type SrField = keyof typeof SR_KEYS;
+
+function ScopeReviewSettingsPanel() {
+  const { getToken } = useAuth();
+  const [values, setValues] = useState<Record<SrField, string>>({
+    feeSmall: "25", feeMedium: "50", feeLarge: "100",
+    refusalMin: "50", refusalMax: "200", refusalPct: "20",
+    surchargeExtra: "0", surchargeSignificant: "0",
+    abuseRequestRate: "70", abuseDenialRate: "70", abuseMinJobs: "10",
+    privilegeDisableDays: "180", suspensionDays: "180", investigatingDays: "180",
+    autoCancel: "false",
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const authed = useCallback(async (path: string, init?: RequestInit) => {
+    const token = await getToken();
+    return fetch(`${API}${path}`, {
+      ...init,
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(init?.headers ?? {}) },
+    });
+  }, [getToken]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await authed("/admin/settings/scope-review");
+        if (!res.ok) throw new Error();
+        const data = (await res.json()) as { settings: Record<string, string> };
+        setValues((v) => {
+          const next = { ...v };
+          for (const field of Object.keys(SR_KEYS) as SrField[]) {
+            const raw = data.settings[SR_KEYS[field]];
+            if (raw === undefined) continue;
+            next[field] = CENTS_FIELDS.has(field) ? String(Number(raw) / 100) : raw;
+          }
+          return next;
+        });
+      } catch {
+        // keep defaults
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [authed]);
+
+  function set(field: SrField, val: string) {
+    setValues((v) => ({ ...v, [field]: val }));
+  }
+
+  async function save() {
+    setSaving(true);
+    try {
+      const settings: Record<string, string> = {};
+      for (const field of Object.keys(SR_KEYS) as SrField[]) {
+        const raw = values[field];
+        settings[SR_KEYS[field]] = CENTS_FIELDS.has(field)
+          ? String(Math.round(parseFloat(raw || "0") * 100))
+          : raw;
+      }
+      const res = await authed("/admin/settings/scope-review", { method: "PATCH", body: JSON.stringify({ settings }) });
+      if (!res.ok) throw new Error();
+      toast.success("Scope Review settings saved");
+    } catch {
+      toast.error("Couldn't save Scope Review settings.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <Card className="max-w-2xl space-y-3">
+        {[1, 2, 3].map((i) => <div key={i} className="h-10 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />)}
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="max-w-2xl space-y-6">
+      <div>
+        <h3 className="mb-3 text-sm font-semibold text-charcoal dark:text-white">Fees</h3>
+        <div className="grid grid-cols-3 gap-3">
+          <Input label="AAF — small ($)" type="number" value={values.feeSmall} onChange={(e) => set("feeSmall", e.target.value)} />
+          <Input label="AAF — medium ($)" type="number" value={values.feeMedium} onChange={(e) => set("feeMedium", e.target.value)} />
+          <Input label="AAF — large ($)" type="number" value={values.feeLarge} onChange={(e) => set("feeLarge", e.target.value)} />
+          <Input label="Refusal fee min ($)" type="number" value={values.refusalMin} onChange={(e) => set("refusalMin", e.target.value)} />
+          <Input label="Refusal fee max ($)" type="number" value={values.refusalMax} onChange={(e) => set("refusalMax", e.target.value)} />
+          <Input label="Refusal fee (%)" type="number" value={values.refusalPct} onChange={(e) => set("refusalPct", e.target.value)} />
+        </div>
+      </div>
+
+      <div>
+        <h3 className="mb-3 text-sm font-semibold text-charcoal dark:text-white">Level surcharges</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Extra attention (%)" type="number" value={values.surchargeExtra} onChange={(e) => set("surchargeExtra", e.target.value)} />
+          <Input label="Significant attention (%)" type="number" value={values.surchargeSignificant} onChange={(e) => set("surchargeSignificant", e.target.value)} />
+        </div>
+      </div>
+
+      <div>
+        <h3 className="mb-3 text-sm font-semibold text-charcoal dark:text-white">Abuse thresholds</h3>
+        <div className="grid grid-cols-3 gap-3">
+          <Input label="Request rate (%)" type="number" value={values.abuseRequestRate} onChange={(e) => set("abuseRequestRate", e.target.value)} />
+          <Input label="Denial rate (%)" type="number" value={values.abuseDenialRate} onChange={(e) => set("abuseDenialRate", e.target.value)} />
+          <Input label="Min jobs" type="number" value={values.abuseMinJobs} onChange={(e) => set("abuseMinJobs", e.target.value)} />
+        </div>
+      </div>
+
+      <div>
+        <h3 className="mb-3 text-sm font-semibold text-charcoal dark:text-white">Durations (days)</h3>
+        <div className="grid grid-cols-3 gap-3">
+          <Input label="Privilege disable" type="number" value={values.privilegeDisableDays} onChange={(e) => set("privilegeDisableDays", e.target.value)} />
+          <Input label="Suspension" type="number" value={values.suspensionDays} onChange={(e) => set("suspensionDays", e.target.value)} />
+          <Input label="Investigating" type="number" value={values.investigatingDays} onChange={(e) => set("investigatingDays", e.target.value)} />
+        </div>
+      </div>
+
+      <label className="flex items-center gap-2 text-sm text-charcoal dark:text-white">
+        <input
+          type="checkbox"
+          checked={values.autoCancel === "true"}
+          onChange={(e) => set("autoCancel", e.target.checked ? "true" : "false")}
+          className="h-4 w-4 rounded border-slate-300"
+        />
+        Auto-cancel booking on high-confidence refusal
+      </label>
+
+      <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save Scope Review settings"}</Button>
+    </Card>
+  );
+}
+
 export function SettingsPage() {
   return (
     <DashboardShell title="Settings" description="Platform-wide configuration.">
       <div className="space-y-6">
         <GeneralSettingsPanel />
         <AdminInvitePanel />
+        <div>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-600">Scope Review</h2>
+          <ScopeReviewSettingsPanel />
+        </div>
         <div>
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-600">Slack</h2>
           <SlackSettings />
