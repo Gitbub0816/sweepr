@@ -3,10 +3,28 @@ import { SweeprLogo } from "../assets/SweeprLogo";
 import { WaitlistForm } from "./WaitlistForm";
 
 const BYPASS_KEY = "sweepr_prelaunch_bypass";
-// Build-time secret. When unset, the code-bypass path (URL param / triple-click
-// modal) is disabled entirely — there is no default/fallback code.
-const BYPASS_CODE: string | undefined = (import.meta as { env?: Record<string, string | undefined> }).env
+// Optional build-time code for local dev only. In production the code lives
+// server-side (site_settings 'prelaunch_bypass_code') and is verified via
+// POST /status/bypass, so it never ships in a JS bundle.
+const LOCAL_BYPASS_CODE: string | undefined = (import.meta as { env?: Record<string, string | undefined> }).env
   ?.VITE_PRELAUNCH_BYPASS_CODE || undefined;
+
+/** Verify a bypass code: local build-time code first (dev), then the server. */
+async function verifyBypassCode(apiUrl: string, code: string): Promise<boolean> {
+  if (LOCAL_BYPASS_CODE && code === LOCAL_BYPASS_CODE) return true;
+  try {
+    const res = await fetch(`${apiUrl}/status/bypass`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+    if (!res.ok) return false;
+    const data = (await res.json()) as { ok?: boolean };
+    return data.ok === true;
+  } catch {
+    return false;
+  }
+}
 
 interface PrelaunchGateProps {
   type: "cleaner" | "customer";
@@ -30,18 +48,20 @@ export function PrelaunchGate({ type, apiUrl, children, forcePrelaunch = false }
   const [codeError, setCodeError] = useState(false);
 
   useEffect(() => {
-    // URL parameter bypass: ?bypass=0123 sets localStorage and reloads clean
+    // URL parameter bypass: ?bypass=<code> verifies against the server, then
+    // sets localStorage and cleans the URL.
     try {
       const params = new URLSearchParams(window.location.search);
       const code = params.get("bypass");
-      if (BYPASS_CODE && code === BYPASS_CODE) {
-        localStorage.setItem(BYPASS_KEY, "true");
+      if (code) {
         params.delete("bypass");
         const clean = [window.location.pathname, params.toString() ? `?${params}` : ""].join("");
         window.history.replaceState({}, "", clean);
-        setBypassed(true);
-        setSettings({ prelaunch_cleaner: false, prelaunch_customer: false });
-        return;
+        void verifyBypassCode(apiUrl, code).then((ok) => {
+          if (!ok) return;
+          try { localStorage.setItem(BYPASS_KEY, "true"); } catch { /* noop */ }
+          setBypassed(true);
+        });
       }
       if (localStorage.getItem(BYPASS_KEY) === "true") {
         setBypassed(true);
@@ -68,7 +88,6 @@ export function PrelaunchGate({ type, apiUrl, children, forcePrelaunch = false }
   }, [apiUrl]);
 
   function handleBypassClick() {
-    if (!BYPASS_CODE) return; // bypass disabled entirely when no code is configured
     const next = clickCount + 1;
     setClickCount(next);
     if (next >= 3) {
@@ -77,9 +96,10 @@ export function PrelaunchGate({ type, apiUrl, children, forcePrelaunch = false }
     }
   }
 
-  function handleCodeSubmit(e: React.FormEvent) {
+  async function handleCodeSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (BYPASS_CODE && codeInput === BYPASS_CODE) {
+    const ok = await verifyBypassCode(apiUrl, codeInput.trim());
+    if (ok) {
       try {
         localStorage.setItem(BYPASS_KEY, "true");
       } catch {
@@ -175,7 +195,7 @@ export function PrelaunchGate({ type, apiUrl, children, forcePrelaunch = false }
             <h2 className="mb-3 text-base font-semibold text-charcoal">
               Enter bypass code
             </h2>
-            <form onSubmit={handleCodeSubmit} className="flex flex-col gap-3">
+            <form onSubmit={(e) => void handleCodeSubmit(e)} className="flex flex-col gap-3">
               <input
                 type="text"
                 autoFocus

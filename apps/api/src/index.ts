@@ -110,6 +110,8 @@ app.use("/didit/*", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "di
 app.use("/reviews", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "reviews", by: "user" }));
 // Public "Report a problem" intake — no signature/JWT required, so IP-keyed.
 app.use("/report/*", rateLimit({ limit: 20, windowMs: 15 * 60_000, keyPrefix: "report" }));
+// Prelaunch bypass-code verification — tight IP bucket to blunt code guessing.
+app.use("/status/bypass", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "bypass" }));
 
 app.get("/", (c) => c.json({ name: "sweepr-api", status: "ok" }));
 app.get("/health", (c) => c.json({ ok: true }));
