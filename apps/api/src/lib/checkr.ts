@@ -122,6 +122,12 @@ function authHeader(rawApiKey: string): Record<string, string> {
   return {
     Authorization: authorization,
     "Content-Type": "application/json",
+    Accept: "application/json",
+    // Workers fetch sends NO User-Agent by default, and Checkr's edge WAF
+    // blocks UA-less requests with 403 {"error":"Request blocked"} before
+    // they ever reach the API (real API auth failures return Checkr-shaped
+    // 401 {"error":"Bad authentication error"}). Identify ourselves.
+    "User-Agent": "Sweepr-API/1.0 (+https://getsweepr.com)",
   };
 }
 
