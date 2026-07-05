@@ -44,9 +44,9 @@ export function QuoteCalculator({ pricingGated = false }: { pricingGated?: boole
             <Sparkles aria-hidden="true" className="w-6 h-6 text-seafoam-500" />
           </div>
         </div>
-        <h3 className="text-lg font-black text-charcoal dark:text-white text-center">
+        <h2 className="text-lg font-black text-charcoal dark:text-white text-center">
           Pricing coming soon
-        </h3>
+        </h2>
         <p className="mt-2 text-sm text-slate-500 dark:text-slate-400 text-center leading-relaxed">
           Our calculator is getting a final deep clean. Join the newsletter and we'll let you know when it's ready.
         </p>
@@ -62,9 +62,9 @@ export function QuoteCalculator({ pricingGated = false }: { pricingGated?: boole
       <p className="text-xs font-bold uppercase tracking-wide text-seafoam-700">
         Instant quote
       </p>
-      <h3 className="mt-1 text-xl font-black text-charcoal dark:text-white">
+      <h2 className="mt-1 text-xl font-black text-charcoal dark:text-white">
         See your price in seconds
-      </h3>
+      </h2>
 
       <div className="mt-5 space-y-4">
         <Stepper label="Bedrooms" value={bedrooms} onChange={setBedrooms} min={0} max={8} />

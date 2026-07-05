@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { withLang } from "../i18n/languages";
 import { LanguageSelector } from "../i18n/LanguageSelector";
@@ -20,7 +20,12 @@ import {
   Clock,
   TrendingUp,
 } from "lucide-react";
-import { CoverageMapSection } from "../components/CoverageMapSection";
+// mapbox-gl (pulled in by CoverageMapSection) is large and only needed once
+// a visitor scrolls to the coverage-map section — this page is already
+// code-split from the entry, so this keeps mapbox-gl out of its chunk too.
+const CoverageMapSection = lazy(() =>
+  import("../components/CoverageMapSection").then((m) => ({ default: m.CoverageMapSection })),
+);
 
 const CLEANER_URL =
   (import.meta.env.VITE_CLEANER_URL || "https://clean.getsweepr.com") + "/sign-up";
@@ -119,7 +124,7 @@ function PerkGrid({ perks }: { perks: readonly StepItem[] }) {
               <Icon aria-hidden="true" className="h-5 w-5" />
             </div>
             <div>
-              <h4 className="font-semibold text-charcoal dark:text-white">{t(`cleanWithUs.${p.key}Title`)}</h4>
+              <h3 className="font-semibold text-charcoal dark:text-white">{t(`cleanWithUs.${p.key}Title`)}</h3>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t(`cleanWithUs.${p.key}Body`)}</p>
             </div>
           </div>
@@ -288,7 +293,9 @@ export default function CleanWithUs() {
             {t("cleanWithUs.coverageSubtitle")}
           </p>
         </div>
-        <CoverageMapSection />
+        <Suspense fallback={null}>
+          <CoverageMapSection />
+        </Suspense>
       </section>
 
       {/* Final CTA */}

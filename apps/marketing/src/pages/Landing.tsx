@@ -22,10 +22,17 @@ import {
   Building2,
 } from "lucide-react";
 import { formatCurrency } from "@sweepr/utils";
+import { lazy, Suspense } from "react";
 import { HeroScene } from "../components/HeroScene";
 import { QuoteCalculator } from "../components/QuoteCalculator";
 import { MarketingAuth } from "../components/MarketingAuth";
-import { CoverageMapSection } from "../components/CoverageMapSection";
+
+// mapbox-gl (pulled in by CoverageMapSection) is large and only needed once
+// a visitor scrolls to the coverage-map section, so it's excluded from the
+// initial JS payload.
+const CoverageMapSection = lazy(() =>
+  import("../components/CoverageMapSection").then((m) => ({ default: m.CoverageMapSection })),
+);
 
 const CUSTOMER_URL =
   (import.meta.env.VITE_CUSTOMER_URL || "https://app.getsweepr.com") + "/book";
@@ -424,7 +431,9 @@ export default function Landing() {
       </div>
 
       {/* Coverage map */}
-      <CoverageMapSection />
+      <Suspense fallback={null}>
+        <CoverageMapSection />
+      </Suspense>
 
       {/* FAQ */}
       <Section id="faq">
