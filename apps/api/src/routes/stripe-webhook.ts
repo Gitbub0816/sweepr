@@ -153,8 +153,8 @@ stripeWebhookRouter.post("/", async (c) => {
             subject,
             html: wrapBodyInTemplate(subject, et(lang, "booking.confirmed.body"), lang),
           });
-        } catch {
-          // Non-fatal.
+        } catch (err) {
+          logger.warn("stripe webhook: booking confirmation email failed", { err, bookingId, email });
         }
       }
       break;
@@ -219,8 +219,8 @@ stripeWebhookRouter.post("/", async (c) => {
             subject,
             html: wrapBodyInTemplate(subject, et(lang, "payment.failed.body"), lang),
           });
-        } catch {
-          // Non-fatal.
+        } catch (err) {
+          logger.warn("stripe webhook: payment failed email failed", { err, bookingId, email });
         }
       }
       break;
@@ -361,8 +361,8 @@ stripeWebhookRouter.post("/", async (c) => {
             bookingId ? ` for booking ${bookingId}` : ""
           }. Review it in the admin console.</p>`,
         });
-      } catch {
-        // Non-fatal.
+      } catch (err) {
+        logger.warn("stripe webhook: dispute notification email failed", { err, bookingId: bookingId ?? null, disputeId: dispute.id });
       }
       break;
     }

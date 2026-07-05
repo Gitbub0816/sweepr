@@ -14,7 +14,6 @@ import {
 } from "../lib/payoutEngine";
 import { createProposal } from "../lib/approvalEngine";
 import { notifyProposalCreated } from "../lib/approvalNotify";
-import { recordError } from "../lib/errorLog";
 import { logger } from "../lib/logger";
 import type { AppBindings } from "../types";
 import type { BookingRow, CleanerRow } from "@sweepr/db";
@@ -266,14 +265,15 @@ adminPayoutsRouter.put(
   superAdminOnly,
   zValidator("json", feeConfigSchema, (result, c) => {
     if (!result.success) {
-      const sql = getDb((c.env as AppBindings["Bindings"]).DATABASE_URL);
       const issues = result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
-      logger.error("fee-config validation failed", undefined, { issues });
-      void recordError(sql, {
-        source: "server", app: "admin", level: "error",
-        message: `PUT /admin/payouts/fee-config validation failed: ${issues}`,
-        path: "/admin/payouts/fee-config", method: "PUT", statusCode: 400,
-        clerkId: null, context: { issues: result.error.issues },
+      // Covered by the request-level error buffer flush (see index.ts) — no
+      // need for a direct recordError here anymore.
+      logger.error("fee-config validation failed", undefined, {
+        issues,
+        path: "/admin/payouts/fee-config",
+        method: "PUT",
+        statusCode: 400,
+        fullIssues: result.error.issues,
       });
       return c.json({ error: "Validation failed", issues: result.error.issues }, 400);
     }
