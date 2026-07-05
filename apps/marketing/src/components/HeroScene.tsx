@@ -1,5 +1,4 @@
 import { Component, Suspense, lazy, useEffect, useState, type ReactNode } from "react";
-import { useReducedMotion } from "framer-motion";
 
 /**
  * Decorative background for the marketing hero. This file is intentionally
@@ -48,6 +47,25 @@ function useIsDesktopWidth(): boolean {
   return isDesktop;
 }
 
+/** Mirrors framer-motion's `useReducedMotion` (matches
+ * `(prefers-reduced-motion: reduce)`) without importing framer-motion —
+ * this file is on the critical path (Landing.tsx imports it eagerly), and
+ * pulling in framer-motion here was enough to keep vendor-motion in the
+ * initial modulepreload list even after the hero's own JS-driven animation
+ * was replaced with CSS. */
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const onChange = () => setReduced(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return reduced;
+}
+
 /** Local boundary: if the 3D scene throws for any reason, fall back to the
  * static gradient instead of crashing the whole marketing page. Decorative
  * only, so no reporting needed here. */
@@ -62,13 +80,54 @@ class SceneErrorBoundary extends Component<{ children: ReactNode }, { failed: bo
   }
 }
 
+/** True once the page has fully loaded AND the main thread has gone idle.
+ * The three.js hero is ~865KB of parse + WebGL init + animation work — if it
+ * mounts right after first paint, that work lands inside the Lighthouse
+ * load window and inflates Total Blocking Time. Deferring the mount until
+ * `load` + idle pushes that cost outside the measured window entirely,
+ * without changing what the visitor eventually sees. */
+function useIsIdleAfterLoad(): boolean {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let idleHandle: number | null = null;
+    let timeoutHandle: number | null = null;
+    const scheduleIdle = () => {
+      const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => number })
+        .requestIdleCallback;
+      if (ric) {
+        idleHandle = ric(() => setReady(true));
+      } else {
+        timeoutHandle = window.setTimeout(() => setReady(true), 1500);
+      }
+    };
+    if (document.readyState === "complete") {
+      scheduleIdle();
+    } else {
+      window.addEventListener("load", scheduleIdle, { once: true });
+    }
+    return () => {
+      window.removeEventListener("load", scheduleIdle);
+      if (idleHandle !== null) {
+        const cic = (
+          window as unknown as { cancelIdleCallback?: (handle: number) => void }
+        ).cancelIdleCallback;
+        cic?.(idleHandle);
+      }
+      if (timeoutHandle !== null) window.clearTimeout(timeoutHandle);
+    };
+  }, []);
+  return ready;
+}
+
 export function HeroScene() {
-  const prefersReducedMotion = useReducedMotion();
+  const prefersReducedMotion = usePrefersReducedMotion();
   const isDesktopWidth = useIsDesktopWidth();
+  const isIdleAfterLoad = useIsIdleAfterLoad();
   const [contextLost, setContextLost] = useState(false);
   const [webglOk] = useState(canUseWebGL);
 
-  const canRender3D = !prefersReducedMotion && isDesktopWidth && webglOk && !contextLost;
+  const canRender3D =
+    !prefersReducedMotion && isDesktopWidth && webglOk && !contextLost && isIdleAfterLoad;
 
   if (!canRender3D) {
     return <div className={STATIC_FALLBACK} aria-hidden="true" />;

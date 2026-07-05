@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { LanguageSelector } from "../i18n/LanguageSelector";
 import { withLang } from "../i18n/languages";
-import { motion } from "framer-motion";
+import { Reveal } from "../components/Reveal";
 import {
   MapPin,
   CalendarClock,
@@ -38,9 +38,6 @@ const CUSTOMER_URL =
   (import.meta.env.VITE_CUSTOMER_URL || "https://app.getsweepr.com") + "/book";
 const CLEANER_URL =
   (import.meta.env.VITE_CLEANER_URL || "https://clean.getsweepr.com") + "/sign-up";
-
-const fadeUp = { hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0 } };
-const stagger = { show: { transition: { staggerChildren: 0.12 } } };
 
 function Section({
   id,
@@ -227,37 +224,31 @@ export default function Landing() {
         <HeroScene />
         <Section className="!py-24">
           <div className="grid items-center gap-12 lg:grid-cols-2">
-            <motion.div initial="hidden" animate="show" variants={stagger}>
-              <motion.div variants={fadeUp} className="mb-6">
+            <div>
+              <div className="sweepr-fade-up mb-6">
                 <SweeprLogo size="2xl" />
-              </motion.div>
-              <motion.h1
-                variants={fadeUp}
-                className="mt-6 max-w-2xl text-5xl font-black leading-[1.05] tracking-tight text-charcoal dark:text-white sm:text-6xl lg:text-7xl"
+              </div>
+              <h1
+                className="sweepr-fade-up sweepr-fade-up-d1 mt-6 max-w-2xl text-5xl font-black leading-[1.05] tracking-tight text-charcoal dark:text-white sm:text-6xl lg:text-7xl"
               >
                 {t("hero.title")}
-              </motion.h1>
-              <motion.p variants={fadeUp} className="mt-5 max-w-lg text-lg text-slate-600 dark:text-slate-300">
+              </h1>
+              <p className="sweepr-fade-up sweepr-fade-up-d2 mt-5 max-w-lg text-lg text-slate-600 dark:text-slate-300">
                 {t("hero.subtitle")}
-              </motion.p>
-              <motion.div variants={fadeUp} className="mt-8 flex flex-col gap-3 sm:flex-row">
+              </p>
+              <div className="sweepr-fade-up sweepr-fade-up-d3 mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button size="lg" onClick={() => (window.location.href = customerUrl)}>
                   {t("hero.cta")} <ArrowRight aria-hidden="true" className="h-4 w-4" />
                 </Button>
                 <Button size="lg" variant="secondary" onClick={() => document.getElementById("services")?.scrollIntoView({ behavior: "smooth" })}>
                   {t("nav.services")}
                 </Button>
-              </motion.div>
-            </motion.div>
+              </div>
+            </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="flex justify-center lg:justify-end"
-            >
+            <div className="sweepr-fade-up sweepr-fade-up-d4 flex justify-center lg:justify-end">
               <QuoteCalculator pricingGated={pricingGated} />
-            </motion.div>
+            </div>
           </div>
         </Section>
       </div>
@@ -269,17 +260,11 @@ export default function Landing() {
           title={t("howItWorks.title")}
           subtitle={t("howItWorks.subtitle")}
         />
-        <motion.div
-          className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4"
-          variants={stagger}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: "-80px" }}
-        >
+        <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {steps.map((s, i) => (
-            <motion.div
+            <Reveal
               key={s.titleKey}
-              variants={fadeUp}
+              delayMs={i * 100}
               className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900"
             >
               <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-seafoam-700 text-white">
@@ -288,9 +273,9 @@ export default function Landing() {
               <p className="text-xs font-bold text-seafoam-700">{t("howItWorks.stepLabel", { n: i + 1 })}</p>
               <h3 className="mt-1 text-lg font-bold text-charcoal dark:text-white">{t(s.titleKey)}</h3>
               <p className="mt-2 text-sm text-slate-500">{t(s.bodyKey)}</p>
-            </motion.div>
+            </Reveal>
           ))}
-        </motion.div>
+        </div>
       </Section>
 
       {/* Services */}
@@ -301,17 +286,11 @@ export default function Landing() {
             title={t("services.title")}
             subtitle={t("services.subtitle")}
           />
-          <motion.div
-            className="mt-12 grid gap-6 sm:grid-cols-2"
-            variants={stagger}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, margin: "-80px" }}
-          >
-            {services.map((s) => (
-              <motion.div
+          <div className="mt-12 grid gap-6 sm:grid-cols-2">
+            {services.map((s, i) => (
+              <Reveal
                 key={s.nameKey}
-                variants={fadeUp}
+                delayMs={(i % 4) * 80}
                 className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-offwhite p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900"
                 style={{ borderLeft: "6px solid #14b8a6" }}
               >
@@ -339,9 +318,9 @@ export default function Landing() {
                     {t("services.bookNow")} <ArrowRight aria-hidden="true" className="h-4 w-4" />
                   </a>
                 </div>
-              </motion.div>
+              </Reveal>
             ))}
-          </motion.div>
+          </div>
         </Section>
       </div>
 
@@ -352,17 +331,11 @@ export default function Landing() {
           title={t("trust.title")}
           subtitle={t("trust.subtitle")}
         />
-        <motion.div
-          className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4"
-          variants={stagger}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: "-80px" }}
-        >
-          {trust.map((item) => (
-            <motion.div
+        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {trust.map((item, i) => (
+            <Reveal
               key={item.titleKey}
-              variants={fadeUp}
+              delayMs={i * 80}
               className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900"
             >
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-seafoam-50 text-seafoam-700 dark:bg-slate-800">
@@ -370,9 +343,9 @@ export default function Landing() {
               </div>
               <h3 className="font-bold text-charcoal dark:text-white">{t(item.titleKey)}</h3>
               <p className="mt-2 text-sm text-slate-500 leading-relaxed">{t(item.bodyKey)}</p>
-            </motion.div>
+            </Reveal>
           ))}
-        </motion.div>
+        </div>
       </Section>
 
       {/* Pricing */}
@@ -501,10 +474,10 @@ export default function Landing() {
 
 function SectionHeading({ eyebrow, title, subtitle }: { eyebrow: string; title: string; subtitle?: string }) {
   return (
-    <motion.div className="text-center" variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}>
+    <Reveal className="text-center">
       <p className="text-sm font-bold uppercase tracking-wide text-seafoam-700">{eyebrow}</p>
       <h2 className="mt-2 text-3xl font-black text-charcoal dark:text-white sm:text-4xl">{title}</h2>
       {subtitle && <p className="mx-auto mt-3 max-w-xl text-slate-500">{subtitle}</p>}
-    </motion.div>
+    </Reveal>
   );
 }
