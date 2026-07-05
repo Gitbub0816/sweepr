@@ -141,3 +141,78 @@ adminDebugRouter.get("/checkr", async (c) => {
     results,
   });
 });
+
+/**
+ * Dump a cleaner's Stripe Connect state — both what we have locally and what
+ * Stripe reports live — so we can see exactly what Stripe is waiting on when a
+ * cleaner shows "not set up" after onboarding. Owner-only (router is gated).
+ * Resolve target by ?email= or ?cleanerId=, else defaults to the owner's own
+ * cleaner row (by known owner clerk_ids).
+ */
+adminDebugRouter.get("/stripe-connect", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const email = c.req.query("email");
+  const cleanerIdParam = c.req.query("cleanerId");
+
+  const rows = (await sql`
+    SELECT c.id AS cleaner_id, c.status AS cleaner_status, c.stripe_connect_id,
+           u.clerk_id, u.email
+    FROM cleaners c
+    JOIN users u ON u.id = c.user_id
+    WHERE (${cleanerIdParam}::uuid IS NULL OR c.id = ${cleanerIdParam}::uuid)
+      AND (${email ?? null}::text IS NULL OR LOWER(u.email) = LOWER(${email ?? null}))
+      AND (
+        ${cleanerIdParam ?? null} IS NOT NULL
+        OR ${email ?? null} IS NOT NULL
+        OR u.clerk_id IN ('user_3FpgxE7zcTHU3eAfCJrLV2t0qQC', 'user_3FTuNlZwiqHjvLxQIS76lw5ehMB')
+      )
+    ORDER BY c.created_at
+    LIMIT 5
+  `) as Array<{
+    cleaner_id: string; cleaner_status: string; stripe_connect_id: string | null;
+    clerk_id: string; email: string;
+  }>;
+
+  const { getStripe } = await import("../lib/stripe");
+  const stripe = getStripe(c.env.STRIPE_SECRET_KEY);
+
+  const out = [];
+  for (const r of rows) {
+    const local = (await sql`
+      SELECT stripe_account_id, status, charges_enabled, payouts_enabled, details_submitted
+      FROM stripe_connected_accounts WHERE cleaner_id = ${r.cleaner_id}
+    `) as Array<Record<string, unknown>>;
+
+    let live: Record<string, unknown> | null = null;
+    if (r.stripe_connect_id) {
+      try {
+        const a = await stripe.accounts.retrieve(r.stripe_connect_id);
+        live = {
+          id: a.id,
+          charges_enabled: a.charges_enabled,
+          payouts_enabled: a.payouts_enabled,
+          details_submitted: a.details_submitted,
+          // requirements is what Stripe is still waiting on (empty = fully done)
+          requirements_currently_due: a.requirements?.currently_due ?? [],
+          requirements_past_due: a.requirements?.past_due ?? [],
+          requirements_pending_verification: a.requirements?.pending_verification ?? [],
+          disabled_reason: a.requirements?.disabled_reason ?? null,
+        };
+      } catch (err) {
+        live = { error: String(err).slice(0, 300) };
+      }
+    }
+
+    out.push({
+      cleaner_id: r.cleaner_id,
+      cleaner_status: r.cleaner_status,
+      clerk_id: r.clerk_id,
+      email: r.email,
+      stripe_connect_id: r.stripe_connect_id,
+      localRow: local[0] ?? null,
+      stripeLive: live,
+    });
+  }
+
+  return c.json({ count: out.length, cleaners: out });
+});
