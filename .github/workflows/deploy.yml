@@ -100,7 +100,7 @@ jobs:
 
   deploy-marketing:
     name: Deploy Marketing (getsweepr.com)
-    needs: build
+    needs: deploy-api
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -137,7 +137,7 @@ jobs:
 
   deploy-customer:
     name: Deploy Customer App (app.getsweepr.com)
-    needs: build
+    needs: deploy-marketing
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -180,7 +180,7 @@ jobs:
 
   deploy-cleaner:
     name: Deploy Cleaner App (clean.getsweepr.com)
-    needs: build
+    needs: deploy-customer
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -222,7 +222,7 @@ jobs:
 
   deploy-dash:
     name: Deploy Cleaner Dashboard (dashboard.getsweepr.com)
-    needs: build
+    needs: deploy-cleaner
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -264,7 +264,7 @@ jobs:
 
   deploy-admin:
     name: Deploy Admin App (admin.getsweepr.com)
-    needs: build
+    needs: deploy-dash
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -306,7 +306,7 @@ jobs:
 
   deploy-legal:
     name: Deploy Legal Site (legal.getsweepr.com)
-    needs: build
+    needs: deploy-admin
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -335,7 +335,7 @@ jobs:
 
   deploy-service:
     name: Deploy Service Demo (service.getsweepr.com)
-    needs: build
+    needs: deploy-legal
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -366,7 +366,7 @@ jobs:
 
   deploy-status:
     name: Deploy Status Page (status.getsweepr.com)
-    needs: build
+    needs: deploy-service
     if: github.ref == 'refs/heads/main'
     continue-on-error: true
     runs-on: ubuntu-latest
