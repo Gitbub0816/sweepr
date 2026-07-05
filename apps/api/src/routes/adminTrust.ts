@@ -22,12 +22,15 @@ adminTrustRouter.get("/customers", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const status = c.req.query("status");
 
+  // email lives on `users`, not `customers` — join to fetch it.
   const rows = (await sql`
-    SELECT id, first_name, last_name, email, account_status, account_status_reason, account_status_until
-    FROM customers
-    WHERE (${status ?? null}::text IS NULL AND account_status <> 'normal')
-       OR account_status = ${status ?? null}
-    ORDER BY updated_at DESC LIMIT 200
+    SELECT c.id, c.first_name, c.last_name, u.email,
+           c.account_status, c.account_status_reason, c.account_status_until
+    FROM customers c
+    JOIN users u ON u.id = c.user_id
+    WHERE (${status ?? null}::text IS NULL AND c.account_status <> 'normal')
+       OR c.account_status = ${status ?? null}
+    ORDER BY c.updated_at DESC NULLS LAST LIMIT 200
   `) as Array<Record<string, unknown>>;
 
   return c.json({
