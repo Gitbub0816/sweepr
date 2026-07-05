@@ -82,7 +82,17 @@ jobs:
           node-version: '22'
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec wrangler deploy
+      - name: Deploy (with retry/backoff for Cloudflare rate limits)
+        run: |
+          # Jitter start so the parallel deploy jobs do not all hit the
+          # Cloudflare API at t=0 (code 1042 rate limit).
+          sleep $(( (RANDOM % 25) + 1 ))
+          for attempt in 1 2 3 4 5 6; do
+            pnpm exec wrangler deploy && exit 0
+            echo "::warning::deploy attempt $attempt failed (likely CF 1042 rate limit); backing off"
+            sleep $(( attempt * 30 ))
+          done
+          echo "::error::deploy failed after 6 attempts"; exit 1
         working-directory: apps/api
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -110,7 +120,17 @@ jobs:
           VITE_API_URL: https://api.getsweepr.com
           VITE_CUSTOMER_URL: https://app.getsweepr.com
           VITE_CLEANER_URL: https://clean.getsweepr.com
-      - run: pnpm exec wrangler pages deploy apps/marketing/dist --project-name=sweepr-marketing --commit-dirty=true
+      - name: Deploy (with retry/backoff for Cloudflare rate limits)
+        run: |
+          # Jitter start so the parallel deploy jobs do not all hit the
+          # Cloudflare API at t=0 (code 1042 rate limit).
+          sleep $(( (RANDOM % 25) + 1 ))
+          for attempt in 1 2 3 4 5 6; do
+            pnpm exec wrangler pages deploy apps/marketing/dist --project-name=sweepr-marketing --commit-dirty=true && exit 0
+            echo "::warning::deploy attempt $attempt failed (likely CF 1042 rate limit); backing off"
+            sleep $(( attempt * 30 ))
+          done
+          echo "::error::deploy failed after 6 attempts"; exit 1
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -143,7 +163,17 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-      - run: pnpm exec wrangler pages deploy apps/customer/dist --project-name=sweepr-customer --commit-dirty=true
+      - name: Deploy (with retry/backoff for Cloudflare rate limits)
+        run: |
+          # Jitter start so the parallel deploy jobs do not all hit the
+          # Cloudflare API at t=0 (code 1042 rate limit).
+          sleep $(( (RANDOM % 25) + 1 ))
+          for attempt in 1 2 3 4 5 6; do
+            pnpm exec wrangler pages deploy apps/customer/dist --project-name=sweepr-customer --commit-dirty=true && exit 0
+            echo "::warning::deploy attempt $attempt failed (likely CF 1042 rate limit); backing off"
+            sleep $(( attempt * 30 ))
+          done
+          echo "::error::deploy failed after 6 attempts"; exit 1
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -175,7 +205,17 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-      - run: pnpm exec wrangler pages deploy apps/cleaner/dist --project-name=sweepr-cleaner --commit-dirty=true
+      - name: Deploy (with retry/backoff for Cloudflare rate limits)
+        run: |
+          # Jitter start so the parallel deploy jobs do not all hit the
+          # Cloudflare API at t=0 (code 1042 rate limit).
+          sleep $(( (RANDOM % 25) + 1 ))
+          for attempt in 1 2 3 4 5 6; do
+            pnpm exec wrangler pages deploy apps/cleaner/dist --project-name=sweepr-cleaner --commit-dirty=true && exit 0
+            echo "::warning::deploy attempt $attempt failed (likely CF 1042 rate limit); backing off"
+            sleep $(( attempt * 30 ))
+          done
+          echo "::error::deploy failed after 6 attempts"; exit 1
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -207,7 +247,17 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-      - run: pnpm exec wrangler pages deploy apps/cleaner/dist --project-name=sweepr-dash --commit-dirty=true
+      - name: Deploy (with retry/backoff for Cloudflare rate limits)
+        run: |
+          # Jitter start so the parallel deploy jobs do not all hit the
+          # Cloudflare API at t=0 (code 1042 rate limit).
+          sleep $(( (RANDOM % 25) + 1 ))
+          for attempt in 1 2 3 4 5 6; do
+            pnpm exec wrangler pages deploy apps/cleaner/dist --project-name=sweepr-dash --commit-dirty=true && exit 0
+            echo "::warning::deploy attempt $attempt failed (likely CF 1042 rate limit); backing off"
+            sleep $(( attempt * 30 ))
+          done
+          echo "::error::deploy failed after 6 attempts"; exit 1
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -239,7 +289,17 @@ jobs:
           VITE_SENTRY_AUTH_TOKEN: ${{ secrets.VITE_SENTRY_AUTH_TOKEN }}
           VITE_SENTRY_ORG: ${{ secrets.VITE_SENTRY_ORG }}
           VITE_SENTRY_PROJECT: ${{ secrets.VITE_SENTRY_PROJECT }}
-      - run: pnpm exec wrangler pages deploy apps/admin/dist --project-name=sweepr-admin --commit-dirty=true
+      - name: Deploy (with retry/backoff for Cloudflare rate limits)
+        run: |
+          # Jitter start so the parallel deploy jobs do not all hit the
+          # Cloudflare API at t=0 (code 1042 rate limit).
+          sleep $(( (RANDOM % 25) + 1 ))
+          for attempt in 1 2 3 4 5 6; do
+            pnpm exec wrangler pages deploy apps/admin/dist --project-name=sweepr-admin --commit-dirty=true && exit 0
+            echo "::warning::deploy attempt $attempt failed (likely CF 1042 rate limit); backing off"
+            sleep $(( attempt * 30 ))
+          done
+          echo "::error::deploy failed after 6 attempts"; exit 1
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -258,7 +318,17 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @sweepr/legal build
-      - run: pnpm exec wrangler pages deploy apps/legal/dist --project-name=sweepr-legal --commit-dirty=true
+      - name: Deploy (with retry/backoff for Cloudflare rate limits)
+        run: |
+          # Jitter start so the parallel deploy jobs do not all hit the
+          # Cloudflare API at t=0 (code 1042 rate limit).
+          sleep $(( (RANDOM % 25) + 1 ))
+          for attempt in 1 2 3 4 5 6; do
+            pnpm exec wrangler pages deploy apps/legal/dist --project-name=sweepr-legal --commit-dirty=true && exit 0
+            echo "::warning::deploy attempt $attempt failed (likely CF 1042 rate limit); backing off"
+            sleep $(( attempt * 30 ))
+          done
+          echo "::error::deploy failed after 6 attempts"; exit 1
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -279,7 +349,17 @@ jobs:
       - run: pnpm --filter @sweepr/service build
         env:
           VITE_API_URL: https://api.getsweepr.com
-      - run: pnpm exec wrangler pages deploy apps/service/dist --project-name=sweepr-service --commit-dirty=true
+      - name: Deploy (with retry/backoff for Cloudflare rate limits)
+        run: |
+          # Jitter start so the parallel deploy jobs do not all hit the
+          # Cloudflare API at t=0 (code 1042 rate limit).
+          sleep $(( (RANDOM % 25) + 1 ))
+          for attempt in 1 2 3 4 5 6; do
+            pnpm exec wrangler pages deploy apps/service/dist --project-name=sweepr-service --commit-dirty=true && exit 0
+            echo "::warning::deploy attempt $attempt failed (likely CF 1042 rate limit); backing off"
+            sleep $(( attempt * 30 ))
+          done
+          echo "::error::deploy failed after 6 attempts"; exit 1
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -301,7 +381,17 @@ jobs:
       - run: pnpm --filter @sweepr/status build
         env:
           VITE_API_URL: https://api.getsweepr.com
-      - run: pnpm exec wrangler pages deploy apps/status/dist --project-name=sweepr-status --commit-dirty=true
+      - name: Deploy (with retry/backoff for Cloudflare rate limits)
+        run: |
+          # Jitter start so the parallel deploy jobs do not all hit the
+          # Cloudflare API at t=0 (code 1042 rate limit).
+          sleep $(( (RANDOM % 25) + 1 ))
+          for attempt in 1 2 3 4 5 6; do
+            pnpm exec wrangler pages deploy apps/status/dist --project-name=sweepr-status --commit-dirty=true && exit 0
+            echo "::warning::deploy attempt $attempt failed (likely CF 1042 rate limit); backing off"
+            sleep $(( attempt * 30 ))
+          done
+          echo "::error::deploy failed after 6 attempts"; exit 1
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
