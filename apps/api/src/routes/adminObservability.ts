@@ -479,6 +479,7 @@ observabilityRouter.get("/errors", async (c) => {
   const includeResolved = c.req.query("resolved") === "true";
   const sourceFilter = c.req.query("source"); // 'server' | 'client' | undefined
   const appFilter = c.req.query("app");
+  const levelFilter = c.req.query("level"); // 'error' | 'warn' | 'fatal' | undefined
 
   const rows = await settle(sql`
     SELECT id, occurred_at, source, app, level, message, stack, path, method,
@@ -487,6 +488,7 @@ observabilityRouter.get("/errors", async (c) => {
     WHERE (${includeResolved} OR resolved = false)
       AND (${sourceFilter ?? null}::text IS NULL OR source = ${sourceFilter ?? null})
       AND (${appFilter ?? null}::text IS NULL OR app = ${appFilter ?? null})
+      AND (${levelFilter ?? null}::text IS NULL OR level = ${levelFilter ?? null})
     ORDER BY occurred_at DESC
     LIMIT ${limit} OFFSET ${offset}
   `, [] as unknown[]);
