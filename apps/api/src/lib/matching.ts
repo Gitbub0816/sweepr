@@ -106,7 +106,16 @@ export async function eligibleCleanersForBooking(
 
   return candidates.filter((c) => {
     if (conflicts.has(c.id)) return false;
-    return isScheduleAvailable(byCleaner.get(c.id) ?? [], scheduledAt);
+    const schedule = byCleaner.get(c.id);
+    // Soft schedule gate: a cleaner who hasn't configured any cleaner_schedule
+    // rows yet (e.g. freshly approved, hasn't visited the availability screen)
+    // previously fell through isScheduleAvailable's empty loop straight to
+    // `false` — permanently excluding them from every offer, which is why a
+    // brand-new cleaner's job board stayed empty forever. Treat "no schedule
+    // configured" as available-for-anything rather than available-for-nothing;
+    // cleaners who *have* configured a schedule are still matched against it.
+    if (!schedule || schedule.length === 0) return true;
+    return isScheduleAvailable(schedule, scheduledAt);
   });
 }
 
@@ -286,9 +295,12 @@ export async function rankCleanersForBooking(
           )
         : 0;
 
-    // Distance
-    let distance = 0;
+    // Distance. A cleaner with NO service-area rows configured hasn't set up
+    // a preferred radius yet (common for a freshly-approved cleaner) — soft-
+    // filter that case to a neutral mid-range score instead of 0, so they
+    // aren't effectively excluded from ranking just for lacking config.
     const area = (areaByCleaner.get(cleaner.id) ?? [])[0];
+    let distance = 15;
     if (
       bookingLat !== null &&
       bookingLng !== null &&

@@ -136,6 +136,8 @@ cleanerDashboardRouter.get("/my-jobs", async (c) => {
     ? await sql`
         SELECT b.id, b.status, b.day_status, b.service_type, b.scheduled_at,
                b.total_price, b.cleaner_payout, b.bedrooms, b.bathrooms,
+               b.arrival_window_start::text AS arrival_window_start,
+               b.arrival_window_end::text AS arrival_window_end,
                a.city AS address_city, a.state AS address_state
         FROM bookings b
         LEFT JOIN addresses a ON a.id = b.address_id
@@ -146,6 +148,8 @@ cleanerDashboardRouter.get("/my-jobs", async (c) => {
     : await sql`
         SELECT b.id, b.status, b.day_status, b.service_type, b.scheduled_at,
                b.total_price, b.cleaner_payout, b.bedrooms, b.bathrooms,
+               b.arrival_window_start::text AS arrival_window_start,
+               b.arrival_window_end::text AS arrival_window_end,
                a.city AS address_city, a.state AS address_state
         FROM bookings b
         LEFT JOIN addresses a ON a.id = b.address_id
@@ -155,6 +159,45 @@ cleanerDashboardRouter.get("/my-jobs", async (c) => {
       `;
 
   return c.json({ jobs });
+});
+
+// ─── Available offers (assignment_queue rows awaiting this cleaner) ──────────
+// The job board must show jobs *offered but not yet accepted* — those offers
+// live in assignment_queue (per-cleaner rows), not on the booking itself:
+// bookings.cleaner_id stays NULL until an offer is accepted. Querying bookings
+// directly (as /my-jobs does) can never surface a pending offer.
+cleanerDashboardRouter.get("/available-offers", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const ctx = await getCleanerCtx(sql, c.get("user").clerkId);
+  if (!ctx) return c.json({ jobs: [] });
+
+  const offers = await sql`
+    SELECT b.id, b.service_type, b.scheduled_at,
+           b.arrival_window_start::text AS arrival_window_start,
+           b.arrival_window_end::text AS arrival_window_end,
+           b.total_price, b.cleaner_payout, b.bedrooms, b.bathrooms,
+           a.city AS address_city, a.state AS address_state
+    FROM assignment_queue aq
+    JOIN bookings b ON b.id = aq.booking_id
+    LEFT JOIN addresses a ON a.id = b.address_id
+    WHERE aq.cleaner_id = ${ctx.cleaner_id}
+      -- assignment_queue rows are inserted 'pending' for every ranked candidate
+      -- up front (position 1..N), but only the lowest still-pending position
+      -- for a booking is the *currently active* offer — the rest are backups
+      -- waiting in the cascade should this one decline/expire. Statuses
+      -- 'offered'/'queued' are included defensively in case future code
+      -- introduces them.
+      AND aq.status IN ('pending', 'offered', 'queued')
+      AND aq.position = (
+        SELECT MIN(aq2.position) FROM assignment_queue aq2
+        WHERE aq2.booking_id = aq.booking_id AND aq2.status IN ('pending', 'offered', 'queued')
+      )
+      AND (aq.expires_at IS NULL OR aq.expires_at > NOW())
+      AND b.status IN ('matching', 'offered_to_cleaner')
+    ORDER BY b.scheduled_at ASC
+  `;
+
+  return c.json({ jobs: offers });
 });
 
 // ─── Job-offer response (accept / decline by booking id) ─────────────────────

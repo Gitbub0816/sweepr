@@ -47,6 +47,13 @@ const createSchema = z.object({
   entryNotes: z.string().max(500).optional(),
   addOnKeys: z.array(z.string().max(50)).max(20).default([]),
   scheduledAt: z.string().datetime(),
+  // Optional 2-hour arrival window ("HH:MM", 24h) chosen from
+  // GET /cleaners/availability-slots. When present, scheduledAt's date is
+  // combined with arrivalWindowStart as the authoritative arrival instant and
+  // both bounds are persisted so cleaners/customers see the window. Absent
+  // entirely for backward compat with clients that book an exact time.
+  arrivalWindowStart: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  arrivalWindowEnd: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   addressId: z.string().uuid().optional(),
   notes: z.string().max(2000).optional(),
   // Customer-declared cleaning level drives the scope-review level surcharge.
@@ -210,6 +217,17 @@ bookingsRouter.post(
   );
   const totalPrice = baseTotalPrice + levelSurchargeCents;
 
+  // When an arrival window was chosen, the scheduled instant is the booked
+  // date combined with the window's start time (UTC, matching how the rest
+  // of the matching/availability code reads scheduled_at). Falls back to the
+  // client-provided exact scheduledAt when no window is supplied, preserving
+  // full backward compatibility with older clients.
+  let effectiveScheduledAt = input.scheduledAt;
+  if (input.arrivalWindowStart) {
+    const datePart = new Date(input.scheduledAt).toISOString().slice(0, 10);
+    effectiveScheduledAt = `${datePart}T${input.arrivalWindowStart}:00.000Z`;
+  }
+
   // Duplicate-submit guard: a partial unique index on
   // (customer_id, address_id, scheduled_at) for non-terminal bookings (see
   // migration 062) makes a double-click's second INSERT fail with 23505
@@ -223,15 +241,17 @@ bookingsRouter.post(
         customer_id, address_id, status, service_type, bedrooms, bathrooms,
         sqft, home_type, scheduled_at, base_price, addons_total, service_fee,
         tax, total_price, notes, cleaning_level, cleaning_level_surcharge_cents,
-        pricing_rule_id, pricing_rule_version, pricing_line_items_json, estimated_cleaner_payout_cents
+        pricing_rule_id, pricing_rule_version, pricing_line_items_json, estimated_cleaner_payout_cents,
+        arrival_window_start, arrival_window_end
       ) VALUES (
         ${customer.id}, ${input.addressId ?? null}, 'booked', ${input.serviceType},
         ${input.bedrooms}, ${input.bathrooms}, ${input.sqft}, ${input.homeType},
-        ${input.scheduledAt}, ${basePrice}, ${addonsTotal},
+        ${effectiveScheduledAt}, ${basePrice}, ${addonsTotal},
         ${resolved ? 0 : price.serviceFee}, ${resolved ? 0 : price.tax}, ${totalPrice}, ${input.notes ?? null},
         ${input.cleaningLevel}, ${levelSurchargeCents},
         ${resolved ? resolved.ruleId : null}, ${resolved ? resolved.ruleVersion : null},
-        ${resolved ? JSON.stringify(resolved.breakdown.line_items) : null}, ${cleanerPayout}
+        ${resolved ? JSON.stringify(resolved.breakdown.line_items) : null}, ${cleanerPayout},
+        ${input.arrivalWindowStart ?? null}, ${input.arrivalWindowEnd ?? null}
       ) RETURNING *
     `) as BookingRow[];
     created = rows[0];
@@ -241,7 +261,7 @@ bookingsRouter.post(
       SELECT * FROM bookings
       WHERE customer_id = ${customer.id}
         AND COALESCE(address_id, '00000000-0000-0000-0000-000000000000') = COALESCE(${input.addressId ?? null}, '00000000-0000-0000-0000-000000000000')
-        AND scheduled_at = ${input.scheduledAt}
+        AND scheduled_at = ${effectiveScheduledAt}
         AND status NOT IN ('cancelled_by_customer', 'cancelled_by_cleaner', 'cancelled', 'refunded')
       LIMIT 1
     `) as BookingRow[];

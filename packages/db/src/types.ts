@@ -91,6 +91,8 @@ export interface BookingRow {
   notes: string | null;
   cleaning_level: string | null;
   cleaning_level_surcharge_cents: number;
+  arrival_window_start: string | null;
+  arrival_window_end: string | null;
   created_at: string;
   updated_at: string;
 }
