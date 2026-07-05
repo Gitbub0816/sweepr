@@ -1,7 +1,11 @@
-import type { ReactNode } from "react";
-import { useUser } from "@clerk/clerk-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { useUser, useAuth } from "@clerk/clerk-react";
 import { Clock, Lock } from "lucide-react";
 import { LoadingState, ThemeToggle } from "@sweepr/ui";
+
+const API_URL =
+  (import.meta.env.VITE_API_URL as string | undefined) ||
+  (import.meta.env.PROD ? "https://api.getsweepr.com" : "");
 
 export type CleanerStatus =
   | "incomplete"
@@ -56,6 +60,42 @@ function JobsLocked() {
 
 function GuardInner({ children, jobsGated }: { children: ReactNode; jobsGated: boolean }) {
   const { isLoaded, user } = useUser();
+  const { getToken } = useAuth();
+
+  // Clerk publicMetadata is a cache that can lag the DB (e.g. an admin approves
+  // a cleaner but the metadata sync is delayed/missed). For job-gated routes we
+  // therefore treat the DB `cleaners.status` (via /onboarding-progress) as the
+  // source of truth, falling back to Clerk metadata while it loads.
+  const clerkStatus = user?.publicMetadata?.cleanerStatus as CleanerStatus;
+  const [dbStatus, setDbStatus] = useState<CleanerStatus>(undefined);
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    if (!jobsGated || !isLoaded || clerkStatus === "approved") {
+      setChecked(true);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getToken();
+        const res = await fetch(`${API_URL}/cleaners/onboarding-progress`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { status?: string };
+          if (!cancelled) setDbStatus((data.status as CleanerStatus) ?? undefined);
+        }
+      } catch {
+        /* fall back to Clerk metadata */
+      } finally {
+        if (!cancelled) setChecked(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [jobsGated, isLoaded, clerkStatus, getToken]);
 
   if (!isLoaded) {
     return (
@@ -65,11 +105,24 @@ function GuardInner({ children, jobsGated }: { children: ReactNode; jobsGated: b
     );
   }
 
-  const status = user?.publicMetadata?.cleanerStatus as CleanerStatus;
-
   // Dashboard, profile, training, earnings, etc. are always accessible once
   // signed in — cleaners pick up where they left off (DoorDash-style).
   if (!jobsGated) return <>{children}</>;
+
+  // Fast path: Clerk metadata already says approved — no need to wait on the DB.
+  if (clerkStatus === "approved") return <>{children}</>;
+
+  // Still confirming the authoritative DB status — avoid flashing the locked
+  // screen at an already-approved cleaner whose Clerk metadata is stale.
+  if (!checked) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-16">
+        <LoadingState rows={4} />
+      </div>
+    );
+  }
+
+  const status: CleanerStatus = dbStatus ?? clerkStatus;
 
   // Job-gated routes (job board, schedule) are locked until approved.
   if (status === "approved") return <>{children}</>;
