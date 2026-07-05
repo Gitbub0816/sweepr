@@ -83,35 +83,35 @@ app.use("*", (c, next) => buildCorsMiddleware(c.env)(c, next));
 app.use("*", rateLimit({ limit: 100, windowMs: 60_000, keyPrefix: "general" }));
 
 // Tighter, route-specific limits.
-app.use("/auth/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "auth" }));
+app.use("/auth/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "auth" , strict: true }));
 // Keyed per-user (not IP) and generous enough for a real checkout flow, which
 // legitimately hits /payments/methods (read) + /create-intent plus retries as
 // the customer edits their booking. 5/15m was blocking normal checkout with 429s.
-app.use("/payments/*", rateLimit({ limit: 40, windowMs: 15 * 60_000, keyPrefix: "payments", by: "user" }));
-app.use("/tips/*", rateLimit({ limit: 20, windowMs: 15 * 60_000, keyPrefix: "tips", by: "user" }));
+app.use("/payments/*", rateLimit({ limit: 40, windowMs: 15 * 60_000, keyPrefix: "payments", by: "user" , strict: true }));
+app.use("/tips/*", rateLimit({ limit: 20, windowMs: 15 * 60_000, keyPrefix: "tips", by: "user" , strict: true }));
 // Scope review shares the sensitive-money rate profile (like /payments/*), but
 // the public action-link GET must stay reachable from email clients — the
 // general 100/min limit still applies to it.
-app.use("/scope-review/requests", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "scopereview" }));
-app.use("/scope-review/admin/*", rateLimit({ limit: 30, windowMs: 60_000, keyPrefix: "scopereview-admin" }));
-app.use("/storage/*", rateLimit({ limit: 20, windowMs: 60 * 60_000, keyPrefix: "storage" }));
+app.use("/scope-review/requests", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "scopereview" , strict: true }));
+app.use("/scope-review/admin/*", rateLimit({ limit: 30, windowMs: 60_000, keyPrefix: "scopereview-admin" , strict: true }));
+app.use("/storage/*", rateLimit({ limit: 20, windowMs: 60 * 60_000, keyPrefix: "storage" , strict: true }));
 app.use("/pricing/*", rateLimit({ limit: 60, windowMs: 60_000, keyPrefix: "pricing" }));
-app.use("/client-errors/*", rateLimit({ limit: 20, windowMs: 60_000, keyPrefix: "clienterr" }));
+app.use("/client-errors/*", rateLimit({ limit: 20, windowMs: 60_000, keyPrefix: "clienterr" , strict: true }));
 app.use("/slack/*", rateLimit({ limit: 300, windowMs: 60_000, keyPrefix: "slack" }));
-app.use("/unsubscribe/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "unsub" }));
-app.use("/privacy/*", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "privacy" }));
+app.use("/unsubscribe/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "unsub" , strict: true }));
+app.use("/privacy/*", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "privacy" , strict: true }));
 // External/expensive identity-verification calls (Checkr, Didit) — stricter
 // than general to blunt cost-abuse. Does NOT cover /webhooks/checkr or
 // /webhooks/didit, which are mounted separately and are HMAC-verified.
-app.use("/checkr/*", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "checkr", by: "user" }));
-app.use("/didit/*", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "didit", by: "user" }));
+app.use("/checkr/*", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "checkr", by: "user" , strict: true }));
+app.use("/didit/*", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "didit", by: "user" , strict: true }));
 // Review submission — authenticated, keyed per-user so a single account can't
 // spam reviews from many IPs.
-app.use("/reviews", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "reviews", by: "user" }));
+app.use("/reviews", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "reviews", by: "user" , strict: true }));
 // Public "Report a problem" intake — no signature/JWT required, so IP-keyed.
-app.use("/report/*", rateLimit({ limit: 20, windowMs: 15 * 60_000, keyPrefix: "report" }));
+app.use("/report/*", rateLimit({ limit: 20, windowMs: 15 * 60_000, keyPrefix: "report" , strict: true }));
 // Prelaunch bypass-code verification — tight IP bucket to blunt code guessing.
-app.use("/status/bypass", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "bypass" }));
+app.use("/status/bypass", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "bypass", strict: true }));
 
 app.get("/", (c) => c.json({ name: "sweepr-api", status: "ok" }));
 app.get("/health", (c) => c.json({ ok: true }));
@@ -202,6 +202,14 @@ app.onError((err, c) => {
   logger.error("Unhandled request error", err);
 
   const isAppError = err instanceof AppError;
+  // A malformed JSON request body throws a SyntaxError out of c.req.json()
+  // (via zValidator) — that's a client mistake (400), not a server fault (500).
+  const isBadJson =
+    err instanceof SyntaxError ||
+    /JSON|Unexpected (token|end of)/i.test(err.message ?? "");
+  if (isBadJson && !isAppError) {
+    return c.json({ error: "Invalid JSON body", code: "invalid_json" }, 400);
+  }
   const statusCode = isAppError ? (err as AppError).statusCode : 500;
 
   // Persist to the admin error feed (non-blocking, best-effort). We skip
