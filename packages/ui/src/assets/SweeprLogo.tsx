@@ -20,6 +20,11 @@ export function SweeprLogo({ className, size = 'md' }: SweeprLogoProps) {
     <img
       src="/brand/sweepr-logo.png"
       alt="Sweepr"
+      // Intrinsic size (3:2 aspect ratio) so the browser can reserve layout
+      // space before the image loads — actual rendered size is still driven
+      // by the height/width-auto classes below; this only prevents CLS.
+      width={1536}
+      height={1024}
       className={cn('w-auto object-contain', heights[size], className)}
       draggable={false}
     />

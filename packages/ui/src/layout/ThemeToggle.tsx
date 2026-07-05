@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
 import { Moon, Sun } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@sweepr/utils";
 
 const STORAGE_KEY = "theme";
@@ -65,31 +64,28 @@ export function ThemeToggle({ className }: { className?: string }) {
         className
       )}
     >
-      <AnimatePresence mode="wait" initial={false}>
-        {isDark ? (
-          <motion.span
-            key="sun"
-            initial={{ rotate: -90, opacity: 0, scale: 0.5 }}
-            animate={{ rotate: 0, opacity: 1, scale: 1 }}
-            exit={{ rotate: 90, opacity: 0, scale: 0.5 }}
-            transition={{ duration: 0.2 }}
-            className="absolute"
-          >
-            <Sun className="h-4 w-4" />
-          </motion.span>
-        ) : (
-          <motion.span
-            key="moon"
-            initial={{ rotate: 90, opacity: 0, scale: 0.5 }}
-            animate={{ rotate: 0, opacity: 1, scale: 1 }}
-            exit={{ rotate: -90, opacity: 0, scale: 0.5 }}
-            transition={{ duration: 0.2 }}
-            className="absolute"
-          >
-            <Moon className="h-4 w-4" />
-          </motion.span>
+      {/* Crossfading icon pair via plain CSS transitions instead of
+          framer-motion's AnimatePresence — this component is used from
+          eagerly-rendered shell chrome across every app, so pulling in
+          framer-motion here forced it into the initial bundle everywhere. */}
+      <span
+        aria-hidden="true"
+        className={cn(
+          "absolute transition-all duration-200 ease-out motion-reduce:transition-none",
+          isDark ? "rotate-0 scale-100 opacity-100" : "rotate-90 scale-50 opacity-0",
         )}
-      </AnimatePresence>
+      >
+        <Sun className="h-4 w-4" />
+      </span>
+      <span
+        aria-hidden="true"
+        className={cn(
+          "absolute transition-all duration-200 ease-out motion-reduce:transition-none",
+          isDark ? "-rotate-90 scale-50 opacity-0" : "rotate-0 scale-100 opacity-100",
+        )}
+      >
+        <Moon className="h-4 w-4" />
+      </span>
     </button>
   );
 }

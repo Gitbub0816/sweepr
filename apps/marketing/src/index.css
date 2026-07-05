@@ -41,3 +41,38 @@ body {
   /* iOS momentum scrolling for a native feel in scroll containers. */
   body { -webkit-overflow-scrolling: touch; }
 }
+
+/* ─── Above-the-fold hero entrance (plain CSS, no JS) ──────────────────────
+   Replaces framer-motion's stagger/fadeUp variants for the hero so the
+   hero renders and animates immediately with zero JS-driven animation,
+   keeping framer-motion out of the critical path. */
+@keyframes sweepr-fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.sweepr-fade-up {
+  animation: sweepr-fade-up 0.6s ease-out both;
+}
+.sweepr-fade-up-d1 { animation-delay: 0.12s; }
+.sweepr-fade-up-d2 { animation-delay: 0.24s; }
+.sweepr-fade-up-d3 { animation-delay: 0.36s; }
+.sweepr-fade-up-d4 { animation-delay: 0.2s; }
+@media (prefers-reduced-motion: reduce) {
+  .sweepr-fade-up { animation: none; opacity: 1; transform: none; }
+}
+
+/* ─── Below-the-fold scroll reveal (used by <Reveal>) ──────────────────────
+   Replaces framer-motion's `whileInView` for grid sections further down
+   the page. Toggled via a small IntersectionObserver in Reveal.tsx. */
+.sweepr-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+.sweepr-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sweepr-reveal { transition: none; opacity: 1; transform: none; }
+}
