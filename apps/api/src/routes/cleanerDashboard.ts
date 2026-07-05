@@ -74,9 +74,31 @@ cleanerDashboardRouter.get("/dashboard", async (c) => {
       `,
     ]);
 
-  const stripeAcc = ctx.stripe_connect_id
+  let stripeAcc = ctx.stripe_connect_id
     ? await sql`SELECT charges_enabled, payouts_enabled FROM stripe_connected_accounts WHERE stripe_account_id = ${ctx.stripe_connect_id} LIMIT 1` as Array<{ charges_enabled: boolean; payouts_enabled: boolean }>
     : [];
+
+  // Self-heal from Stripe if not yet enabled locally (webhook-independent) —
+  // same rationale as the earnings endpoint.
+  if (ctx.stripe_connect_id && !(stripeAcc[0]?.charges_enabled && stripeAcc[0]?.payouts_enabled)) {
+    try {
+      const { getStripe } = await import("../lib/stripe");
+      const stripe = getStripe(c.env.STRIPE_SECRET_KEY);
+      const acct = await stripe.accounts.retrieve(ctx.stripe_connect_id);
+      const charges = Boolean(acct.charges_enabled);
+      const payouts = Boolean(acct.payouts_enabled);
+      await sql`
+        UPDATE stripe_connected_accounts
+        SET charges_enabled = ${charges}, payouts_enabled = ${payouts},
+            details_submitted = ${Boolean(acct.details_submitted)},
+            status = ${charges && payouts ? "enabled" : "pending"}, updated_at = NOW()
+        WHERE stripe_account_id = ${ctx.stripe_connect_id}
+      `;
+      stripeAcc = [{ charges_enabled: charges, payouts_enabled: payouts }];
+    } catch (err) {
+      logger.error("dashboard: Stripe account sync failed", err, { cleanerId: ctx.cleaner_id });
+    }
+  }
 
   const stripeConnected = stripeAcc[0]?.charges_enabled && stripeAcc[0]?.payouts_enabled;
   const nj = (nextJob as Array<{ scheduled_at: string; street: string | null; city: string | null }>)[0];
@@ -208,9 +230,37 @@ cleanerDashboardRouter.get("/earnings", async (c) => {
     sql`SELECT booking_id, amount_cents, paid_out_at AS date FROM booking_tips WHERE cleaner_id = ${ctx.cleaner_id} AND status = 'succeeded' AND visible_to_cleaner = TRUE ORDER BY paid_out_at DESC LIMIT 10`,
   ]);
 
-  const stripeAcc = ctx.stripe_connect_id
+  let stripeAcc = ctx.stripe_connect_id
     ? await sql`SELECT charges_enabled, payouts_enabled, onboarding_url FROM stripe_connected_accounts WHERE stripe_account_id = ${ctx.stripe_connect_id} LIMIT 1` as Array<{ charges_enabled: boolean; payouts_enabled: boolean; onboarding_url: string | null }>
     : [];
+
+  // Self-heal: enablement normally arrives via the Stripe `account.updated`
+  // webhook, but if that webhook is unconfigured/undelivered (a common Connect
+  // setup gap), a cleaner who just finished onboarding stays "not set up"
+  // forever. When we have an account but it isn't marked enabled locally, pull
+  // the live capability flags from Stripe and sync. Bounded: only runs while
+  // not-yet-enabled, so it stops calling Stripe once payouts are live.
+  if (ctx.stripe_connect_id && !(stripeAcc[0]?.charges_enabled && stripeAcc[0]?.payouts_enabled)) {
+    try {
+      const { getStripe } = await import("../lib/stripe");
+      const stripe = getStripe(c.env.STRIPE_SECRET_KEY);
+      const acct = await stripe.accounts.retrieve(ctx.stripe_connect_id);
+      const charges = Boolean(acct.charges_enabled);
+      const payouts = Boolean(acct.payouts_enabled);
+      await sql`
+        UPDATE stripe_connected_accounts
+        SET charges_enabled = ${charges},
+            payouts_enabled = ${payouts},
+            details_submitted = ${Boolean(acct.details_submitted)},
+            status = ${charges && payouts ? "enabled" : "pending"},
+            updated_at = NOW()
+        WHERE stripe_account_id = ${ctx.stripe_connect_id}
+      `;
+      stripeAcc = [{ charges_enabled: charges, payouts_enabled: payouts, onboarding_url: stripeAcc[0]?.onboarding_url ?? null }];
+    } catch (err) {
+      logger.error("earnings: Stripe account sync failed", err, { cleanerId: ctx.cleaner_id });
+    }
+  }
 
   return c.json({
     thisWeek:        Number((week as Array<{ v: number }>)[0]?.v ?? 0),
