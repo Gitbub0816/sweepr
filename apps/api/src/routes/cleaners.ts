@@ -9,6 +9,7 @@ import { requireAuth } from "../middleware/auth";
 import { grantSmsConsent } from "../lib/smsConsent";
 import { checkInsurance } from "../lib/cleanerRequirements";
 import { sendSms, SMS_MESSAGES } from "../lib/sms";
+import { logger } from "../lib/logger";
 import type { AppBindings } from "../types";
 import type { Context } from "hono";
 
@@ -454,5 +455,157 @@ cleanersRouter.post(
 
     await handleOfferResponse(sql, offer.booking_id, cleaner.id, response);
     return c.json({ ok: true, response });
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Availability-aware 2-hour arrival-window slots for a given date.
+// Contract consumed by the customer booking wizard.
+// ---------------------------------------------------------------------------
+
+const SLOT_WINDOWS: Array<{ start: string; end: string }> = [
+  { start: "08:00", end: "10:00" },
+  { start: "10:00", end: "12:00" },
+  { start: "12:00", end: "14:00" },
+  { start: "14:00", end: "16:00" },
+  { start: "16:00", end: "18:00" },
+  { start: "18:00", end: "20:00" },
+];
+
+function slotLabel(start: string, end: string): string {
+  const fmt = (t: string) => {
+    const [hStr, mStr] = t.split(":");
+    const h = Number(hStr);
+    const period = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}:${mStr} ${period}`;
+  };
+  return `${fmt(start)} – ${fmt(end)}`;
+}
+
+const availabilitySlotsQuery = z.object({
+  date: z.string().optional(),
+  zip: z.string().max(20).optional(),
+});
+
+cleanersRouter.get(
+  "/availability-slots",
+  zValidator("query", availabilitySlotsQuery, (result, c) => {
+    // Never 500 on a bad query shape — fall through to the handler's own
+    // validation so we can still return a well-formed "no slots" response.
+    if (!result.success) return c.json({ date: null, slots: [] });
+  }),
+  async (c) => {
+    const { date, zip } = c.req.valid("query");
+
+    const emptyResponse = (d: string | null) =>
+      c.json({
+        date: d,
+        slots: SLOT_WINDOWS.map((w) => ({
+          start: w.start,
+          end: w.end,
+          label: slotLabel(w.start, w.end),
+          available: false,
+        })),
+      });
+
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return emptyResponse(date ?? null);
+    }
+    const parsed = new Date(`${date}T00:00:00Z`);
+    if (Number.isNaN(parsed.getTime())) {
+      return emptyResponse(date);
+    }
+    const dayOfWeek = parsed.getUTCDay();
+
+    try {
+      const sql = getDb(c.env.DATABASE_URL);
+
+      // Best-effort zip -> approximate lat/lng, for the optional service-area
+      // check. If we can't resolve it, we simply skip the zip filter rather
+      // than failing the request.
+      let zipLat: number | null = null;
+      let zipLng: number | null = null;
+      if (zip) {
+        const addrRows = (await sql`
+          SELECT lat, lng FROM addresses WHERE zip = ${zip} AND lat IS NOT NULL AND lng IS NOT NULL LIMIT 1
+        `) as Array<{ lat: string | number; lng: string | number }>;
+        if (addrRows[0]) {
+          zipLat = Number(addrRows[0].lat);
+          zipLng = Number(addrRows[0].lng);
+        }
+      }
+
+      const availRows = (await sql`
+        SELECT ca.cleaner_id, ca.start_time::text AS start_time, ca.end_time::text AS end_time
+        FROM cleaner_availability ca
+        JOIN cleaners cl ON cl.id = ca.cleaner_id
+        WHERE ca.day_of_week = ${dayOfWeek}
+          AND ca.active = true
+          AND cl.status IN ('approved', 'active')
+      `) as Array<{ cleaner_id: string; start_time: string; end_time: string }>;
+
+      if (availRows.length === 0) return emptyResponse(date);
+
+      let serviceAreaByCleaner: Map<string, Array<{ center_lat: number; center_lng: number; radius_miles: number }>> | null = null;
+      if (zip && zipLat !== null && zipLng !== null) {
+        const cleanerIds = Array.from(new Set(availRows.map((r) => r.cleaner_id)));
+        const areaRows = (await sql`
+          SELECT cleaner_id, center_lat, center_lng, radius_miles
+          FROM cleaner_service_areas
+          WHERE cleaner_id = ANY(${cleanerIds})
+        `) as Array<{ cleaner_id: string; center_lat: string | number | null; center_lng: string | number | null; radius_miles: number | null }>;
+        // Only apply the zip filter if service areas actually exist for any
+        // candidate; otherwise every cleaner "serves everywhere" (soft rule).
+        if (areaRows.length > 0) {
+          serviceAreaByCleaner = new Map();
+          for (const r of areaRows) {
+            if (r.center_lat == null || r.center_lng == null) continue;
+            const list = serviceAreaByCleaner.get(r.cleaner_id) ?? [];
+            list.push({
+              center_lat: Number(r.center_lat),
+              center_lng: Number(r.center_lng),
+              radius_miles: r.radius_miles ?? 15,
+            });
+            serviceAreaByCleaner.set(r.cleaner_id, list);
+          }
+        }
+      }
+
+      const { haversineDistance } = await import("../lib/haversine");
+
+      function cleanerServesZip(cleanerId: string): boolean {
+        if (!serviceAreaByCleaner) return true; // no zip filter in effect
+        const areas = serviceAreaByCleaner.get(cleanerId);
+        // Soft rule: a cleaner with no service-area rows configured is treated
+        // as serving everywhere, same as the assignment-time eligibility rule.
+        if (!areas || areas.length === 0) return true;
+        return areas.some(
+          (a) => haversineDistance(zipLat as number, zipLng as number, a.center_lat, a.center_lng) <= a.radius_miles
+        );
+      }
+
+      const timeToMinutes = (t: string) => {
+        const [h, m] = t.split(":").map(Number);
+        return (h ?? 0) * 60 + (m ?? 0);
+      };
+
+      const slots = SLOT_WINDOWS.map((w) => {
+        const windowStart = timeToMinutes(w.start);
+        const windowEnd = timeToMinutes(w.end);
+        const available = availRows.some((r) => {
+          if (!cleanerServesZip(r.cleaner_id)) return false;
+          const s = timeToMinutes(r.start_time);
+          const e = timeToMinutes(r.end_time);
+          return s <= windowStart && e >= windowEnd;
+        });
+        return { start: w.start, end: w.end, label: slotLabel(w.start, w.end), available };
+      });
+
+      return c.json({ date, slots });
+    } catch (err) {
+      logger.error("availability-slots failed", err, { date, zip });
+      return emptyResponse(date);
+    }
   }
 );

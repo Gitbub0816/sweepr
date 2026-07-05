@@ -138,9 +138,12 @@ function Pillar({
       onClick={onSelect}
       aria-pressed={selected}
       className={cn(
-        "relative flex w-full min-w-[15rem] flex-col rounded-2xl border p-5 text-left transition-all duration-300 motion-reduce:transition-none",
+        "relative flex h-full w-full min-w-0 flex-col rounded-2xl border p-5 text-left transition-all duration-300 motion-reduce:transition-none",
+        // Emphasize the selected card with color/border/shadow and a small
+        // lift instead of scaling it up — scaling caused the card to grow
+        // past its grid cell and overlap/clip its neighbors.
         selected
-          ? "z-10 scale-105 border-seafoam-400 bg-seafoam-50 ring-2 ring-seafoam-400 shadow-lg dark:bg-seafoam-900/20 sm:scale-110"
+          ? "z-10 -translate-y-1 border-2 border-seafoam-400 bg-seafoam-50 ring-2 ring-seafoam-400 shadow-xl dark:bg-seafoam-900/20"
           : "border-slate-200 bg-white hover:border-seafoam-300 dark:border-slate-700 dark:bg-slate-900"
       )}
     >
@@ -167,21 +170,21 @@ function Pillar({
         </p>
       )}
 
-      <ul className="mt-4 space-y-1.5">
+      <ul className="mt-4 min-w-0 space-y-1.5">
         {scope.included.map((item) => (
-          <li key={item} className="flex items-start gap-2 text-sm text-charcoal dark:text-slate-200">
+          <li key={item} className="flex min-w-0 items-start gap-2 text-sm text-charcoal dark:text-slate-200">
             <Check className="mt-0.5 h-4 w-4 shrink-0 text-seafoam-600" />
-            {item}
+            <span className="min-w-0 break-words">{item}</span>
           </li>
         ))}
       </ul>
 
       {scope.excluded.length > 0 && (
-        <ul className="mt-3 space-y-1.5">
+        <ul className="mt-3 min-w-0 space-y-1.5">
           {scope.excluded.slice(0, 4).map((item) => (
-            <li key={item} className="flex items-start gap-2 text-sm text-slate-400">
+            <li key={item} className="flex min-w-0 items-start gap-2 text-sm text-slate-400">
               <X className="mt-0.5 h-4 w-4 shrink-0" />
-              {item}
+              <span className="min-w-0 break-words">{item}</span>
             </li>
           ))}
         </ul>
@@ -226,7 +229,7 @@ export function PackageStep() {
       onNext={() => navigate("/book/condition")}
       nextDisabled={!serviceType}
     >
-      <div className="-mx-1 flex gap-4 overflow-x-auto px-1 pb-4 pt-2 sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4">
+      <div className="grid grid-cols-1 items-stretch gap-6 pb-4 pt-2 sm:grid-cols-2 lg:grid-cols-4">
         {packages.map((type) => (
           <Pillar
             key={type}

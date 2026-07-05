@@ -5,7 +5,7 @@ import { useAuth } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
 import { Card, Textarea, toast } from "@sweepr/ui";
 import {
-  formatDateTime,
+  formatDate,
   formatCurrency,
   getAddOn,
   getCleaningLevelInfo,
@@ -51,6 +51,13 @@ function LineRow({ label, amount }: { label: string; amount: number }) {
   );
 }
 
+function formatWindowTime(hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const period = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
+}
+
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
     <p className="mt-4 mb-1 text-xs font-semibold uppercase tracking-wide text-seafoam-700 first:mt-0 dark:text-seafoam-300">
@@ -71,6 +78,8 @@ export function ReviewStep() {
     cleaningLevel,
     addOnKeys,
     scheduledFor,
+    arrivalWindowStart,
+    arrivalWindowEnd,
     notes,
     isEmergency,
     isSubscription,
@@ -81,11 +90,18 @@ export function ReviewStep() {
   const [submitting, setSubmitting] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
 
-  const missingRequiredFields = !address || !serviceType || !scheduledFor || !cleaningLevel;
+  const missingRequiredFields =
+    !address ||
+    !serviceType ||
+    !scheduledFor ||
+    !arrivalWindowStart ||
+    !arrivalWindowEnd ||
+    !cleaningLevel;
   useEffect(() => {
-    if (!address || !serviceType || !scheduledFor) navigate("/book/address");
+    if (!address || !serviceType) navigate("/book/address");
+    else if (!scheduledFor || !arrivalWindowStart || !arrivalWindowEnd) navigate("/book/schedule");
     else if (!cleaningLevel) navigate("/book/condition");
-  }, [address, serviceType, scheduledFor, cleaningLevel, navigate]);
+  }, [address, serviceType, scheduledFor, arrivalWindowStart, arrivalWindowEnd, cleaningLevel, navigate]);
 
   if (missingRequiredFields) return null;
 
@@ -150,6 +166,8 @@ export function ReviewStep() {
           cleaningLevel,
           addOnKeys,
           scheduledAt: scheduledFor,
+          arrivalWindowStart,
+          arrivalWindowEnd,
           notes: notes || undefined,
           ...(addressId ? { addressId } : {}),
         }),
@@ -216,7 +234,16 @@ export function ReviewStep() {
         <Row
           icon={CalendarClock}
           label={t("booking.review.scheduledFor")}
-          value={formatDateTime(scheduledFor)}
+          value={
+            arrivalWindowStart && arrivalWindowEnd
+              ? t("booking.review.arrivesBetween", {
+                  defaultValue: "{{date}} — Arrives between {{start}} – {{end}}",
+                  date: formatDate(scheduledFor),
+                  start: formatWindowTime(arrivalWindowStart),
+                  end: formatWindowTime(arrivalWindowEnd),
+                })
+              : formatDate(scheduledFor)
+          }
         />
       </Card>
 

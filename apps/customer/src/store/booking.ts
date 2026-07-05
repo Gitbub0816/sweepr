@@ -25,6 +25,9 @@ export interface BookingState {
   scheduledFor: string | null;
   scheduledAt: string | null;
   timeWindow: "morning" | "afternoon" | "evening" | null;
+  /** Selected 2-hour arrival window, e.g. "08:00" / "10:00". Replaces exact-time scheduling. */
+  arrivalWindowStart: string | null;
+  arrivalWindowEnd: string | null;
   isSubscription: boolean;
   subscriptionCadence: "weekly" | "biweekly" | "monthly" | null;
   isEmergency: boolean;
@@ -39,6 +42,7 @@ export interface BookingState {
 
   setAddress: (address: Address) => void;
   setTimeWindow: (window: "morning" | "afternoon" | "evening" | null) => void;
+  setArrivalWindow: (window: { start: string; end: string } | null) => void;
   setSubscription: (
     isSubscription: boolean,
     cadence?: "weekly" | "biweekly" | "monthly" | null
@@ -51,6 +55,7 @@ export interface BookingState {
   toggleAddOn: (key: string) => void;
   setCadence: (cadence: RecurringCadence) => void;
   setSchedule: (iso: string) => void;
+  clearSchedule: () => void;
   setNotes: (notes: string) => void;
   setBookingId: (id: string) => void;
   confirmPayment: () => void;
@@ -79,6 +84,8 @@ export const useBookingStore = create<BookingState>()(
   scheduledFor: null,
   scheduledAt: null,
   timeWindow: null,
+  arrivalWindowStart: null,
+  arrivalWindowEnd: null,
   isSubscription: false,
   subscriptionCadence: null,
   isEmergency: false,
@@ -91,6 +98,12 @@ export const useBookingStore = create<BookingState>()(
 
   setAddress: (address) => set({ address, draftSavedAt: new Date().toISOString() }),
   setTimeWindow: (timeWindow) => set({ timeWindow }),
+  setArrivalWindow: (window) =>
+    set({
+      arrivalWindowStart: window?.start ?? null,
+      arrivalWindowEnd: window?.end ?? null,
+      draftSavedAt: new Date().toISOString(),
+    }),
   setSubscription: (isSubscription, cadence = null) =>
     set({
       isSubscription,
@@ -106,6 +119,8 @@ export const useBookingStore = create<BookingState>()(
       addOnKeys: [...prev.addOnKeys],
       cadence: prev.cadence,
       scheduledFor: null,
+      arrivalWindowStart: null,
+      arrivalWindowEnd: null,
       notes: prev.notes ?? "",
       paymentConfirmed: false,
       isRebook: true,
@@ -145,6 +160,14 @@ export const useBookingStore = create<BookingState>()(
       isEmergency: days <= 1,
     });
   },
+  clearSchedule: () =>
+    set({
+      scheduledFor: null,
+      scheduledAt: null,
+      arrivalWindowStart: null,
+      arrivalWindowEnd: null,
+      isEmergency: false,
+    }),
   setNotes: (notes) => set({ notes }),
   setBookingId: (bookingId) => set({ bookingId, draftSavedAt: null }),
   confirmPayment: () => set({ paymentConfirmed: true }),
@@ -159,6 +182,8 @@ export const useBookingStore = create<BookingState>()(
       scheduledFor: null,
       scheduledAt: null,
       timeWindow: null,
+      arrivalWindowStart: null,
+      arrivalWindowEnd: null,
       isSubscription: false,
       subscriptionCadence: null,
       isEmergency: false,
@@ -196,6 +221,8 @@ export const useBookingStore = create<BookingState>()(
         scheduledFor: s.scheduledFor,
         scheduledAt: s.scheduledAt,
         timeWindow: s.timeWindow,
+        arrivalWindowStart: s.arrivalWindowStart,
+        arrivalWindowEnd: s.arrivalWindowEnd,
         isSubscription: s.isSubscription,
         subscriptionCadence: s.subscriptionCadence,
         isEmergency: s.isEmergency,

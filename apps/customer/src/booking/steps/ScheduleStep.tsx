@@ -1,54 +1,54 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Zap, Repeat } from "lucide-react";
+import { Zap, Repeat, Clock, AlertCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { SweeprCalendar, type CalendarSlot } from "@sweepr/ui";
+import { SweeprCalendar } from "@sweepr/ui";
 import { cn, recurringDisplayPrice } from "@sweepr/utils";
 import { useBookingStore } from "../../store/booking";
 import { StepShell } from "../StepShell";
 
-const WINDOW_HOURS: Record<string, number> = {
-  morning: 9,
-  afternoon: 13,
-  evening: 17,
-};
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8787";
 
-// Mock availability: next 21 days have morning/afternoon/evening windows.
-function buildAvailability(): Record<string, CalendarSlot[]> {
-  const data: Record<string, CalendarSlot[]> = {};
-  for (let i = 1; i <= 21; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() + i);
-    d.setHours(0, 0, 0, 0);
-    const key = d.toISOString().slice(0, 10);
-    data[key] = [
-      { id: `${key}-m`, date: d, startTime: "08:00", endTime: "12:00", type: "flexible" },
-      { id: `${key}-a`, date: d, startTime: "12:00", endTime: "16:00", type: "flexible" },
-      { id: `${key}-e`, date: d, startTime: "16:00", endTime: "20:00", type: "flexible" },
-    ];
-  }
-  return data;
+interface AvailabilitySlot {
+  start: string; // "08:00"
+  end: string; // "10:00"
+  label: string; // "8:00 – 10:00 AM"
+  available: boolean;
+}
+
+interface AvailabilitySlotsResponse {
+  date: string;
+  slots: AvailabilitySlot[];
+}
+
+function dateKey(d: Date) {
+  return d.toISOString().slice(0, 10);
 }
 
 export function ScheduleStep() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const {
+    address,
     scheduledAt,
-    timeWindow,
+    arrivalWindowStart,
+    arrivalWindowEnd,
     isEmergency,
     isSubscription,
     subscriptionCadence,
     setSchedule,
-    setTimeWindow,
+    clearSchedule,
+    setArrivalWindow,
     setSubscription,
     getQuote,
   } = useBookingStore();
 
-  const availability = useMemo(buildAvailability, []);
   const [pickedDate, setPickedDate] = useState<Date | null>(
     scheduledAt ? new Date(scheduledAt) : null
   );
+  const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
 
   const quote = getQuote();
   const baseTotal = quote?.total ?? 0;
@@ -59,37 +59,164 @@ export function ScheduleStep() {
     { value: "monthly" as const, label: t("booking.schedule.monthly") },
   ];
 
-  const onSelect = (slot: CalendarSlot) => {
-    const window =
-      slot.startTime === "08:00"
-        ? "morning"
-        : slot.startTime === "12:00"
-          ? "afternoon"
-          : "evening";
-    const d = new Date(slot.date);
-    d.setHours(WINDOW_HOURS[window], 0, 0, 0);
-    setSchedule(d.toISOString());
-    setTimeWindow(window as "morning" | "afternoon" | "evening");
+  // Fetch the six 2-hour arrival windows and their real availability for the
+  // picked date whenever the date changes. Selecting a new date invalidates
+  // any previously chosen window.
+  useEffect(() => {
+    if (!pickedDate) {
+      setSlots(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingSlots(true);
+    setSlotsError(null);
+    const params = new URLSearchParams({ date: dateKey(pickedDate) });
+    if (address?.zip) params.set("zip", address.zip);
+    fetch(`${API_URL}/cleaners/availability-slots?${params.toString()}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to load availability");
+        return (await res.json()) as AvailabilitySlotsResponse;
+      })
+      .then((data) => {
+        if (!cancelled) setSlots(data.slots ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSlots(null);
+          setSlotsError(t("booking.schedule.availabilityError", {
+            defaultValue: "Couldn't load availability for this date. Please try again.",
+          }));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingSlots(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickedDate ? dateKey(pickedDate) : null, address?.zip]);
+
+  const hasAnyAvailability = useMemo(
+    () => (slots ?? []).some((s) => s.available),
+    [slots]
+  );
+
+  function onDateChange(d: Date) {
     setPickedDate(d);
-  };
+    // Changing the date clears any previously chosen window and the
+    // finalized schedule until a new window is picked.
+    setArrivalWindow(null);
+    clearSchedule();
+  }
+
+  function onSelectWindow(slot: AvailabilitySlot) {
+    if (!pickedDate || !slot.available) return;
+    const [h, m] = slot.start.split(":").map(Number);
+    const d = new Date(pickedDate);
+    d.setHours(h, m, 0, 0);
+    setSchedule(d.toISOString());
+    setArrivalWindow({ start: slot.start, end: slot.end });
+  }
 
   return (
     <StepShell
       title={t("booking.schedule.title")}
-      subtitle={t("booking.schedule.subtitle")}
+      subtitle={t("booking.schedule.arrivalWindowSubtitle", {
+        defaultValue: "Pick a date, then choose a 2-hour arrival window. Your cleaner will arrive sometime within that window.",
+      })}
       onBack={() => navigate("/book/addons")}
       onNext={() => navigate("/book/review")}
-      nextDisabled={!scheduledAt || !timeWindow}
+      nextDisabled={!scheduledAt || !arrivalWindowStart || !arrivalWindowEnd}
     >
       <SweeprCalendar
         mode="customer-booking"
-        availabilityData={availability}
         selectedDate={pickedDate ?? undefined}
-        onDateChange={setPickedDate}
-        onSlotSelect={onSelect}
+        onDateChange={onDateChange}
       />
 
-      {scheduledAt && (
+      {pickedDate && (
+        <div className="mt-5">
+          <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-charcoal dark:text-white">
+            <Clock className="h-4 w-4 text-seafoam-600" aria-hidden="true" />
+            {t("booking.schedule.chooseArrivalWindow", { defaultValue: "Choose an arrival window" })}
+          </p>
+
+          {loadingSlots && (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-14 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800"
+                />
+              ))}
+            </div>
+          )}
+
+          {!loadingSlots && slotsError && (
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-300"
+            >
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              {slotsError}
+            </div>
+          )}
+
+          {!loadingSlots && !slotsError && slots && slots.length > 0 && (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {slots.map((slot) => {
+                const active =
+                  arrivalWindowStart === slot.start && arrivalWindowEnd === slot.end;
+                return (
+                  <button
+                    key={slot.start}
+                    type="button"
+                    disabled={!slot.available}
+                    aria-pressed={active}
+                    onClick={() => onSelectWindow(slot)}
+                    title={!slot.available ? t("booking.schedule.noCleanersAvailable", { defaultValue: "No cleaners available" }) : undefined}
+                    className={cn(
+                      "flex flex-col items-center justify-center gap-0.5 rounded-xl border px-3 py-3 text-center text-sm font-medium transition-colors",
+                      !slot.available &&
+                        "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-600",
+                      slot.available && active &&
+                        "border-seafoam-400 bg-seafoam-50 text-seafoam-700 ring-2 ring-seafoam-400 dark:bg-seafoam-900/20 dark:text-seafoam-300",
+                      slot.available && !active &&
+                        "border-slate-200 bg-white text-charcoal hover:border-seafoam-300 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                    )}
+                  >
+                    <span>{slot.label}</span>
+                    {!slot.available && (
+                      <span className="text-[10px] font-normal text-slate-400 dark:text-slate-500">
+                        {t("booking.schedule.noCleanersAvailable", { defaultValue: "No cleaners available" })}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {!loadingSlots && !slotsError && slots && slots.length > 0 && !hasAnyAvailability && (
+            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+              {t("booking.schedule.noWindowsThisDay", {
+                defaultValue: "No arrival windows are available on this date. Please pick another date.",
+              })}
+            </p>
+          )}
+
+          {!loadingSlots && !slotsError && slots && slots.length === 0 && (
+            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+              {t("booking.schedule.noWindowsThisDay", {
+                defaultValue: "No arrival windows are available on this date. Please pick another date.",
+              })}
+            </p>
+          )}
+        </div>
+      )}
+
+      {scheduledAt && arrivalWindowStart && arrivalWindowEnd && (
         <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
           <span className="rounded-full bg-seafoam-50 px-3 py-1 font-medium text-seafoam-700 dark:bg-slate-800">
             {new Date(scheduledAt).toLocaleDateString("en-US", {
@@ -97,7 +224,12 @@ export function ScheduleStep() {
               month: "short",
               day: "numeric",
             })}
-            {timeWindow ? ` · ${t(`booking.schedule.${timeWindow}`)}` : ""}
+            {" · "}
+            {t("booking.schedule.arrivesBetween", {
+              defaultValue: "Arrives between",
+            })}{" "}
+            {slots?.find((s) => s.start === arrivalWindowStart)?.label ??
+              `${arrivalWindowStart} – ${arrivalWindowEnd}`}
           </span>
           {isEmergency && (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">

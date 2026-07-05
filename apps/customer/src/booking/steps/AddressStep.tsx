@@ -89,6 +89,24 @@ export function AddressStep() {
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const userEditedRef = useRef(false);
+
+  // The booking store is a zustand `persist` store: on mount its data is
+  // hydrated from localStorage *asynchronously*, so `address` can still be
+  // null during the initial render even though a saved address exists. Sync
+  // the input once the persisted address becomes available (or changes from
+  // elsewhere, e.g. rebook), but don't clobber text the customer is actively
+  // typing/editing.
+  useEffect(() => {
+    if (userEditedRef.current) return;
+    if (address) {
+      setQuery(
+        [address.line1, address.city, address.state, address.zip]
+          .filter(Boolean)
+          .join(", ")
+      );
+    }
+  }, [address]);
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -131,6 +149,7 @@ export function AddressStep() {
   }
 
   function handleChange(value: string) {
+    userEditedRef.current = true;
     setQuery(value);
     setOutOfArea(false);
     if (value !== address?.line1) setAddress(null as unknown as Address);
@@ -139,6 +158,7 @@ export function AddressStep() {
   }
 
   function handleSelect(f: GeoFeature) {
+    userEditedRef.current = false;
     setShowDropdown(false);
     setSuggestions([]);
     const parsed = parseFeature(f);

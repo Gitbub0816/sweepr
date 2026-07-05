@@ -12,9 +12,10 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 interface JobRow {
   id: string;
-  status: string;
   service_type: string;
   scheduled_at: string;
+  arrival_window_start?: string | null;
+  arrival_window_end?: string | null;
   total_price: number;
   cleaner_payout: number | null;
   address_city: string;
@@ -23,19 +24,35 @@ interface JobRow {
   bathrooms: number;
 }
 
-/** Map a real booking row to the JobCard display shape. */
+/** "HH:MM:SS" -> "8:00 AM" */
+function formatTimeOfDay(t: string): string {
+  const [hStr, mStr] = t.split(":");
+  const h = Number(hStr);
+  const m = Number(mStr ?? "0");
+  const period = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${m.toString().padStart(2, "0")} ${period}`;
+}
+
+/** Map a real assignment-queue offer row to the JobCard display shape. */
 function toAvailableJob(j: JobRow): AvailableJob {
   const when = new Date(j.scheduled_at);
+  const timeSlot =
+    j.arrival_window_start && j.arrival_window_end
+      ? `${formatTimeOfDay(j.arrival_window_start)} – ${formatTimeOfDay(j.arrival_window_end)}`
+      : when.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   return {
     id: j.id,
     serviceType: (j.service_type as ServiceType) ?? "standard",
+    // Full street address unlocks on accept — the offer endpoint only returns
+    // city/state until then.
     area: [j.address_city, j.address_state].filter(Boolean).join(", ") || "Nearby",
     pay: Math.round((j.cleaner_payout ?? j.total_price * 0.8) / 100),
     distanceMi: 0,
     bedrooms: j.bedrooms ?? 0,
     bathrooms: j.bathrooms ?? 0,
     sqft: 0,
-    timeSlot: when.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }),
+    timeSlot,
     date: when.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
   };
 }
@@ -55,14 +72,14 @@ export function JobsPage() {
     setLoading(true);
     try {
       const token = await getToken();
-      const res = await fetch(`${API_URL}/cleaner-dashboard/my-jobs`, {
+      // Offers live in assignment_queue (per-cleaner rows) until accepted, not
+      // on bookings.cleaner_id — /available-offers reads that table directly.
+      const res = await fetch(`${API_URL}/cleaner-dashboard/available-offers`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error(`${res.status}`);
       const data = (await res.json()) as { jobs: JobRow[] };
-      // The job board shows offers awaiting the cleaner's response.
-      const offered = (data.jobs ?? []).filter((j) => j.status === "offered_to_cleaner");
-      setJobs(offered.map(toAvailableJob));
+      setJobs((data.jobs ?? []).map(toAvailableJob));
     } catch {
       setJobs([]);
     } finally {
