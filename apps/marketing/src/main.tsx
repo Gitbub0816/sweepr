@@ -1,7 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
-import { ClerkProvider } from "@clerk/clerk-react";
 import { ErrorBoundary, installGlobalErrorHandlers, initAnalytics } from "@sweepr/ui";
 import App from "./App";
 import "./index.css";
@@ -10,23 +9,26 @@ import { initAnalyticsIfConsented } from "./lib/consentGate";
 
 // GDPR/CCPA: only start PostHog (autocapture + session recording) once the
 // visitor has opted in via the cookie banner, or honors an existing consent
-// record that already granted analytics. See src/lib/consentGate.ts.
-void initAnalyticsIfConsented(initAnalytics);
+// record that already granted analytics. Deferred to idle so it never
+// competes with the initial render for main-thread time — see
+// src/lib/consentGate.ts.
+const scheduleIdle =
+  typeof window !== "undefined" && "requestIdleCallback" in window
+    ? window.requestIdleCallback
+    : (cb: () => void) => setTimeout(cb, 1);
+scheduleIdle(() => void initAnalyticsIfConsented(initAnalytics));
 
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as
-  | string
-  | undefined;
-
-// Clerk is optional on the marketing site — only wrap when a key is configured
-// so local/preview builds without keys still render.
+// Clerk is only needed for the auth controls in the nav (see
+// MarketingAuth.tsx / ClerkAuthControls.tsx), which lazy-load
+// @clerk/clerk-react and own their own ClerkProvider. The app root no
+// longer eagerly wraps the tree in ClerkProvider, so the landing page's
+// initial JS payload ships zero Clerk code.
 function Root() {
-  const tree = (
+  return (
     <BrowserRouter>
       <App />
     </BrowserRouter>
   );
-  if (!PUBLISHABLE_KEY) return tree;
-  return <ClerkProvider publishableKey={PUBLISHABLE_KEY}>{tree}</ClerkProvider>;
 }
 
 // Fall back to the production API in prod builds so error reporting still

@@ -1,0 +1,22 @@
+# Sweepr
+
+> Sweepr is a home-cleaning marketplace: book trusted, background-checked
+> independent cleaners in minutes, track your appointment in real time, and
+> get a satisfaction guarantee. Cleaners can sign up to receive jobs and
+> get paid through the platform.
+
+## Key pages
+
+- [Home](https://getsweepr.com/): Book a cleaning, see services, pricing, and FAQ.
+- [Become a cleaner](https://getsweepr.com/clean-with-us): How to apply and start earning as a Sweepr cleaner.
+- [Book a cleaning](https://app.getsweepr.com/book): Get an instant quote and schedule a cleaning.
+- [Cleaner sign-up](https://clean.getsweepr.com/sign-up): Apply to become a Sweepr cleaner.
+- [System status](https://getsweepr.com/status): Live uptime and incident history.
+- [Accessibility statement](https://getsweepr.com/accessibility): Our WCAG 2.2 AA conformance commitment.
+
+## Legal
+
+- [Privacy policy](https://legal.getsweepr.com/privacy): How we handle personal data.
+- [Terms of service](https://legal.getsweepr.com/terms): Terms governing use of Sweepr.
+- [Independent contractor agreement](https://legal.getsweepr.com/contractor-agreement): Terms for cleaners working with Sweepr.
+- [Do-not-sell / privacy request](https://getsweepr.com/privacy-request?type=opt_out): Submit a CCPA/GDPR data request.

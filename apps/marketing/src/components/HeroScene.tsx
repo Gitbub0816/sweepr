@@ -1,66 +1,18 @@
-import { Component, Suspense, useState, type ReactNode } from "react";
-import { Canvas } from "@react-three/fiber";
-import { Float, Sparkles, Icosahedron, Dodecahedron } from "@react-three/drei";
+import { Component, Suspense, lazy, useEffect, useState, type ReactNode } from "react";
 import { useReducedMotion } from "framer-motion";
 
 /**
- * Decorative R3F background for the marketing hero. Purely visual:
- * pointer-events disabled, sits behind content (z-index -1), and falls back
- * to a static gradient when the user prefers reduced motion.
+ * Decorative background for the marketing hero. This file is intentionally
+ * cheap — it only does capability checks (reduced motion, viewport width,
+ * WebGL support) and renders a static gradient fallback with plain CSS.
+ *
+ * The actual @react-three/fiber + drei + three implementation (>1MB) lives
+ * in ./HeroSceneCanvas and is code-split via React.lazy so it is NEVER
+ * downloaded by mobile visitors, reduced-motion visitors, or browsers
+ * without WebGL — only desktop-width visitors who can use it pay for it,
+ * and even then it's fetched after first paint inside a Suspense boundary.
  */
-function Orb() {
-  return (
-    <Float speed={1.2} rotationIntensity={0.4} floatIntensity={0.8}>
-      <mesh>
-        <sphereGeometry args={[1.4, 48, 48]} />
-        <meshStandardMaterial
-          color="#5eead4"
-          emissive="#14b8a6"
-          emissiveIntensity={0.35}
-          roughness={0.15}
-          metalness={0.6}
-        />
-      </mesh>
-    </Float>
-  );
-}
-
-function FloatingShapes() {
-  return (
-    <>
-      <Float speed={1.5} rotationIntensity={1} floatIntensity={1.5}>
-        <Icosahedron args={[0.5, 0]} position={[-3, 1.5, -2]}>
-          <meshStandardMaterial
-            color="#99f6e4"
-            emissive="#0d9488"
-            emissiveIntensity={0.25}
-            roughness={0.3}
-          />
-        </Icosahedron>
-      </Float>
-      <Float speed={1} rotationIntensity={1.2} floatIntensity={1.2}>
-        <Dodecahedron args={[0.45]} position={[3.2, -1, -1.5]}>
-          <meshStandardMaterial
-            color="#2dd4bf"
-            emissive="#14b8a6"
-            emissiveIntensity={0.3}
-            roughness={0.25}
-          />
-        </Dodecahedron>
-      </Float>
-      <Float speed={1.8} rotationIntensity={0.8} floatIntensity={1}>
-        <Icosahedron args={[0.32, 0]} position={[2.4, 2, -2.5]}>
-          <meshStandardMaterial
-            color="#ccfbf1"
-            emissive="#5eead4"
-            emissiveIntensity={0.2}
-            roughness={0.4}
-          />
-        </Icosahedron>
-      </Float>
-    </>
-  );
-}
+const HeroSceneCanvas = lazy(() => import("./HeroSceneCanvas"));
 
 const STATIC_FALLBACK =
   "absolute inset-0 -z-10 bg-[radial-gradient(circle_at_70%_30%,#5eead4_0%,#ccfbf1_35%,#f0fdfa_70%)] opacity-60 dark:bg-[radial-gradient(circle_at_70%_30%,#0f766e_0%,#0b3b38_45%,#020617_80%)] dark:opacity-60";
@@ -80,6 +32,22 @@ function canUseWebGL(): boolean {
   }
 }
 
+/** Tailwind's `md` breakpoint (768px) — matches the `hidden md:block`
+ * wrapper below so we don't even attempt to load three.js on narrow
+ * viewports. Checked via matchMedia so it responds to viewport changes. */
+function useIsDesktopWidth(): boolean {
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const onChange = () => setIsDesktop(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return isDesktop;
+}
+
 /** Local boundary: if the 3D scene throws for any reason, fall back to the
  * static gradient instead of crashing the whole marketing page. Decorative
  * only, so no reporting needed here. */
@@ -96,55 +64,27 @@ class SceneErrorBoundary extends Component<{ children: ReactNode }, { failed: bo
 
 export function HeroScene() {
   const prefersReducedMotion = useReducedMotion();
+  const isDesktopWidth = useIsDesktopWidth();
   const [contextLost, setContextLost] = useState(false);
   const [webglOk] = useState(canUseWebGL);
 
-  if (prefersReducedMotion || contextLost || !webglOk) {
+  const canRender3D = !prefersReducedMotion && isDesktopWidth && webglOk && !contextLost;
+
+  if (!canRender3D) {
     return <div className={STATIC_FALLBACK} aria-hidden="true" />;
   }
 
   return (
     <>
-      {/* Mobile + small screens: static gradient, no 3D canvas. */}
+      {/* Mobile + small screens: static gradient, no 3D canvas, no three.js download. */}
       <div className={`${STATIC_FALLBACK} md:hidden`} aria-hidden="true" />
 
-      {/* md+ : interactive 3D scene. */}
+      {/* md+ : interactive 3D scene, lazy-loaded. */}
       <div className="hidden md:block">
         <SceneErrorBoundary>
-        <Suspense
-          fallback={<div className={STATIC_FALLBACK} aria-hidden="true" />}
-        >
-          <Canvas
-            className="!absolute inset-0 -z-10"
-            style={{ pointerEvents: "none" }}
-            camera={{ position: [0, 0, 6], fov: 50 }}
-            dpr={[1, 1.5]}
-            aria-hidden="true"
-            onCreated={({ gl }) => {
-              gl.domElement.addEventListener("webglcontextlost", (e) => {
-                e.preventDefault();
-                setContextLost(true);
-              });
-            }}
-          >
-            <ambientLight intensity={0.6} color="#ccfbf1" />
-            <directionalLight
-              position={[5, 5, 5]}
-              intensity={1.1}
-              color="#5eead4"
-            />
-            <Orb />
-            <FloatingShapes />
-            <Sparkles
-              count={40}
-              scale={10}
-              size={2}
-              speed={0.3}
-              color="#5eead4"
-              opacity={0.6}
-            />
-          </Canvas>
-        </Suspense>
+          <Suspense fallback={<div className={STATIC_FALLBACK} aria-hidden="true" />}>
+            <HeroSceneCanvas onContextLost={() => setContextLost(true)} />
+          </Suspense>
         </SceneErrorBoundary>
       </div>
     </>

@@ -1,28 +1,24 @@
-import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/clerk-react";
-import { Button } from "@sweepr/ui";
+import { lazy, Suspense } from "react";
 
 const CLERK_ENABLED = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
+
+// @clerk/clerk-react (and the ClerkProvider it needs) is only pulled in here,
+// lazily, so the landing page's initial JS payload never includes Clerk.
+// Most marketing visitors are signed out and never trigger this import.
+const ClerkAuthControls = lazy(() => import("./ClerkAuthControls"));
 
 /**
  * Subtle auth controls for the marketing nav: a quiet "Sign in" link when
  * signed out and the Clerk UserButton when signed in, alongside the primary
- * CTA. Renders just the CTA when Clerk isn't configured.
+ * CTA. Renders just the CTA when Clerk isn't configured, and defers loading
+ * Clerk's SDK until this component mounts (it's below the LCP hero, so this
+ * doesn't block first paint).
  */
 export function MarketingAuth({ cta }: { cta: React.ReactNode }) {
   if (!CLERK_ENABLED) return <>{cta}</>;
   return (
-    <div className="flex items-center gap-3">
-      <SignedOut>
-        <SignInButton mode="modal">
-          <Button variant="ghost" size="sm">
-            Sign in
-          </Button>
-        </SignInButton>
-      </SignedOut>
-      <SignedIn>
-        <UserButton afterSignOutUrl="/" />
-      </SignedIn>
-      {cta}
-    </div>
+    <Suspense fallback={cta}>
+      <ClerkAuthControls cta={cta} />
+    </Suspense>
   );
 }
