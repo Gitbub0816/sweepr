@@ -25,7 +25,6 @@ import { requireAuth } from "../middleware/auth";
 import { requireAdminRole } from "../middleware/adminRoles";
 import { getDb } from "../lib/db";
 import { logger } from "../lib/logger";
-import { recordError } from "../lib/errorLog";
 import { isOwnerEmail } from "../lib/owner";
 import {
   getInstallUrl,
@@ -707,17 +706,14 @@ slackRouter.post(
     }
     if (!res || !res.ok) {
       const errMsg = res?.error ?? "post_failed";
-      logger.error("slack.workspace.message failed", undefined, { channel, error: errMsg });
-      await recordError(sql, {
-        source: "server",
-        app: "admin",
-        level: "error",
-        message: `Slack message failed: ${errMsg}`,
-        path: "/slack/workspace/message",
-        method: "POST",
-        statusCode: 502,
+      // Covered by the request-level error buffer flush (see index.ts) — no
+      // need for a direct recordError here anymore.
+      logger.error("slack.workspace.message failed", undefined, {
+        channel,
+        error: errMsg,
         clerkId,
-        context: { channel, slackError: errMsg },
+        path: "/slack/workspace/message",
+        statusCode: 502,
       });
       return c.json({ error: errMsg }, 502);
     }

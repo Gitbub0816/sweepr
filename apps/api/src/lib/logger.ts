@@ -1,3 +1,5 @@
+import { captureLoggedError } from "./errorContext";
+
 const REDACT_KEYS = [
   "password",
   "ssn",
@@ -34,7 +36,7 @@ export const logger = {
         ts: new Date().toISOString(),
       })
     ),
-  warn: (msg: string, data?: unknown) =>
+  warn: (msg: string, data?: unknown) => {
     console.warn(
       JSON.stringify({
         level: "warn",
@@ -42,8 +44,10 @@ export const logger = {
         data: redact(data),
         ts: new Date().toISOString(),
       })
-    ),
-  error: (msg: string, err: unknown, data?: unknown) =>
+    );
+    captureLoggedError("warn", msg, undefined, redact(data));
+  },
+  error: (msg: string, err: unknown, data?: unknown) => {
     console.error(
       JSON.stringify({
         level: "error",
@@ -55,5 +59,7 @@ export const logger = {
         data: redact(data),
         ts: new Date().toISOString(),
       })
-    ),
+    );
+    captureLoggedError("error", msg, err, redact(data));
+  },
 };

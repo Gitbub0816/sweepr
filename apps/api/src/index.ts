@@ -65,6 +65,7 @@ import { adminTrustRouter } from "./routes/adminTrust";
 import { AppError, toSafeError } from "./lib/errors";
 import { logger } from "./lib/logger";
 import { recordError } from "./lib/errorLog";
+import { runWithErrorCapture, drainErrorBuffer } from "./lib/errorContext";
 import { getDb } from "./lib/db";
 import type { AppBindings } from "./types";
 
@@ -75,6 +76,73 @@ app.use("*", securityHeaders);
 
 // Request logging (non-fatal, never blocks).
 app.use("*", requestLogger());
+
+// Every logger.error/logger.warn call made anywhere during this request
+// (including inside routes, middleware further down the chain, and
+// app.onError) gets buffered via AsyncLocalStorage (see lib/errorContext.ts)
+// and flushed here to the admin error feed (`error_logs`) once the request
+// finishes. This makes the ~98 existing logger.error/warn call sites land in
+// the admin console without each one needing to know about `recordError`.
+// Installed right after requestLogger and before rate limiting so it wraps
+// as much of the pipeline as possible.
+app.use("*", async (c, next) => {
+  await runWithErrorCapture(async () => {
+    try {
+      await next();
+    } finally {
+      try {
+        const entries = drainErrorBuffer();
+        if (entries.length > 0) {
+          const clerkId = (() => {
+            try {
+              return c.get("user")?.clerkId ?? null;
+            } catch {
+              return null;
+            }
+          })();
+          const requestId = c.req.header("cf-ray") ?? undefined;
+          const path = c.req.path;
+          const method = c.req.method;
+          const statusCode = c.res?.status;
+          c.executionCtx.waitUntil(
+            (async () => {
+              try {
+                const sql = getDb(c.env.DATABASE_URL);
+                for (const entry of entries) {
+                  await recordError(sql, {
+                    source: "server",
+                    app: "api",
+                    level: entry.level === "error" ? "error" : "warn",
+                    message: entry.message,
+                    stack:
+                      entry.err instanceof Error ? entry.err.stack ?? null : null,
+                    path,
+                    method,
+                    statusCode: statusCode ?? null,
+                    clerkId,
+                    requestId,
+                    context: {
+                      data: entry.data ?? null,
+                      timestamp: entry.timestamp,
+                      err:
+                        entry.err instanceof Error
+                          ? { message: entry.err.message, name: entry.err.name }
+                          : entry.err ?? null,
+                    },
+                  });
+                }
+              } catch {
+                /* flushing must never throw inside waitUntil */
+              }
+            })()
+          );
+        }
+      } catch {
+        /* draining/scheduling the flush must never break the response */
+      }
+    }
+  });
+});
 
 // CORS is built per-request so it can read ALLOWED_ORIGINS from env.
 app.use("*", (c, next) => buildCorsMiddleware(c.env)(c, next));
@@ -199,7 +267,6 @@ app.notFound((c) => c.json({ error: "Not found" }, 404));
 
 app.onError((err, c) => {
   const isDev = c.env.ENVIRONMENT === "development";
-  logger.error("Unhandled request error", err);
 
   const isAppError = err instanceof AppError;
   // A malformed JSON request body throws a SyntaxError out of c.req.json()
@@ -212,31 +279,16 @@ app.onError((err, c) => {
   }
   const statusCode = isAppError ? (err as AppError).statusCode : 500;
 
-  // Persist to the admin error feed (non-blocking, best-effort). We skip
+  // Log (rather than call recordError directly) so this runs inside the
+  // AsyncLocalStorage context installed by the buffering middleware above —
+  // it gets picked up and flushed to the admin error feed there, deduped
+  // against any handler-level logger call for the same failure. We skip
   // expected 4xx AppErrors — those are normal client mistakes, not incidents.
   if (!isAppError || statusCode >= 500) {
-    let clerkId: string | null = null;
-    try {
-      clerkId = c.get("user")?.clerkId ?? null;
-    } catch {
-      /* user not set on context */
-    }
-    const task = recordError(getDb(c.env.DATABASE_URL), {
-      source: "server",
-      app: "api",
-      level: statusCode >= 500 ? "error" : "warn",
-      message: err.message || "Unhandled error",
-      stack: err.stack ?? null,
-      path: c.req.path,
-      method: c.req.method,
-      statusCode,
-      clerkId,
-      requestId: c.req.header("cf-ray") ?? null,
-    });
-    try {
-      c.executionCtx.waitUntil(task);
-    } catch {
-      void task; // outside a request context (shouldn't happen) — fire & forget
+    if (statusCode >= 500) {
+      logger.error("Unhandled request error", err);
+    } else {
+      logger.warn("Unhandled request error", { message: err.message, statusCode });
     }
   }
 
@@ -256,7 +308,59 @@ export default {
    * Cloudflare Cron Trigger handler.
    * Schedules defined in wrangler.toml under [[triggers.crons]].
    */
-  async scheduled(event: ScheduledEvent, env: Record<string, unknown>, _ctx: ExecutionContext) {
+  async scheduled(event: ScheduledEvent, env: Record<string, unknown>, ctx: ExecutionContext) {
+    await runWithErrorCapture(async () => {
+      try {
+        await runScheduled(event, env);
+      } finally {
+        try {
+          const entries = drainErrorBuffer();
+          if (entries.length > 0) {
+            const flush = (async () => {
+              try {
+                const { getDb } = await import("./lib/db");
+                const sql = getDb(env.DATABASE_URL as string);
+                for (const entry of entries) {
+                  await recordError(sql, {
+                    source: "server",
+                    app: "api",
+                    level: entry.level === "error" ? "error" : "warn",
+                    message: entry.message,
+                    stack:
+                      entry.err instanceof Error ? entry.err.stack ?? null : null,
+                    path: "cron",
+                    method: "CRON",
+                    context: {
+                      data: entry.data ?? null,
+                      timestamp: entry.timestamp,
+                      cron: event.cron,
+                      err:
+                        entry.err instanceof Error
+                          ? { message: entry.err.message, name: entry.err.name }
+                          : entry.err ?? null,
+                    },
+                  });
+                }
+              } catch {
+                /* flushing must never throw */
+              }
+            })();
+            try {
+              ctx.waitUntil(flush);
+            } catch {
+              await flush;
+            }
+          }
+        } catch {
+          /* draining/scheduling the flush must never break the cron run */
+        }
+      }
+    });
+  },
+};
+
+/** Body of the Cron Trigger handler, factored out so it can run inside runWithErrorCapture. */
+async function runScheduled(event: ScheduledEvent, env: Record<string, unknown>) {
     const { getDb } = await import("./lib/db");
     const { processExpiredOffers } = await import("./lib/assignment");
     const typedEnv = env as unknown as import("./types").Env;
@@ -422,5 +526,4 @@ export default {
     } catch (err) {
       logger.error("cron.failed", err, { cron: event.cron });
     }
-  },
-};
+}
