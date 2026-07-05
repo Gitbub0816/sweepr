@@ -60,6 +60,7 @@ export function ErrorsPage() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState<"" | "server" | "client">("");
+  const [levelFilter, setLevelFilter] = useState<"" | "error" | "warn" | "fatal">("");
   const [includeResolved, setIncludeResolved] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -93,6 +94,7 @@ export function ErrorsPage() {
       const token = await getToken();
       const params = new URLSearchParams();
       if (sourceFilter) params.set("source", sourceFilter);
+      if (levelFilter) params.set("level", levelFilter);
       if (includeResolved) params.set("resolved", "true");
       const res = await fetch(`${API}/admin/observability/errors?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -106,7 +108,7 @@ export function ErrorsPage() {
     } finally {
       setLoading(false);
     }
-  }, [getToken, sourceFilter, includeResolved]);
+  }, [getToken, sourceFilter, levelFilter, includeResolved]);
 
   useEffect(() => {
     load();
@@ -182,6 +184,19 @@ export function ErrorsPage() {
             }`}
           >
             {s === "" ? "All sources" : s === "server" ? "Server" : "Client"}
+          </button>
+        ))}
+        {(["", "error", "warn", "fatal"] as const).map((lvl) => (
+          <button
+            key={lvl || "all-levels"}
+            onClick={() => setLevelFilter(lvl)}
+            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+              levelFilter === lvl
+                ? "bg-charcoal text-white"
+                : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+            }`}
+          >
+            {lvl === "" ? "All levels" : lvl}
           </button>
         ))}
         <label className="ml-2 flex items-center gap-1.5 text-xs text-slate-500">
