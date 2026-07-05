@@ -120,9 +120,16 @@ function OnboardingChecklist({ status }: { status: string | undefined }) {
     "/training/progress",
   );
 
-  if (status === "approved") return null;
-
   const p = progress?.steps;
+
+  // Hide the banner once the cleaner is approved OR every onboarding step is
+  // done. The `status` prop can be stale/undefined on the dashboard payload,
+  // so also trust the fresh /onboarding-progress status + step flags — otherwise
+  // a fully-onboarded cleaner keeps seeing "Finish setting up your account".
+  const allStepsDone = Boolean(
+    p && p.profile && p.training && p.background && p.identity && p.insurance && p.submitted,
+  );
+  if (status === "approved" || progress?.status === "approved" || allStepsDone) return null;
   const passed = training?.summary?.totalPassed ?? 0;
   const total = training?.summary?.totalRequired ?? 10;
 
