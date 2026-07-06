@@ -327,3 +327,118 @@ export interface AiScopeReviewResult {
   recommended_fee_code: ScopeReviewFeeCode;
   safety_flags: AiScopeReviewSafetyFlags;
 }
+
+// ---------------------------------------------------------------------------
+// Room-condition based home cleaning ("Clean My Home" flow)
+//
+// Replaces the package + cleaning-level model with per-room visual condition
+// selection. Customers pick the image that best matches the WORST room of each
+// type. Pricing derived from these levels is NEVER shown during the flow — only
+// the final owed amount at review.
+// ---------------------------------------------------------------------------
+
+export type RoomType = "kitchen" | "bathroom" | "bedroom" | "living_room";
+
+export type RoomConditionLevel = "level_1" | "level_2" | "level_3" | "level_4";
+
+export interface RoomConditionSelection {
+  roomType: RoomType;
+  level: RoomConditionLevel;
+}
+
+export type HomeCleaningIntent = "home" | "short_term_rental";
+
+export interface HomeCleaningPropertyDetails {
+  homeType: HomeType;
+  sqft: number;
+  bedrooms: number;
+  bathrooms: number;
+}
+
+export interface HomeCleaningPriceInput {
+  property: HomeCleaningPropertyDetails;
+  rooms: RoomConditionSelection[];
+  addOnKeys: string[];
+}
+
+/** Result shape: customer sees only `customerVisible`; admin/DB gets breakdown. */
+export interface HomeCleaningPriceResult {
+  customerVisible: {
+    totalOwed: number; // dollars, the ONLY number shown to the customer
+    currency: string;
+  };
+  internalBreakdown: {
+    baseFeeCents: number;
+    sqftCents: number;
+    bedroomCents: number;
+    bathroomCents: number;
+    roomConditionCents: number;
+    addOnsCents: number;
+    subtotalCents: number;
+    roundingDeltaCents: number;
+    taxCents: number;
+    feeCents: number;
+    totalCents: number;
+    lineItems: Array<{ label: string; amountCents: number }>;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Short-term rental calendar sync
+// ---------------------------------------------------------------------------
+
+export type CalendarProvider =
+  | "airbnb"
+  | "vrbo"
+  | "booking_com"
+  | "google_calendar"
+  | "pms"
+  | "other";
+
+export interface ShortTermRentalProperty {
+  id: string;
+  customerId: string;
+  nickname: string;
+  streetAddress: string | null;
+  unit: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  sqft: number | null;
+  monthlyFeeCents: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CalendarSource {
+  id: string;
+  propertyId: string;
+  provider: CalendarProvider;
+  icsUrl: string;
+  autoBook: boolean;
+  syncIntervalMinutes: number;
+  status: "active" | "paused" | "error";
+  lastSyncedAt: string | null;
+  lastSyncError: string | null;
+  lastSyncEventCount: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ImportedCalendarReservation {
+  id: string;
+  propertyId: string;
+  calendarSourceId: string;
+  externalUid: string | null;
+  summary: string | null;
+  icsStatus: string | null;
+  checkinDate: string | null;
+  checkoutDate: string;
+  cleaningStatus: "pending" | "scheduled" | "skipped" | "cancelled";
+  bookingId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
