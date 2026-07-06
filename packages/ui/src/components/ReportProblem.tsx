@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { LifeBuoy, ShieldAlert, X, CheckCircle2 } from "lucide-react";
+import { validateEmail, validateText } from "../lib/validation";
 
 export type ReportApp = "customer" | "cleaner" | "admin" | "service";
 
@@ -78,10 +79,13 @@ export function ReportProblem({ app, apiUrl, getToken }: Props) {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (title.trim().length < 3) { setError("Please add a short summary."); return; }
-    if (loggedIn === false && !/^\S+@\S+\.\S+$/.test(email.trim())) {
-      setError("Please enter your email so we can follow up.");
-      return;
+    const titleErr = validateText(title, { min: 3, max: 200, label: "Summary" });
+    if (titleErr) { setError(titleErr); return; }
+    const descErr = validateText(description, { max: 5000, label: "Details" });
+    if (descErr) { setError(descErr); return; }
+    if (loggedIn === false) {
+      const emailErr = validateEmail(email);
+      if (emailErr) { setError(emailErr); return; }
     }
     setSubmitting(true);
     setError("");
