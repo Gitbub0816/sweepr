@@ -3,7 +3,10 @@
  * with a working feedback channel, as recommended by W3C and referenced by
  * ADA Title III guidance.
  */
+import { useSeo } from "../lib/useSeo";
+
 export default function AccessibilityPage() {
+  useSeo({ title: 'Accessibility statement — Sweepr', description: "Sweepr's commitment to WCAG 2.2 AA accessibility conformance, and how to report accessibility issues.", canonical: "https://getsweepr.com/accessibility" });
   return (
     <main id="main" className="mx-auto max-w-2xl px-4 py-16">
       <h1 className="text-3xl font-bold text-charcoal">Accessibility statement</h1>

@@ -1,4 +1,5 @@
 import { MarketingShell, Button } from "@sweepr/ui";
+import { useSeo } from "../lib/useSeo";
 
 const updated = "June 21, 2026";
 
@@ -15,6 +16,7 @@ function P({ children }: { children: React.ReactNode }) {
 }
 
 export default function PrivacyPolicy() {
+  useSeo({ title: 'Privacy policy — Sweepr', description: 'How Sweepr collects, uses, and protects your personal data, and how to exercise your privacy rights.', canonical: "https://getsweepr.com/privacy" });
   return (
     <MarketingShell
       navLinks={[]}

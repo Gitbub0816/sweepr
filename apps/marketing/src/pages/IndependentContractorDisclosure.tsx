@@ -1,4 +1,5 @@
 import { MarketingShell, Button } from "@sweepr/ui";
+import { useSeo } from "../lib/useSeo";
 
 function Heading({ children }: { children: React.ReactNode }) {
   return (
@@ -12,6 +13,7 @@ function P({ children }: { children: React.ReactNode }) {
 }
 
 export default function IndependentContractorDisclosure() {
+  useSeo({ title: 'Independent contractor agreement — Sweepr', description: 'Terms for independent cleaners providing services through the Sweepr platform.', canonical: "https://getsweepr.com/independent-contractor" });
   return (
     <MarketingShell
       navLinks={[]}

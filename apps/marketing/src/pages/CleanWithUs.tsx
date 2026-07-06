@@ -1,4 +1,5 @@
 import { useState, lazy, Suspense } from "react";
+import { useSeo } from "../lib/useSeo";
 import { useTranslation } from "react-i18next";
 import { withLang } from "../i18n/languages";
 import { LanguageSelector } from "../i18n/LanguageSelector";
@@ -180,6 +181,7 @@ function TabSwitch({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CleanWithUs() {
+  useSeo({ title: 'Become a Sweepr cleaner — flexible cleaning jobs, get paid fast', description: 'Apply to clean with Sweepr. Set your own schedule, get matched to jobs near you, and get paid through the platform. Background check and training required.', canonical: "https://getsweepr.com/clean-with-us" });
   const [tab, setTab] = useState<Tab>("individual");
   const { t, i18n } = useTranslation();
   const cleanerUrl = withLang(CLEANER_URL, i18n.language);

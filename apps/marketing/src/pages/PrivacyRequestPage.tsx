@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSeo } from "../lib/useSeo";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
@@ -17,6 +18,7 @@ const REQUEST_TYPES = [
  * "Do Not Sell or Share" opt-out mechanism the footer links to.
  */
 export default function PrivacyRequestPage() {
+  useSeo({ title: 'Submit a privacy request — Sweepr', description: 'Submit a CCPA/GDPR data access, deletion, or do-not-sell request to Sweepr.', canonical: "https://getsweepr.com/privacy-request" });
   const params = new URLSearchParams(window.location.search);
   const [email, setEmail] = useState("");
   const [requestType, setRequestType] = useState(params.get("type") ?? "opt_out");

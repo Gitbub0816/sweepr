@@ -1,4 +1,5 @@
 import { MarketingShell, Button } from "@sweepr/ui";
+import { useSeo } from "../lib/useSeo";
 
 function Heading({ children }: { children: React.ReactNode }) {
   return (
@@ -12,6 +13,7 @@ function P({ children }: { children: React.ReactNode }) {
 }
 
 export default function Terms() {
+  useSeo({ title: 'Terms of service — Sweepr', description: "The terms governing your use of Sweepr's home-cleaning marketplace.", canonical: "https://getsweepr.com/terms" });
   return (
     <MarketingShell
       navLinks={[]}
