@@ -3,6 +3,7 @@ import { useAuth, useUser, useClerk } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
 import { DashboardShell, Card, AccountPrivacy, SMSOptIn, toast } from "@sweepr/ui";
 import { ContactSettings } from "../components/ContactSettings";
+import { AddressBook } from "../components/AddressBook";
 import { LanguageSelector } from "../i18n/LanguageSelector";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -89,6 +90,8 @@ export function ProfilePage() {
         </Card>
 
         <ContactSettings />
+
+        <AddressBook />
 
         <SmsConsentSettings />
 

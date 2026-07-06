@@ -53,7 +53,7 @@ export function StartStep() {
             <CalendarClock className="h-6 w-6" />
           </span>
           <h2 className="mt-4 text-lg font-semibold text-charcoal dark:text-white">
-            I have a short-term rental
+            I need my short-term rental cleaned
           </h2>
           <p className="mt-1 flex-1 text-sm text-slate-500">
             Like Airbnb or Vrbo. Sync your calendar and we'll turn it over between guests.

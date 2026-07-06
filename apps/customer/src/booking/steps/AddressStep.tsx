@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { MapPin } from "lucide-react";
+import { useAuth } from "@clerk/clerk-react";
+import { MapPin, Plus, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Input, getMapboxToken } from "@sweepr/ui";
 import type { Address } from "@sweepr/types";
@@ -9,6 +10,20 @@ import { StepShell } from "../StepShell";
 import { AddressMapPreview } from "../../components/AddressMapPreview";
 
 const MAPBOX_TOKEN = getMapboxToken();
+const API_URL = import.meta.env.VITE_API_URL ?? "";
+
+interface SavedAddress {
+  id: string;
+  label: string | null;
+  line1: string;
+  line2?: string;
+  city: string;
+  state: string;
+  zip: string;
+  lat?: number;
+  lng?: number;
+  propertyType: string;
+}
 
 const SERVICE_AREA_STATES = ["CA", "TX", "FL", "NY", "WA", "CO"];
 
@@ -78,8 +93,54 @@ const ZIP_RE = /^\d{5}$/;
 export function AddressStep() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { getToken } = useAuth();
   const address = useBookingStore((s) => s.address);
   const setAddress = useBookingStore((s) => s.setAddress);
+  const intent = useBookingStore((s) => s.intent);
+
+  // Saved addresses matching this booking's intent (home vs short-term rental).
+  // When the customer has one or more, we ask which one instead of forcing a
+  // fresh search; "add a different address" reveals the search box.
+  const wantType = intent === "short_term_rental" ? "short_term_rental" : "home";
+  const [saved, setSaved] = useState<SavedAddress[]>([]);
+  const [adding, setAdding] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getToken();
+        const res = await fetch(`${API_URL}/customer-profile/addresses`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { addresses: SavedAddress[] };
+        if (cancelled) return;
+        const matching = data.addresses.filter((a) => a.propertyType === wantType);
+        setSaved(matching);
+        // If nothing saved for this type, go straight to the search box.
+        setAdding(matching.length === 0);
+      } catch {
+        if (!cancelled) setAdding(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [getToken, wantType]);
+
+  function chooseSaved(a: SavedAddress) {
+    setAddress({
+      id: a.id,
+      line1: a.line1,
+      city: a.city,
+      state: a.state,
+      zip: a.zip,
+      lat: a.lat,
+      lng: a.lng,
+    });
+    setOutOfArea(false);
+  }
   const [query, setQuery] = useState(
     address ? [address.line1, address.city, address.state, address.zip].filter(Boolean).join(", ") : ""
   );
@@ -181,7 +242,48 @@ export function AddressStep() {
       onNext={() => navigate("/book/home")}
       nextDisabled={!address || outOfArea}
     >
-      <div ref={wrapperRef} className="relative">
+      {saved.length > 0 && (
+        <div className="mb-4 space-y-2">
+          <p className="text-sm font-medium text-charcoal dark:text-white">
+            Which address needs cleaning?
+          </p>
+          {saved.map((a) => {
+            const selected = address?.id === a.id;
+            return (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => chooseSaved(a)}
+                className={`flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition ${
+                  selected
+                    ? "border-seafoam-500 ring-2 ring-seafoam-400"
+                    : "border-slate-200 hover:border-seafoam-300 dark:border-slate-700"
+                }`}
+              >
+                <MapPin className="h-4 w-4 shrink-0 text-seafoam-500" />
+                <div className="flex-1">
+                  {a.label && <p className="text-sm font-semibold text-charcoal dark:text-white">{a.label}</p>}
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    {[a.line1, a.city, a.state, a.zip].filter(Boolean).join(", ")}
+                  </p>
+                </div>
+                {selected && <Check className="h-5 w-5 text-seafoam-600" />}
+              </button>
+            );
+          })}
+          {!adding && (
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="flex items-center gap-2 px-1 py-2 text-sm font-medium text-seafoam-700 dark:text-seafoam-300"
+            >
+              <Plus className="h-4 w-4" /> Use a different address
+            </button>
+          )}
+        </div>
+      )}
+
+      <div ref={wrapperRef} className={`relative ${adding ? "" : "hidden"}`}>
         <Input
           label={t("booking.address.label")}
           placeholder={t("booking.address.placeholder")}

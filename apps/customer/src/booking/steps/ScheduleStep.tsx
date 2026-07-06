@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@clerk/clerk-react";
 import { Zap, Repeat, Clock, AlertCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SweeprCalendar } from "@sweepr/ui";
@@ -43,6 +44,8 @@ export function ScheduleStep() {
     getQuote,
   } = useBookingStore();
 
+  const { getToken } = useAuth();
+
   const [pickedDate, setPickedDate] = useState<Date | null>(
     scheduledAt ? new Date(scheduledAt) : null
   );
@@ -72,7 +75,13 @@ export function ScheduleStep() {
     setSlotsError(null);
     const params = new URLSearchParams({ date: dateKey(pickedDate) });
     if (address?.zip) params.set("zip", address.zip);
-    fetch(`${API_URL}/cleaners/availability-slots?${params.toString()}`)
+    // /cleaners/* requires auth — attach the Clerk token or the request 401s.
+    getToken()
+      .then((token) =>
+        fetch(`${API_URL}/cleaners/availability-slots?${params.toString()}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }),
+      )
       .then(async (res) => {
         if (!res.ok) throw new Error("Failed to load availability");
         return (await res.json()) as AvailabilitySlotsResponse;
