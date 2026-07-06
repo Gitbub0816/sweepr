@@ -176,19 +176,41 @@ export async function handleOfferResponse(
         403,
       );
     }
-    const updated = await sql`
+    // This cleaner must actually hold an open offer for the booking.
+    const offerRows = await sql`
+      SELECT id FROM assignment_queue
+      WHERE booking_id = ${bookingId} AND cleaner_id = ${cleanerId}
+        AND status NOT IN ('accepted', 'declined', 'expired')
+      LIMIT 1
+    `;
+    if (!offerRows[0]) {
+      throw new AppError("offer_already_resolved", "This offer has already been accepted, declined, or expired.", 409);
+    }
+
+    // Atomically CLAIM the booking. `cleaner_id IS NULL` + Postgres row-level
+    // locking guarantees exactly one concurrent accept wins: two cleaners
+    // accepting the same booking at the same instant will race on this UPDATE
+    // and only one sees cleaner_id still NULL. The loser gets 0 rows back.
+    // (Previously both queue rows were flipped to 'accepted' independently and
+    // both callers got 200 — a double-accept that assigned the job to one
+    // cleaner while telling the other they had it too.)
+    const claimed = await sql`
+      UPDATE bookings SET cleaner_id = ${cleanerId},
+        status = 'cleaner_accepted', updated_at = NOW()
+      WHERE id = ${bookingId}
+        AND cleaner_id IS NULL
+        AND status NOT IN ('cleaner_accepted', 'confirmed', 'in_progress', 'completed',
+                           'cancelled_by_customer', 'cancelled_by_cleaner', 'cancelled_by_admin', 'cancelled')
+      RETURNING id
+    `;
+    if (!claimed[0]) {
+      throw new AppError("offer_already_resolved", "This job was just accepted by another cleaner.", 409);
+    }
+    // We won the claim — now mark our own queue row accepted.
+    await sql`
       UPDATE assignment_queue SET status = 'accepted'
       WHERE booking_id = ${bookingId} AND cleaner_id = ${cleanerId}
         AND status NOT IN ('accepted', 'declined', 'expired')
-      RETURNING id
-    `;
-    if (!updated[0]) {
-      throw new AppError("offer_already_resolved", "This offer has already been accepted, declined, or expired.", 409);
-    }
-    await sql`
-      UPDATE bookings SET cleaner_id = ${cleanerId},
-        status = 'cleaner_accepted', updated_at = NOW()
-      WHERE id = ${bookingId} AND status NOT IN ('cleaner_accepted', 'confirmed', 'in_progress', 'completed')
     `;
     await notifyCustomer(
       sql,
