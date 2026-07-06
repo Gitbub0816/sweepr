@@ -87,7 +87,14 @@ dayOfServiceRouter.post(
 
     const booking = rows[0];
     if (!booking) return c.json({ error: "Booking not found" }, 404);
-    if (booking.status !== "confirmed") return c.json({ error: "Booking is not in confirmed state" }, 400);
+    // A booking is fully paid before it is ever offered to cleaners (the Stripe
+    // webhook sets 'booked' and only then runs assignment), so once a cleaner has
+    // accepted it is ready for service. Nothing in the system performs the
+    // cleaner_accepted → confirmed transition, so accept BOTH here — otherwise the
+    // entire day-of-service flow is unreachable (start route always 400s).
+    if (booking.status !== "confirmed" && booking.status !== "cleaner_accepted") {
+      return c.json({ error: "Booking is not ready to start (must be accepted by a cleaner first)" }, 400);
+    }
     if (booking.day_status && booking.day_status !== "en_route") {
       return c.json({ error: "Cannot start route from current state" }, 400);
     }
@@ -235,13 +242,20 @@ dayOfServiceRouter.post(
     const cleaner = (await sql`SELECT id FROM cleaners WHERE user_id = ${users[0]?.id}`) as Array<{ id: string }>;
     if (!cleaner[0] || cleaner[0].id !== booking.cleaner_id) return c.json({ error: "Forbidden" }, 403);
 
+    // Advance booking.status to in_progress alongside day_status. The day-of-
+    // service flow otherwise only walks day_status, leaving booking.status stuck
+    // at cleaner_accepted — which would make the completion guard
+    // (isValidTransition(status, 'completed')) reject the final step. Guard
+    // against clobbering a booking that was cancelled/refunded mid-service.
     await sql`
       UPDATE bookings SET
         day_status = 'in_progress',
+        status = 'in_progress',
         started_at = NOW(),
         access_code_revealed_at = NOW(),
         updated_at = NOW()
       WHERE id = ${bookingId}
+        AND status NOT IN ('completed', 'cancelled_by_customer', 'cancelled_by_cleaner', 'cancelled', 'refunded', 'disputed')
     `;
 
     // Fetch and decrypt access codes — only revealed after GPS arrival confirmed.

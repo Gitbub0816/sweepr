@@ -335,14 +335,23 @@ bookingsRouter.post(
     created = rows[0];
   } catch (err) {
     if (!isDuplicateBookingViolation(err)) throw err;
-    const existingRows = (await sql`
-      SELECT * FROM bookings
-      WHERE customer_id = ${customer.id}
-        AND COALESCE(address_id, '00000000-0000-0000-0000-000000000000') = COALESCE(${input.addressId ?? null}, '00000000-0000-0000-0000-000000000000')
-        AND scheduled_at = ${effectiveScheduledAt}
-        AND status NOT IN ('cancelled_by_customer', 'cancelled_by_cleaner', 'cancelled', 'refunded')
-      LIMIT 1
-    `) as BookingRow[];
+    // Look up the row the concurrent (winning) request created. In a true
+    // simultaneous double-submit the winner may not have COMMITTED yet when we
+    // get here, so its row isn't visible on this connection — retry a few times
+    // with a short backoff instead of surfacing a 500 to the customer.
+    let existingRows = [] as BookingRow[];
+    for (let attempt = 0; attempt < 4; attempt++) {
+      existingRows = (await sql`
+        SELECT * FROM bookings
+        WHERE customer_id = ${customer.id}
+          AND COALESCE(address_id, '00000000-0000-0000-0000-000000000000') = COALESCE(${input.addressId ?? null}, '00000000-0000-0000-0000-000000000000')
+          AND scheduled_at = ${effectiveScheduledAt}
+          AND status NOT IN ('cancelled_by_customer', 'cancelled_by_cleaner', 'cancelled', 'refunded')
+        LIMIT 1
+      `) as BookingRow[];
+      if (existingRows[0]) break;
+      await new Promise((r) => setTimeout(r, 120));
+    }
     if (existingRows[0]) {
       // The customer resubmitted for the same slot with (possibly) new room
       // conditions / add-ons. Refresh the existing draft's pricing to the freshly
