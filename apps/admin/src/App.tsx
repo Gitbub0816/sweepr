@@ -39,6 +39,7 @@ import { CleanersPage } from "./pages/CleanersPage";
 import { ApplicationsPage } from "./pages/ApplicationsPage";
 import { ApplicationDetailPage } from "./pages/ApplicationDetailPage";
 import { PricingPage } from "./pages/PricingPage";
+import { CleaningPricingPage } from "./pages/CleaningPricingPage";
 import { DisputesPage } from "./pages/DisputesPage";
 import { DisputeDetailPage } from "./pages/DisputeDetailPage";
 import { PayoutsPage } from "./pages/PayoutsPage";
@@ -81,6 +82,7 @@ const nav = [
   { to: "/cleaners", label: "Cleaners", icon: Sparkles },
   { to: "/applications", label: "Applications", icon: FileText },
   { to: "/pricing", label: "Pricing", icon: DollarSign },
+  { to: "/cleaning-pricing", label: "Cleaning Pricing", icon: DollarSign },
   { to: "/approvals", label: "Approvals", icon: GitPullRequest },
   { to: "/scope-review", label: "Scope Review", icon: ScanEye },
   { to: "/trust-safety", label: "Trust & Safety", icon: ShieldBan },
@@ -145,6 +147,7 @@ export default function App() {
         element={<Guarded><ApplicationDetailPage /></Guarded>}
       />
       <Route path="/pricing" element={<Guarded><PricingPage /></Guarded>} />
+      <Route path="/cleaning-pricing" element={<Guarded><CleaningPricingPage /></Guarded>} />
       <Route path="/pricing/rules/:id" element={<Guarded><PricingRulePage /></Guarded>} />
       <Route path="/pricing/approvals/:id" element={<Guarded><PricingApprovalDetailPage /></Guarded>} />
       <Route path="/disputes" element={<Guarded><DisputesPage /></Guarded>} />

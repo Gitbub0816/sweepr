@@ -4,6 +4,7 @@ import { securityHeaders } from "./middleware/securityHeaders";
 import { rateLimit } from "./middleware/rateLimit";
 import { authRouter } from "./routes/auth";
 import { bookingsRouter } from "./routes/bookings";
+import { rentalsRouter } from "./routes/rentals";
 import { pricingRouter } from "./routes/pricing";
 import { paymentsRouter } from "./routes/payments";
 import { tipsRouter } from "./routes/tips";
@@ -62,6 +63,7 @@ import { clientErrorsRouter } from "./routes/clientErrors";
 import { customerProfileRouter } from "./routes/customerProfile";
 import { adminSettingsRouter } from "./routes/adminSettings";
 import { adminTrustRouter } from "./routes/adminTrust";
+import { adminPricingConfigRouter } from "./routes/adminPricingConfig";
 import { AppError, toSafeError } from "./lib/errors";
 import { logger } from "./lib/logger";
 import { recordError } from "./lib/errorLog";
@@ -188,6 +190,7 @@ app.route("/auth", authRouter);
 app.route("/client-errors", clientErrorsRouter);
 app.route("/customer-profile", customerProfileRouter);
 app.route("/bookings", bookingsRouter);
+app.route("/rentals", rentalsRouter);
 app.route("/pricing", pricingRouter);
 app.route("/payments", paymentsRouter);
 app.route("/tips", tipsRouter);
@@ -259,6 +262,7 @@ app.route("/admin/response-templates", responseTemplatesRouter);
 app.route("/admin/email", adminEmailRouter);
 app.route("/admin/settings", adminSettingsRouter);
 app.route("/admin-trust", adminTrustRouter);
+app.route("/admin-pricing-config", adminPricingConfigRouter);
 app.route("/webhooks/mailersend", mailersendWebhookRouter);
 app.route("/unsubscribe", unsubscribeRouter);
 app.route("/privacy", privacyPublicRouter);
@@ -446,6 +450,14 @@ async function runScheduled(event: ScheduledEvent, env: Record<string, unknown>)
             SELECT 1 FROM disputes d WHERE d.booking_id = b.id AND d.status = 'open'
           )
       `;
+
+      // Short-term rental calendar sync: refresh feeds due for a poll.
+      try {
+        const { syncDueCalendarSources } = await import("./lib/calendarSync");
+        await syncDueCalendarSources(sql);
+      } catch (err) {
+        logger.error("cron.calendar_sync failed", err, { cron: event.cron });
+      }
 
       // Fee Change Approval Engine transitions (idempotent, time-driven).
       try {
