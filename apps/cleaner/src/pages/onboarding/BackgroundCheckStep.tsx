@@ -43,11 +43,22 @@ export function BackgroundCheckStep({ n, workState = "CA", getToken, onComplete,
         },
         body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), workState }),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        // Surface the server's friendly `message` (e.g. "Background checks are
+        // temporarily unavailable…"), never the raw JSON error envelope.
+        const body = (await res.json().catch(() => null)) as { message?: string; error?: string } | null;
+        throw new Error(
+          body?.message ??
+            "We couldn't start your background check right now. Please try again in a few minutes.",
+        );
+      }
       const data = (await res.json()) as { invitationUrl: string; expiresAt: string };
       setPhase({ kind: "embedded", invitationUrl: data.invitationUrl, expiresAt: data.expiresAt });
     } catch (err) {
-      setPhase({ kind: "error", message: String(err) });
+      setPhase({
+        kind: "error",
+        message: err instanceof Error ? err.message : "Something went wrong. Please try again.",
+      });
     }
   }
 

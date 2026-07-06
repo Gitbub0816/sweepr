@@ -204,7 +204,9 @@ export default function App() {
       <Route path="/schedule" element={<Guarded jobsGated><SchedulePage /></Guarded>} />
       <Route path="/earnings" element={<Guarded><EarningsPage /></Guarded>} />
       <Route path="/performance" element={<Guarded><PerformancePage /></Guarded>} />
-      <Route path="/insurance" element={<Guarded><InsurancePage /></Guarded>} />
+      {/* Insurance enrollment charges the cleaner and links Stripe payouts —
+          gate it behind approval so a pending applicant can't enrol/pay early. */}
+      <Route path="/insurance" element={<Guarded jobsGated><InsurancePage /></Guarded>} />
       <Route path="/profile" element={<Guarded><ProfilePage /></Guarded>} />
       <Route path="*" element={<Navigate to="/" replace />} />
       </Route>{/* end GateLayout */}
