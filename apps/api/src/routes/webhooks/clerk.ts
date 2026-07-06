@@ -26,24 +26,47 @@ const SVIX_ID = "svix-id";
 const SVIX_TIMESTAMP = "svix-timestamp";
 const SVIX_SIGNATURE = "svix-signature";
 
+type VerifyResult =
+  | { ok: true }
+  | { ok: false; reason: string };
+
 async function verifyClerkWebhook(
   secret: string,
   body: string,
   svixId: string,
   svixTimestamp: string,
   svixSignatures: string
-): Promise<boolean> {
+): Promise<VerifyResult> {
+  if (!svixId || !svixTimestamp || !svixSignatures) {
+    return { ok: false, reason: "missing_svix_headers" };
+  }
+  // The configured value MUST be the webhook *signing* secret (whsec_…), not a
+  // Clerk API key (sk_…) or publishable key. This is the most common cause of a
+  // persistent 401 with an otherwise "valid" Clerk secret.
+  if (!secret.startsWith("whsec_")) {
+    return {
+      ok: false,
+      reason: "secret_not_whsec (configure the webhook Signing Secret whsec_…, not an API key)",
+    };
+  }
+
   // Reject timestamps older than 5 minutes to prevent replay attacks.
   const ts = parseInt(svixTimestamp, 10);
-  if (Math.abs(Date.now() / 1000 - ts) > 300) return false;
+  if (!Number.isFinite(ts) || Math.abs(Date.now() / 1000 - ts) > 300) {
+    return { ok: false, reason: "timestamp_out_of_window" };
+  }
 
   const signedContent = `${svixId}.${svixTimestamp}.${body}`;
 
-  // Clerk webhook secrets are base64-encoded after the "whsec_" prefix.
-  const secretBytes = Uint8Array.from(
-    atob(secret.replace(/^whsec_/, "")),
-    (c) => c.charCodeAt(0)
-  );
+  let secretBytes: Uint8Array;
+  try {
+    // Base64 after the "whsec_" prefix. Normalize URL-safe base64 just in case.
+    const b64 = secret.slice("whsec_".length).replace(/-/g, "+").replace(/_/g, "/");
+    secretBytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  } catch {
+    return { ok: false, reason: "secret_base64_decode_failed" };
+  }
+
   const key = await crypto.subtle.importKey(
     "raw", secretBytes,
     { name: "HMAC", hash: "SHA-256" },
@@ -52,11 +75,13 @@ async function verifyClerkWebhook(
   const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(signedContent));
   const computed = btoa(String.fromCharCode(...new Uint8Array(sig)));
 
-  // Svix may send multiple comma-separated sigs (v1,<base64> format).
-  return svixSignatures.split(" ").some((s) => {
-    const b64 = s.replace(/^v\d+,/, "");
+  // Svix sends a space-delimited list of `v1,<base64>` signatures.
+  const matched = svixSignatures.split(" ").some((s) => {
+    const comma = s.indexOf(",");
+    const b64 = comma === -1 ? s : s.slice(comma + 1);
     return b64 === computed;
   });
+  return matched ? { ok: true } : { ok: false, reason: "signature_mismatch" };
 }
 
 interface ClerkUserEvent {
@@ -70,7 +95,10 @@ interface ClerkUserEvent {
 }
 
 clerkWebhookRouter.post("/", async (c) => {
-  const secret = c.env.CLERK_WEBHOOK_SECRET;
+  // Accept either env name — some deployments set CLERK_WEBHOOK_SIGNING_SECRET.
+  const secret =
+    c.env.CLERK_WEBHOOK_SECRET ||
+    (c.env as unknown as Record<string, string | undefined>).CLERK_WEBHOOK_SIGNING_SECRET;
   if (!secret) {
     logger.error("clerk.webhook.missing_secret", new Error("CLERK_WEBHOOK_SECRET not configured"));
     return c.json({ error: "Webhook not configured" }, 500);
@@ -82,10 +110,16 @@ clerkWebhookRouter.post("/", async (c) => {
 
   const body = await c.req.text();
 
-  const valid = await verifyClerkWebhook(secret, body, svixId, svixTimestamp, svixSignatures);
-  if (!valid) {
-    logger.warn("clerk.webhook.invalid_signature", { svixId });
-    return c.json({ error: "Invalid signature" }, 401);
+  const verdict = await verifyClerkWebhook(secret, body, svixId, svixTimestamp, svixSignatures);
+  if (!verdict.ok) {
+    // Log the SPECIFIC reason so the error feed says *why* (wrong secret type,
+    // rotated secret, replay window, etc.) instead of an opaque "invalid".
+    logger.warn("clerk.webhook.invalid_signature", {
+      svixId,
+      reason: verdict.reason,
+      secretPrefix: secret.slice(0, 6),
+    });
+    return c.json({ error: "Invalid signature", reason: verdict.reason }, 401);
   }
 
   let event: ClerkUserEvent;
