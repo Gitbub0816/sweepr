@@ -63,6 +63,10 @@ const JSON_COLS = [
   "sqft_tiers_json", "bedroom_tiers_json", "bathroom_tiers_json",
   "property_type_adjustments_json", "service_type_multiplier_json", "service_type_fixed_surcharge_json",
   "intensity_multiplier_json", "urgency_rules_json", "recurring_discount_json",
+  // config_json is the canonical live pricing blob the SWEEPR engine reads
+  // (resolvePricing.ts). It was missing here, so every edit to the rule
+  // editor's engine sections was silently discarded on save.
+  "config_json",
 ];
 
 function buildRuleUpdate(body: Record<string, unknown>): { sets: string[]; params: unknown[] } {

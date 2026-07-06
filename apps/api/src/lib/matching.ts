@@ -139,8 +139,8 @@ export interface MatchScore {
 interface AvailabilityRow {
   cleaner_id: string;
   day_of_week: number;
-  start_minute: number;
-  end_minute: number;
+  start_time: string | null; // "HH:MM:SS"
+  end_time: string | null;
 }
 
 interface ServiceAreaRow {
@@ -154,11 +154,6 @@ interface OfferStatsRow {
   cleaner_id: string;
   offered: number;
   accepted: number;
-}
-
-interface CleanerServiceRow {
-  cleaner_id: string;
-  service_type: string;
 }
 
 function tierPoints(tier: string): number {
@@ -185,16 +180,21 @@ function availabilityPoints(
   const sameDay = rows.filter((r) => r.day_of_week === dayOfWeek);
   if (sameDay.length === 0) return 0;
 
+  const toMin = (t: string | null): number | null => {
+    if (!t) return null;
+    const [h, m] = t.split(":").map(Number);
+    return Number.isNaN(h) ? null : h * 60 + (m || 0);
+  };
+
   for (const r of sameDay) {
-    if (minuteOfDay >= r.start_minute && minuteOfDay <= r.end_minute) return 25;
+    const s = toMin(r.start_time);
+    const e = toMin(r.end_time);
+    if (s != null && e != null && minuteOfDay >= s && minuteOfDay <= e) return 25;
   }
   for (const r of sameDay) {
-    if (
-      minuteOfDay >= r.start_minute - 60 &&
-      minuteOfDay <= r.end_minute + 60
-    ) {
-      return 15;
-    }
+    const s = toMin(r.start_time);
+    const e = toMin(r.end_time);
+    if (s != null && e != null && minuteOfDay >= s - 60 && minuteOfDay <= e + 60) return 15;
   }
   return 5;
 }
@@ -239,12 +239,19 @@ export async function rankCleanersForBooking(
     }
   }
 
-  // Batch lookups for all candidate cleaners.
+  // Batch lookups for all candidate cleaners. NOTE: these three queries were
+  // all writing against tables/columns that do not exist (cleaner_availability
+  // has start_time/end_time not start_minute/end_minute; offer stats live in
+  // assignment_queue not job_offers.status; service prefs live in
+  // cleaners.preferred_service_types not a cleaner_services table). The result:
+  // rankCleanersForBooking threw on every booking and no cleaner was ever
+  // ranked or offered — the whole marketplace silently never matched anyone.
   const [availabilityRaw, areaRaw, offerRaw, serviceRaw] = await Promise.all([
     db`
-      SELECT cleaner_id, day_of_week, start_minute, end_minute
+      SELECT cleaner_id, day_of_week,
+             start_time::text AS start_time, end_time::text AS end_time
       FROM cleaner_availability
-      WHERE cleaner_id = ANY(${cleanerIds})
+      WHERE cleaner_id = ANY(${cleanerIds}) AND active = true
     `,
     db`
       SELECT cleaner_id, center_lat, center_lng, radius_miles
@@ -255,21 +262,24 @@ export async function rankCleanersForBooking(
       SELECT cleaner_id,
              COUNT(*)::int AS offered,
              COUNT(*) FILTER (WHERE status = 'accepted')::int AS accepted
-      FROM job_offers
+      FROM assignment_queue
       WHERE cleaner_id = ANY(${cleanerIds})
       GROUP BY cleaner_id
     `,
     db`
-      SELECT cleaner_id, service_type
-      FROM cleaner_services
-      WHERE cleaner_id = ANY(${cleanerIds})
+      SELECT id AS cleaner_id, preferred_service_types
+      FROM cleaners
+      WHERE id = ANY(${cleanerIds})
     `,
   ]);
 
   const availabilityRows = availabilityRaw as unknown as AvailabilityRow[];
   const areaRows = areaRaw as unknown as ServiceAreaRow[];
   const offerRows = offerRaw as unknown as OfferStatsRow[];
-  const serviceRows = serviceRaw as unknown as CleanerServiceRow[];
+  const serviceRows = serviceRaw as unknown as Array<{
+    cleaner_id: string;
+    preferred_service_types: string[] | null;
+  }>;
 
   const byCleaner = <T extends { cleaner_id: string }>(rows: T[]) => {
     const map = new Map<string, T[]>();
@@ -283,7 +293,9 @@ export async function rankCleanersForBooking(
 
   const availByCleaner = byCleaner(availabilityRows);
   const areaByCleaner = byCleaner(areaRows);
-  const servicesByCleaner = byCleaner(serviceRows);
+  const servicesByCleaner = new Map(
+    serviceRows.map((r) => [r.cleaner_id, r.preferred_service_types ?? []]),
+  );
   const offerByCleaner = new Map(offerRows.map((r) => [r.cleaner_id, r]));
 
   const scores: MatchScore[] = availableCleaners.map((cleaner) => {
@@ -326,10 +338,10 @@ export async function rankCleanersForBooking(
     // Tier
     const tier = tierPoints(cleaner.tier);
 
-    // Service match
-    const offersService = (servicesByCleaner.get(cleaner.id) ?? []).some(
-      (s) => s.service_type === booking.service_type
-    );
+    // Service match. A cleaner with no configured preferences is treated as
+    // accepting all service types (soft rule, matches eligibility).
+    const prefs = servicesByCleaner.get(cleaner.id) ?? [];
+    const offersService = prefs.length === 0 || prefs.includes(booking.service_type);
     const serviceMatch = offersService ? 10 : 0;
 
     // Reliability: accepted/offered * 10; new cleaners default 8.

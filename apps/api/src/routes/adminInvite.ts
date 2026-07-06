@@ -134,7 +134,7 @@ adminInviteRouter.post(
 adminInviteRouter.get("/", requireAuth, requireAdmin, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const invites = await sql`
-    SELECT id, email, created_by, expires_at, created_at
+    SELECT id, email, admin_role, created_by, expires_at, created_at
     FROM admin_invites
     WHERE used_at IS NULL AND expires_at > NOW()
     ORDER BY created_at DESC

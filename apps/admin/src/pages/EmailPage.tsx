@@ -348,7 +348,7 @@ function BroadcastsTab() {
     try {
       const token = await getToken();
       const res = await fetch(`${API}/admin/broadcasts`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) setHistory(await res.json() as BroadcastSend[]);
+      if (res.ok) setHistory(((await res.json()) as { sends: BroadcastSend[] }).sends);
     } catch { /* ignore */ } finally { setLoadingHistory(false); }
   }
 
@@ -463,7 +463,7 @@ function NewsletterTab() {
     setLoading(true);
     try {
       const token = await getToken();
-      const res = await fetch(`${API}/admin/newsletter`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${API}/admin/newsletter/subscribers`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) {
         const data = await res.json() as { subscribers: Subscriber[]; count: number };
         setSubscribers(data.subscribers ?? []);

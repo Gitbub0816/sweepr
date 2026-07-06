@@ -120,7 +120,9 @@ function Section({
                     e.preventDefault();
                     e.stopPropagation();
                     rebookFrom(b);
-                    navigate("/book/schedule");
+                    // Room conditions aren't carried over — send the customer
+                    // back through the rooms step to reassess (and reprice).
+                    navigate("/book/rooms");
                   }}
                 >
                   <RotateCcw className="mr-1 h-4 w-4" />

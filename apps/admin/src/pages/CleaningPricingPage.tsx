@@ -117,7 +117,15 @@ export function CleaningPricingPage() {
       JSON.stringify(pick(savedHome, HOME_SECTION_KEYS[section]))
     );
   }
-  const strDirty = !!str && !!savedStr && JSON.stringify(str) !== JSON.stringify(savedStr);
+  // STR "Turnaround" section owns only the fee fields; tax/rounding are shared
+  // and edited in the Rounding section (which persists BOTH configs).
+  const strTurnaroundDirty =
+    !!str && !!savedStr &&
+    (str.monthlyConnectionFeeCents !== savedStr.monthlyConnectionFeeCents ||
+      str.perTurnaroundFeeCents !== savedStr.perTurnaroundFeeCents);
+  const strRoundingDirty =
+    !!str && !!savedStr &&
+    (str.taxRate !== savedStr.taxRate || str.roundToEndingDigit !== savedStr.roundToEndingDigit);
 
   async function saveHome(section: string) {
     if (!home) return;
@@ -140,6 +148,27 @@ export function CleaningPricingPage() {
     try {
       const res = await authed("/admin-pricing-config/str", { method: "PUT", body: JSON.stringify(str) });
       if (!res.ok) throw new Error("Save failed");
+      setSavedStr(str);
+      toast.success("Section saved");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSavingSection(null);
+    }
+  }
+
+  // Rounding/Taxes/Fees applies to BOTH home and STR (tax rate + charm digit are
+  // shared), so this section persists both configs together.
+  async function saveRounding() {
+    if (!home || !str) return;
+    setSavingSection("rounding");
+    try {
+      const [r1, r2] = await Promise.all([
+        authed("/admin-pricing-config/home", { method: "PUT", body: JSON.stringify(home) }),
+        authed("/admin-pricing-config/str", { method: "PUT", body: JSON.stringify(str) }),
+      ]);
+      if (!r1.ok || !r2.ok) throw new Error("Save failed");
+      setSavedHome(home);
       setSavedStr(str);
       toast.success("Section saved");
     } catch (e) {
@@ -273,7 +302,7 @@ export function CleaningPricingPage() {
       </Section>
 
       {/* 4. Short-Term Rental Turnaround */}
-      <Section title="Short-Term Rental Turnaround" desc="Monthly enrollment subscription per property plus a flat per-turnaround fee. New enrollments snapshot the monthly fee at signup." onSave={saveStrSection} saving={savingSection === "str"} dirty={strDirty}>
+      <Section title="Short-Term Rental Turnaround" desc="Monthly enrollment subscription per property plus a flat per-turnaround fee. New enrollments snapshot the monthly fee at signup." onSave={saveStrSection} saving={savingSection === "str"} dirty={strTurnaroundDirty}>
         <div className="grid grid-cols-2 gap-3">
           <Money label="Monthly connection fee" cents={str.monthlyConnectionFeeCents} onChange={(c) => setStr({ ...str, monthlyConnectionFeeCents: c })} />
           <Money label="Per-turnaround fee" cents={str.perTurnaroundFeeCents} onChange={(c) => setStr({ ...str, perTurnaroundFeeCents: c })} />
@@ -281,7 +310,7 @@ export function CleaningPricingPage() {
       </Section>
 
       {/* 5. Rounding / Taxes / Fees */}
-      <Section title="Rounding, Taxes & Fees" desc="Applied to the final customer total." onSave={() => saveHome("rounding")} saving={savingSection === "rounding"} dirty={homeSectionDirty("rounding") || strDirty}>
+      <Section title="Rounding, Taxes & Fees" desc="Applied to the final customer total." onSave={saveRounding} saving={savingSection === "rounding"} dirty={homeSectionDirty("rounding") || strRoundingDirty}>
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">Tax rate (%)</label>

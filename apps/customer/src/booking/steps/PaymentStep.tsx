@@ -308,6 +308,8 @@ export function PaymentStep() {
   const subscriptionCadence = useBookingStore((s) => s.subscriptionCadence);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [intentLoading, setIntentLoading] = useState(false);
+  const [intentError, setIntentError] = useState(false);
+  const [intentAttempt, setIntentAttempt] = useState(0);
   const [dark, setDark] = useState(() => isDarkMode());
   // Authoritative amount (dollars) from the server's PaymentIntent — this is
   // exactly what the card is charged. The client-side quote is only a fallback
@@ -335,27 +337,40 @@ export function PaymentStep() {
   }, []);
 
   // Create Stripe payment intent using the DB booking ID set by ReviewStep.
+  // If this fails we must NOT fall through to the demo checkout (which would let
+  // a booking "complete" without collecting payment) — we surface a retry.
   useEffect(() => {
-    if (!bookingId) return;
+    if (!bookingId || !stripePromise) return;
+    let cancelled = false;
     setIntentLoading(true);
-    getToken().then((token) => {
-      fetch(`${API_URL}/payments/create-intent`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ bookingId }),
-      })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((data: { clientSecret?: string; amount?: number } | null) => {
-          if (data?.clientSecret) setClientSecret(data.clientSecret);
-          if (typeof data?.amount === "number") setServerAmount(data.amount / 100);
-        })
-        .catch(() => {/* clientSecret stays null → DemoCheckout renders */})
-        .finally(() => setIntentLoading(false));
-    });
-  }, [bookingId, getToken]);
+    setIntentError(false);
+    (async () => {
+      try {
+        const token = await getToken();
+        const r = await fetch(`${API_URL}/payments/create-intent`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ bookingId }),
+        });
+        if (!r.ok) throw new Error(`create-intent ${r.status}`);
+        const data = (await r.json()) as { clientSecret?: string; amount?: number };
+        if (cancelled) return;
+        if (data.clientSecret) setClientSecret(data.clientSecret);
+        else throw new Error("no client secret");
+        if (typeof data.amount === "number") setServerAmount(data.amount / 100);
+      } catch {
+        if (!cancelled) setIntentError(true);
+      } finally {
+        if (!cancelled) setIntentLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [bookingId, getToken, intentAttempt]);
 
   const options = useMemo(
     () =>
@@ -394,7 +409,22 @@ export function PaymentStep() {
             <Elements stripe={stripePromise} options={options}>
               <CheckoutForm total={chargedPrice} />
             </Elements>
+          ) : stripePromise && intentError ? (
+            // Live Stripe is configured but we couldn't start payment — NEVER
+            // show the demo checkout here (it would let the order finish unpaid).
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-900/40 dark:bg-red-900/10">
+              <p className="text-sm font-semibold text-red-800 dark:text-red-300">
+                {t("booking.payment.couldNotStart", { defaultValue: "We couldn't start payment" })}
+              </p>
+              <p className="mt-1 text-sm text-red-700 dark:text-red-400">
+                {t("booking.payment.couldNotStartBody", { defaultValue: "Your booking is saved and hasn't been charged. Please try again." })}
+              </p>
+              <Button className="mt-4" onClick={() => setIntentAttempt((n) => n + 1)}>
+                {t("common.tryAgain", { defaultValue: "Try again" })}
+              </Button>
+            </div>
           ) : (
+            // Reached only when no publishable key is configured (dev/demo).
             <DemoCheckout total={chargedPrice} />
           )}
         </div>
