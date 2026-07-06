@@ -282,6 +282,59 @@ rentalsRouter.delete("/calendars/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+// ── Review-first approval: book a pending turnaround ─────────────────────────
+rentalsRouter.post("/reservations/:id/book", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const id = c.req.param("id");
+  const customerId = await resolveCustomerId(c);
+  if (!customerId) return c.json({ error: "No customer" }, 400);
+
+  const rows = (await sql`
+    SELECT r.id, r.property_id, r.checkout_date::text AS checkout_date, r.cleaning_status,
+           p.active
+    FROM imported_calendar_reservations r
+    JOIN short_term_rental_properties p ON p.id = r.property_id
+    WHERE r.id = ${id} AND p.customer_id = ${customerId}
+    LIMIT 1
+  `) as Array<{ id: string; property_id: string; checkout_date: string; cleaning_status: string; active: boolean }>;
+  const resv = rows[0];
+  if (!resv) return c.json({ error: "Not found" }, 404);
+  if (resv.cleaning_status !== "pending") {
+    return c.json({ error: "already_handled", message: "This turnover is already booked or dismissed." }, 409);
+  }
+  if (!resv.active) {
+    return c.json({ error: "not_enrolled", message: "Enroll this property before booking turnovers." }, 400);
+  }
+
+  const { createTurnaroundBooking } = await import("../lib/calendarSync");
+  const bookingId = await createTurnaroundBooking(sql, resv.property_id, resv.checkout_date);
+  if (!bookingId) return c.json({ error: "booking_failed", message: "We couldn't book this turnover. Please try again." }, 500);
+  await sql`
+    UPDATE imported_calendar_reservations
+    SET cleaning_status = 'scheduled', booking_id = ${bookingId}, updated_at = NOW()
+    WHERE id = ${resv.id}
+  `;
+  return c.json({ ok: true, bookingId });
+});
+
+// Dismiss a pending turnover (host doesn't want a clean for this checkout).
+rentalsRouter.post("/reservations/:id/skip", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const id = c.req.param("id");
+  const customerId = await resolveCustomerId(c);
+  if (!customerId) return c.json({ error: "No customer" }, 400);
+  const rows = (await sql`
+    UPDATE imported_calendar_reservations r
+    SET cleaning_status = 'skipped', updated_at = NOW()
+    FROM short_term_rental_properties p
+    WHERE r.id = ${id} AND r.property_id = p.id AND p.customer_id = ${customerId}
+      AND r.cleaning_status = 'pending'
+    RETURNING r.id
+  `) as { id: string }[];
+  if (!rows[0]) return c.json({ error: "Not found" }, 404);
+  return c.json({ ok: true });
+});
+
 // ── Derived reservations (turnovers) ─────────────────────────────────────────
 rentalsRouter.get("/reservations", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);

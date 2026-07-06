@@ -33,8 +33,8 @@ export function RentalIntroStep() {
           },
           {
             icon: ShieldCheck,
-            title: "$20/mo per property",
-            body: "Plus a flat turnaround fee per clean. No surprises — you see the total before it books.",
+            title: "Simple monthly subscription",
+            body: "A low monthly fee per enrolled property plus a flat turnaround fee per clean — you see both before you enroll, and nothing books without your say-so.",
           },
         ].map(({ icon: Icon, title, body }) => (
           <li key={title} className="flex gap-3">
