@@ -166,10 +166,18 @@ function computeLevelSurchargeCents(
 
 /** True if `err` is the unique-violation from migration 062's dedupe index. */
 function isDuplicateBookingViolation(err: unknown): boolean {
-  const e = err as { code?: string; constraint?: string; message?: string } | null;
-  if (!e) return false;
-  if (e.constraint === "uq_bookings_customer_slot_active") return true;
-  return e.code === "23505" && /uq_bookings_customer_slot_active/.test(e.message ?? "");
+  // The Neon serverless driver often wraps the underlying Postgres error and
+  // exposes code/constraint on a nested `.cause`, so walk the chain (up to 5
+  // deep) rather than only inspecting the top-level error — otherwise a real
+  // duplicate-slot conflict is not recognized and surfaces as a 500.
+  let cur: unknown = err;
+  for (let depth = 0; cur != null && depth < 5; depth++) {
+    const e = cur as { code?: string; constraint?: string; message?: string; cause?: unknown };
+    if (e.constraint === "uq_bookings_customer_slot_active") return true;
+    if (/uq_bookings_customer_slot_active/.test(e.message ?? "")) return true;
+    cur = e.cause;
+  }
+  return false;
 }
 
 // Customers may only cancel via the status endpoint.
