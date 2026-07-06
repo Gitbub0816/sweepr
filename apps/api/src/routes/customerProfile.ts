@@ -192,7 +192,7 @@ customerProfileRouter.get("/addresses", async (c) => {
   if (!user) return c.json({ addresses: [] });
 
   const rows = (await sql`
-    SELECT id, label, street AS line1, unit, city, state, zip, lat, lng, is_default
+    SELECT id, label, street AS line1, unit, city, state, zip, lat, lng, is_default, property_type
     FROM addresses
     WHERE user_id = ${user.id}
     ORDER BY is_default DESC, created_at DESC
@@ -207,6 +207,7 @@ customerProfileRouter.get("/addresses", async (c) => {
     lat: number | null;
     lng: number | null;
     is_default: boolean;
+    property_type: string;
   }>;
 
   return c.json({
@@ -221,8 +222,50 @@ customerProfileRouter.get("/addresses", async (c) => {
       lat: a.lat ?? undefined,
       lng: a.lng ?? undefined,
       isDefault: a.is_default,
+      propertyType: a.property_type,
     })),
   });
+});
+
+// ─── PATCH /addresses/:id ────────────────────────────────────────────────────
+const addressPatchSchema = z.object({
+  label: z.string().max(50).nullable().optional(),
+  propertyType: z.enum(["home", "short_term_rental"]).optional(),
+  makeDefault: z.boolean().optional(),
+});
+customerProfileRouter.patch("/addresses/:id", zValidator("json", addressPatchSchema), async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const user = await getUserByClerkId(sql, c.get("user").clerkId);
+  if (!user) return c.json({ error: "Not found" }, 404);
+  const id = c.req.param("id");
+  const input = c.req.valid("json");
+
+  const owns = (await sql`SELECT 1 FROM addresses WHERE id = ${id} AND user_id = ${user.id} LIMIT 1`) as unknown[];
+  if (!owns.length) return c.json({ error: "Not found" }, 404);
+
+  if (input.label !== undefined)
+    await sql`UPDATE addresses SET label = ${input.label} WHERE id = ${id}`;
+  if (input.propertyType)
+    await sql`UPDATE addresses SET property_type = ${input.propertyType} WHERE id = ${id}`;
+  if (input.makeDefault) {
+    await sql`UPDATE addresses SET is_default = false WHERE user_id = ${user.id}`;
+    await sql`UPDATE addresses SET is_default = true WHERE id = ${id}`;
+    await sql`UPDATE customers SET default_address_id = ${id} WHERE user_id = ${user.id}`;
+  }
+  return c.json({ ok: true });
+});
+
+// ─── DELETE /addresses/:id ───────────────────────────────────────────────────
+customerProfileRouter.delete("/addresses/:id", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const user = await getUserByClerkId(sql, c.get("user").clerkId);
+  if (!user) return c.json({ error: "Not found" }, 404);
+  const id = c.req.param("id");
+  const rows = (await sql`
+    DELETE FROM addresses WHERE id = ${id} AND user_id = ${user.id} RETURNING id
+  `) as { id: string }[];
+  if (!rows[0]) return c.json({ error: "Not found" }, 404);
+  return c.json({ ok: true });
 });
 
 // ─── POST /addresses ──────────────────────────────────────────────────────────
@@ -235,6 +278,7 @@ const addressSchema = z.object({
   lat: z.number().optional(),
   lng: z.number().optional(),
   label: z.string().max(50).optional(),
+  propertyType: z.enum(["home", "short_term_rental"]).optional(),
   makeDefault: z.boolean().optional(),
 });
 
@@ -268,7 +312,7 @@ customerProfileRouter.post("/addresses", zValidator("json", addressSchema), asyn
     }
 
     const rows = (await sql`
-      INSERT INTO addresses (user_id, label, street, unit, city, state, zip, lat, lng, is_default)
+      INSERT INTO addresses (user_id, label, street, unit, city, state, zip, lat, lng, is_default, property_type)
       VALUES (
         ${user.id},
         ${input.label ?? null},
@@ -279,7 +323,8 @@ customerProfileRouter.post("/addresses", zValidator("json", addressSchema), asyn
         ${input.zip},
         ${input.lat ?? null},
         ${input.lng ?? null},
-        ${makeDefault}
+        ${makeDefault},
+        ${input.propertyType ?? "home"}
       )
       RETURNING id
     `) as Array<{ id: string }>;

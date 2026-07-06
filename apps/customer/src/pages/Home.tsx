@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom";
-import { ArrowRight, CalendarClock, Repeat, Sparkles, Home as HomeIcon, Truck, RotateCcw } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowRight, CalendarClock, Repeat, Home as HomeIcon, RotateCcw, KeyRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { StatusBadge } from "@sweepr/ui";
 import { formatCurrency, formatDateTime } from "@sweepr/utils";
@@ -8,17 +8,24 @@ import { useBookingStore } from "../store/booking";
 
 const DRAFT_TTL_MS = 48 * 60 * 60 * 1000;
 
-const suggested = [
-  { type: "standard" as const, icon: HomeIcon },
-  { type: "deep" as const, icon: Sparkles },
-  { type: "move_in_out" as const, icon: Truck },
-  { type: "recurring" as const, icon: Repeat },
-];
-
 export function Home() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { bookings } = useBookings();
   const draft = useBookingStore();
+  const setIntent = useBookingStore((s) => s.setIntent);
+
+  // Start a booking with a chosen intent. Remember it so the choice persists as
+  // the default for next time (customers who only ever do one kind skip the ask).
+  function beginBooking(intent: "home" | "short_term_rental") {
+    setIntent(intent);
+    try {
+      localStorage.setItem("sweepr-preferred-intent", intent);
+    } catch {
+      /* ignore storage errors */
+    }
+    navigate(intent === "home" ? "/book/address" : "/book/rental");
+  }
   const hasDraft =
     !!draft.serviceType &&
     !draft.bookingId &&
@@ -109,32 +116,50 @@ export function Home() {
         </div>
       )}
 
-      {/* Suggested services */}
+      {/* Get a cleaning — two entry paths (no service types up front) */}
       <h2 className="mt-10 text-lg font-black text-charcoal dark:text-white">
-        {t("home.bookACleaning")}
+        {t("home.getACleaning", { defaultValue: "Get a cleaning" })}
       </h2>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        {suggested.map((s) => (
-          <Link
-            key={s.type}
-            to="/book/address"
-            className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-seafoam-300 dark:border-slate-700 dark:bg-slate-900"
-            style={{ borderLeft: "6px solid #14b8a6" }}
-          >
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-seafoam-50 text-seafoam-700 dark:bg-slate-800">
-              <s.icon className="h-6 w-6" />
-            </div>
-            <div className="flex-1">
-              <p className="font-black text-charcoal dark:text-white">
-                {t(`serviceTypes.${s.type}`)}
-              </p>
-              <p className="text-sm text-slate-500">{t("home.getAnInstantQuote")}</p>
-            </div>
-            <ArrowRight className="h-5 w-5 text-slate-300" />
-          </Link>
-        ))}
+        <GetCleaningCard
+          icon={HomeIcon}
+          title={t("home.needHomeCleaned", { defaultValue: "I need my home cleaned" })}
+          onClick={() => beginBooking("home")}
+        />
+        <GetCleaningCard
+          icon={KeyRound}
+          title={t("home.needRentalCleaned", { defaultValue: "I need my short-term rental cleaned" })}
+          onClick={() => beginBooking("short_term_rental")}
+        />
       </div>
     </div>
+  );
+}
+
+function GetCleaningCard({
+  icon: Icon,
+  title,
+  onClick,
+}: {
+  icon: typeof HomeIcon;
+  title: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-seafoam-300 dark:border-slate-700 dark:bg-slate-900"
+      style={{ borderLeft: "6px solid #14b8a6" }}
+    >
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-seafoam-50 text-seafoam-700 dark:bg-slate-800">
+        <Icon className="h-6 w-6" />
+      </div>
+      <div className="flex-1">
+        <p className="font-black text-charcoal dark:text-white">{title}</p>
+      </div>
+      <ArrowRight className="h-5 w-5 text-slate-300" />
+    </button>
   );
 }
 
