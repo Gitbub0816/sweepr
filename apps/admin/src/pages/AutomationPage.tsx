@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
+import { AssignmentConfigCard } from "../components/AssignmentConfigCard";
 import {
   Zap, Users, CreditCard, Wallet, Bell, AlertTriangle,
   RefreshCw, Play, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp,
@@ -140,6 +141,9 @@ export function AutomationPage() {
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
         </button>
       </div>
+
+      <AssignmentConfigCard />
+
 
       {toast && (
         <div className={`rounded-xl px-4 py-3 text-sm flex items-start gap-2 ${toast.ok ? "bg-emerald-50 border border-emerald-200 text-emerald-700" : "bg-red-50 border border-red-200 text-red-600"}`}>

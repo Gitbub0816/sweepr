@@ -145,14 +145,14 @@ export interface MatchScore {
  * Efraimidis–Spirakis weighted sampling without replacement, so the whole
  * cascade order (not just position 1) is a single weighted draw.
  */
-export function weightedAssignmentOrder(scores: MatchScore[]): MatchScore[] {
+export function weightedAssignmentOrder(scores: MatchScore[], floor = 0.35): MatchScore[] {
   if (scores.length <= 1) return [...scores];
   // FLOOR keeps it "largely up to chance": even the lowest-scoring eligible
-  // cleaner samples with weight 0.35 vs a perfect match at 1.0 — a lean, not a
-  // lock. Normalize against the ABSOLUTE max score (not the pool's spread) so
-  // that two near-equal cleaners get near-equal odds and a lone weak candidate
-  // isn't artificially inflated to the top of its own tiny pool.
-  const FLOOR = 0.35;
+  // cleaner samples with weight `floor` vs a perfect match at 1.0 — a lean, not
+  // a lock (admin-tunable). Normalize against the ABSOLUTE max score (not the
+  // pool's spread) so two near-equal cleaners get near-equal odds and a lone
+  // weak candidate isn't artificially inflated to the top of its own tiny pool.
+  const FLOOR = Math.max(0, Math.min(0.9, floor));
   return scores
     .map((s) => {
       const norm = Math.max(0, Math.min(1, s.score / MAX_MATCH_SCORE)); // 0..1

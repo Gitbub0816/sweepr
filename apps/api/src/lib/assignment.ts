@@ -7,10 +7,9 @@ import {
 import { logger } from "./logger";
 import { AppError } from "./errors";
 import { checkInsurance } from "./cleanerRequirements";
+import { loadMatchingConfig } from "./matchingConfig";
 import { OFFER_EXPIRY_MINUTES } from "./constants";
 import { sendNotification } from "./notifications";
-
-const MAX_CANDIDATES = 5;
 
 /** Notify a cleaner (by cleaner id) about a job offer. */
 async function notifyCleaner(
@@ -68,8 +67,9 @@ async function offerPosition(
   const candidate = rows[0];
   if (!candidate) return false;
 
+  const { offerExpiryMinutes } = await loadMatchingConfig(db);
   const expiresAt = new Date(
-    Date.now() + OFFER_EXPIRY_MINUTES * 60 * 1000
+    Date.now() + offerExpiryMinutes * 60 * 1000
   ).toISOString();
   await db`
     UPDATE assignment_queue SET offered_at = NOW(), expires_at = ${expiresAt}
@@ -104,13 +104,15 @@ export async function initiateAssignment(
     SELECT * FROM cleaners WHERE status IN ('approved', 'active')
   `) as CleanerRow[];
 
+  const cfg = await loadMatchingConfig(sql);
   const eligible = await eligibleCleanersForBooking(booking, cleaners, sql);
   const ranked = await rankCleanersForBooking(booking, eligible, sql);
   // Selection is a weighted-random draw (mostly chance, leaning to the best
   // match) rather than a deterministic top-N — spreads work and lets the
-  // fairness term lift cleaners who are available but rarely picked.
-  const ordered = weightedAssignmentOrder(ranked);
-  const top = ordered.slice(0, MAX_CANDIDATES);
+  // fairness term lift cleaners who are available but rarely picked. The
+  // randomness floor and candidate count are admin-tunable (matching_config).
+  const ordered = weightedAssignmentOrder(ranked, cfg.randomnessFloor);
+  const top = ordered.slice(0, cfg.maxCandidates);
 
   if (top.length === 0) {
     await sql`
@@ -134,7 +136,7 @@ export async function initiateAssignment(
   await sql`UPDATE bookings SET status = 'matching', updated_at = NOW() WHERE id = ${bookingId}`;
 
   const expiresAt = new Date(
-    Date.now() + OFFER_EXPIRY_MINUTES * 60 * 1000
+    Date.now() + cfg.offerExpiryMinutes * 60 * 1000
   ).toISOString();
   for (let i = 0; i < top.length; i++) {
     const candidate = top[i];
@@ -227,17 +229,18 @@ export async function handleOfferResponse(
     return;
   }
 
-  // Declined. Each cleaner gets ONE free decline per day (no acceptance-rate
-  // penalty); a second or later decline that day is penalized and drags down
-  // their acceptance rate — which lowers their odds in future weighted draws.
-  const priorFree = (await sql`
-    SELECT 1 FROM assignment_queue
+  // Declined. Each cleaner gets N free declines per day (no acceptance-rate
+  // penalty, N is admin-tunable, default 1); further declines that day are
+  // penalized and drag down their acceptance rate — which lowers their odds in
+  // future weighted draws.
+  const cfg = await loadMatchingConfig(sql);
+  const freeToday = (await sql`
+    SELECT COUNT(*)::int AS n FROM assignment_queue
     WHERE cleaner_id = ${cleanerId} AND status = 'declined'
       AND declined_free = true
       AND responded_at >= date_trunc('day', NOW())
-    LIMIT 1
-  `) as unknown[];
-  const isFreeDecline = priorFree.length === 0;
+  `) as Array<{ n: number }>;
+  const isFreeDecline = (freeToday[0]?.n ?? 0) < cfg.freeDeclinesPerDay;
 
   const declinedRows = (await sql`
     UPDATE assignment_queue

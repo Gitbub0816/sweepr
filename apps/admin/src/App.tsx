@@ -1,6 +1,9 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { SignInPage } from "./components/SignInPage";
+import { AccessControlPage } from "./pages/AccessControlPage";
+import { usePermissions, ROUTE_SCREEN } from "./lib/permissions";
 import {
+  KeyRound,
   LayoutDashboard,
   Briefcase,
   Users,
@@ -106,23 +109,51 @@ const nav = [
   { to: "/slack", label: "Slack", icon: Slack },
   { to: "/automation", label: "Automation", icon: Zap },
   { to: "/admins", label: "Admin Team", icon: Users2 },
+  { to: "/access-control", label: "Access Control", icon: KeyRound },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
 function Shell({ children }: { children: React.ReactNode }) {
+  const { has } = usePermissions();
+  // Hide nav entries the signed-in admin can't access. (API still enforces.)
+  const visibleNav = nav.filter((n) => {
+    const key = ROUTE_SCREEN[n.to];
+    return !key || has(key);
+  });
   return (
-    <AppShell brand="Admin" accent="Sweepr Ops" nav={nav} headerRight={<NavAuth />}>
+    <AppShell brand="Admin" accent="Sweepr Ops" nav={visibleNav} headerRight={<NavAuth />}>
       {children}
     </AppShell>
   );
 }
 
-/** Auth + admin-role gated page. */
+/** Blocks a page whose screen permission the current admin lacks. */
+function ScreenGate({ children }: { children: React.ReactNode }) {
+  const { pathname } = useLocation();
+  const { loading, has } = usePermissions();
+  // Longest-prefix match so /jobs/:id inherits /jobs's screen key.
+  const match = Object.keys(ROUTE_SCREEN)
+    .filter((r) => pathname === r || (r !== "/" && pathname.startsWith(r + "/")))
+    .sort((a, b) => b.length - a.length)[0];
+  const key = match ? ROUTE_SCREEN[match] : undefined;
+  if (loading || !key || has(key)) return <>{children}</>;
+  return (
+    <div className="mx-auto max-w-md px-4 py-24 text-center">
+      <h1 className="text-lg font-bold text-charcoal dark:text-white">Access restricted</h1>
+      <p className="mt-2 text-sm text-slate-500">
+        You don't have permission to view this screen. Ask an administrator to grant it under
+        Access Control.
+      </p>
+    </div>
+  );
+}
+
+/** Auth + admin-role + per-user-permission gated page. */
 function Guarded({ children }: { children: React.ReactNode }) {
   return (
     <ProtectedRoute>
       <AdminGuard>
-        <Shell>{children}</Shell>
+        <Shell><ScreenGate>{children}</ScreenGate></Shell>
       </AdminGuard>
     </ProtectedRoute>
   );
@@ -187,6 +218,7 @@ export default function App() {
       <Route path="/trust-safety" element={<Guarded><TrustSafetyPage /></Guarded>} />
       <Route path="/automation" element={<Guarded><AutomationPage /></Guarded>} />
       <Route path="/admins" element={<Guarded><AdminsPage /></Guarded>} />
+      <Route path="/access-control" element={<Guarded><AccessControlPage /></Guarded>} />
       <Route path="/settings" element={<Guarded><SettingsPage /></Guarded>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -34,6 +34,7 @@ export type AuditAction =
   | "admin.action"
   | "admin.invite_created"
   | "admin.invite_accepted"
+  | "admin.permissions.updated"
   | "data.export_requested"
   | "data.deleted"; // GDPR
 
