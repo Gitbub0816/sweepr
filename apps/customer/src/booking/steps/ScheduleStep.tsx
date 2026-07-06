@@ -4,7 +4,7 @@ import { useAuth } from "@clerk/clerk-react";
 import { Zap, Repeat, Clock, AlertCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SweeprCalendar } from "@sweepr/ui";
-import { cn, recurringDisplayPrice } from "@sweepr/utils";
+import { cn } from "@sweepr/utils";
 import { useBookingStore } from "../../store/booking";
 import { StepShell } from "../StepShell";
 
@@ -41,7 +41,6 @@ export function ScheduleStep() {
     clearSchedule,
     setArrivalWindow,
     setSubscription,
-    getQuote,
   } = useBookingStore();
 
   const { getToken } = useAuth();
@@ -53,8 +52,6 @@ export function ScheduleStep() {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [slotsError, setSlotsError] = useState<string | null>(null);
 
-  const quote = getQuote();
-  const baseTotal = quote?.total ?? 0;
 
   const cadences = [
     { value: "weekly" as const, label: t("booking.schedule.weekly") },
@@ -279,11 +276,11 @@ export function ScheduleStep() {
           </span>
         </button>
 
+        {/* Cadence picker — no per-visit pricing here; recurring savings are
+            shown with the final total on the review step. */}
         {isSubscription && (
           <div className="mt-4 grid grid-cols-3 gap-2">
             {cadences.map((c) => {
-              const price = recurringDisplayPrice(baseTotal, c.value);
-              const savings = Math.round(baseTotal - price);
               const active = subscriptionCadence === c.value;
               return (
                 <button
@@ -299,12 +296,9 @@ export function ScheduleStep() {
                   <p className="text-sm font-semibold text-charcoal dark:text-white">
                     {c.label}
                   </p>
-                  <p className="text-xs text-seafoam-700">${price}{t("booking.schedule.perVisit")}</p>
-                  {savings > 0 && (
-                    <p className="mt-1 text-[10px] font-medium text-amber-600">
-                      {t("booking.schedule.save", { amount: savings })}
-                    </p>
-                  )}
+                  <p className="text-xs text-seafoam-700">
+                    {t("booking.schedule.recurringDiscount", { defaultValue: "Save on every visit" })}
+                  </p>
                 </button>
               );
             })}

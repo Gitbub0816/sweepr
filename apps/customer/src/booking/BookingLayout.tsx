@@ -1,10 +1,10 @@
 import { useEffect, useRef } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { ThemeToggle, PriceSummary, SweeprLogo, track, Events } from "@sweepr/ui";
+import { MapPin, Home as HomeIcon, Sparkles, CalendarClock } from "lucide-react";
+import { ThemeToggle, SweeprLogo, track, Events } from "@sweepr/ui";
 import { useBookingStore } from "../store/booking";
 import { BOOKING_STEPS, stepIndex } from "./steps";
-import { calculateQuote } from "@sweepr/utils";
 
 export function BookingLayout() {
   const location = useLocation();
@@ -25,14 +25,6 @@ export function BookingLayout() {
     }
     prevIdx.current = idx;
   }, [idx]);
-  const serviceType = useBookingStore((s) => s.serviceType);
-  const home = useBookingStore((s) => s.home);
-  const addOnKeys = useBookingStore((s) => s.addOnKeys);
-  const isEmergency = useBookingStore((s) => s.isEmergency);
-  const cleaningLevel = useBookingStore((s) => s.cleaningLevel);
-  const quote = serviceType
-    ? calculateQuote({ serviceType, home, addOnKeys, isEmergency, cleaningLevel: cleaningLevel ?? undefined })
-    : null;
   const isRebook = useBookingStore((s) => s.isRebook);
   const rebookedFromDate = useBookingStore((s) => s.rebookedFromDate);
 
@@ -97,28 +89,79 @@ export function BookingLayout() {
           </AnimatePresence>
         </div>
 
+        {/* Booking recap — deliberately NO pricing here. The customer sees the
+            final owed amount only on the Review step. */}
         <aside className="hidden lg:block">
-          {quote ? (
-            <PriceSummary quote={quote} />
-          ) : (
-            <div className="sticky top-24 rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500 dark:border-slate-700">
-              Your price will appear here once you pick a service.
-            </div>
-          )}
+          <BookingRecap />
         </aside>
       </main>
+    </div>
+  );
+}
 
-      {/* Mobile price bar */}
-      {quote && (
-        <div className="sticky bottom-0 z-20 border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900 lg:hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-500">Estimated total</span>
-            <span className="text-lg font-bold text-charcoal dark:text-white">
-              ${quote.total.toFixed(2)}
+function BookingRecap() {
+  const address = useBookingStore((s) => s.address);
+  const home = useBookingStore((s) => s.home);
+  const rooms = useBookingStore((s) => s.rooms);
+  const scheduledFor = useBookingStore((s) => s.scheduledFor);
+  const arrivalWindowStart = useBookingStore((s) => s.arrivalWindowStart);
+  const arrivalWindowEnd = useBookingStore((s) => s.arrivalWindowEnd);
+
+  const items: Array<{ icon: typeof MapPin; label: string; value: string }> = [];
+  if (address) {
+    items.push({
+      icon: MapPin,
+      label: "Address",
+      value: [address.line1, address.city].filter(Boolean).join(", "),
+    });
+  }
+  items.push({
+    icon: HomeIcon,
+    label: "Home",
+    value: `${home.bedrooms} bd · ${home.bathrooms} ba · ${home.sqft} sqft`,
+  });
+  if (rooms.length > 0) {
+    items.push({
+      icon: Sparkles,
+      label: "Rooms assessed",
+      value: `${rooms.length} of 4`,
+    });
+  }
+  if (scheduledFor) {
+    const when = new Date(scheduledFor).toLocaleDateString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+    items.push({
+      icon: CalendarClock,
+      label: "Scheduled",
+      value:
+        arrivalWindowStart && arrivalWindowEnd
+          ? `${when}, ${arrivalWindowStart}–${arrivalWindowEnd}`
+          : when,
+    });
+  }
+
+  return (
+    <div className="sticky top-24 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+      <p className="text-sm font-semibold text-charcoal dark:text-white">Your booking</p>
+      <div className="mt-3 space-y-3">
+        {items.map(({ icon: Icon, label, value }) => (
+          <div key={label} className="flex items-start gap-3">
+            <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-lg bg-seafoam-50 text-seafoam-700 dark:bg-slate-800">
+              <Icon className="h-3.5 w-3.5" />
             </span>
+            <div className="min-w-0">
+              <p className="text-xs text-slate-500">{label}</p>
+              <p className="truncate text-sm font-medium text-charcoal dark:text-white">{value}</p>
+            </div>
           </div>
-        </div>
-      )}
+        ))}
+      </div>
+      <p className="mt-4 text-xs text-slate-400">
+        You'll see your total on the review step — one simple price, everything included.
+      </p>
     </div>
   );
 }

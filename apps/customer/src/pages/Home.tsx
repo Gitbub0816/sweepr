@@ -61,7 +61,10 @@ export function Home() {
               {t("home.pickUpWhereYouLeftOff")}
             </p>
             <p className="text-xs text-seafoam-700 dark:text-seafoam-400 truncate">
-              {t(`serviceTypes.${draft.serviceType!}`)} · {t("home.savedDraft")}
+              {draft.intent === "short_term_rental"
+                ? t("home.rentalCleaning", { defaultValue: "Rental turnover" })
+                : t("home.homeCleaning", { defaultValue: "Home cleaning" })}{" "}
+              · {t("home.savedDraft")}
             </p>
           </div>
           <ArrowRight className="h-5 w-5 text-seafoam-500 flex-shrink-0" />
