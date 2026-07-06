@@ -75,12 +75,14 @@ adminMailRouter.get("/boxes", async (c) => {
 
   const counts = (await sql`
     SELECT mailbox,
-           COUNT(*) FILTER (WHERE direction = 'inbound' AND read_at IS NULL)::int AS unread,
-           COUNT(*)::int AS total
+           COUNT(*) FILTER (WHERE direction = 'inbound' AND read_at IS NULL AND archived_at IS NULL)::int AS unread,
+           COUNT(*)::int AS total,
+           COUNT(*) FILTER (WHERE direction = 'inbound' AND archived_at IS NULL)::int AS inbox_count,
+           COUNT(*) FILTER (WHERE direction = 'outbound')::int AS sent_count
     FROM mailbox_messages
     WHERE mailbox = ANY(${boxes})
     GROUP BY mailbox
-  `) as Array<{ mailbox: string; unread: number; total: number }>;
+  `) as Array<{ mailbox: string; unread: number; total: number; inbox_count: number; sent_count: number }>;
   const byBox = new Map(counts.map((r) => [r.mailbox, r]));
 
   return c.json({
@@ -90,11 +92,16 @@ adminMailRouter.get("/boxes", async (c) => {
       name: BOX_NAMES[b],
       unread: byBox.get(b)?.unread ?? 0,
       total: byBox.get(b)?.total ?? 0,
+      inboxCount: byBox.get(b)?.inbox_count ?? 0,
+      sentCount: byBox.get(b)?.sent_count ?? 0,
     })),
   });
 });
 
 // ─── Messages ─────────────────────────────────────────────────────────────────
+
+const FOLDERS = ["inbox", "sent", "archive"] as const;
+type Folder = (typeof FOLDERS)[number];
 
 adminMailRouter.get("/:box/messages", async (c) => {
   const box = c.req.param("box");
@@ -106,20 +113,38 @@ adminMailRouter.get("/:box/messages", async (c) => {
   const boxes = await accessibleBoxes(sql, user, clerkId, c.env);
   if (!boxes.includes(box as Mailbox)) return c.json({ error: "Forbidden" }, 403);
 
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "100", 10), 300);
-  const offset = parseInt(c.req.query("offset") ?? "0", 10);
+  const folderParam = c.req.query("folder");
+  const folder: Folder = (FOLDERS as readonly string[]).includes(folderParam ?? "")
+    ? (folderParam as Folder)
+    : "inbox";
+  const q = c.req.query("q")?.trim();
+  const limit = Math.min(parseInt(c.req.query("limit") ?? "50", 10) || 50, 300);
+  const offset = parseInt(c.req.query("offset") ?? "0", 10) || 0;
+
+  // folder: inbox = inbound + not archived; sent = outbound; archive = archived_at set.
+  const folderCond =
+    folder === "sent"
+      ? sql`m.direction = 'outbound'`
+      : folder === "archive"
+        ? sql`m.archived_at IS NOT NULL`
+        : sql`m.direction = 'inbound' AND m.archived_at IS NULL`;
+
+  const searchCond = q
+    ? sql`AND (m.subject ILIKE ${`%${q}%`} OR m.body_text ILIKE ${`%${q}%`}
+           OR m.sender_email ILIKE ${`%${q}%`} OR m.to_email ILIKE ${`%${q}%`})`
+    : sql``;
 
   const messages = await sql`
-    SELECT m.id, m.direction, m.sender_email, m.sender_name, m.to_email,
-           m.subject, m.body_text, m.in_reply_to, m.read_at, m.created_at,
+    SELECT m.id, m.direction, m.sender_email, m.sender_name, m.to_email, m.cc_email,
+           m.subject, m.body_text, m.in_reply_to, m.read_at, m.archived_at, m.created_at,
            u.email AS sent_by_email
     FROM mailbox_messages m
     LEFT JOIN users u ON u.id = m.sent_by
-    WHERE m.mailbox = ${box}
+    WHERE m.mailbox = ${box} AND ${folderCond} ${searchCond}
     ORDER BY m.created_at DESC
     LIMIT ${limit} OFFSET ${offset}
   `;
-  return c.json({ messages, limit, offset });
+  return c.json({ messages, limit, offset, folder });
 });
 
 adminMailRouter.post("/:box/messages/:id/read", async (c) => {
@@ -141,10 +166,50 @@ adminMailRouter.post("/:box/messages/:id/read", async (c) => {
   return c.json({ ok: true });
 });
 
+adminMailRouter.post("/:box/messages/:id/unread", async (c) => {
+  const { box, id } = c.req.param();
+  const sql = getDb(c.env.DATABASE_URL);
+  const clerkId = c.get("user").clerkId;
+  const user = (await getUserByClerkId(sql, clerkId)) as DbUser | null;
+  if (!user) return c.json({ error: "User not found" }, 404);
+  const boxes = await accessibleBoxes(sql, user, clerkId, c.env);
+  if (!boxes.includes(box as Mailbox)) return c.json({ error: "Forbidden" }, 403);
+
+  await sql`UPDATE mailbox_messages SET read_at = NULL WHERE id = ${id} AND mailbox = ${box}`;
+  return c.json({ ok: true });
+});
+
+adminMailRouter.post("/:box/messages/:id/archive", async (c) => {
+  const { box, id } = c.req.param();
+  const sql = getDb(c.env.DATABASE_URL);
+  const clerkId = c.get("user").clerkId;
+  const user = (await getUserByClerkId(sql, clerkId)) as DbUser | null;
+  if (!user) return c.json({ error: "User not found" }, 404);
+  const boxes = await accessibleBoxes(sql, user, clerkId, c.env);
+  if (!boxes.includes(box as Mailbox)) return c.json({ error: "Forbidden" }, 403);
+
+  await sql`UPDATE mailbox_messages SET archived_at = NOW() WHERE id = ${id} AND mailbox = ${box}`;
+  return c.json({ ok: true });
+});
+
+adminMailRouter.post("/:box/messages/:id/unarchive", async (c) => {
+  const { box, id } = c.req.param();
+  const sql = getDb(c.env.DATABASE_URL);
+  const clerkId = c.get("user").clerkId;
+  const user = (await getUserByClerkId(sql, clerkId)) as DbUser | null;
+  if (!user) return c.json({ error: "User not found" }, 404);
+  const boxes = await accessibleBoxes(sql, user, clerkId, c.env);
+  if (!boxes.includes(box as Mailbox)) return c.json({ error: "Forbidden" }, 403);
+
+  await sql`UPDATE mailbox_messages SET archived_at = NULL WHERE id = ${id} AND mailbox = ${box}`;
+  return c.json({ ok: true });
+});
+
 // ─── Send / reply ─────────────────────────────────────────────────────────────
 
 const sendSchema = z.object({
   to: z.string().email(),
+  cc: z.string().email().optional(),
   subject: z.string().min(1).max(300),
   body: z.string().min(1).max(50_000),
   inReplyTo: z.string().uuid().optional(),
@@ -152,7 +217,7 @@ const sendSchema = z.object({
 
 adminMailRouter.post("/:box/send", zValidator("json", sendSchema), async (c) => {
   const box = c.req.param("box");
-  const { to, subject, body } = c.req.valid("json");
+  const { to, cc, subject, body } = c.req.valid("json");
   const inReplyTo = c.req.valid("json").inReplyTo ?? null;
   const sql = getDb(c.env.DATABASE_URL);
   const clerkId = c.get("user").clerkId;
@@ -171,6 +236,9 @@ adminMailRouter.post("/:box/send", zValidator("json", sendSchema), async (c) => 
       html: wrapBodyInTemplate(subject, body),
       from: { email: `${box}@getsweepr.com`, name: BOX_NAMES[box as Mailbox] },
       replyTo: { email: `${box}@getsweepr.com`, name: BOX_NAMES[box as Mailbox] },
+      // This route already records its own richer outbound row (with cc,
+      // in_reply_to, sent_by) below — skip mailer.ts's generic auto-insert.
+      recordOutbound: false,
     });
   } catch (err) {
     logger.error("admin mail send failed", err, { box, to });
@@ -179,10 +247,10 @@ adminMailRouter.post("/:box/send", zValidator("json", sendSchema), async (c) => 
 
   const rows = (await sql`
     INSERT INTO mailbox_messages
-      (mailbox, direction, sender_email, sender_name, to_email, subject, body_text, in_reply_to, sent_by, read_at)
+      (mailbox, direction, sender_email, sender_name, to_email, cc_email, subject, body_text, in_reply_to, sent_by, read_at)
     VALUES
       (${box}, 'outbound', ${`${box}@getsweepr.com`}, ${BOX_NAMES[box as Mailbox]},
-       ${to}, ${subject}, ${body}, ${inReplyTo}, ${user.id}, NOW())
+       ${to}, ${cc ?? null}, ${subject}, ${body}, ${inReplyTo}, ${user.id}, NOW())
     RETURNING id
   `) as Array<{ id: string }>;
 

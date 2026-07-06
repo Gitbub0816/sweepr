@@ -3,6 +3,7 @@ import { verifyToken } from "@clerk/backend";
 import { upsertUser } from "@sweepr/db";
 import { getDb } from "../lib/db";
 import { isOwnerEmail, isOwnerClerkId } from "../lib/owner";
+import { captureFromContext } from "../lib/securityEvents";
 import type { AppBindings } from "../types";
 
 // CSRF note: this API uses Authorization: Bearer tokens, not cookies.
@@ -63,6 +64,11 @@ export const requireAuth = createMiddleware<AppBindings>(async (c, next) => {
     email = (payload as { email?: string }).email;
     c.set("user", { clerkId, email });
   } catch {
+    // Malformed/invalid/expired Bearer token — a real signal (unlike a
+    // merely-missing token, which is just an unauthenticated probe). Record
+    // it so repeated failures against this endpoint show up in the security
+    // console and can trip the brute-force escalation.
+    captureFromContext(c, "auth_failure", "low", { reason: "invalid_or_expired_token" });
     return c.json({ error: "Invalid token" }, 401);
   }
 

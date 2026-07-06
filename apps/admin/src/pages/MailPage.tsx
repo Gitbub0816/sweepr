@@ -1,41 +1,39 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
-import { Card, Button, Input, toast, CardListSkeleton } from "@sweepr/ui";
-import { Inbox, Send, RotateCw, Reply, PenSquare, ShieldCheck, Trash2, MailOpen, Mail as MailIcon } from "lucide-react";
+import { Card, Button, toast, CardListSkeleton } from "@sweepr/ui";
+import { Inbox, RotateCw, ShieldCheck, Trash2 } from "lucide-react";
+import { MailboxList } from "../components/mail/MailboxList";
+import { MessageList } from "../components/mail/MessageList";
+import { ReadingPane } from "../components/mail/ReadingPane";
+import { ComposeModal } from "../components/mail/ComposeModal";
+import { EMPTY_COMPOSE, type Box, type ComposeState, type Folder, type Grant, type AdminUser, type Message } from "../components/mail/types";
+import { quoteBody } from "../components/mail/utils";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
-
-interface Box { id: string; address: string; name: string; unread: number; total: number }
-interface Message {
-  id: string;
-  direction: "inbound" | "outbound";
-  sender_email: string;
-  sender_name: string | null;
-  to_email: string | null;
-  subject: string;
-  body_text: string;
-  in_reply_to: string | null;
-  read_at: string | null;
-  created_at: string;
-  sent_by_email: string | null;
-}
-interface Grant { id: string; user_id: string; mailbox: string; email: string; granted_by_email: string | null }
-interface AdminUser { id: string; email: string; role: string; admin_role: string | null }
+const PAGE_SIZE = 50;
 
 export function MailPage() {
   const { getToken } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const [boxes, setBoxes] = useState<Box[]>([]);
   const [activeBox, setActiveBox] = useState<string | null>(null);
+  const [activeFolder, setActiveFolder] = useState<Folder>("inbox");
   const [messages, setMessages] = useState<Message[]>([]);
   const [selected, setSelected] = useState<Message | null>(null);
   const [loading, setLoading] = useState(true);
+  const [listLoading, setListLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [query, setQuery] = useState("");
 
-  // Compose state (doubles as reply when replyTo is set)
-  const [composeOpen, setComposeOpen] = useState(false);
-  const [replyTo, setReplyTo] = useState<Message | null>(null);
-  const [to, setTo] = useState("");
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
+  // Best-effort cache of every message we've ever fetched, across boxes/folders,
+  // used to resolve thread parents (no dedicated "get message by id" endpoint exists).
+  const messageCacheRef = useRef<Map<string, Message>>(new Map());
+  const [parent, setParent] = useState<Message | null>(null);
+
+  const [compose, setCompose] = useState<ComposeState>(EMPTY_COMPOSE);
   const [sending, setSending] = useState(false);
 
   // Permissions (super_admin only — section hides itself on 403)
@@ -44,6 +42,8 @@ export function MailPage() {
   const [permBoxes, setPermBoxes] = useState<string[]>([]);
   const [grantUser, setGrantUser] = useState("");
   const [grantBox, setGrantBox] = useState("");
+
+  const deepLinkHandled = useRef(false);
 
   const authed = useCallback(async (path: string, init?: RequestInit) => {
     const token = await getToken();
@@ -54,7 +54,7 @@ export function MailPage() {
   }, [getToken]);
 
   const loadBoxes = useCallback(async () => {
-    const res = await authed("/admin/mail/boxes");
+    const res = await authed("/admin-mail/boxes");
     if (!res.ok) { setLoading(false); return; }
     const data = (await res.json()) as { boxes: Box[] };
     setBoxes(data.boxes);
@@ -62,11 +62,21 @@ export function MailPage() {
     setLoading(false);
   }, [authed]);
 
-  const loadMessages = useCallback(async (box: string) => {
-    const res = await authed(`/admin/mail/${box}/messages`);
-    if (!res.ok) return;
-    const data = (await res.json()) as { messages: Message[] };
-    setMessages(data.messages);
+  const loadMessages = useCallback(async (box: string, folder: Folder, q: string, offset: number, append: boolean) => {
+    if (append) setLoadingMore(true); else setListLoading(true);
+    try {
+      const params = new URLSearchParams({ folder, limit: String(PAGE_SIZE), offset: String(offset) });
+      if (q) params.set("q", q);
+      const res = await authed(`/admin-mail/${box}/messages?${params.toString()}`);
+      if (!res.ok) return;
+      const data = (await res.json()) as { messages: Message[] };
+      for (const m of data.messages) messageCacheRef.current.set(m.id, m);
+      setMessages((prev) => (append ? [...prev, ...data.messages] : data.messages));
+      setHasMore(data.messages.length === PAGE_SIZE);
+    } finally {
+      setListLoading(false);
+      setLoadingMore(false);
+    }
   }, [authed]);
 
   const loadPermissions = useCallback(async () => {
@@ -79,49 +89,161 @@ export function MailPage() {
   }, [authed]);
 
   useEffect(() => { void loadBoxes(); void loadPermissions(); }, [loadBoxes, loadPermissions]);
-  useEffect(() => { if (activeBox) void loadMessages(activeBox); }, [activeBox, loadMessages]);
+  useEffect(() => {
+    if (activeBox) void loadMessages(activeBox, activeFolder, query, 0, false);
+  }, [activeBox, activeFolder, query, loadMessages]);
+
+  // Resolve thread parent for the selected message, from cache only (best effort).
+  useEffect(() => {
+    if (selected?.in_reply_to) {
+      setParent(messageCacheRef.current.get(selected.in_reply_to) ?? null);
+    } else {
+      setParent(null);
+    }
+  }, [selected]);
+
+  // Deep link: ?box=&compose=1&to=&subject=&body=
+  useEffect(() => {
+    if (deepLinkHandled.current) return;
+    if (boxes.length === 0) return;
+    deepLinkHandled.current = true;
+
+    const boxParam = searchParams.get("box");
+    const composeParam = searchParams.get("compose");
+    const to = searchParams.get("to") ?? "";
+    const subject = searchParams.get("subject") ?? "";
+    const body = searchParams.get("body") ?? "";
+
+    let usedBox: string | null = null;
+    if (boxParam && boxes.some((b) => b.id === boxParam)) {
+      setActiveBox(boxParam);
+      usedBox = boxParam;
+    }
+
+    if (composeParam === "1") {
+      setCompose({ ...EMPTY_COMPOSE, open: true, to, subject, body });
+    }
+
+    if (boxParam || composeParam || to || subject || body) {
+      const next = new URLSearchParams(searchParams);
+      for (const key of ["box", "compose", "to", "subject", "body"]) next.delete(key);
+      setSearchParams(next, { replace: true });
+    }
+    void usedBox;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boxes]);
+
+  const activeBoxAddress = useMemo(() => boxes.find((b) => b.id === activeBox)?.address ?? null, [boxes, activeBox]);
 
   async function openMessage(m: Message) {
     setSelected(m);
-    setComposeOpen(false);
     if (m.direction === "inbound" && !m.read_at && activeBox) {
-      await authed(`/admin/mail/${activeBox}/messages/${m.id}/read`, { method: "POST" });
-      setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, read_at: new Date().toISOString() } : x)));
-      setBoxes((prev) => prev.map((b) => (b.id === activeBox ? { ...b, unread: Math.max(0, b.unread - 1) } : b)));
+      await authed(`/admin-mail/${activeBox}/messages/${m.id}/read`, { method: "POST" });
+      const updated = { ...m, read_at: new Date().toISOString() };
+      messageCacheRef.current.set(m.id, updated);
+      setMessages((prev) => prev.map((x) => (x.id === m.id ? updated : x)));
+      setSelected(updated);
+      setBoxes((prev) => prev.map((b) => (b.id === activeBox ? { ...b, unread: Math.max(0, (b.unread ?? 0) - 1) } : b)));
     }
   }
 
-  function startReply(m: Message) {
-    setReplyTo(m);
-    setTo(m.direction === "inbound" ? m.sender_email : (m.to_email ?? ""));
-    setSubject(m.subject.startsWith("Re:") ? m.subject : `Re: ${m.subject}`);
-    setBody("");
-    setComposeOpen(true);
+  async function toggleRead(m: Message) {
+    if (!activeBox) return;
+    const nextRead = !m.read_at;
+    const endpoint = nextRead ? "read" : "unread";
+    const res = await authed(`/admin-mail/${activeBox}/messages/${m.id}/${endpoint}`, { method: "POST" });
+    if (!res.ok) { toast.error("Update failed"); return; }
+    const updated = { ...m, read_at: nextRead ? new Date().toISOString() : null };
+    messageCacheRef.current.set(m.id, updated);
+    setMessages((prev) => prev.map((x) => (x.id === m.id ? updated : x)));
+    if (selected?.id === m.id) setSelected(updated);
+    setBoxes((prev) => prev.map((b) => (b.id === activeBox ? { ...b, unread: Math.max(0, (b.unread ?? 0) + (nextRead ? -1 : 1)) } : b)));
+  }
+
+  async function toggleArchive(m: Message) {
+    if (!activeBox) return;
+    const nextArchived = !m.archived_at;
+    const endpoint = nextArchived ? "archive" : "unarchive";
+    const res = await authed(`/admin-mail/${activeBox}/messages/${m.id}/${endpoint}`, { method: "POST" });
+    if (!res.ok) { toast.error("Update failed"); return; }
+    toast.success(nextArchived ? "Message archived" : "Message restored");
+    const updated = { ...m, archived_at: nextArchived ? new Date().toISOString() : null };
+    messageCacheRef.current.set(m.id, updated);
+    // The item may no longer belong in the current folder view — refresh from server.
+    void loadMessages(activeBox, activeFolder, query, 0, false);
+    if (selected?.id === m.id) setSelected(updated);
   }
 
   function startCompose() {
-    setReplyTo(null);
-    setTo("");
-    setSubject("");
-    setBody("");
-    setSelected(null);
-    setComposeOpen(true);
+    setCompose({ ...EMPTY_COMPOSE, open: true });
+  }
+
+  function startReply(m: Message) {
+    setCompose({
+      open: true,
+      mode: "reply",
+      to: m.direction === "inbound" ? m.sender_email : (m.to_email ?? ""),
+      cc: "",
+      subject: m.subject.toLowerCase().startsWith("re:") ? m.subject : `Re: ${m.subject}`,
+      body: quoteBody(m),
+      inReplyTo: m.id,
+    });
+  }
+
+  function startReplyAll(m: Message) {
+    const to = m.direction === "inbound" ? m.sender_email : (m.to_email ?? "");
+    const ccParts = [m.cc_email, m.direction === "inbound" ? m.to_email : m.sender_email].filter(Boolean) as string[];
+    setCompose({
+      open: true,
+      mode: "reply-all",
+      to,
+      cc: ccParts.join(", "),
+      subject: m.subject.toLowerCase().startsWith("re:") ? m.subject : `Re: ${m.subject}`,
+      body: quoteBody(m),
+      inReplyTo: m.id,
+    });
+  }
+
+  function startForward(m: Message) {
+    setCompose({
+      open: true,
+      mode: "forward",
+      to: "",
+      cc: "",
+      subject: m.subject.toLowerCase().startsWith("fwd:") ? m.subject : `Fwd: ${m.subject}`,
+      body: quoteBody(m),
+    });
+  }
+
+  function closeCompose() {
+    setCompose(EMPTY_COMPOSE);
+  }
+
+  function patchCompose(patch: Partial<ComposeState>) {
+    setCompose((prev) => ({ ...prev, ...patch }));
   }
 
   async function handleSend() {
     if (!activeBox) return;
-    if (!to.trim() || !subject.trim() || !body.trim()) { toast.error("To, subject and body are required"); return; }
     setSending(true);
     try {
-      const res = await authed(`/admin/mail/${activeBox}/send`, {
+      const res = await authed(`/admin-mail/${activeBox}/send`, {
         method: "POST",
-        body: JSON.stringify({ to, subject, body, ...(replyTo ? { inReplyTo: replyTo.id } : {}) }),
+        body: JSON.stringify({
+          to: compose.to,
+          ...(compose.cc.trim() ? { cc: compose.cc } : {}),
+          subject: compose.subject,
+          body: compose.body,
+          ...(compose.inReplyTo ? { inReplyTo: compose.inReplyTo } : {}),
+        }),
       });
-      const data = (await res.json()) as { ok?: boolean; error?: string; detail?: string };
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; detail?: string };
       if (!res.ok) throw new Error(data.detail ?? data.error ?? "Send failed");
-      toast.success(`Sent from ${activeBox}@getsweepr.com`);
-      setComposeOpen(false);
-      void loadMessages(activeBox);
+      toast.success(`Sent from ${activeBoxAddress ?? activeBox}`);
+      closeCompose();
+      setActiveFolder("sent");
+      setQuery("");
+      void loadMessages(activeBox, "sent", "", 0, false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Send failed");
     } finally {
@@ -144,7 +266,16 @@ export function MailPage() {
     if (res.ok) { toast.success("Access revoked"); void loadPermissions(); }
   }
 
-  const fmtDate = (s: string) => new Date(s).toLocaleString();
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        if (compose.open) closeCompose();
+        else if (selected) setSelected(null);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [compose.open, selected]);
 
   if (loading) return <div className="p-6"><CardListSkeleton rows={4} /></div>;
 
@@ -158,121 +289,67 @@ export function MailPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="flex h-full flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-charcoal dark:text-white">Mail</h1>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => { void loadBoxes(); if (activeBox) void loadMessages(activeBox); }}>
-            <RotateCw className="mr-1 h-4 w-4" /> Refresh
-          </Button>
-          <Button onClick={startCompose}>
-            <PenSquare className="mr-1 h-4 w-4" /> Compose
-          </Button>
+        <Button
+          variant="secondary"
+          onClick={() => { void loadBoxes(); if (activeBox) void loadMessages(activeBox, activeFolder, query, 0, false); }}
+        >
+          <RotateCw className="mr-1 h-4 w-4" aria-hidden="true" /> Refresh
+        </Button>
+      </div>
+
+      <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-12 lg:overflow-hidden">
+        <div className="lg:col-span-3 lg:h-full lg:overflow-hidden">
+          <MailboxList
+            boxes={boxes}
+            activeBox={activeBox}
+            activeFolder={activeFolder}
+            onSelectBox={(id) => { setActiveBox(id); setActiveFolder("inbox"); setSelected(null); setQuery(""); }}
+            onSelectFolder={(f) => { setActiveFolder(f); setSelected(null); }}
+            onCompose={startCompose}
+          />
         </div>
-      </div>
 
-      <div className="grid grid-cols-12 gap-4">
-        {/* Mailbox list */}
-        <Card className="col-span-3 p-2">
-          {boxes.map((b) => (
-            <button
-              key={b.id}
-              onClick={() => { setActiveBox(b.id); setSelected(null); setComposeOpen(false); }}
-              className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm ${
-                activeBox === b.id ? "bg-seafoam-100 font-semibold text-seafoam-900 dark:bg-seafoam-900/30 dark:text-seafoam-100" : "hover:bg-slate-50 dark:hover:bg-slate-800"
-              }`}
-            >
-              <span className="truncate">
-                <span className="block">{b.name}</span>
-                <span className="block text-xs font-normal text-slate-600">{b.address}</span>
-              </span>
-              {b.unread > 0 && (
-                <span className="ml-2 rounded-full bg-seafoam-500 px-2 py-0.5 text-xs font-bold text-white">{b.unread}</span>
-              )}
-            </button>
-          ))}
+        <Card className="min-h-[24rem] overflow-hidden p-0 lg:col-span-4 lg:h-full">
+          <MessageList
+            messages={messages}
+            folder={activeFolder}
+            selectedId={selected?.id ?? null}
+            loading={listLoading}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            query={query}
+            onQueryChange={setQuery}
+            onSelect={(m) => void openMessage(m)}
+            onLoadMore={() => activeBox && void loadMessages(activeBox, activeFolder, query, messages.length, true)}
+            onArchiveToggle={(m) => void toggleArchive(m)}
+            onReadToggle={(m) => void toggleRead(m)}
+          />
         </Card>
 
-        {/* Message list */}
-        <Card className="col-span-4 max-h-[70vh] overflow-y-auto p-2">
-          {messages.length === 0 && <p className="p-4 text-sm text-slate-600">No messages yet.</p>}
-          {messages.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => void openMessage(m)}
-              className={`block w-full rounded-lg px-3 py-2 text-left ${
-                selected?.id === m.id ? "bg-slate-100 dark:bg-slate-800" : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                {m.direction === "outbound"
-                  ? <Send className="h-3.5 w-3.5 shrink-0 text-slate-600" />
-                  : m.read_at
-                    ? <MailOpen className="h-3.5 w-3.5 shrink-0 text-slate-300" />
-                    : <MailIcon className="h-3.5 w-3.5 shrink-0 text-seafoam-500" />}
-                <span className={`truncate text-sm ${m.direction === "inbound" && !m.read_at ? "font-semibold" : ""}`}>
-                  {m.direction === "outbound" ? `To: ${m.to_email}` : (m.sender_name || m.sender_email)}
-                </span>
-              </div>
-              <p className="truncate text-sm text-slate-600 dark:text-slate-300">{m.subject}</p>
-              <p className="text-xs text-slate-600">{fmtDate(m.created_at)}</p>
-            </button>
-          ))}
-        </Card>
-
-        {/* Reading pane / composer */}
-        <Card className="col-span-5 max-h-[70vh] overflow-y-auto p-4">
-          {composeOpen ? (
-            <div className="space-y-3">
-              <h2 className="font-semibold">
-                {replyTo ? "Reply" : "New message"} — from {activeBox}@getsweepr.com
-              </h2>
-              <Input label="To" placeholder="To" value={to} onChange={(e) => setTo(e.target.value)} />
-              <Input label="Subject" placeholder="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
-              <textarea
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                rows={10}
-                placeholder="Write your message…"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400 dark:border-slate-700 dark:bg-slate-900"
-              />
-              {replyTo && (
-                <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-500 dark:bg-slate-800">
-                  In reply to: <span className="font-medium">{replyTo.subject}</span>
-                </div>
-              )}
-              <div className="flex gap-2">
-                <Button onClick={() => void handleSend()} disabled={sending}>
-                  <Send className="mr-1 h-4 w-4" /> {sending ? "Sending…" : "Send"}
-                </Button>
-                <Button variant="secondary" onClick={() => setComposeOpen(false)}>Cancel</Button>
-              </div>
-            </div>
-          ) : selected ? (
-            <div className="space-y-3">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h2 className="font-semibold">{selected.subject}</h2>
-                  <p className="text-sm text-slate-500">
-                    {selected.direction === "outbound"
-                      ? `Sent to ${selected.to_email}${selected.sent_by_email ? ` by ${selected.sent_by_email}` : ""}`
-                      : `From ${selected.sender_name ? `${selected.sender_name} <${selected.sender_email}>` : selected.sender_email}`}
-                  </p>
-                  <p className="text-xs text-slate-600">{fmtDate(selected.created_at)}</p>
-                </div>
-                <Button variant="secondary" onClick={() => startReply(selected)}>
-                  <Reply className="mr-1 h-4 w-4" /> Reply
-                </Button>
-              </div>
-              <div className="whitespace-pre-wrap rounded-lg bg-slate-50 p-4 text-sm dark:bg-slate-800">
-                {selected.body_text || "(empty body)"}
-              </div>
-            </div>
-          ) : (
-            <p className="p-6 text-center text-sm text-slate-600">Select a message to read it.</p>
-          )}
+        <Card className="min-h-[24rem] overflow-hidden p-0 lg:col-span-5 lg:h-full">
+          <ReadingPane
+            message={selected}
+            parent={parent}
+            onReply={startReply}
+            onReplyAll={startReplyAll}
+            onForward={startForward}
+            onArchiveToggle={(m) => void toggleArchive(m)}
+            onMarkUnread={(m) => void toggleRead(m)}
+          />
         </Card>
       </div>
+
+      <ComposeModal
+        boxAddress={activeBoxAddress}
+        compose={compose}
+        sending={sending}
+        onChange={patchCompose}
+        onSend={() => void handleSend()}
+        onClose={closeCompose}
+      />
 
       {/* Mailbox permissions — super_admin only (hidden when the API says 403) */}
       {grants !== null && (
@@ -285,7 +362,7 @@ export function MailPage() {
 
           <div className="mb-4 flex flex-wrap items-end gap-2">
             <div>
-              <label htmlFor="grant-admin-select" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Admin</label>
+              <label htmlFor="grant-admin-select" className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">Admin</label>
               <select
                 id="grant-admin-select"
                 value={grantUser}
@@ -299,7 +376,7 @@ export function MailPage() {
               </select>
             </div>
             <div>
-              <label htmlFor="grant-box-select" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Mailbox</label>
+              <label htmlFor="grant-box-select" className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">Mailbox</label>
               <select
                 id="grant-box-select"
                 value={grantBox}

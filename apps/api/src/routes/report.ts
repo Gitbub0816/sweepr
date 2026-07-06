@@ -19,9 +19,21 @@ import { sendEmail, SENDERS, TEMPLATES, formatEmailTimestamp } from "../lib/mail
 import { generateTicketId } from "../lib/ticketId";
 import { itTypeFromLabel, securityTypeFromLabel } from "../lib/issueTypes";
 import { sanitizeText } from "../lib/sanitizeText";
+import { resolveReporterTelemetry } from "./itTickets";
 import type { AppBindings } from "../types";
 
 export const reportRouter = new Hono<AppBindings>();
+
+const deviceSchema = z.object({
+  platform: z.string().optional(),
+  userAgent: z.string().optional(),
+  viewport: z.object({ width: z.number(), height: z.number() }).optional(),
+  language: z.string().optional(),
+  screen: z.object({ width: z.number(), height: z.number() }).optional(),
+  deviceMemory: z.number().optional(),
+  hardwareConcurrency: z.number().optional(),
+  touch: z.boolean().optional(),
+}).optional();
 
 const schema = z.object({
   kind: z.enum(["it", "security"]),
@@ -31,6 +43,7 @@ const schema = z.object({
   app: z.string().max(40).optional(),
   email: z.string().email().optional(),
   context: z.record(z.unknown()).optional(),
+  device: deviceSchema,
 });
 
 /** Best-effort: resolve the submitter from a Bearer token if present. */
@@ -58,6 +71,8 @@ reportRouter.post("/", zValidator("json", schema), async (c) => {
   const title = sanitizeText(body.title, 200);
   const description = body.description ? sanitizeText(body.description, 8000) : undefined;
 
+  const telemetry = await resolveReporterTelemetry(sql, c, submitter?.clerkId ?? null, body.device);
+
   if (body.kind === "security") {
     const sec = securityTypeFromLabel(body.category);
     const receivedAt = new Date();
@@ -65,10 +80,13 @@ reportRouter.post("/", zValidator("json", schema), async (c) => {
     const rows = (await sql`
       INSERT INTO security_tickets (
         sender_email, classification, subject, source, reporter_clerk_id, received_at,
-        ticket_number, ticket_id, case_code, ticket_prefix, encoded_date, encoded_time, issue_type, hex_suffix
+        ticket_number, ticket_id, case_code, ticket_prefix, encoded_date, encoded_time, issue_type, hex_suffix,
+        reporter_ip, reporter_user_agent, reporter_geo, reporter_device, telemetry_consent
       ) VALUES (
         ${email}, ${body.category}, ${title}, 'in_app_report', ${submitter?.clerkId ?? null}, ${receivedAt.toISOString()},
-        ${gen.ticketId}, ${gen.ticketId}, ${gen.caseCode}, 'SR', ${gen.encodedDate}, ${gen.encodedTime}, ${gen.issueType}, ${gen.hex}
+        ${gen.ticketId}, ${gen.ticketId}, ${gen.caseCode}, 'SR', ${gen.encodedDate}, ${gen.encodedTime}, ${gen.issueType}, ${gen.hex},
+        ${telemetry.ip}, ${telemetry.userAgent}, ${telemetry.geo ? JSON.stringify(telemetry.geo) : null},
+        ${telemetry.device ? JSON.stringify(telemetry.device) : null}, ${telemetry.consent}
       ) RETURNING id
     `) as Array<{ id: string }>;
     await sql`
@@ -103,11 +121,14 @@ reportRouter.post("/", zValidator("json", schema), async (c) => {
   await sql`
     INSERT INTO it_tickets (
       title, description, category, priority, source, app, reporter_clerk_id, reporter_email, context,
-      ticket_id, case_code, ticket_prefix, encoded_date, encoded_time, issue_type, hex_suffix
+      ticket_id, case_code, ticket_prefix, encoded_date, encoded_time, issue_type, hex_suffix,
+      reporter_ip, reporter_user_agent, reporter_geo, reporter_device, telemetry_consent
     ) VALUES (
       ${title}, ${description ?? null}, ${it.dbCategory}, 'normal', 'user_report', ${body.app ?? null},
       ${submitter?.clerkId ?? null}, ${email}, ${JSON.stringify({ ...(body.context ?? {}), classification: body.category })},
-      ${gen.ticketId}, ${gen.caseCode}, 'IT', ${gen.encodedDate}, ${gen.encodedTime}, ${gen.issueType}, ${gen.hex}
+      ${gen.ticketId}, ${gen.caseCode}, 'IT', ${gen.encodedDate}, ${gen.encodedTime}, ${gen.issueType}, ${gen.hex},
+      ${telemetry.ip}, ${telemetry.userAgent}, ${telemetry.geo ? JSON.stringify(telemetry.geo) : null},
+      ${telemetry.device ? JSON.stringify(telemetry.device) : null}, ${telemetry.consent}
     )
   `;
   if (c.env.MAILERSEND_API_KEY) {

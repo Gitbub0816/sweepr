@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { LifeBuoy, RefreshCw, X, Send, AlertTriangle, Ticket, UserCog, Activity, KeyRound, Link2, Search, Sparkles, Clock, CheckCircle2, Mail, Languages } from "lucide-react";
-import { ContextPanel, type TicketContext } from "./SecurityPage";
+import { LifeBuoy, RefreshCw, X, Send, AlertTriangle, Ticket, UserCog, Activity, KeyRound, Link2, Search, Sparkles, Clock, Mail, Languages } from "lucide-react";
+import { ReporterContextPanel, type TicketContext } from "../components/tickets/ReporterContextPanel";
+import { TelemetryPanel } from "../components/tickets/TelemetryPanel";
+import { EmailReporterButton } from "../components/tickets/EmailReporterButton";
+import { TemplatePicker, useResponseTemplates, fillPlaceholders, type ResponseTemplate } from "../components/tickets/TemplatePicker";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 interface Template { id: string; department: string; key: string; name: string; classification: string | null; subject: string | null; body: string; is_active: boolean; }
@@ -71,6 +74,11 @@ interface Ticket {
   classification_signals?: string[] | null;
   auto_classified?: boolean | null;
   context?: Record<string, unknown> | null;
+  reporter_ip?: string | null;
+  reporter_user_agent?: string | null;
+  reporter_geo?: Record<string, unknown> | string | null;
+  reporter_device?: Record<string, unknown> | string | null;
+  telemetry_consent?: boolean | null;
 }
 interface Comment {
   id: string;
@@ -220,16 +228,24 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
   const [comments, setComments] = useState<Comment[]>([]);
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
-  const [emailError, setEmailError] = useState<string | null>(null);
-  const [emailSent, setEmailSent] = useState(false);
   const [assignTo, setAssignTo] = useState("");
   const [emailBody, setEmailBody] = useState("");
-  const [emailStatus, setEmailStatus] = useState("Work In Progress");
   const [context, setContext] = useState<TicketContext | null>(null);
-  const [templates, setTemplates] = useState<Template[]>([]);
   const [translations, setTranslations] = useState<Record<string, string>>({});
   const [translating, setTranslating] = useState<Record<string, boolean>>({});
   const [showTranslated, setShowTranslated] = useState<Record<string, boolean>>({});
+
+  const authed = useCallback(async (path: string, init?: RequestInit) => {
+    const token = await getToken();
+    return fetch(`${API}${path}`, { ...init, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(init?.headers ?? {}) } });
+  }, [getToken]);
+  const templates = useResponseTemplates(authed, "it");
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   async function handleTranslate(id: string, text: string) {
     if (translations[id]) {
@@ -267,21 +283,10 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
   }, [getToken, ticketId]);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => {
-    void (async () => {
-      const token = await getToken();
-      const res = await fetch(`${API}/admin/response-templates?department=it`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) setTemplates(((await res.json()) as { templates: Template[] }).templates ?? []);
-    })();
-  }, [getToken]);
 
-  function applyTemplate(body: string) {
-    if (!ticket) return body;
-    return body
-      .replace(/\{\{?\s*case_code\s*\}?\}/gi, ticket.case_code ?? "")
-      .replace(/\{\{?\s*ticket_id\s*\}?\}/gi, ticket.ticket_id ?? "")
-      .replace(/\{\{?\s*classification\s*\}?\}/gi, ticket.category ?? "")
-      .replace(/\{\{?\s*sender_email\s*\}?\}/gi, ticket.reporter_email ?? "");
+  function applyTemplate(tpl: ResponseTemplate) {
+    if (!ticket) { setEmailBody(tpl.body); return; }
+    setEmailBody(fillPlaceholders(tpl.body, { case_code: ticket.case_code, ticket_id: ticket.ticket_id, classification: ticket.category, sender_email: ticket.reporter_email }));
   }
 
   async function patch(body: Record<string, unknown>) {
@@ -330,28 +335,6 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
     } finally { setBusy(false); }
   }
 
-  async function emailReporter() {
-    if (!emailBody.trim()) return;
-    setBusy(true);
-    setEmailError(null);
-    setEmailSent(false);
-    try {
-      const token = await getToken();
-      const res = await fetch(`${API}/it-tickets/admin/${ticketId}/email-reply`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ body: emailBody, caseStatus: emailStatus, assignedTo: assignTo.trim() || undefined }),
-      });
-      if (res.ok) {
-        setEmailBody("");
-        setEmailSent(true);
-        await load();
-      } else {
-        const d = await res.json().catch(() => ({})) as { error?: string };
-        setEmailError(d.error ?? `Send failed (${res.status}).`);
-      }
-    } finally { setBusy(false); }
-  }
 
   // Classify the comment body to distinguish system vs human entries
   function isSystemComment(body: string) {
@@ -360,7 +343,7 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={onClose}>
-      <div className="flex h-full w-full max-w-2xl flex-col bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" aria-label="Ticket details" className="flex h-full w-full max-w-2xl flex-col bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-start justify-between border-b border-slate-200 px-6 py-4">
           <div>
@@ -409,6 +392,12 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
                 {/* Description */}
                 {ticket.description && <p className="whitespace-pre-wrap text-sm text-slate-600">{ticket.description}</p>}
 
+                {/* Telemetry (WHO/IP/device) */}
+                <div>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-600">Reporter telemetry</h3>
+                  <TelemetryPanel source={ticket} />
+                </div>
+
                 {/* Action toolbar */}
                 <div className="flex flex-wrap gap-2">
                   <select
@@ -454,44 +443,24 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
                   <button onClick={assign} disabled={busy || !assignTo.trim()} className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50">Assign</button>
                 </div>
 
-                {/* Email the reporter */}
+                {/* Email the reporter — deep-links to the Mail tab, mailto-style */}
                 <div className="rounded-xl border border-slate-200 p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <h3 className="flex items-center gap-1.5 text-sm font-semibold text-charcoal"><Mail className="h-4 w-4" /> Email reporter</h3>
-                    {templates.length > 0 && (
-                      <select
-                        value=""
-                        onChange={(e) => {
-                          const tpl = templates.find((t) => t.id === e.target.value);
-                          if (tpl) { setEmailBody(applyTemplate(tpl.body)); setEmailSent(false); setEmailError(null); }
-                        }}
-                        className="rounded-lg border border-slate-200 px-2 py-1 text-xs"
-                      >
-                        <option value="">Insert template…</option>
-                        {templates.filter((t) => t.is_active).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                      </select>
-                    )}
+                    <TemplatePicker templates={templates} onSelect={applyTemplate} className="w-48" />
                   </div>
                   {ticket.reporter_email ? (
                     <>
-                      <p className="text-xs text-slate-600">Sends from IT@getsweepr.com → {ticket.reporter_email}</p>
+                      <p className="text-xs text-slate-600">Opens a draft to {ticket.reporter_email} in the Mail tab.</p>
                       <textarea
                         value={emailBody}
-                        onChange={(e) => { setEmailBody(e.target.value); setEmailSent(false); setEmailError(null); }}
+                        onChange={(e) => setEmailBody(e.target.value)}
                         rows={4}
-                        placeholder="Write your response to the reporter…"
+                        placeholder="Optional: write the body here, or leave blank for a default greeting…"
                         className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                        aria-label="Email body draft"
                       />
-                      <div className="flex items-center gap-2">
-                        <select value={emailStatus} onChange={(e) => setEmailStatus(e.target.value)} className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm">
-                          {["Pending Review", "Investigating", "Awaiting User Response", "Information Requested", "Work In Progress", "Resolved", "Closed", "Unable to Reproduce", "Duplicate", "Rejected"].map((s) => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                        <button onClick={emailReporter} disabled={busy || !emailBody.trim()} className="flex items-center gap-1 rounded-lg bg-seafoam-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-seafoam-600 disabled:opacity-50">
-                          <Send className="h-4 w-4" /> Send email
-                        </button>
-                      </div>
-                      {emailSent && <p className="flex items-center gap-1 text-xs text-green-600"><CheckCircle2 className="h-3.5 w-3.5" /> Email sent and logged.</p>}
-                      {emailError && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{emailError}</p>}
+                      <EmailReporterButton box="it" to={ticket.reporter_email} caseCode={ticket.case_code ?? ticket.ticket_id} subject={ticket.title} body={emailBody} />
                     </>
                   ) : (
                     <p className="text-xs text-slate-600">No reporter email on this ticket — this ticket was submitted internally or without an email address.</p>
@@ -570,7 +539,7 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
           {/* Context sidebar */}
           <div className="hidden w-72 shrink-0 overflow-y-auto border-l border-slate-100 p-4 xl:block">
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-600">Reporter context</h3>
-            <ContextPanel context={context} kind="it" />
+            <ReporterContextPanel context={context} kind="it" />
           </div>
         </div>
       </div>
@@ -815,6 +784,12 @@ function TemplatesSection() {
     } finally { setLoading(false); }
   }, [getToken]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (!editing) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setEditing(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [editing]);
 
   async function save() {
     if (!editing) return;
@@ -873,7 +848,7 @@ function TemplatesSection() {
 
       {editing && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={() => setEditing(null)}>
-          <div className="h-full w-full max-w-lg overflow-y-auto bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-label="Template editor" className="h-full w-full max-w-lg overflow-y-auto bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-charcoal">{editing.id ? "Edit template" : "New template"}</h2>
               <button onClick={() => setEditing(null)} aria-label="Close template editor" className="text-slate-600 hover:text-slate-600"><X className="h-5 w-5" /></button>

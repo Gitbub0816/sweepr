@@ -25,6 +25,7 @@ import { generateTicketId } from "../lib/ticketId";
 import { SECURITY_LABELS, securityTypeFromLabel } from "../lib/issueTypes";
 import { inferSecurity } from "../lib/classify";
 import { getTicketContext } from "../lib/ticketContext";
+import { recordWebhookSignatureFailure } from "../lib/webhookAuth";
 import type { AppBindings } from "../types";
 
 export const securityRouter = new Hono<AppBindings>();
@@ -63,7 +64,10 @@ securityRouter.post("/inbound", async (c) => {
   const sigBytes = Uint8Array.from(sig.match(/[0-9a-f]{2}/gi)?.map((b) => parseInt(b, 16)) ?? []);
   const valid = sigBytes.length > 0 &&
     await crypto.subtle.verify("HMAC", key, sigBytes, new TextEncoder().encode(raw));
-  if (!valid) return c.json({ error: "bad signature" }, 401);
+  if (!valid) {
+    recordWebhookSignatureFailure(c, { source: "security_inbound" });
+    return c.json({ error: "bad signature" }, 401);
+  }
 
   let payload: Record<string, unknown> = {};
   try { payload = JSON.parse(raw || "{}"); } catch { return c.json({ error: "bad json" }, 400); }
@@ -136,6 +140,124 @@ securityRouter.post("/inbound", async (c) => {
 // ── Admin (super_admin) ─────────────────────────────────────────────────────────
 const gate = [requireAuth, requireAdminRole("super_admin")] as const;
 
+// ── Security events (live telemetry: brute force, auth failures, rate limit
+// strikes, webhook signature failures) ─────────────────────────────────────────
+
+securityRouter.get("/events", ...gate, async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const type = c.req.query("type");
+  const ip = c.req.query("ip");
+  const q = c.req.query("q");
+  const since = c.req.query("since");
+  const resolvedParam = c.req.query("resolved");
+  const limit = Math.min(parseInt(c.req.query("limit") ?? "100", 10) || 100, 500);
+  const offset = parseInt(c.req.query("offset") ?? "0", 10) || 0;
+
+  const conds: string[] = [];
+  const params: unknown[] = [];
+  if (type) { params.push(type); conds.push(`event_type = $${params.length}`); }
+  if (ip) { params.push(ip); conds.push(`ip = $${params.length}`); }
+  if (since) { params.push(since); conds.push(`occurred_at >= $${params.length}::timestamptz`); }
+  if (resolvedParam === "true" || resolvedParam === "false") {
+    params.push(resolvedParam === "true");
+    conds.push(`resolved = $${params.length}`);
+  }
+  if (q) {
+    params.push(`%${q}%`);
+    const p = `$${params.length}`;
+    conds.push(`(ip ILIKE ${p} OR path ILIKE ${p} OR user_agent ILIKE ${p} OR country ILIKE ${p} OR city ILIKE ${p})`);
+  }
+  const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
+  const rows = await sql(
+    `SELECT id, occurred_at, event_type, severity, ip, path, method, clerk_id, user_agent,
+            country, region, city, colo, asn, details, resolved, resolved_at, resolved_by
+     FROM security_events ${where}
+     ORDER BY occurred_at DESC LIMIT ${limit} OFFSET ${offset}`,
+    params,
+  );
+  return c.json({ events: rows, limit, offset });
+});
+
+securityRouter.get("/events/summary", ...gate, async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const since = c.req.query("since") ?? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  const [totalRow, byType, topIpsRaw, last24hRow] = await Promise.all([
+    sql`SELECT COUNT(*)::int AS total FROM security_events WHERE occurred_at >= ${since}::timestamptz`,
+    sql`
+      SELECT event_type, COUNT(*)::int AS count
+      FROM security_events WHERE occurred_at >= ${since}::timestamptz
+      GROUP BY event_type ORDER BY count DESC
+    `,
+    sql`
+      SELECT ip, COUNT(*)::int AS count,
+             MAX(occurred_at) AS last_seen,
+             (ARRAY_AGG(country ORDER BY occurred_at DESC) FILTER (WHERE country IS NOT NULL))[1] AS country,
+             (ARRAY_AGG(city ORDER BY occurred_at DESC) FILTER (WHERE country IS NOT NULL))[1] AS city,
+             ARRAY_AGG(DISTINCT event_type) AS types,
+             COUNT(*) FILTER (WHERE event_type IN ('auth_failure', 'rate_limit_exceeded'))::int AS strike_count
+      FROM security_events
+      WHERE occurred_at >= ${since}::timestamptz AND ip IS NOT NULL
+      GROUP BY ip
+      ORDER BY count DESC LIMIT 10
+    `,
+    sql`
+      SELECT COUNT(*)::int AS count FROM security_events
+      WHERE occurred_at >= NOW() - INTERVAL '24 hours'
+    `,
+  ]) as [
+    Array<{ total: number }>,
+    Array<{ event_type: string; count: number }>,
+    Array<{ ip: string; count: number; last_seen: string; country: string | null; city: string | null; types: string[]; strike_count: number }>,
+    Array<{ count: number }>,
+  ];
+
+  const topIps = topIpsRaw.map((r) => ({
+    ip: r.ip,
+    count: r.count,
+    country: r.country,
+    city: r.city,
+    lastSeen: r.last_seen,
+    types: r.types,
+    suspectedBruteForce: r.strike_count >= 10,
+  }));
+
+  return c.json({
+    total: totalRow[0]?.total ?? 0,
+    byType,
+    topIps,
+    last24h: last24hRow[0]?.count ?? 0,
+  });
+});
+
+securityRouter.post("/events/:id/resolve", ...gate, async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const id = c.req.param("id");
+  const { clerkId } = c.get("user");
+  const rows = (await sql`
+    UPDATE security_events SET resolved = true, resolved_at = NOW(), resolved_by = ${clerkId}
+    WHERE id = ${id} RETURNING id
+  `) as Array<{ id: string }>;
+  if (!rows[0]) return c.json({ error: "Not found" }, 404);
+  return c.json({ ok: true });
+});
+
+securityRouter.post(
+  "/events/resolve-by-ip",
+  ...gate,
+  zValidator("json", z.object({ ip: z.string().min(1) })),
+  async (c) => {
+    const sql = getDb(c.env.DATABASE_URL);
+    const { ip } = c.req.valid("json");
+    const { clerkId } = c.get("user");
+    const rows = (await sql`
+      UPDATE security_events SET resolved = true, resolved_at = NOW(), resolved_by = ${clerkId}
+      WHERE ip = ${ip} AND resolved = false RETURNING id
+    `) as Array<{ id: string }>;
+    return c.json({ ok: true, count: rows.length });
+  },
+);
+
 securityRouter.get("/tickets", ...gate, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const status = c.req.query("status");
@@ -153,7 +275,8 @@ securityRouter.get("/tickets", ...gate, async (c) => {
   const rows = await sql(
     `SELECT id, case_code, ticket_id, sender_email, sender_name, subject, classification, status,
             case_owner, assigned_to, received_at, last_reply_at, auto_reply_sent_at,
-            classification_confidence, classification_signals, auto_classified
+            classification_confidence, classification_signals, auto_classified,
+            reporter_ip, reporter_user_agent, reporter_geo, reporter_device, telemetry_consent
      FROM security_tickets ${where}
      ORDER BY received_at DESC LIMIT 300`,
     params,
@@ -209,6 +332,9 @@ securityRouter.post(
           from: SENDERS.SECURITY,
           replyTo: SENDERS.SECURITY,
           templateId: TEMPLATES.SECURITY_MANUAL_RESPONSE,
+          // Template emails carry no local html/text — supply the actual
+          // reply body so the Mail tab's Sent folder shows real content.
+          text: body,
           variables: {
             security_ticket_number: caseCode, // public Case Code
             generated_at: formatEmailTimestamp(),
@@ -217,7 +343,7 @@ securityRouter.post(
             assigned_to: assignedTo ?? (ticket.assigned_to as string) ?? "Security Operations",
             response_body: body,
           },
-        });
+        }, sql);
         delivery = "sent";
       } catch (err) {
         logger.error("security.manual_reply failed", err, { ticketId: id });

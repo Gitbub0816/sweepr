@@ -32,6 +32,81 @@ const CATEGORY = ["bug", "billing", "account", "technical", "feature_request", "
 const PRIORITY = ["low", "normal", "high", "urgent"] as const;
 const STATUS = ["open", "in_progress", "resolved", "closed"] as const;
 
+/** Optional client-reported device info — shape agreed in the mail/security contract. */
+const deviceSchema = z.object({
+  platform: z.string().optional(),
+  userAgent: z.string().optional(),
+  viewport: z.object({ width: z.number(), height: z.number() }).optional(),
+  language: z.string().optional(),
+  screen: z.object({ width: z.number(), height: z.number() }).optional(),
+  deviceMemory: z.number().optional(),
+  hardwareConcurrency: z.number().optional(),
+  touch: z.boolean().optional(),
+}).optional();
+
+export interface ReporterTelemetry {
+  consent: boolean | null;
+  ip: string | null;
+  userAgent: string | null;
+  geo: Record<string, unknown> | null;
+  device: Record<string, unknown> | null;
+}
+
+/**
+ * Resolve tracking consent and (only when granted) the reporter's ip/ua/geo
+ * telemetry for a "report a problem" ticket. Consent source is the most
+ * recent `cookie_consents` row for the user, keyed by clerk_id → users.id,
+ * using the `analytics` column as the tracking-consent signal.
+ *
+ * No consent row → `consent: null` (unknown/legacy) and nothing is stored.
+ * `analytics = false` → `consent: false` and nothing is stored.
+ * `analytics = true` → `consent: true` and ip/ua/geo/device are captured.
+ *
+ * This gate is about storing a REPORTER's own telemetry on their ticket —
+ * it does not apply to security_events, which log attacker/request activity
+ * under legitimate-interest security logging, not user tracking.
+ */
+export async function resolveReporterTelemetry(
+  sql: ReturnType<typeof getDb>,
+  c: { req: { header: (k: string) => string | undefined; raw: Request } },
+  clerkId: string | null,
+  device?: unknown,
+): Promise<ReporterTelemetry> {
+  let consent: boolean | null = null;
+  if (clerkId) {
+    try {
+      const rows = (await sql`
+        SELECT cc.analytics
+        FROM cookie_consents cc
+        JOIN users u ON u.id = cc.user_id
+        WHERE u.clerk_id = ${clerkId}
+        ORDER BY cc.consent_at DESC LIMIT 1
+      `) as Array<{ analytics: boolean }>;
+      if (rows[0]) consent = rows[0].analytics === true;
+    } catch {
+      consent = null;
+    }
+  }
+
+  if (consent !== true) {
+    return { consent, ip: null, userAgent: null, geo: null, device: null };
+  }
+
+  const ip = c.req.header("CF-Connecting-IP") ?? null;
+  const userAgent = c.req.header("User-Agent") ?? null;
+  const cf = (c.req.raw as unknown as { cf?: Record<string, unknown> }).cf ?? {};
+  const geo = {
+    country: (cf.country as string) ?? null,
+    region: (cf.region as string) ?? null,
+    city: (cf.city as string) ?? null,
+    timezone: (cf.timezone as string) ?? null,
+    colo: (cf.colo as string) ?? null,
+    lat: (cf.latitude as string) ?? null,
+    lng: (cf.longitude as string) ?? null,
+  };
+  return { consent, ip, userAgent, geo, device: (device as Record<string, unknown>) ?? null };
+}
+
 // ── Create (Report a problem) ─────────────────────────────────────────────────
 const createSchema = z.object({
   title: z.string().min(3).max(200),
@@ -43,6 +118,7 @@ const createSchema = z.object({
     (v) => !v || JSON.stringify(v).length < 4096,
     { message: "context too large (max 4096 bytes)" },
   ),
+  device: deviceSchema,
 });
 
 itTicketsRouter.post("/", zValidator("json", createSchema), async (c) => {
@@ -54,16 +130,20 @@ itTicketsRouter.post("/", zValidator("json", createSchema), async (c) => {
   const description = body.description ? sanitizeText(body.description, 5000) : null;
   const inf = inferIT(title, description ?? "");
   const gen = generateTicketId("IT", itTypeCode(body.category));
+  const telemetry = await resolveReporterTelemetry(sql, c, clerkId, body.device);
   const rows = (await sql`
     INSERT INTO it_tickets (title, description, category, priority, source, app,
                             reporter_clerk_id, reporter_email, context,
                             ticket_id, case_code, ticket_prefix, encoded_date, encoded_time, issue_type, hex_suffix,
-                            classification_confidence, classification_signals, auto_classified)
+                            classification_confidence, classification_signals, auto_classified,
+                            reporter_ip, reporter_user_agent, reporter_geo, reporter_device, telemetry_consent)
     VALUES (${title}, ${description}, ${body.category},
             ${body.priority ?? "normal"}, 'user_report', ${body.app ?? null},
             ${clerkId}, ${email ?? null}, ${JSON.stringify(body.context ?? {})},
             ${gen.ticketId}, ${gen.caseCode}, 'IT', ${gen.encodedDate}, ${gen.encodedTime}, ${gen.issueType}, ${gen.hex},
-            ${inf.confidence}, ${JSON.stringify(inf.signals)}, ${inf.auto})
+            ${inf.confidence}, ${JSON.stringify(inf.signals)}, ${inf.auto},
+            ${telemetry.ip}, ${telemetry.userAgent}, ${telemetry.geo ? JSON.stringify(telemetry.geo) : null},
+            ${telemetry.device ? JSON.stringify(telemetry.device) : null}, ${telemetry.consent})
     RETURNING id, ticket_number, case_code, ticket_id, status
   `) as Array<{ id: string; ticket_number: number; case_code: string; ticket_id: string; status: string }>;
 
@@ -214,6 +294,9 @@ itTicketsRouter.post(
         from: SENDERS.IT,
         replyTo: SENDERS.IT,
         templateId: TEMPLATES.IT_MANUAL_RESPONSE,
+        // Template emails carry no local html/text — supply the actual reply
+        // body so the Mail tab's Sent folder shows real content.
+        text: body,
         variables: {
           case_code: caseCode,
           ticket_id: (t.ticket_id as string) ?? caseCode,
@@ -223,7 +306,7 @@ itTicketsRouter.post(
           assigned_to: assignedTo ?? (t.assigned_to as string) ?? "IT Operations",
           response_body: body,
         },
-      });
+      }, sql);
       delivery = "sent";
     } catch (err) {
       return c.json({ error: "Email delivery failed." }, 502);

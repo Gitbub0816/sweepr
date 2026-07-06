@@ -17,6 +17,7 @@ import { Hono } from "hono";
 import { getDb } from "../../lib/db";
 import { upsertUser } from "@sweepr/db";
 import { logger } from "../../lib/logger";
+import { recordWebhookSignatureFailure } from "../../lib/webhookAuth";
 import type { AppBindings } from "../../types";
 
 export const clerkWebhookRouter = new Hono<AppBindings>();
@@ -119,6 +120,7 @@ clerkWebhookRouter.post("/", async (c) => {
       reason: verdict.reason,
       secretPrefix: secret.slice(0, 6),
     });
+    recordWebhookSignatureFailure(c, { source: "clerk", reason: verdict.reason });
     return c.json({ error: "Invalid signature", reason: verdict.reason }, 401);
   }
 

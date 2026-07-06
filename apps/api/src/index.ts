@@ -339,6 +339,8 @@ app.route("/it", itRouter);
 app.route("/account", accountRouter);
 app.route("/admin/notification-settings", adminNotificationSettingsRouter);
 app.route("/admin/mail", adminMailRouter);
+// Alias used by the rebuilt admin Mail tab (contract path).
+app.route("/admin-mail", adminMailRouter);
 app.route("/admin", adminAuthRouter);
 app.route("/admin", adminRouter);
 app.route("/storage", storageRouter);

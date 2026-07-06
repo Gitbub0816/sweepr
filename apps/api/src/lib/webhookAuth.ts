@@ -3,6 +3,9 @@
  * routes, etc). Every caller must fail closed when its secret is
  * unconfigured — see individual route files for that check.
  */
+import type { Context } from "hono";
+import { captureFromContext } from "./securityEvents";
+import type { AppBindings } from "../types";
 
 export async function hmacHex(secret: string, raw: string): Promise<string> {
   const key = await crypto.subtle.importKey(
@@ -24,4 +27,16 @@ export function timingSafeEqual(a: string, b: string): boolean {
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
+}
+
+/**
+ * Record a `webhook_signature_failure` security event (high severity).
+ * Call this from the 401 branch of any inbound webhook verification —
+ * MailerSend inbound routes, Clerk webhook, etc. Best-effort, never throws.
+ */
+export function recordWebhookSignatureFailure(
+  c: Context<AppBindings>,
+  details?: Record<string, unknown>,
+): void {
+  captureFromContext(c, "webhook_signature_failure", "high", details);
 }
