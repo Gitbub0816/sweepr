@@ -28,6 +28,10 @@ import type { AppBindings } from "../types";
 
 export const serviceDemoRouter = new Hono<AppBindings>();
 
+// dos_test_sessions.id is a uuid column; a non-uuid path param would throw a
+// Postgres 22P02 (invalid input syntax) → 500. Treat malformed ids as 404.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // Static seed personas — no real users involved.
 const SEED_CLEANER = { name: "Jordan Smith", rating: 4.9, jobs: 142 };
 const SEED_CUSTOMER = { name: "Alex Rivera", address: "123 Maple St, Austin, TX 78701" };
@@ -67,6 +71,7 @@ interface SessionRow {
 /** Get current state of a session. */
 serviceDemoRouter.get("/t/:txId", async (c) => {
   const txId = c.req.param("txId");
+  if (!UUID_RE.test(txId)) return c.json({ error: "Session not found" }, 404);
   const sql = getDb(c.env.DATABASE_URL);
   const rows = (await sql`
     SELECT id, day_status, photo_count, created_at, updated_at
@@ -115,6 +120,7 @@ serviceDemoRouter.post(
   zValidator("json", z.object({ action: z.enum(VALID_ACTIONS) })),
   async (c) => {
     const txId = c.req.param("txId");
+    if (!UUID_RE.test(txId)) return c.json({ error: "Session not found" }, 404);
     const { action } = c.req.valid("json");
     const sql = getDb(c.env.DATABASE_URL);
 
