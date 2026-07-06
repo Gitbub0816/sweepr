@@ -162,12 +162,15 @@ async function createTurnaroundBooking(
  * within the Worker CPU budget.
  */
 export async function syncDueCalendarSources(sql: Sql, limit = 25): Promise<number> {
+  // Only enrolled (active) properties are polled on cron — unenrolled hosts can
+  // still preview via the manual "Sync now" button.
   const due = (await sql`
-    SELECT id FROM calendar_sources
-    WHERE status IN ('active', 'error')
-      AND (last_synced_at IS NULL
-           OR last_synced_at < NOW() - (sync_interval_minutes || ' minutes')::INTERVAL)
-    ORDER BY last_synced_at ASC NULLS FIRST
+    SELECT cs.id FROM calendar_sources cs
+    JOIN short_term_rental_properties p ON p.id = cs.property_id AND p.active = TRUE
+    WHERE cs.status IN ('active', 'error')
+      AND (cs.last_synced_at IS NULL
+           OR cs.last_synced_at < NOW() - (cs.sync_interval_minutes || ' minutes')::INTERVAL)
+    ORDER BY cs.last_synced_at ASC NULLS FIRST
     LIMIT ${limit}
   `) as { id: string }[];
   let synced = 0;

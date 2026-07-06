@@ -36,7 +36,14 @@ function slotsForDate(
   availabilityData?: Record<string, CalendarSlot[]>
 ): CalendarSlot[] {
   const fromData = availabilityData?.[keyOf(date)] ?? [];
-  const fromSlots = slots.filter((s) => isSameDay(s.date, date));
+  // Weekly recurring slots (dayOfWeek set) repeat on every matching weekday —
+  // forward and backward — so "every Tuesday" shows on all Tuesdays, not just
+  // the week the slot happened to be created in.
+  const fromSlots = slots.filter((s) =>
+    s.type === "recurring" && s.dayOfWeek != null
+      ? s.dayOfWeek === date.getDay()
+      : isSameDay(s.date, date)
+  );
   return [...fromData, ...fromSlots];
 }
 

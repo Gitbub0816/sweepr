@@ -41,6 +41,9 @@ function apiSlotToCalendar(s: ApiSlot): CalendarSlot | null {
   return {
     id: s.id,
     date,
+    // Recurring slots carry dayOfWeek so the calendar repeats them on every
+    // matching weekday, across all weeks — not just the current one.
+    dayOfWeek: s.slot_type === "recurring" ? s.day_of_week ?? undefined : undefined,
     startTime: s.start_time ?? "08:00",
     endTime: s.end_time ?? "17:00",
     type: s.slot_type === "recurring" ? "recurring" : "flexible",

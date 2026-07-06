@@ -56,6 +56,7 @@ rentalsRouter.get("/properties", async (c) => {
   const props = (await sql`
     SELECT p.id, p.nickname, p.street_address, p.city, p.state, p.zip,
            p.bedrooms, p.bathrooms, p.sqft, p.monthly_fee_cents, p.active,
+           p.enrolled_at,
            COUNT(cs.id) FILTER (WHERE cs.id IS NOT NULL) AS source_count
     FROM short_term_rental_properties p
     LEFT JOIN calendar_sources cs ON cs.property_id = p.id
@@ -74,6 +75,7 @@ rentalsRouter.get("/properties", async (c) => {
       sqft: p.sqft,
       monthlyFee: (p.monthly_fee_cents as number) / 100,
       active: p.active,
+      enrolledAt: p.enrolled_at,
       sourceCount: Number(p.source_count),
     })),
   });
@@ -98,18 +100,58 @@ rentalsRouter.post("/properties", zValidator("json", propertySchema), async (c) 
   const b = c.req.valid("json");
   const cfg = await loadStrConfig(sql);
 
+  // Created UNENROLLED (active=false): the monthly subscription and turnaround
+  // booking only start after the host explicitly enrolls (accepts disclosures).
   const rows = (await sql`
     INSERT INTO short_term_rental_properties (
       customer_id, nickname, street_address, unit, city, state, zip,
-      bedrooms, bathrooms, sqft, monthly_fee_cents
+      bedrooms, bathrooms, sqft, monthly_fee_cents, active
     ) VALUES (
       ${customerId}, ${b.nickname}, ${b.streetAddress ?? null}, ${b.unit ?? null},
       ${b.city ?? null}, ${b.state ?? null}, ${b.zip ?? null},
       ${b.bedrooms ?? null}, ${b.bathrooms ?? null}, ${b.sqft ?? null},
-      ${cfg.monthlyConnectionFeeCents}
+      ${cfg.monthlyConnectionFeeCents}, false
     ) RETURNING id
   `) as { id: string }[];
   return c.json({ id: rows[0].id });
+});
+
+// ── Enrollment (explicit, disclaimer-gated) ──────────────────────────────────
+const enrollSchema = z.object({
+  // The client must affirmatively accept the disclosures.
+  acceptDisclosures: z.literal(true),
+  disclaimerVersion: z.string().max(20).default("v1"),
+});
+
+rentalsRouter.post("/properties/:id/enroll", zValidator("json", enrollSchema), async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const id = c.req.param("id");
+  if (!(await assertOwnsProperty(c, id))) return c.json({ error: "Not found" }, 404);
+  const { disclaimerVersion } = c.req.valid("json");
+  const cfg = await loadStrConfig(sql);
+
+  // Snapshot the current monthly fee at enrollment time.
+  await sql`
+    UPDATE short_term_rental_properties
+    SET active = true, enrolled_at = NOW(),
+        enrollment_disclaimer_version = ${disclaimerVersion},
+        monthly_fee_cents = ${cfg.monthlyConnectionFeeCents},
+        updated_at = NOW()
+    WHERE id = ${id}
+  `;
+  return c.json({ ok: true, enrolled: true });
+});
+
+rentalsRouter.post("/properties/:id/unenroll", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const id = c.req.param("id");
+  if (!(await assertOwnsProperty(c, id))) return c.json({ error: "Not found" }, 404);
+  await sql`
+    UPDATE short_term_rental_properties
+    SET active = false, updated_at = NOW()
+    WHERE id = ${id}
+  `;
+  return c.json({ ok: true, enrolled: false });
 });
 
 async function assertOwnsProperty(c: Context<AppBindings>, propertyId: string): Promise<boolean> {

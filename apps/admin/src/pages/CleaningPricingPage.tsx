@@ -17,12 +17,33 @@ const LEVELS: RoomConditionLevel[] = ["level_1", "level_2", "level_3", "level_4"
 const toDollars = (c: number) => (c / 100).toString();
 const toCents = (d: string) => Math.round((parseFloat(d) || 0) * 100);
 
-function Section({ title, desc, children }: { title: string; desc?: string; children: React.ReactNode }) {
+function Section({
+  title,
+  desc,
+  children,
+  onSave,
+  saving,
+  dirty,
+}: {
+  title: string;
+  desc?: string;
+  children: React.ReactNode;
+  onSave?: () => void;
+  saving?: boolean;
+  dirty?: boolean;
+}) {
   return (
     <Card className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold text-charcoal dark:text-white">{title}</h2>
-        {desc && <p className="text-sm text-slate-500">{desc}</p>}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-charcoal dark:text-white">{title}</h2>
+          {desc && <p className="text-sm text-slate-500">{desc}</p>}
+        </div>
+        {onSave && (
+          <Button size="sm" onClick={onSave} disabled={saving || !dirty}>
+            {saving ? "Saving…" : dirty ? "Save section" : "Saved"}
+          </Button>
+        )}
       </div>
       {children}
     </Card>
@@ -41,11 +62,29 @@ function Money({ label, cents, onChange }: { label: string; cents: number; onCha
   );
 }
 
+// Which config fields belong to which admin section — drives per-section
+// dirty-tracking so admins can change ONE element and save just that section.
+const HOME_SECTION_KEYS = {
+  normal: ["baseFeeCents", "sqftIncluded", "sqftTiers", "bedroomsIncluded", "perExtraBedroomCents", "bathroomsIncluded", "perExtraBathroomCents"],
+  roomCondition: ["roomCondition"],
+  addOns: ["addOnCents"],
+  rounding: ["taxRate", "serviceFeeRate", "roundToEndingDigit"],
+} as const;
+
+function pick<T extends object>(obj: T, keys: readonly string[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const k of keys) out[k] = (obj as Record<string, unknown>)[k];
+  return out;
+}
+
 export function CleaningPricingPage() {
   const { getToken } = useAuth();
   const [home, setHome] = useState<HomeCleaningPricingConfig | null>(null);
   const [str, setStr] = useState<ShortTermRentalPricingConfig | null>(null);
-  const [saving, setSaving] = useState(false);
+  // Last-saved snapshots for per-section dirty detection.
+  const [savedHome, setSavedHome] = useState<HomeCleaningPricingConfig | null>(null);
+  const [savedStr, setSavedStr] = useState<ShortTermRentalPricingConfig | null>(null);
+  const [savingSection, setSavingSection] = useState<string | null>(null);
 
   const authed = useCallback(
     async (path: string, init?: RequestInit) => {
@@ -65,24 +104,48 @@ export function CleaningPricingPage() {
         const data = (await res.json()) as { home: HomeCleaningPricingConfig; str: ShortTermRentalPricingConfig };
         setHome(data.home);
         setStr(data.str);
+        setSavedHome(data.home);
+        setSavedStr(data.str);
       }
     })();
   }, [authed]);
 
-  async function save() {
-    if (!home || !str) return;
-    setSaving(true);
+  function homeSectionDirty(section: keyof typeof HOME_SECTION_KEYS): boolean {
+    if (!home || !savedHome) return false;
+    return (
+      JSON.stringify(pick(home, HOME_SECTION_KEYS[section])) !==
+      JSON.stringify(pick(savedHome, HOME_SECTION_KEYS[section]))
+    );
+  }
+  const strDirty = !!str && !!savedStr && JSON.stringify(str) !== JSON.stringify(savedStr);
+
+  async function saveHome(section: string) {
+    if (!home) return;
+    setSavingSection(section);
     try {
-      const [r1, r2] = await Promise.all([
-        authed("/admin-pricing-config/home", { method: "PUT", body: JSON.stringify(home) }),
-        authed("/admin-pricing-config/str", { method: "PUT", body: JSON.stringify(str) }),
-      ]);
-      if (!r1.ok || !r2.ok) throw new Error("Save failed");
-      toast.success("Pricing saved");
+      const res = await authed("/admin-pricing-config/home", { method: "PUT", body: JSON.stringify(home) });
+      if (!res.ok) throw new Error("Save failed");
+      setSavedHome(home);
+      toast.success("Section saved");
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
-      setSaving(false);
+      setSavingSection(null);
+    }
+  }
+
+  async function saveStrSection() {
+    if (!str) return;
+    setSavingSection("str");
+    try {
+      const res = await authed("/admin-pricing-config/str", { method: "PUT", body: JSON.stringify(str) });
+      if (!res.ok) throw new Error("Save failed");
+      setSavedStr(str);
+      toast.success("Section saved");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSavingSection(null);
     }
   }
 
@@ -114,7 +177,6 @@ export function CleaningPricingPage() {
           <h1 className="text-2xl font-bold text-charcoal dark:text-white">Cleaning Pricing</h1>
           <p className="text-sm text-slate-500">Room-condition home cleaning and short-term rental turnarounds.</p>
         </div>
-        <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save all"}</Button>
       </div>
 
       <Card className="flex items-center justify-between bg-seafoam-50 dark:bg-seafoam-900/20">
@@ -123,7 +185,7 @@ export function CleaningPricingPage() {
       </Card>
 
       {/* 1. Normal Home Cleaning */}
-      <Section title="Normal Home Cleaning" desc="Base fee, home-size tiers, and bedroom/bathroom counts.">
+      <Section title="Normal Home Cleaning" desc="Base fee, home-size tiers, and bedroom/bathroom counts." onSave={() => saveHome("normal")} saving={savingSection === "normal"} dirty={homeSectionDirty("normal")}>
         <div className="grid grid-cols-2 gap-3">
           <Money label="Base fee" cents={home.baseFeeCents} onChange={(c) => patchHome({ baseFeeCents: c })} />
           <div>
@@ -155,7 +217,7 @@ export function CleaningPricingPage() {
       </Section>
 
       {/* 2. Room Condition */}
-      <Section title="Room Condition" desc="Added charge per room type as conditions worsen (level 1 is baseline).">
+      <Section title="Room Condition" desc="Added charge per room type as conditions worsen (level 1 is baseline)." onSave={() => saveHome("roomCondition")} saving={savingSection === "roomCondition"} dirty={homeSectionDirty("roomCondition")}>
         <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
           <input
             type="checkbox"
@@ -197,7 +259,7 @@ export function CleaningPricingPage() {
       </Section>
 
       {/* 3. Add-Ons */}
-      <Section title="Add-Ons" desc="Optional extras a customer can add to a clean.">
+      <Section title="Add-Ons" desc="Optional extras a customer can add to a clean." onSave={() => saveHome("addOns")} saving={savingSection === "addOns"} dirty={homeSectionDirty("addOns")}>
         <div className="grid grid-cols-2 gap-3">
           {Object.entries(home.addOnCents).map(([key, cents]) => (
             <Money
@@ -211,7 +273,7 @@ export function CleaningPricingPage() {
       </Section>
 
       {/* 4. Short-Term Rental Turnaround */}
-      <Section title="Short-Term Rental Turnaround" desc="Monthly connection fee per property plus a flat per-turnaround fee.">
+      <Section title="Short-Term Rental Turnaround" desc="Monthly enrollment subscription per property plus a flat per-turnaround fee. New enrollments snapshot the monthly fee at signup." onSave={saveStrSection} saving={savingSection === "str"} dirty={strDirty}>
         <div className="grid grid-cols-2 gap-3">
           <Money label="Monthly connection fee" cents={str.monthlyConnectionFeeCents} onChange={(c) => setStr({ ...str, monthlyConnectionFeeCents: c })} />
           <Money label="Per-turnaround fee" cents={str.perTurnaroundFeeCents} onChange={(c) => setStr({ ...str, perTurnaroundFeeCents: c })} />
@@ -219,7 +281,7 @@ export function CleaningPricingPage() {
       </Section>
 
       {/* 5. Rounding / Taxes / Fees */}
-      <Section title="Rounding, Taxes & Fees" desc="Applied to the final customer total.">
+      <Section title="Rounding, Taxes & Fees" desc="Applied to the final customer total." onSave={() => saveHome("rounding")} saving={savingSection === "rounding"} dirty={homeSectionDirty("rounding") || strDirty}>
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">Tax rate (%)</label>
@@ -237,7 +299,6 @@ export function CleaningPricingPage() {
       </Section>
 
       <div className="flex justify-end">
-        <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save all"}</Button>
       </div>
     </div>
   );

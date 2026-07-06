@@ -48,7 +48,7 @@ export function RoomConditionStep() {
               <legend className="mb-3 text-base font-semibold text-charcoal dark:text-white">
                 {room.label}
               </legend>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div role="radiogroup" aria-label={`${room.label} condition`} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {CONDITION_LEVELS.map((level) => (
                   <ConditionCard
                     key={level}

@@ -536,14 +536,10 @@ cleanersRouter.get(
         }
       }
 
-      const availRows = (await sql`
-        SELECT ca.cleaner_id, ca.start_time::text AS start_time, ca.end_time::text AS end_time
-        FROM cleaner_availability ca
-        JOIN cleaners cl ON cl.id = ca.cleaner_id
-        WHERE ca.day_of_week = ${dayOfWeek}
-          AND ca.active = true
-          AND cl.status IN ('approved', 'active')
-      `) as Array<{ cleaner_id: string; start_time: string; end_time: string }>;
+      // Unified read model: weekly blocks + flexible one-offs − blocked dates
+      // (see lib/availability.ts) so hours set on EITHER cleaner screen count.
+      const { getAvailabilityForDate } = await import("../lib/availability");
+      const availRows = await getAvailabilityForDate(sql, date);
 
       if (availRows.length === 0) return emptyResponse(date);
 
