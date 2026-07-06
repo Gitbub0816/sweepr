@@ -40,7 +40,7 @@ function Section({
           {desc && <p className="text-sm text-slate-500">{desc}</p>}
         </div>
         {onSave && (
-          <Button size="sm" onClick={onSave} disabled={saving || !dirty}>
+          <Button size="sm" className="min-w-[7rem] shrink-0 whitespace-nowrap" onClick={onSave} disabled={saving || !dirty}>
             {saving ? "Saving…" : dirty ? "Save section" : "Saved"}
           </Button>
         )}

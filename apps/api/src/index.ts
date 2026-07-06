@@ -152,8 +152,14 @@ app.use("*", (c, next) => buildCorsMiddleware(c.env)(c, next));
 // General API rate limit: 100 req / min per IP.
 app.use("*", rateLimit({ limit: 100, windowMs: 60_000, keyPrefix: "general" }));
 
-// Tighter, route-specific limits.
-app.use("/auth/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "auth" , strict: true }));
+// Tighter, route-specific limits. The strict 5/15m bucket is for auth
+// *mutations* (sign-in, verification) — NOT the read-only identity check
+// GET /auth/me, which every app's nav calls on each page mount. Catching /me
+// here 429'd normal navigation after ~5 page views per 15m (per shared IP).
+const strictAuthLimiter = rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "auth", strict: true });
+app.use("/auth/*", (c, next) =>
+  c.req.path === "/auth/me" && c.req.method === "GET" ? next() : strictAuthLimiter(c, next),
+);
 // Keyed per-user (not IP) and generous enough for a real checkout flow, which
 // legitimately hits /payments/methods (read) + /create-intent plus retries as
 // the customer edits their booking. 5/15m was blocking normal checkout with 429s.
