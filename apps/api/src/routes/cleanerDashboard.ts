@@ -567,7 +567,7 @@ cleanerDashboardRouter.put("/settings", zValidator("json", settingsSchema), asyn
       notification_reminder   = COALESCE(${body.notification_reminder ?? null}, notification_reminder),
       notification_payout     = COALESCE(${body.notification_payout ?? null}, notification_payout),
       notification_marketing  = COALESCE(${body.notification_marketing ?? null}, notification_marketing),
-      preferred_service_types = COALESCE(${JSON.stringify(body.preferred_service_types) ?? null}::jsonb, preferred_service_types),
+      preferred_service_types = COALESCE(${body.preferred_service_types ?? null}, preferred_service_types),
       updated_at = NOW()
     WHERE id = ${ctx.cleaner_id}
   `;

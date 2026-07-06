@@ -9,22 +9,11 @@ export function LanguageSelector({ className }: Props) {
   const { i18n, t } = useTranslation();
 
   function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const code = e.target.value;
-    void i18n.changeLanguage(code);
-    // Best-effort: persist to user profile via API (fire-and-forget).
-    // The bearer token may not be available here, so we read from Clerk indirectly.
-    const token = localStorage.getItem("__clerk_db_jwt");
-    if (token) {
-      const api = import.meta.env.VITE_API_URL ?? "";
-      fetch(`${api}/customer-profile`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ preferredLanguage: code }),
-      }).catch(() => null);
-    }
+    // Changing the language fires i18n's "languageChanged" event, which the
+    // LanguagePersistence component (App.tsx) persists to the profile using a
+    // proper Clerk session token. No direct fetch here — the old one used
+    // __clerk_db_jwt, which isn't a verifiable session JWT and always 401'd.
+    void i18n.changeLanguage(e.target.value);
   }
 
   return (

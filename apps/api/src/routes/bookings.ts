@@ -13,7 +13,7 @@ import { getDb } from "../lib/db";
 import { requireAuth } from "../middleware/auth";
 import { requireAdmin } from "../middleware/adminRoles";
 import { rankCleanersForBooking } from "../lib/matching";
-import { initiateAssignment } from "../lib/assignment";
+import { initiateAssignment, handleOfferResponse } from "../lib/assignment";
 import { sendNotification } from "../lib/notifications";
 import { rateLimit } from "../middleware/rateLimit";
 import { assertValidTransition } from "../lib/statusMachine";
@@ -221,9 +221,16 @@ bookingsRouter.post(
   // Address greylist gate (unit-aware normalized key). Generic message — never
   // reveal that an address is greylisted.
   if (input.addressId) {
+    // IDOR guard: the address MUST belong to this customer's user. Without this
+    // a customer could book a cleaner to another user's address by guessing its
+    // id. Scope the lookup by user_id (same pattern customerProfile uses).
     const addrRows = (await sql`
-      SELECT street, unit, zip FROM addresses WHERE id = ${input.addressId} LIMIT 1
+      SELECT street, unit, zip FROM addresses
+      WHERE id = ${input.addressId} AND user_id = ${user.id} LIMIT 1
     `) as Array<{ street: string | null; unit: string | null; zip: string | null }>;
+    if (!addrRows[0]) {
+      return c.json({ error: "invalid_address", message: "That address isn't on your account." }, 400);
+    }
     const addr = addrRows[0];
     if (addr?.street && addr?.zip) {
       const key = normalizedGreylistKey(addr.street, addr.unit, addr.zip);
@@ -774,57 +781,31 @@ async function notifyCleaner(
  */
 bookingsRouter.post("/:id/match", requireAdmin, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
-  const booking = (await getBooking(sql, c.req.param("id"))) as BookingRow | null;
+  const bookingId = c.req.param("id");
+  const booking = (await getBooking(sql, bookingId)) as BookingRow | null;
   if (!booking) return c.json({ error: "Not found" }, 404);
 
-  const cleaners = (await sql`
-    SELECT * FROM cleaners WHERE status = 'active'
-  `) as CleanerRow[];
-
-  const ranked = await rankCleanersForBooking(booking, cleaners, sql);
-  const top = ranked.slice(0, 3);
-  if (top.length === 0) {
-    return c.json({ error: "No eligible cleaners" }, 409);
-  }
-
-  const offers: { id: string; cleanerId: string; rank: number }[] = [];
-  for (let i = 0; i < top.length; i++) {
-    const candidate = top[i];
-    if (!candidate) continue;
-    const rows = (await sql`
-      INSERT INTO job_offers (booking_id, cleaner_id, rank, score, status)
-      VALUES (${booking.id}, ${candidate.cleanerId}, ${i}, ${candidate.score}, ${
-        i === 0 ? "offered" : "queued"
-      })
-      RETURNING id
-    `) as { id: string }[];
-    const offerRow = rows[0];
-    if (offerRow) {
-      offers.push({ id: offerRow.id, cleanerId: candidate.cleanerId, rank: i });
-    }
-  }
-
-  await updateBookingStatus(sql, booking.id, "matching");
-
-  const topCleaner = top[0];
-  if (!topCleaner) return c.json({ error: "No eligible cleaners" }, 409);
-
-  // Notify the top cleaner (in-app + email best-effort).
-  await notifyCleaner(sql, topCleaner.cleanerId, {
-    type: "job_offered",
-    title: "New job offer",
-    body: `A ${booking.service_type} clean is available near you.`,
-    data: { href: `/jobs`, bookingId: booking.id },
-  });
-
-  return c.json({ offers, ranked: top });
+  // Canonical assignment engine (assignment_queue). The old body inserted into
+  // a dead `job_offers` table with columns that never existed and would 500.
+  await initiateAssignment(sql, bookingId);
+  const queue = (await sql`
+    SELECT cleaner_id, position, status, score
+    FROM assignment_queue WHERE booking_id = ${bookingId}
+    ORDER BY position ASC
+  `) as Array<{ cleaner_id: string; position: number; status: string; score: number | null }>;
+  if (queue.length === 0) return c.json({ error: "No eligible cleaners" }, 409);
+  return c.json({ ok: true, offers: queue });
 });
 
 const respondSchema = z.object({
   response: z.enum(["accepted", "declined"]),
 });
 
-/** Cleaner responds to a job offer. */
+/**
+ * Cleaner responds to a job offer. Delegates to the canonical assignment
+ * engine (assignment_queue via handleOfferResponse); ownership is verified
+ * against the offer's cleaner before acting.
+ */
 bookingsRouter.post(
   "/:id/offers/:offerId/respond",
   zValidator("json", respondSchema),
@@ -834,113 +815,22 @@ bookingsRouter.post(
     const offerId = c.req.param("offerId");
     const { response } = c.req.valid("json");
 
-    const booking = (await getBooking(sql, bookingId)) as BookingRow | null;
-    if (!booking) return c.json({ error: "Booking not found" }, 404);
-
     const offerRows = (await sql`
-      SELECT * FROM job_offers WHERE id = ${offerId} AND booking_id = ${bookingId}
-    `) as { id: string; cleaner_id: string; rank: number; status: string }[];
+      SELECT cleaner_id, status FROM assignment_queue
+      WHERE id = ${offerId} AND booking_id = ${bookingId} LIMIT 1
+    `) as { cleaner_id: string; status: string }[];
     const offer = offerRows[0];
     if (!offer) return c.json({ error: "Offer not found" }, 404);
-    if (offer.status !== "offered") return c.json({ error: "Offer is no longer active" }, 409);
 
-    // Verify the requesting user is the cleaner who owns this offer.
-    const authUser = c.get("user");
-    const user = await getUserByClerkId(sql, authUser.clerkId);
+    // Verify the requesting user owns this offer's cleaner row.
+    const user = await getUserByClerkId(sql, c.get("user").clerkId);
     if (!user) return c.json({ error: "Forbidden" }, 403);
     const cleanerRows = (await sql`
-      SELECT id FROM cleaners WHERE id = ${offer.cleaner_id} AND user_id = ${user.id}
+      SELECT id FROM cleaners WHERE id = ${offer.cleaner_id} AND user_id = ${user.id} LIMIT 1
     `) as { id: string }[];
     if (cleanerRows.length === 0) return c.json({ error: "Forbidden" }, 403);
 
-    if (response === "accepted") {
-      // Server-side eligibility: valid insurance is required to take jobs.
-      const insurance = await checkInsurance(sql, offer.cleaner_id);
-      if (!insurance.valid) {
-        return c.json(
-          { error: "insurance_required", message: "Valid insurance is required before accepting jobs." },
-          403,
-        );
-      }
-      // Claim-then-act: the earlier `offer.status !== "offered"` check reads a
-      // stale snapshot — two concurrent accept requests (double-tap, or a
-      // retry racing the original) could both pass it. This conditional
-      // UPDATE re-checks status = 'offered' at write time and only one
-      // concurrent request can win the row.
-      const claimedOffer = (await sql`
-        UPDATE job_offers SET status = 'accepted'
-        WHERE id = ${offerId} AND status = 'offered'
-        RETURNING id
-      `) as Array<{ id: string }>;
-      if (!claimedOffer[0]) {
-        return c.json({ error: "Offer is no longer active" }, 409);
-      }
-      // Likewise guard the booking assignment itself: only claim it if no
-      // cleaner has been assigned yet, so two different accepted offers for
-      // the same booking can't both land (last-write-wins on cleaner_id).
-      const claimedBooking = (await sql`
-        UPDATE bookings SET cleaner_id = ${offer.cleaner_id},
-          status = 'cleaner_accepted', updated_at = now()
-        WHERE id = ${bookingId} AND cleaner_id IS NULL
-        RETURNING id
-      `) as Array<{ id: string }>;
-      if (!claimedBooking[0]) {
-        // Someone else's offer already claimed this booking — roll our
-        // acceptance back to avoid stranding an "accepted" offer that never
-        // actually got the job.
-        await sql`UPDATE job_offers SET status = 'declined' WHERE id = ${offerId}`;
-        return c.json({ error: "Booking already has an assigned cleaner" }, 409);
-      }
-      await notifyBookingCustomer(sql, booking, {
-        type: "cleaner_assigned",
-        title: "Your cleaner is confirmed",
-        body: "A cleaner has accepted your booking.",
-        data: { href: `/bookings/${bookingId}` },
-      });
-      return c.json({ ok: true, status: "cleaner_accepted" });
-    }
-
-    // Declined -> offer the next queued cleaner. Claim the decline atomically
-    // (only from 'offered') so a decline racing an accept can't both "win".
-    const claimedDecline = (await sql`
-      UPDATE job_offers SET status = 'declined'
-      WHERE id = ${offerId} AND status = 'offered'
-      RETURNING id
-    `) as Array<{ id: string }>;
-    if (!claimedDecline[0]) {
-      return c.json({ error: "Offer is no longer active" }, 409);
-    }
-    const next = (await sql`
-      SELECT * FROM job_offers
-      WHERE booking_id = ${bookingId} AND status = 'queued'
-      ORDER BY rank ASC LIMIT 1
-    `) as { id: string; cleaner_id: string }[];
-
-    const nextOffer = next[0];
-    if (nextOffer) {
-      await sql`UPDATE job_offers SET status = 'offered' WHERE id = ${nextOffer.id} AND status = 'queued'`;
-      await notifyCleaner(sql, nextOffer.cleaner_id, {
-        type: "job_offered",
-        title: "New job offer",
-        body: `A ${booking.service_type} clean is available near you.`,
-        data: { href: `/jobs`, bookingId },
-      });
-      return c.json({ ok: true, status: "offered_next" });
-    }
-
-    // All declined -> back to matching, alert admins to re-run wider search.
-    await updateBookingStatus(sql, bookingId, "matching");
-    const admins = (await sql`
-      SELECT id FROM users WHERE role = 'admin'
-    `) as { id: string }[];
-    for (const a of admins) {
-      await sendNotification(sql, a.id, {
-        type: "match_exhausted",
-        title: "Booking needs manual matching",
-        body: `All offered cleaners declined booking ${bookingId}.`,
-        data: { href: `/jobs/${bookingId}` },
-      });
-    }
-    return c.json({ ok: true, status: "match_exhausted" });
+    await handleOfferResponse(sql, bookingId, offer.cleaner_id, response);
+    return c.json({ ok: true });
   }
 );

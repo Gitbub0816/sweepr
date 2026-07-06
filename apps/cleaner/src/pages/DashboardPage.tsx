@@ -324,7 +324,9 @@ function JobsTab() {
     setAccepting(jobId);
     try {
       const token = await getToken();
-      const res = await fetch(`${API}/jobs/${jobId}/accept`, {
+      // Canonical accept endpoint (assignment_queue). The old `/jobs/:id/accept`
+      // path doesn't exist — it 404'd every time.
+      const res = await fetch(`${API}/cleaner-dashboard/jobs/${jobId}/accept`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -939,9 +941,17 @@ type DashTab = "overview" | "jobs" | "schedule" | "earnings" | "performance" | "
 
 import { LayoutDashboard } from "lucide-react";
 
+const VALID_TABS: DashTab[] = ["overview", "jobs", "schedule", "earnings", "performance", "settings"];
+
 export function DashboardPage() {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<DashTab>("overview");
+  // Honor ?tab= so other pages (e.g. the retired /performance route) can deep-
+  // link straight to a dashboard tab.
+  const initialTab = (() => {
+    const q = new URLSearchParams(window.location.search).get("tab") as DashTab | null;
+    return q && VALID_TABS.includes(q) ? q : "overview";
+  })();
+  const [tab, setTab] = useState<DashTab>(initialTab);
 
   const TABS: { id: DashTab; label: string; icon: React.ElementType }[] = [
     { id: "overview",     label: t("cleaner.dashboard.tabs.overview"),     icon: LayoutDashboard },

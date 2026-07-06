@@ -58,6 +58,17 @@ subscriptionsRouter.post("/", zValidator("json", createSchema), async (c) => {
   const { sql, customer } = await currentCustomer(c);
   if (!customer) return c.json({ error: "Customer not found" }, 404);
 
+  // IDOR guard: a supplied address must belong to this customer's user.
+  if (input.addressId) {
+    const owns = (await sql`
+      SELECT 1 FROM addresses a JOIN customers c ON c.user_id = a.user_id
+      WHERE a.id = ${input.addressId} AND c.id = ${customer.id} LIMIT 1
+    `) as unknown[];
+    if (!owns.length) {
+      return c.json({ error: "invalid_address", message: "That address isn't on your account." }, 400);
+    }
+  }
+
   // 1. Calculate pricing.
   const pricing = calculatePrice({
     serviceType: input.serviceType,

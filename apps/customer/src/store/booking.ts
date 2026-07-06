@@ -141,8 +141,13 @@ export const useBookingStore = create<BookingState>()(
   rebookFrom: (prev) =>
     set({
       address: prev.address,
+      intent: "home",
       home: prev.home,
       serviceType: prev.serviceType,
+      // Room conditions are per-visit and NOT carried over from a past booking
+      // (the Booking type doesn't include them) — the customer must reassess, or
+      // we'd price the new clean from stale/unrelated answers.
+      rooms: [],
       cleaningLevel: null,
       addOnKeys: [...prev.addOnKeys],
       cadence: prev.cadence,
@@ -248,6 +253,9 @@ export const useBookingStore = create<BookingState>()(
         serviceType: s.serviceType,
         rooms: s.rooms,
         cleaningLevel: s.cleaningLevel,
+        // Persist the DB booking id so a Stripe off-site redirect (which reloads
+        // the app) can still reference the booking on /book/confirmed.
+        bookingId: s.bookingId,
         addOnKeys: s.addOnKeys,
         cadence: s.cadence,
         scheduledFor: s.scheduledFor,

@@ -51,6 +51,18 @@ export function AddSlotModal({
   );
   const [start, setStart] = useState("08:00");
   const [end, setEnd] = useState("16:00");
+  // Internal date for "Just this date" mode. Previously the modal relied on an
+  // externally-supplied `date` prop that SchedulePage never passed, so Save was
+  // permanently disabled for flexible slots. Default to today.
+  const [flexDate, setFlexDate] = useState<string>(() =>
+    format(date ?? new Date(), "yyyy-MM-dd")
+  );
+  const effectiveDate =
+    mode === "flexible"
+      ? flexDate
+        ? new Date(`${flexDate}T00:00:00`)
+        : null
+      : (date ?? null);
 
   const toggleDay = (d: number) =>
     setDays((cur) =>
@@ -67,12 +79,12 @@ export function AddSlotModal({
               : "(pick days)"
           } ${fmtTime(start)} – ${fmtTime(end)}`
         : `You'll appear available ${
-            date ? format(date, "EEEE, MMM d") : "(pick a date)"
+            effectiveDate ? format(effectiveDate, "EEEE, MMM d") : "(pick a date)"
           } ${fmtTime(start)} – ${fmtTime(end)}`;
 
   const canSave =
     mode === "available_now" ||
-    (mode === "recurring" ? days.length > 0 : !!date);
+    (mode === "recurring" ? days.length > 0 : !!effectiveDate);
 
   return (
     <Modal
@@ -92,7 +104,7 @@ export function AddSlotModal({
                 daysOfWeek: days,
                 startTime: start,
                 endTime: end,
-                date: date ?? null,
+                date: effectiveDate,
               });
               onOpenChange(false);
             }}
@@ -148,6 +160,19 @@ export function AddSlotModal({
               ))}
             </div>
           </div>
+        )}
+
+        {mode === "flexible" && (
+          <label className="block text-xs font-medium text-slate-500">
+            Date
+            <input
+              type="date"
+              value={flexDate}
+              min={format(new Date(), "yyyy-MM-dd")}
+              onChange={(e) => setFlexDate(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            />
+          </label>
         )}
 
         {mode !== "available_now" && (

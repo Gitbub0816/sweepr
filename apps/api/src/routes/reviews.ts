@@ -61,10 +61,10 @@ reviewsRouter.post(
 
     const comment = input.comment ? sanitizeText(input.comment, 2000) : null;
     const rows = (await sql`
-      INSERT INTO reviews (booking_id, customer_id, cleaner_id, rating, comment)
-      VALUES (${input.bookingId}, ${customer.id}, ${input.cleanerId}, ${input.rating}, ${comment})
+      INSERT INTO reviews (booking_id, customer_id, cleaner_id, rating, comment, tags)
+      VALUES (${input.bookingId}, ${customer.id}, ${input.cleanerId}, ${input.rating}, ${comment}, ${input.tags})
       ON CONFLICT (booking_id) DO UPDATE
-        SET rating = EXCLUDED.rating, comment = EXCLUDED.comment
+        SET rating = EXCLUDED.rating, comment = EXCLUDED.comment, tags = EXCLUDED.tags
       RETURNING *
     `) as unknown[];
     return c.json({ review: rows[0] }, 201);

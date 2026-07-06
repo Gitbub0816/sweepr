@@ -70,8 +70,19 @@ cleanersRouter.get("/onboarding-progress", async (c) => {
     insurance = (await checkInsurance(sql, cleanerId)).valid;
   }
 
+  // Normalize the DB status into the vocabulary the cleaner app's guard and
+  // dashboard checklist speak: incomplete | pending_review | approved. The DB
+  // stores a submitted-but-unreviewed application as 'pending', which the UI
+  // was mis-reading as "incomplete" (showing the locked/finish-setup screen to
+  // a cleaner whose application is actually under review).
+  const normalizedStatus = approved
+    ? "approved"
+    : submitted
+      ? "pending_review"
+      : "incomplete";
+
   return c.json({
-    status: ch?.status ?? "incomplete",
+    status: normalizedStatus,
     steps: { profile, training, background, identity, insurance, submitted, approved },
   });
 });
