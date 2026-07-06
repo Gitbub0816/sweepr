@@ -223,11 +223,36 @@ async function respondToOffer(
   if (!offers[0]) return c.json({ error: "No active offer for this job" }, 404);
 
   await handleOfferResponse(sql, bookingId, ctx.cleaner_id, response);
+
+  // Tell the UI whether a decline used the free daily allowance or was
+  // penalized (dents acceptance rate) so it can message accordingly.
+  if (response === "declined") {
+    const row = (await sql`
+      SELECT declined_free FROM assignment_queue
+      WHERE booking_id = ${bookingId} AND cleaner_id = ${ctx.cleaner_id}
+      ORDER BY responded_at DESC NULLS LAST LIMIT 1
+    `) as Array<{ declined_free: boolean | null }>;
+    return c.json({ ok: true, response, declineWasFree: row[0]?.declined_free ?? true });
+  }
   return c.json({ ok: true, response });
 }
 
 cleanerDashboardRouter.post("/jobs/:id/accept", (c) => respondToOffer(c, "accepted"));
 cleanerDashboardRouter.post("/jobs/:id/decline", (c) => respondToOffer(c, "declined"));
+
+// Whether the cleaner still has their free decline for today (UI hint).
+cleanerDashboardRouter.get("/decline-status", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const ctx = await getCleanerCtx(sql, c.get("user").clerkId);
+  if (!ctx) return c.json({ freeDeclineAvailable: true });
+  const used = (await sql`
+    SELECT 1 FROM assignment_queue
+    WHERE cleaner_id = ${ctx.cleaner_id} AND status = 'declined'
+      AND declined_free = true AND responded_at >= date_trunc('day', NOW())
+    LIMIT 1
+  `) as unknown[];
+  return c.json({ freeDeclineAvailable: used.length === 0 });
+});
 
 // ─── Earnings summary ─────────────────────────────────────────────────────────
 
@@ -447,6 +472,63 @@ cleanerDashboardRouter.put("/availability", zValidator("json", availabilitySchem
             updated_at = NOW()
     `;
   }
+  return c.json({ ok: true });
+});
+
+// ─── Service area (address + radius the cleaner will travel) ────────────────────
+// Cleaners set their own smaller service area within the company's coverage.
+// The assignment engine hard-filters offers to bookings inside this radius.
+
+cleanerDashboardRouter.get("/service-area", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const ctx = await getCleanerCtx(sql, c.get("user").clerkId);
+  if (!ctx) return c.json({ area: null });
+  const rows = (await sql`
+    SELECT center_lat, center_lng, radius_miles, label, updated_at
+    FROM cleaner_service_areas
+    WHERE cleaner_id = ${ctx.cleaner_id}
+    ORDER BY updated_at DESC NULLS LAST
+    LIMIT 1
+  `) as Array<{
+    center_lat: string | null;
+    center_lng: string | null;
+    radius_miles: number | null;
+    label: string | null;
+    updated_at: string | null;
+  }>;
+  const a = rows[0];
+  return c.json({
+    area: a
+      ? {
+          centerLat: a.center_lat != null ? Number(a.center_lat) : null,
+          centerLng: a.center_lng != null ? Number(a.center_lng) : null,
+          radiusMiles: a.radius_miles ?? 15,
+          label: a.label ?? null,
+          updatedAt: a.updated_at,
+        }
+      : null,
+  });
+});
+
+const serviceAreaSchema = z.object({
+  centerLat: z.number().min(-90).max(90),
+  centerLng: z.number().min(-180).max(180),
+  radiusMiles: z.number().int().min(1).max(100),
+  label: z.string().max(200).optional(),
+});
+
+cleanerDashboardRouter.put("/service-area", zValidator("json", serviceAreaSchema), async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const ctx = await getCleanerCtx(sql, c.get("user").clerkId);
+  if (!ctx) return c.json({ error: "Cleaner not found" }, 404);
+  const { centerLat, centerLng, radiusMiles, label } = c.req.valid("json");
+
+  // One primary service area per cleaner — replace any existing.
+  await sql`DELETE FROM cleaner_service_areas WHERE cleaner_id = ${ctx.cleaner_id}`;
+  await sql`
+    INSERT INTO cleaner_service_areas (cleaner_id, center_lat, center_lng, radius_miles, label, updated_at)
+    VALUES (${ctx.cleaner_id}, ${centerLat}, ${centerLng}, ${radiusMiles}, ${label ?? null}, NOW())
+  `;
   return c.json({ ok: true });
 });
 

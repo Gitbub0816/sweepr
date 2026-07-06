@@ -127,10 +127,17 @@ export function JobsPage() {
     setJobs((j) => j.filter((x) => x.id !== id));
     try {
       const token = await getToken();
-      await fetch(`${API_URL}/cleaner-dashboard/jobs/${id}/decline`, {
+      const res = await fetch(`${API_URL}/cleaner-dashboard/jobs/${id}/decline`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
+      // One free decline per day; further declines lower your acceptance rate.
+      const data = (await res.json().catch(() => ({}))) as { declineWasFree?: boolean };
+      if (data.declineWasFree === false) {
+        toast.error("That's a second decline today — it lowers your acceptance rate and your odds on future jobs.");
+      } else {
+        toast("Passed. You have 1 free decline a day; more will affect your acceptance rate.");
+      }
     } catch {
       /* best-effort */
     }

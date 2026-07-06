@@ -2,6 +2,7 @@ import type { Sql, BookingRow, CleanerRow } from "@sweepr/db";
 import {
   rankCleanersForBooking,
   eligibleCleanersForBooking,
+  weightedAssignmentOrder,
 } from "./matching";
 import { logger } from "./logger";
 import { AppError } from "./errors";
@@ -105,7 +106,11 @@ export async function initiateAssignment(
 
   const eligible = await eligibleCleanersForBooking(booking, cleaners, sql);
   const ranked = await rankCleanersForBooking(booking, eligible, sql);
-  const top = ranked.slice(0, MAX_CANDIDATES);
+  // Selection is a weighted-random draw (mostly chance, leaning to the best
+  // match) rather than a deterministic top-N — spreads work and lets the
+  // fairness term lift cleaners who are available but rarely picked.
+  const ordered = weightedAssignmentOrder(ranked);
+  const top = ordered.slice(0, MAX_CANDIDATES);
 
   if (top.length === 0) {
     await sql`
@@ -222,15 +227,28 @@ export async function handleOfferResponse(
     return;
   }
 
-  // Declined: mark current offer, cascade to next position.
+  // Declined. Each cleaner gets ONE free decline per day (no acceptance-rate
+  // penalty); a second or later decline that day is penalized and drags down
+  // their acceptance rate — which lowers their odds in future weighted draws.
+  const priorFree = (await sql`
+    SELECT 1 FROM assignment_queue
+    WHERE cleaner_id = ${cleanerId} AND status = 'declined'
+      AND declined_free = true
+      AND responded_at >= date_trunc('day', NOW())
+    LIMIT 1
+  `) as unknown[];
+  const isFreeDecline = priorFree.length === 0;
+
   const declinedRows = (await sql`
-    UPDATE assignment_queue SET status = 'declined'
+    UPDATE assignment_queue
+    SET status = 'declined', declined_free = ${isFreeDecline}, responded_at = NOW()
     WHERE booking_id = ${bookingId} AND cleaner_id = ${cleanerId}
       AND status = 'pending'
     RETURNING position
   `) as { position: number }[];
   const declinedPos = declinedRows[0]?.position ?? 0;
 
+  logger.info("assignment.declined", { bookingId, cleanerId, free: isFreeDecline });
   await cascadeFrom(sql, booking, declinedPos);
 }
 
