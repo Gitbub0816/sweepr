@@ -122,12 +122,13 @@ export async function eligibleCleanersForBooking(
 }
 
 export interface MatchBreakdown {
-  availability: number; // 0-25
-  distance: number; // 0-25
-  rating: number; // 0-20
+  availability: number; // 0-12  schedule fit
+  serviceArea: number; // 0-15  closeness within the cleaner's own radius
+  rating: number; // 0-20  performance rating
+  acceptance: number; // 0-15  acceptance rate (penalized declines drag it down)
+  pastInteraction: number; // 0-8  prior good jobs with THIS customer (small)
   tier: number; // 0-10
-  serviceMatch: number; // 0-10
-  reliability: number; // 0-10
+  fairness: number; // 0-10  exploration boost for rarely-offered cleaners
 }
 
 export interface MatchScore {
@@ -135,6 +136,37 @@ export interface MatchScore {
   score: number;
   breakdown: MatchBreakdown;
 }
+
+/**
+ * Turn a set of scored candidates into a WEIGHTED-RANDOM ordering (position 1
+ * first). Selection is mostly chance — every eligible cleaner keeps a real
+ * shot (a floor weight) so work spreads around and the fairness term can lift
+ * underdogs — while higher scores lean the odds toward the best match. Uses
+ * Efraimidis–Spirakis weighted sampling without replacement, so the whole
+ * cascade order (not just position 1) is a single weighted draw.
+ */
+export function weightedAssignmentOrder(scores: MatchScore[]): MatchScore[] {
+  if (scores.length <= 1) return [...scores];
+  // FLOOR keeps it "largely up to chance": even the lowest-scoring eligible
+  // cleaner samples with weight 0.35 vs a perfect match at 1.0 — a lean, not a
+  // lock. Normalize against the ABSOLUTE max score (not the pool's spread) so
+  // that two near-equal cleaners get near-equal odds and a lone weak candidate
+  // isn't artificially inflated to the top of its own tiny pool.
+  const FLOOR = 0.35;
+  return scores
+    .map((s) => {
+      const norm = Math.max(0, Math.min(1, s.score / MAX_MATCH_SCORE)); // 0..1
+      const weight = FLOOR + (1 - FLOOR) * norm; // 0.35..1
+      // key = U^(1/weight): larger weight → key skews toward 1 → picked earlier.
+      const key = Math.pow(Math.random() || 1e-9, 1 / weight);
+      return { s, key };
+    })
+    .sort((a, b) => b.key - a.key)
+    .map((x) => x.s);
+}
+
+/** Maximum attainable match score — sum of every factor's ceiling. */
+export const MAX_MATCH_SCORE = 12 + 15 + 20 + 15 + 8 + 10 + 10; // = 90
 
 interface AvailabilityRow {
   cleaner_id: string;
@@ -148,12 +180,6 @@ interface ServiceAreaRow {
   center_lat: string | number | null;
   center_lng: string | number | null;
   radius_miles: number | null;
-}
-
-interface OfferStatsRow {
-  cleaner_id: string;
-  offered: number;
-  accepted: number;
 }
 
 function tierPoints(tier: string): number {
@@ -199,17 +225,31 @@ function availabilityPoints(
   return 5;
 }
 
-function distancePoints(miles: number): number {
-  if (miles < 5) return 25;
-  if (miles < 10) return 20;
-  if (miles < 15) return 15;
-  if (miles < 25) return 5;
-  return 0;
+/** Closeness score within a cleaner's own service radius (0-15, nearer = more). */
+function serviceAreaPoints(miles: number, radius: number): number {
+  const frac = Math.min(1, miles / Math.max(1, radius)); // 0 at center, 1 at edge
+  return Math.round((1 - frac) * 15 * 100) / 100;
 }
 
 /**
- * Rank available cleaners for a booking using a weighted scoring engine.
- * Returns scores sorted descending. Pure aside from the supplied db queries.
+ * Rank eligible cleaners for a booking. This applies the HARD filters
+ * (service offering + the cleaner's own service area) and produces a fair,
+ * multi-factor score per surviving candidate. The score is NOT used to pick a
+ * winner directly — `weightedAssignmentOrder()` turns these into a
+ * weighted-random cascade order so selection stays mostly up to chance while
+ * leaning toward the best match.
+ *
+ * Hard filters (a mismatch removes the cleaner entirely):
+ *  - Service offering: a cleaner who has configured service types and does NOT
+ *    offer this booking's service type is never assigned it (e.g. no deep
+ *    clean in their profile → no deep-clean jobs).
+ *  - Service area: if a cleaner has set their own area and the booking is
+ *    outside its radius, they are not offered the job.
+ *
+ * Weighted factors (into the score):
+ *  performance rating, acceptance rate (penalized declines drag it down),
+ *  prior good jobs with this exact customer (small), service-area closeness,
+ *  tier, and a fairness/exploration boost for rarely-offered cleaners.
  */
 export async function rankCleanersForBooking(
   booking: BookingRow,
@@ -239,46 +279,75 @@ export async function rankCleanersForBooking(
     }
   }
 
-  // Batch lookups for all candidate cleaners. NOTE: these three queries were
-  // all writing against tables/columns that do not exist (cleaner_availability
-  // has start_time/end_time not start_minute/end_minute; offer stats live in
-  // assignment_queue not job_offers.status; service prefs live in
-  // cleaners.preferred_service_types not a cleaner_services table). The result:
-  // rankCleanersForBooking threw on every booking and no cleaner was ever
-  // ranked or offered — the whole marketplace silently never matched anyone.
-  const [availabilityRaw, areaRaw, offerRaw, serviceRaw] = await Promise.all([
-    db`
-      SELECT cleaner_id, day_of_week,
-             start_time::text AS start_time, end_time::text AS end_time
-      FROM cleaner_availability
-      WHERE cleaner_id = ANY(${cleanerIds}) AND active = true
-    `,
-    db`
-      SELECT cleaner_id, center_lat, center_lng, radius_miles
-      FROM cleaner_service_areas
-      WHERE cleaner_id = ANY(${cleanerIds})
-    `,
-    db`
-      SELECT cleaner_id,
-             COUNT(*)::int AS offered,
-             COUNT(*) FILTER (WHERE status = 'accepted')::int AS accepted
-      FROM assignment_queue
-      WHERE cleaner_id = ANY(${cleanerIds})
-      GROUP BY cleaner_id
-    `,
-    db`
-      SELECT id AS cleaner_id, preferred_service_types
-      FROM cleaners
-      WHERE id = ANY(${cleanerIds})
-    `,
-  ]);
+  const [availabilityRaw, areaRaw, acceptRaw, serviceRaw, recentRaw, interactionRaw] =
+    await Promise.all([
+      db`
+        SELECT cleaner_id, day_of_week,
+               start_time::text AS start_time, end_time::text AS end_time
+        FROM cleaner_availability
+        WHERE cleaner_id = ANY(${cleanerIds}) AND active = true
+      `,
+      db`
+        SELECT cleaner_id, center_lat, center_lng, radius_miles
+        FROM cleaner_service_areas
+        WHERE cleaner_id = ANY(${cleanerIds})
+      `,
+      // Acceptance stats: accepted vs PENALIZED declines only. A cleaner's one
+      // free decline per day (declined_free = true) is intentionally excluded
+      // so it never dents their acceptance rate.
+      db`
+        SELECT cleaner_id,
+               COUNT(*) FILTER (WHERE status = 'accepted')::int AS accepted,
+               COUNT(*) FILTER (WHERE status = 'declined' AND declined_free = false)::int AS penalized_declines
+        FROM assignment_queue
+        WHERE cleaner_id = ANY(${cleanerIds})
+        GROUP BY cleaner_id
+      `,
+      db`
+        SELECT id AS cleaner_id, preferred_service_types
+        FROM cleaners
+        WHERE id = ANY(${cleanerIds})
+      `,
+      // Exploration signal: how many offers this cleaner has seen recently.
+      db`
+        SELECT cleaner_id, COUNT(*)::int AS recent_offers
+        FROM assignment_queue
+        WHERE cleaner_id = ANY(${cleanerIds})
+          AND offered_at > NOW() - INTERVAL '30 days'
+        GROUP BY cleaner_id
+      `,
+      // Prior good history between THIS customer and each cleaner.
+      booking.customer_id
+        ? db`
+            SELECT b.cleaner_id,
+                   COUNT(*)::int AS jobs,
+                   AVG(r.rating)::float AS avg_rating
+            FROM bookings b
+            LEFT JOIN reviews r ON r.booking_id = b.id
+            WHERE b.customer_id = ${booking.customer_id}
+              AND b.cleaner_id = ANY(${cleanerIds})
+              AND b.status = 'completed'
+            GROUP BY b.cleaner_id
+          `
+        : Promise.resolve([] as unknown),
+    ]);
 
   const availabilityRows = availabilityRaw as unknown as AvailabilityRow[];
   const areaRows = areaRaw as unknown as ServiceAreaRow[];
-  const offerRows = offerRaw as unknown as OfferStatsRow[];
+  const acceptRows = acceptRaw as unknown as Array<{
+    cleaner_id: string;
+    accepted: number;
+    penalized_declines: number;
+  }>;
   const serviceRows = serviceRaw as unknown as Array<{
     cleaner_id: string;
     preferred_service_types: string[] | null;
+  }>;
+  const recentRows = recentRaw as unknown as Array<{ cleaner_id: string; recent_offers: number }>;
+  const interactionRows = interactionRaw as unknown as Array<{
+    cleaner_id: string;
+    jobs: number;
+    avg_rating: number | null;
   }>;
 
   const byCleaner = <T extends { cleaner_id: string }>(rows: T[]) => {
@@ -296,83 +365,87 @@ export async function rankCleanersForBooking(
   const servicesByCleaner = new Map(
     serviceRows.map((r) => [r.cleaner_id, r.preferred_service_types ?? []]),
   );
-  const offerByCleaner = new Map(offerRows.map((r) => [r.cleaner_id, r]));
+  const acceptByCleaner = new Map(acceptRows.map((r) => [r.cleaner_id, r]));
+  const recentByCleaner = new Map(recentRows.map((r) => [r.cleaner_id, r.recent_offers]));
+  const interactionByCleaner = new Map(interactionRows.map((r) => [r.cleaner_id, r]));
+  const maxRecent = Math.max(1, ...recentRows.map((r) => r.recent_offers));
 
-  const scores: MatchScore[] = availableCleaners.map((cleaner) => {
-    // Availability
-    const availability =
-      dayOfWeek >= 0
-        ? availabilityPoints(
-            availByCleaner.get(cleaner.id) ?? [],
-            dayOfWeek,
-            minuteOfDay
-          )
-        : 0;
+  const scores: MatchScore[] = [];
+  for (const cleaner of availableCleaners) {
+    // ── HARD FILTER 1: service offering ─────────────────────────────────────
+    // A cleaner who lists service types and does not include this booking's
+    // type is never assigned it. (No configured types = generalist.)
+    const prefs = servicesByCleaner.get(cleaner.id) ?? [];
+    if (prefs.length > 0 && !prefs.includes(booking.service_type)) continue;
 
-    // Distance. A cleaner with NO service-area rows configured hasn't set up
-    // a preferred radius yet (common for a freshly-approved cleaner) — soft-
-    // filter that case to a neutral mid-range score instead of 0, so they
-    // aren't effectively excluded from ranking just for lacking config.
+    // ── HARD FILTER 2: the cleaner's own service area ───────────────────────
     const area = (areaByCleaner.get(cleaner.id) ?? [])[0];
-    let distance = 15;
+    let serviceArea = 10; // neutral when we can't measure (no area set or no geo)
     if (
-      bookingLat !== null &&
-      bookingLng !== null &&
       area?.center_lat != null &&
-      area?.center_lng != null
+      area?.center_lng != null &&
+      bookingLat !== null &&
+      bookingLng !== null
     ) {
+      const radius = area.radius_miles ?? 15;
       const miles = haversineDistance(
         bookingLat,
         bookingLng,
         Number(area.center_lat),
-        Number(area.center_lng)
+        Number(area.center_lng),
       );
-      distance = distancePoints(miles);
+      if (miles > radius) continue; // outside their radius → not offered
+      serviceArea = serviceAreaPoints(miles, radius);
     }
 
-    // Rating: rating * 4 capped at 20; new cleaners default 12.
-    const ratingValue = cleaner.rating != null ? Number(cleaner.rating) : null;
-    const rating =
-      ratingValue == null ? 12 : Math.min(20, ratingValue * 4);
+    // Schedule fit (already eligibility-gated; this just rewards a tight fit).
+    const availability =
+      dayOfWeek >= 0
+        ? Math.round((availabilityPoints(availByCleaner.get(cleaner.id) ?? [], dayOfWeek, minuteOfDay) / 25) * 12 * 100) / 100
+        : 0;
 
-    // Tier
+    // Performance rating: rating * 4 capped at 20; new cleaners default 12.
+    const ratingValue = cleaner.rating != null ? Number(cleaner.rating) : null;
+    const rating = ratingValue == null ? 12 : Math.min(20, ratingValue * 4);
+
+    // Acceptance rate → 0-15. New cleaners (no history) default to a healthy 0.85.
+    const acc = acceptByCleaner.get(cleaner.id);
+    const totalResolved = acc ? acc.accepted + acc.penalized_declines : 0;
+    const acceptanceRate = totalResolved === 0 ? 0.85 : acc!.accepted / totalResolved;
+    const acceptance = Math.round(acceptanceRate * 15 * 100) / 100;
+
+    // Prior good jobs with THIS customer (small weight, 0-8).
+    const inter = interactionByCleaner.get(cleaner.id);
+    let pastInteraction = 0;
+    if (inter && inter.jobs > 0) {
+      const ratingBoost = inter.avg_rating == null ? 0.6 : Math.max(0, (inter.avg_rating - 3) / 2); // 3★→0, 5★→1
+      pastInteraction = Math.round(Math.min(8, inter.jobs * 2 * (0.5 + ratingBoost)) * 100) / 100;
+    }
+
     const tier = tierPoints(cleaner.tier);
 
-    // Service match. A cleaner with no configured preferences is treated as
-    // accepting all service types (soft rule, matches eligibility).
-    const prefs = servicesByCleaner.get(cleaner.id) ?? [];
-    const offersService = prefs.length === 0 || prefs.includes(booking.service_type);
-    const serviceMatch = offersService ? 10 : 0;
-
-    // Reliability: accepted/offered * 10; new cleaners default 8.
-    const stats = offerByCleaner.get(cleaner.id);
-    const reliability =
-      !stats || stats.offered === 0
-        ? 8
-        : (stats.accepted / stats.offered) * 10;
+    // Fairness/exploration (0-10): rarely-offered cleaners get a lift so work
+    // spreads and the "available but never picked" don't get starved.
+    const recent = recentByCleaner.get(cleaner.id) ?? 0;
+    const fairness = Math.round((1 - recent / maxRecent) * 10 * 100) / 100;
 
     const breakdown: MatchBreakdown = {
       availability,
-      distance,
+      serviceArea,
       rating: Math.round(rating * 100) / 100,
+      acceptance,
+      pastInteraction,
       tier,
-      serviceMatch,
-      reliability: Math.round(reliability * 100) / 100,
+      fairness,
     };
 
     const score =
       Math.round(
-        (availability +
-          distance +
-          breakdown.rating +
-          tier +
-          serviceMatch +
-          breakdown.reliability) *
-          100
+        (availability + serviceArea + rating + acceptance + pastInteraction + tier + fairness) * 100,
       ) / 100;
 
-    return { cleanerId: cleaner.id, score, breakdown };
-  });
+    scores.push({ cleanerId: cleaner.id, score, breakdown });
+  }
 
   return scores.sort((a, b) => b.score - a.score);
 }

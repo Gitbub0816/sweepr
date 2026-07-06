@@ -6,6 +6,7 @@ import {
   DashboardShell, Card, Badge, Input, Textarea, Button, toast, AccountPrivacy,
 } from "@sweepr/ui";
 import { ContactSettings } from "../components/ContactSettings";
+import { ServiceAreaSection } from "../components/ServiceAreaSection";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -108,6 +109,7 @@ export function ProfilePage() {
       </div>
 
       <div className="mt-6 max-w-lg space-y-6">
+        <ServiceAreaSection />
         <ContactSettings />
         <AccountPrivacy
           apiUrl={API_URL}
