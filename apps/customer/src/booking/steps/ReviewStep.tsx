@@ -118,12 +118,19 @@ export function ReviewStep() {
             homeType: home.homeType,
             hasPets: home.pets,
             cleaningLevel: derivedLevel,
+            rooms,
             addOnKeys,
+            scheduledAt: scheduledFor,
           }),
         });
         if (!res.ok) throw new Error("quote failed");
-        const data = (await res.json()) as { total?: number; totalPrice?: number };
-        const dollars = data.total ?? (data.totalPrice != null ? data.totalPrice / 100 : null);
+        const data = (await res.json()) as {
+          total?: number;
+          price?: { totalPrice?: number };
+        };
+        const dollars =
+          data.total ??
+          (data.price?.totalPrice != null ? data.price.totalPrice / 100 : null);
         if (!cancelled && dollars != null) setTotal(dollars);
         else if (!cancelled) setQuoteError(true);
       } catch {
@@ -133,7 +140,7 @@ export function ReviewStep() {
     return () => {
       cancelled = true;
     };
-  }, [missingRequiredFields, serviceType, home, derivedLevel, addOnKeys, getToken]);
+  }, [missingRequiredFields, serviceType, home, derivedLevel, rooms, addOnKeys, scheduledFor, getToken]);
 
   if (missingRequiredFields) return null;
 

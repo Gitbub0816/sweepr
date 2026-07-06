@@ -62,8 +62,68 @@ const createSchema = z.object({
   cleaningLevel: z
     .enum(["refresh", "extra_attention", "significant_attention"])
     .default("refresh"),
+  // Room-by-room condition selections (Clean My Home flow). When present these
+  // drive the authoritative price via the room-condition engine, superseding
+  // the service-type + cleaning-level model.
+  rooms: z
+    .array(
+      z.object({
+        roomType: z.enum(["kitchen", "bathroom", "bedroom", "living_room"]),
+        level: z.enum(["level_1", "level_2", "level_3", "level_4"]),
+      }),
+    )
+    .max(8)
+    .optional(),
   // Client must NOT submit prices — server always calculates.
 });
+
+type CreateInput = z.infer<typeof createSchema>;
+
+/**
+ * Authoritative room-condition pricing (Clean My Home flow). Returns null when
+ * the client didn't send room selections (legacy clients / other flows).
+ * Money in cents; config comes from the admin Cleaning Pricing page.
+ */
+async function roomConditionPricing(
+  sql: ReturnType<typeof getDb>,
+  input: CreateInput,
+): Promise<{
+  totalCents: number;
+  baseCents: number;
+  addOnsCents: number;
+  feeCents: number;
+  taxCents: number;
+  lineItems: Array<{ label: string; cents: number }>;
+} | null> {
+  if (!input.rooms || input.rooms.length === 0) return null;
+  const { loadHomeCleaningConfig } = await import("../lib/pricingConfig");
+  const { calculateHomeCleaningPrice } = await import("@sweepr/utils");
+  const cfg = await loadHomeCleaningConfig(sql);
+  const homeType = input.homeType === "other" ? "house" : input.homeType;
+  const result = calculateHomeCleaningPrice(
+    {
+      property: {
+        homeType: homeType as never,
+        sqft: input.sqft,
+        bedrooms: input.bedrooms,
+        bathrooms: input.bathrooms,
+      },
+      rooms: input.rooms,
+      addOnKeys: input.addOnKeys,
+    },
+    cfg,
+  );
+  const b = result.internalBreakdown;
+  return {
+    totalCents: b.totalCents,
+    baseCents: b.baseFeeCents,
+    addOnsCents: b.addOnsCents,
+    // Rounding delta rides with the service fee so line totals reconcile.
+    feeCents: b.feeCents + b.roundingDeltaCents,
+    taxCents: b.taxCents,
+    lineItems: b.lineItems.map((li) => ({ label: li.label, cents: li.amountCents })),
+  };
+}
 
 /**
  * Load the level-surcharge percentages from site_settings (TEXT key/value).
@@ -193,28 +253,34 @@ bookingsRouter.post(
   }
 
   // Server-side price calculation — client values are never trusted.
-  // Prefer the active algorithmic pricing rule; fall back to the legacy
-  // calculator when no rule is active for this market.
+  // Precedence: room-condition engine (Clean My Home flow, when `rooms` sent)
+  // → active algorithmic pricing rule → legacy calculator.
+  const roomPrice = await roomConditionPricing(sql, input);
   const price = calculateBookingPrice(input);
   let resolved = null;
-  try {
-    resolved = await resolveBookingPricing(sql, input);
-  } catch (err) {
-    logger.error("resolveBookingPricing failed", err, {});
+  if (!roomPrice) {
+    try {
+      resolved = await resolveBookingPricing(sql, input);
+    } catch (err) {
+      logger.error("resolveBookingPricing failed", err, {});
+    }
   }
-  const baseTotalPrice = resolved ? resolved.breakdown.customer_total_cents : price.totalPrice;
-  const basePrice = resolved ? resolved.breakdown.base_fee_cents : price.basePrice;
-  const addonsTotal = resolved ? resolved.breakdown.add_ons_total_cents : price.addonsTotal;
+  const baseTotalPrice = roomPrice
+    ? roomPrice.totalCents
+    : resolved
+      ? resolved.breakdown.customer_total_cents
+      : price.totalPrice;
+  const basePrice = roomPrice ? roomPrice.baseCents : resolved ? resolved.breakdown.base_fee_cents : price.basePrice;
+  const addonsTotal = roomPrice ? roomPrice.addOnsCents : resolved ? resolved.breakdown.add_ons_total_cents : price.addonsTotal;
   const cleanerPayout = resolved ? resolved.breakdown.estimated_cleaner_payout_cents : null;
 
-  // Cleaning-level surcharge (scope review). Computed on the pre-surcharge
-  // total and folded into the authoritative total we charge/authorize.
+  // Cleaning-level surcharge (scope review). The room-condition engine prices
+  // per-room conditions directly, so the level surcharge only applies to the
+  // legacy/rule paths — applying both would double-charge for dirtiness.
   const levelPcts = await loadLevelSurchargePcts(sql);
-  const levelSurchargeCents = computeLevelSurchargeCents(
-    input.cleaningLevel,
-    baseTotalPrice,
-    levelPcts,
-  );
+  const levelSurchargeCents = roomPrice
+    ? 0
+    : computeLevelSurchargeCents(input.cleaningLevel, baseTotalPrice, levelPcts);
   const totalPrice = baseTotalPrice + levelSurchargeCents;
 
   // When an arrival window was chosen, the scheduled instant is the booked
@@ -247,10 +313,15 @@ bookingsRouter.post(
         ${customer.id}, ${input.addressId ?? null}, 'booked', ${input.serviceType},
         ${input.bedrooms}, ${input.bathrooms}, ${input.sqft}, ${input.homeType},
         ${effectiveScheduledAt}, ${basePrice}, ${addonsTotal},
-        ${resolved ? 0 : price.serviceFee}, ${resolved ? 0 : price.tax}, ${totalPrice}, ${input.notes ?? null},
+        ${roomPrice ? roomPrice.feeCents : resolved ? 0 : price.serviceFee},
+        ${roomPrice ? roomPrice.taxCents : resolved ? 0 : price.tax}, ${totalPrice}, ${input.notes ?? null},
         ${input.cleaningLevel}, ${levelSurchargeCents},
         ${resolved ? resolved.ruleId : null}, ${resolved ? resolved.ruleVersion : null},
-        ${resolved ? JSON.stringify(resolved.breakdown.line_items) : null}, ${cleanerPayout},
+        ${roomPrice
+          ? JSON.stringify([...roomPrice.lineItems, { label: "rooms", rooms: input.rooms }])
+          : resolved
+            ? JSON.stringify(resolved.breakdown.line_items)
+            : null}, ${cleanerPayout},
         ${input.arrivalWindowStart ?? null}, ${input.arrivalWindowEnd ?? null}
       ) RETURNING *
     `) as BookingRow[];
@@ -351,6 +422,24 @@ bookingsRouter.post("/quote", zValidator("json", createSchema), async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const catalogue = getAddOnCatalogue();
   const levelPcts = await loadLevelSurchargePcts(sql);
+
+  // Room-condition engine (Clean My Home flow) — authoritative when rooms sent.
+  // `total` (dollars) at the top level is what the review step displays; it must
+  // match the total POST /bookings will charge for the same input.
+  const roomPrice = await roomConditionPricing(sql, input);
+  if (roomPrice) {
+    return c.json({
+      total: roomPrice.totalCents / 100,
+      price: {
+        totalPrice: roomPrice.totalCents,
+        levelSurchargeCents: 0,
+        lineItems: roomPrice.lineItems,
+      },
+      catalogue,
+      engine: "rooms",
+    });
+  }
+
   try {
     const resolved = await resolveBookingPricing(sql, input);
     if (resolved) {
@@ -364,6 +453,7 @@ bookingsRouter.post("/quote", zValidator("json", createSchema), async (c) => {
           : []),
       ];
       return c.json({
+        total: (baseTotal + levelSurchargeCents) / 100,
         price: {
           totalPrice: baseTotal + levelSurchargeCents,
           levelSurchargeCents,
@@ -380,6 +470,7 @@ bookingsRouter.post("/quote", zValidator("json", createSchema), async (c) => {
   const legacy = calculateBookingPrice(input);
   const levelSurchargeCents = computeLevelSurchargeCents(input.cleaningLevel, legacy.totalPrice, levelPcts);
   return c.json({
+    total: (legacy.totalPrice + levelSurchargeCents) / 100,
     price: { ...legacy, levelSurchargeCents, totalPrice: legacy.totalPrice + levelSurchargeCents },
     catalogue,
     engine: "legacy",
