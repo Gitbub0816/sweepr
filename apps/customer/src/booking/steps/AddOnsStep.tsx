@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, Plus, Info } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { ADD_ONS, isAddOnIncludedInPackage, formatCurrency, cn } from "@sweepr/utils";
+import { ADD_ONS, isAddOnIncludedInPackage, cn } from "@sweepr/utils";
 import { useBookingStore } from "../../store/booking";
 import { StepShell } from "../StepShell";
 
@@ -60,14 +60,12 @@ export function AddOnsStep() {
                 <span className="block text-sm font-medium text-charcoal dark:text-white">
                   {addOn.name}
                 </span>
-                {included ? (
+                {/* No per-add-on pricing shown — the final owed total appears
+                    only at the review step. */}
+                {included && (
                   <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-seafoam-100 px-2 py-0.5 text-xs font-medium text-seafoam-700 dark:bg-seafoam-900/40 dark:text-seafoam-300">
                     <Check className="h-3 w-3" />
                     {t("booking.addons.includedInPackage")}
-                  </span>
-                ) : (
-                  <span className="mt-0.5 block text-xs text-slate-500">
-                    +{formatCurrency(addOn.price)}
                   </span>
                 )}
               </span>
