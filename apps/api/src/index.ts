@@ -65,13 +65,81 @@ import { adminSettingsRouter } from "./routes/adminSettings";
 import { adminTrustRouter } from "./routes/adminTrust";
 import { adminPricingConfigRouter } from "./routes/adminPricingConfig";
 import { AppError, toSafeError } from "./lib/errors";
-import { logger } from "./lib/logger";
-import { recordError } from "./lib/errorLog";
-import { runWithErrorCapture, drainErrorBuffer } from "./lib/errorContext";
+import { logger, redact } from "./lib/logger";
+import {
+  recordError,
+  makeReferenceId,
+  makeFingerprint,
+  serializeError,
+  extractPgError,
+} from "./lib/errorLog";
+import {
+  runWithErrorCapture,
+  drainErrorBuffer,
+  getBreadcrumbs,
+  getStartedAt,
+  setResponseReference,
+  getResponseReference,
+} from "./lib/errorContext";
 import { getDb } from "./lib/db";
 import type { AppBindings } from "./types";
 
 const app = new Hono<AppBindings>();
+
+// Headers to drop entirely from telemetry (never truncate-and-keep these —
+// they're credentials, not debugging context).
+const DROPPED_HEADERS = new Set(["authorization", "cookie"]);
+const MAX_HEADER_VALUE = 256;
+
+/** Redact + truncate request headers for the admin error feed. */
+function buildRedactedHeaders(headers: Headers): Record<string, string> {
+  const out: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    if (DROPPED_HEADERS.has(key.toLowerCase())) return;
+    out[key] = value.length > MAX_HEADER_VALUE ? value.slice(0, MAX_HEADER_VALUE) : value;
+  });
+  return redact(out) as Record<string, string>;
+}
+
+const MAX_BODY_SNIPPET_SOURCE_BYTES = 100_000;
+const MAX_BODY_SNIPPET_CHARS = 2048;
+
+/**
+ * Capture a redacted snippet of the request body for the admin error feed,
+ * WITHOUT consuming the body the route handler needs. Must be called before
+ * `next()` — by flush time the real body stream is already drained. Only
+ * attempts json/text content-types under a sane size cap; any failure (bad
+ * JSON, oversized body, exotic content-type) just yields `null`.
+ */
+async function captureBodySnippet(c: { req: { header: (n: string) => string | undefined; raw: Request } }): Promise<string | null> {
+  try {
+    const contentType = c.req.header("content-type") ?? "";
+    const isJson = /json/i.test(contentType);
+    const isText = /^text\//i.test(contentType);
+    if (!isJson && !isText) return null;
+
+    const contentLength = Number(c.req.header("content-length") ?? "0");
+    if (contentLength && contentLength > MAX_BODY_SNIPPET_SOURCE_BYTES) return null;
+
+    const raw = await c.req.raw.clone().text();
+    if (raw.length > MAX_BODY_SNIPPET_SOURCE_BYTES) return null;
+
+    if (isJson) {
+      try {
+        const parsed = JSON.parse(raw);
+        const redacted = JSON.stringify(redact(parsed));
+        return redacted.length > MAX_BODY_SNIPPET_CHARS
+          ? redacted.slice(0, MAX_BODY_SNIPPET_CHARS)
+          : redacted;
+      } catch {
+        // Not valid JSON despite the content-type — fall through to raw text.
+      }
+    }
+    return raw.length > MAX_BODY_SNIPPET_CHARS ? raw.slice(0, MAX_BODY_SNIPPET_CHARS) : raw;
+  } catch {
+    return null;
+  }
+}
 
 // Security headers run first so they apply to every response.
 app.use("*", securityHeaders);
@@ -87,49 +155,108 @@ app.use("*", requestLogger());
 // the admin console without each one needing to know about `recordError`.
 // Installed right after requestLogger and before rate limiting so it wraps
 // as much of the pipeline as possible.
+//
+// Rows carry an EGREGIOUSLY detailed `context` JSONB blob (v2, see
+// lib/errorLog.ts + errorContext.ts) — full request/user/runtime info,
+// the entire breadcrumb trail, and (when applicable) parsed Postgres error
+// fields — so a debugging engineer never has to go spelunking for context.
 app.use("*", async (c, next) => {
   await runWithErrorCapture(async () => {
+    // Body must be captured BEFORE `next()` — by the time we flush, the
+    // request body has already been fully consumed by the handler. We only
+    // ever read a *clone* of the raw request so downstream body parsing is
+    // never disturbed, and only for json/text bodies under a sane size cap.
+    const bodySnippetPromise = captureBodySnippet(c);
     try {
       await next();
     } finally {
       try {
         const entries = drainErrorBuffer();
         if (entries.length > 0) {
-          const clerkId = (() => {
+          const authUser = (() => {
             try {
-              return c.get("user")?.clerkId ?? null;
+              return c.get("user");
             } catch {
-              return null;
+              return undefined;
             }
           })();
+          const user = {
+            clerkId: authUser?.clerkId ?? null,
+            userId: (authUser as { userId?: string } | undefined)?.userId ?? null,
+            role: (authUser as { role?: string } | undefined)?.role ?? null,
+          };
           const requestId = c.req.header("cf-ray") ?? undefined;
           const path = c.req.path;
           const method = c.req.method;
           const statusCode = c.res?.status;
+          const startedAt = getStartedAt();
+          const durationMs = startedAt ? Date.now() - Date.parse(startedAt) : null;
+          const breadcrumbs = getBreadcrumbs();
+          const responseReference = getResponseReference();
+
+          // Request-level facts shared by every entry flushed for this request.
+          const cf = (c.req.raw as { cf?: { colo?: string; country?: string } }).cf;
+          const requestInfo = {
+            path,
+            method,
+            query: redact(Object.fromEntries(new URL(c.req.url).searchParams.entries())),
+            headers: buildRedactedHeaders(c.req.raw.headers),
+            bodySnippet: await bodySnippetPromise,
+            ip: c.req.header("cf-connecting-ip") ?? null,
+            cfRay: requestId ?? null,
+            colo: cf?.colo ?? null,
+            country: cf?.country ?? null,
+            userAgent: c.req.header("user-agent") ?? null,
+          };
+
           c.executionCtx.waitUntil(
             (async () => {
               try {
                 const sql = getDb(c.env.DATABASE_URL);
                 for (const entry of entries) {
+                  const errSer = serializeError(entry.err);
+                  const errorName =
+                    errSer?.name ?? (entry.level === "error" ? "Error" : "Warning");
+                  const pg = extractPgError(entry.err);
+                  const errorCode =
+                    entry.err instanceof AppError ? entry.err.code : pg?.code ?? null;
+                  const fingerprint = await makeFingerprint(errorName, entry.message, method, path);
+                  // The "Unhandled request error" entry logged from app.onError
+                  // for a 5xx corresponds 1:1 with the reference the customer
+                  // was just shown — reuse it so the two match up exactly.
+                  // Every other entry gets its own fresh reference.
+                  const referenceId =
+                    responseReference && entry.message === "Unhandled request error"
+                      ? responseReference
+                      : makeReferenceId();
+
                   await recordError(sql, {
                     source: "server",
                     app: "api",
                     level: entry.level === "error" ? "error" : "warn",
                     message: entry.message,
-                    stack:
-                      entry.err instanceof Error ? entry.err.stack ?? null : null,
+                    stack: errSer?.stack ?? null,
                     path,
                     method,
                     statusCode: statusCode ?? null,
-                    clerkId,
+                    clerkId: user.clerkId,
+                    userId: null,
                     requestId,
+                    fingerprint,
+                    referenceId,
+                    errorName,
+                    errorCode,
+                    durationMs,
                     context: {
-                      data: entry.data ?? null,
-                      timestamp: entry.timestamp,
-                      err:
-                        entry.err instanceof Error
-                          ? { message: entry.err.message, name: entry.err.name }
-                          : entry.err ?? null,
+                      v: 2,
+                      err: errSer,
+                      pg,
+                      request: requestInfo,
+                      user,
+                      runtime: { environment: c.env.ENVIRONMENT, worker: "api" },
+                      timing: { startedAt, durationMs },
+                      breadcrumbs,
+                      logData: entry.data ?? null,
                     },
                   });
                 }
@@ -294,21 +421,27 @@ app.onError((err, c) => {
   // it gets picked up and flushed to the admin error feed there, deduped
   // against any handler-level logger call for the same failure. We skip
   // expected 4xx AppErrors — those are normal client mistakes, not incidents.
-  if (!isAppError || statusCode >= 500) {
+  if (isAppError) {
     if (statusCode >= 500) {
       logger.error("Unhandled request error", err);
     } else {
       logger.warn("Unhandled request error", { message: err.message, statusCode });
     }
-  }
-
-  if (isAppError) {
     return c.json(
       { error: err.message, code: (err as AppError).code },
       statusCode as 400
     );
   }
-  return c.json(toSafeError(err, isDev), 500);
+
+  // Unexpected (non-AppError) failure -> generic, customer-safe 5xx. The
+  // reference is generated HERE (not in the flush middleware) and stashed on
+  // the AsyncLocalStorage store so the error_logs row this produces carries
+  // the exact same code the customer sees below — never leak message/stack/
+  // SQL/class names into the response, even in dev (dev only gets `detail`).
+  const reference = makeReferenceId();
+  setResponseReference(reference);
+  logger.error("Unhandled request error", err);
+  return c.json(toSafeError(err, isDev, reference), 500);
 });
 
 export default {
