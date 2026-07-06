@@ -164,6 +164,15 @@ async function assertOwnsProperty(c: Context<AppBindings>, propertyId: string): 
   return rows.length > 0;
 }
 
+rentalsRouter.delete("/properties/:id", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const id = c.req.param("id");
+  if (!(await assertOwnsProperty(c, id))) return c.json({ error: "Not found" }, 404);
+  // Cascade removes calendar_sources + imported_calendar_reservations.
+  await sql`DELETE FROM short_term_rental_properties WHERE id = ${id}`;
+  return c.json({ ok: true });
+});
+
 // ── Calendar validation (server-side, SSRF-safe) ─────────────────────────────
 const validateSchema = z.object({ icsUrl: z.string().min(1).max(2000) });
 

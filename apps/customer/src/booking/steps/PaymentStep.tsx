@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Lock, ShieldCheck, RefreshCw, Tag, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -339,15 +339,28 @@ export function PaymentStep() {
   // Create Stripe payment intent using the DB booking ID set by ReviewStep.
   // If this fails we must NOT fall through to the demo checkout (which would let
   // a booking "complete" without collecting payment) — we surface a retry.
+  //
+  // Two hazards this handles:
+  //  1. `getToken` isn't referentially stable, so this effect can re-run and
+  //     fire a second create-intent that races the first — the server's
+  //     claim-then-act idempotency then answers the loser with 409
+  //     `payment_intent_in_progress`. An in-flight ref dedupes so only one POST
+  //     is ever outstanding per booking.
+  //  2. A transient 409 (a prior claim still settling) is auto-retried a few
+  //     times with backoff instead of dropping the customer into an error state.
+  const inFlightRef = useRef(false);
   useEffect(() => {
     if (!bookingId || !stripePromise) return;
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     let cancelled = false;
     setIntentLoading(true);
     setIntentError(false);
+
     (async () => {
-      try {
+      const attemptOnce = async (): Promise<Response> => {
         const token = await getToken();
-        const r = await fetch(`${API_URL}/payments/create-intent`, {
+        return fetch(`${API_URL}/payments/create-intent`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -355,6 +368,14 @@ export function PaymentStep() {
           },
           body: JSON.stringify({ bookingId }),
         });
+      };
+      try {
+        let r = await attemptOnce();
+        // Retry a transient 409 (claim in progress) up to 3× with backoff.
+        for (let i = 0; r.status === 409 && i < 3 && !cancelled; i++) {
+          await new Promise((res) => setTimeout(res, 800 * (i + 1)));
+          r = await attemptOnce();
+        }
         if (!r.ok) throw new Error(`create-intent ${r.status}`);
         const data = (await r.json()) as { clientSecret?: string; amount?: number };
         if (cancelled) return;
@@ -364,13 +385,15 @@ export function PaymentStep() {
       } catch {
         if (!cancelled) setIntentError(true);
       } finally {
+        inFlightRef.current = false;
         if (!cancelled) setIntentLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [bookingId, getToken, intentAttempt]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingId, intentAttempt]);
 
   const options = useMemo(
     () =>

@@ -294,15 +294,32 @@ function PropertyCard({
           <h3 className="font-semibold text-charcoal dark:text-white">{property.nickname}</h3>
           {property.address && <p className="text-xs text-slate-500">{property.address}</p>}
         </div>
-        <span
-          className={
-            property.active
-              ? "shrink-0 rounded-full bg-seafoam-100 px-3 py-1 text-xs font-semibold text-seafoam-700 dark:bg-seafoam-900/30 dark:text-seafoam-300"
-              : "shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-          }
-        >
-          {property.active ? "Enrolled" : "Not enrolled"}
-        </span>
+        <div className="flex shrink-0 items-center gap-2">
+          <span
+            className={
+              property.active
+                ? "rounded-full bg-seafoam-100 px-3 py-1 text-xs font-semibold text-seafoam-700 dark:bg-seafoam-900/30 dark:text-seafoam-300"
+                : "rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+            }
+          >
+            {property.active ? "Enrolled" : "Not enrolled"}
+          </span>
+          {!property.active && (
+            <button
+              type="button"
+              aria-label="Remove property"
+              className="text-slate-400 hover:text-red-500"
+              onClick={async () => {
+                if (!confirm(`Remove ${property.nickname}?`)) return;
+                await authed(`/rentals/properties/${property.id}`, { method: "DELETE" });
+                toast.success("Property removed");
+                onChange();
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {!property.active && (
