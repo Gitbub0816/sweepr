@@ -1,4 +1,5 @@
 import { createMiddleware } from "hono/factory";
+import { captureFromContext } from "../lib/securityEvents";
 import type { AppBindings } from "../types";
 
 // Per-isolate in-memory state. Used as a fast local cache; KV is the shared
@@ -111,6 +112,18 @@ export function rateLimit(opts: {
     if (blocked) {
       const retryAfterSec = Math.max(1, Math.ceil((resetAtOut - now) / 1000));
       c.header("Retry-After", String(retryAfterSec));
+
+      // Surface every 429 as a security event so sustained abuse is visible
+      // in the security console — buckets whose keyPrefix looks auth-related
+      // are treated as higher severity (a rate-limited login/token endpoint
+      // is a much stronger brute-force signal than a generic API cap).
+      const authLike = /auth|login|token|sign[-_]?in|password|otp|mfa/i.test(opts.keyPrefix ?? route);
+      captureFromContext(c, "rate_limit_exceeded", authLike ? "high" : "medium", {
+        keyPrefix: opts.keyPrefix ?? route,
+        limit: opts.limit,
+        windowMs: opts.windowMs,
+      });
+
       return c.json({ error: "Too many requests" }, 429);
     }
     await next();

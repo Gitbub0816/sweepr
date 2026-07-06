@@ -6,6 +6,7 @@
  * - List-Unsubscribe header only for marketing emails
  * - Provider message ID captured from X-Message-Id response header
  */
+import { logger } from "./logger";
 
 export const TEMPLATES = {
   NEWSLETTER_CONFIRM: "x2p034732j9gzdrn",
@@ -76,7 +77,7 @@ export function wrapBodyInTemplate(
 }
 
 /** Strip HTML tags and collapse whitespace for a plain-text alternative. */
-function htmlToPlainText(html: string): string {
+export function htmlToPlainText(html: string): string {
   return html
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/p>/gi, "\n\n")
@@ -110,6 +111,22 @@ export interface SendEmailInput {
   relatedId?: string;
   /** Human-readable template name for the delivery log. */
   templateName?: string;
+  /**
+   * Set false to skip the automatic outbound `mailbox_messages` row. Callers
+   * that already record a richer row themselves (e.g. the admin Mail Center,
+   * which also tracks cc/in_reply_to/sent_by) opt out to avoid duplicates.
+   * Defaults to true — every other caller (IT/Security manual replies,
+   * transactional/system email, etc) gets recorded automatically so it shows
+   * up in the Mail tab's Sent folder.
+   */
+  recordOutbound?: boolean;
+}
+
+/** Local-part of an email address, lowercased, or null if it doesn't parse. */
+export function mailboxFromAddress(email: string | undefined | null): string | null {
+  if (!email) return null;
+  const local = email.split("@")[0]?.trim().toLowerCase();
+  return local || null;
 }
 
 export interface DeliveryResult {
@@ -236,6 +253,27 @@ export async function sendEmail(
   if (!result.ok) {
     throw new Error(result.error ?? "Email delivery failed");
   }
+
+  // Mirror every successful outbound send into the Mail tab's backing store
+  // (mailbox_messages) so IT/Security/system correspondence is visible there
+  // too, not just the dedicated mail-center compose flow. Best-effort: a
+  // failure here must never fail the send that already succeeded.
+  if (sql && input.recordOutbound !== false) {
+    try {
+      const mailbox = mailboxFromAddress(fromEmail) ?? "alerts";
+      const bodyText = input.text ?? (input.html ? htmlToPlainText(input.html) : "");
+      await sql`
+        INSERT INTO mailbox_messages
+          (mailbox, direction, sender_email, sender_name, to_email, subject, body_text, read_at)
+        VALUES
+          (${mailbox}, 'outbound', ${fromEmail}, ${(input.from ?? SENDERS.DEFAULT).name ?? null},
+           ${input.to}, ${subject}, ${bodyText}, NOW())
+      `;
+    } catch (err) {
+      logger.warn("mailer.record_outbound_failed", { error: (err as Error)?.message, fromEmail });
+    }
+  }
+
   return { status: "sent", providerMessageId: result.messageId };
 }
 
@@ -249,10 +287,13 @@ export async function sendBulkEmail(
   recipients: Array<{ email: string; name?: string }>,
   subject: string,
   html: string,
+  sql?: ReturnType<typeof import("../lib/db").getDb>,
 ): Promise<number> {
   const text = htmlToPlainText(html);
   const CHUNK = 500;
+  const MAX_RECORDED_ROWS = 50;
   let sent = 0;
+  let recorded = 0;
 
   for (let i = 0; i < recipients.length; i += CHUNK) {
     const chunk = recipients.slice(i, i + CHUNK);
@@ -278,6 +319,25 @@ export async function sendBulkEmail(
       throw new Error(`MailerSend bulk failed (${res.status}): ${t}`);
     }
     sent += chunk.length;
+
+    // Mirror into the Mail tab's backing store — best-effort, capped so a
+    // large broadcast doesn't flood mailbox_messages with hundreds of rows.
+    if (sql && recorded < MAX_RECORDED_ROWS) {
+      const toRecord = chunk.slice(0, MAX_RECORDED_ROWS - recorded);
+      try {
+        for (const r of toRecord) {
+          await sql`
+            INSERT INTO mailbox_messages
+              (mailbox, direction, sender_email, sender_name, to_email, subject, body_text, read_at)
+            VALUES
+              ('alerts', 'outbound', 'hello@getsweepr.com', 'Sweepr', ${r.email}, ${subject}, ${text}, NOW())
+          `;
+        }
+        recorded += toRecord.length;
+      } catch (err) {
+        logger.warn("mailer.record_bulk_outbound_failed", { error: (err as Error)?.message });
+      }
+    }
   }
   return sent;
 }
