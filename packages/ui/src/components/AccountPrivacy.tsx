@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Download, ShieldOff, Trash2, AlertTriangle, BellOff, CheckCircle2 } from "lucide-react";
 
 interface Props {
@@ -28,6 +28,16 @@ export function AccountPrivacy({ apiUrl, getToken, email, onAccountDeleted }: Pr
   const [note, setNote] = useState<string | null>(null);
   const [confirmTier, setConfirmTier] = useState<Tier | null>(null);
   const [typed, setTyped] = useState("");
+
+  // Close the re-confirmation modal on Escape (parity with the backdrop click).
+  useEffect(() => {
+    if (!confirmTier) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setConfirmTier(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [confirmTier]);
 
   async function authed(path: string, body?: unknown) {
     const token = await getToken();
@@ -136,7 +146,7 @@ export function AccountPrivacy({ apiUrl, getToken, email, onAccountDeleted }: Pr
       {/* Re-confirmation modal */}
       {confirmTier && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setConfirmTier(null)}>
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-label="Confirm account deletion" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
             <h2 className="flex items-center gap-2 text-lg font-bold text-red-700 dark:text-red-400">
               <AlertTriangle className="h-5 w-5" /> This can't be undone
             </h2>
