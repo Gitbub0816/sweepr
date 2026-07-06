@@ -47,11 +47,18 @@ mailboxInboundRouter.post("/inbound/:box", async (c) => {
   const secretName = BOX_SECRETS[box];
   if (!secretName) return c.json({ error: "unknown mailbox" }, 404);
 
+  const raw = await c.req.text();
+  const sig = c.req.header("signature") ?? c.req.header("x-mailersend-signature") ?? "";
+
+  // MailerSend pings the endpoint (unsigned) when the inbound route is created
+  // to verify it's reachable. Answer that probe 200 without processing so the
+  // route — and its signing secret — can be provisioned. Real deliveries always
+  // carry a Signature header and still fail closed below.
+  if (!sig) return c.json({ ok: true, probe: true });
+
   const secret = c.env[secretName] as string | undefined;
   if (!secret) return c.json({ error: "Inbound not configured" }, 503);
 
-  const raw = await c.req.text();
-  const sig = c.req.header("signature") ?? c.req.header("x-mailersend-signature") ?? "";
   if (!timingSafeEqual(sig, await hmacHex(secret, raw))) return c.json({ error: "bad signature" }, 401);
 
   let payload: Record<string, unknown> = {};
