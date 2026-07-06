@@ -275,8 +275,10 @@ const addressSchema = z.object({
   city: z.string().min(1).max(100),
   state: z.string().min(2).max(2),
   zip: z.string().min(5).max(10),
-  lat: z.number().optional(),
-  lng: z.number().optional(),
+  // Accept explicit null (saved addresses without geocoding return null lat/lng);
+  // z.number().optional() alone rejects null and 400'd address save at checkout.
+  lat: z.number().nullable().optional(),
+  lng: z.number().nullable().optional(),
   label: z.string().max(50).optional(),
   propertyType: z.enum(["home", "short_term_rental"]).optional(),
   makeDefault: z.boolean().optional(),

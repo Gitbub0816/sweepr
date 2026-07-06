@@ -88,6 +88,15 @@ export function SweeprCalendar(props: CalendarProps) {
   };
 
   const pickDay = (d: Date) => {
+    // In customer-booking mode the parent (ScheduleStep) renders its own
+    // API-backed arrival-window picker below the calendar, so the built-in
+    // day-detail slide-over (which shows Morning/Afternoon/Evening as "Full"
+    // because no slot data is wired into it) is redundant and misleading —
+    // just report the date selection and skip the panel.
+    if (mode === "customer-booking") {
+      onDateChange?.(d);
+      return;
+    }
     setPanelDate(d);
     onDateChange?.(d);
   };
