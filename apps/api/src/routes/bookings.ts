@@ -352,7 +352,12 @@ bookingsRouter.post(
       existingRows = (await sql`
         SELECT * FROM bookings
         WHERE customer_id = ${customer.id}
-          AND COALESCE(address_id, '00000000-0000-0000-0000-000000000000') = COALESCE(${input.addressId ?? null}, '00000000-0000-0000-0000-000000000000')
+          -- Compare the uuid column directly (Postgres then infers the bind
+          -- param as uuid). Wrapping it in COALESCE(..., '<uuid text literal>')
+          -- forced the param to text and raised "operator does not exist:
+          -- uuid = text" (42883) — which is what actually 500'd the losing
+          -- concurrent submit, not the duplicate detection.
+          AND address_id IS NOT DISTINCT FROM ${input.addressId ?? null}::uuid
           AND scheduled_at = ${effectiveScheduledAt}
           AND status NOT IN ('cancelled_by_customer', 'cancelled_by_cleaner', 'cancelled', 'refunded')
         LIMIT 1
