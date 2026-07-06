@@ -105,7 +105,7 @@ paymentsRouter.post(
       if (age < 24 * 60 * 60 * 1000) {
         const existing = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id);
         if (existing.status !== "canceled" && existing.capture_method === "manual") {
-          return c.json({ clientSecret: existing.client_secret, id: existing.id });
+          return c.json({ clientSecret: existing.client_secret, id: existing.id, amount: booking.total_price });
         }
         // Stale auto-capture intent: cancel it (only cancelable pre-capture)
         // and fall through to create a fresh manual-capture intent.
@@ -154,7 +154,7 @@ paymentsRouter.post(
       if (pid && pid !== CLAIM_SENTINEL) {
         const existing = await stripe.paymentIntents.retrieve(pid);
         if (existing.status !== "canceled") {
-          return c.json({ clientSecret: existing.client_secret, id: existing.id });
+          return c.json({ clientSecret: existing.client_secret, id: existing.id, amount: booking.total_price });
         }
       }
       return c.json({ error: "payment_intent_in_progress", message: "Please retry in a moment." }, 409);
@@ -204,7 +204,7 @@ paymentsRouter.post(
       timestamp: new Date().toISOString(),
     });
 
-    return c.json({ clientSecret: intent.client_secret, id: intent.id });
+    return c.json({ clientSecret: intent.client_secret, id: intent.id, amount: booking.total_price });
   }
 );
 
