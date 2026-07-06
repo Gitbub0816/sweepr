@@ -308,7 +308,7 @@ export function JobDetailPage() {
       {!isCompleted && (
         <div className="space-y-3">
           {dayStatus === "confirmed" && (
-            <Button fullWidth onClick={() => action("start-route")} loading={busy}>
+            <Button fullWidth onClick={() => action("start-route", currentPos ?? {})} loading={busy}>
               <Navigation className="h-4 w-4 mr-2" /> Start Route — Reveal Address
             </Button>
           )}
