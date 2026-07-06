@@ -8,6 +8,9 @@ export type SlotType =
 export interface CalendarSlot {
   id: string;
   date: Date;
+  /** For recurring slots: 0=Sun..6=Sat. When set, the slot renders on EVERY
+   *  matching weekday (past and future weeks), not just `date`'s week. */
+  dayOfWeek?: number;
   startTime: string; // "09:00"
   endTime: string; // "13:00"
   type: SlotType;

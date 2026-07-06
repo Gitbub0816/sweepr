@@ -115,7 +115,8 @@ interface OnboardingProgress {
 
 function OnboardingChecklist({ status }: { status: string | undefined }) {
   const { t } = useTranslation();
-  const { data: progress } = useApi<OnboardingProgress>("/cleaners/onboarding-progress");
+  const { data: progress, loading: progressLoading } =
+    useApi<OnboardingProgress>("/cleaners/onboarding-progress");
   const { data: training } = useApi<{ summary: { totalPassed: number; totalRequired: number } }>(
     "/training/progress",
   );
@@ -130,6 +131,10 @@ function OnboardingChecklist({ status }: { status: string | undefined }) {
     p && p.profile && p.training && p.background && p.identity && p.insurance && p.submitted,
   );
   if (status === "approved" || progress?.status === "approved" || allStepsDone) return null;
+  // Never flash the "incomplete" banner while the authoritative status is still
+  // loading — an approved cleaner would see it appear and then vanish on every
+  // dashboard visit (and it shoves the layout around when it unmounts).
+  if (status !== "pending_review" && (progressLoading || !progress)) return null;
   const passed = training?.summary?.totalPassed ?? 0;
   const total = training?.summary?.totalRequired ?? 10;
 

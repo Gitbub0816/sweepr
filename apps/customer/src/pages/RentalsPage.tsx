@@ -14,6 +14,8 @@ interface Property {
   bathrooms: number | null;
   sqft: number | null;
   monthlyFee: number;
+  active: boolean;
+  enrolledAt: string | null;
   sourceCount: number;
 }
 interface Source {
@@ -117,6 +119,7 @@ export function RentalsPage() {
                 property={p}
                 sources={sources.filter((s) => s.propertyId === p.id)}
                 reservations={reservations.filter((r) => r.propertyId === p.id)}
+                pricing={pricing}
                 authed={authed}
                 onChange={refresh}
               />
@@ -129,6 +132,83 @@ export function RentalsPage() {
 }
 
 type Authed = (path: string, init?: RequestInit) => Promise<Response>;
+
+/**
+ * Explicit enrollment gate: the monthly subscription and automatic turnaround
+ * booking only start after the host reads the disclosures and taps Enroll.
+ */
+function EnrollPanel({
+  property,
+  pricing,
+  authed,
+  onChange,
+}: {
+  property: Property;
+  pricing: { monthlyFee: number; perTurnaround: number } | null;
+  authed: Authed;
+  onChange: () => void;
+}) {
+  const [accepted, setAccepted] = useState(false);
+  const [enrolling, setEnrolling] = useState(false);
+
+  async function enroll() {
+    setEnrolling(true);
+    try {
+      const res = await authed(`/rentals/properties/${property.id}/enroll`, {
+        method: "POST",
+        body: JSON.stringify({ acceptDisclosures: true, disclaimerVersion: "v1" }),
+      });
+      if (!res.ok) throw new Error("Enrollment failed — please try again.");
+      toast.success(`${property.nickname} is enrolled`);
+      onChange();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setEnrolling(false);
+    }
+  }
+
+  const monthly = pricing ? `$${pricing.monthlyFee.toFixed(0)}/month` : "the monthly fee";
+  const per = pricing ? `$${pricing.perTurnaround.toFixed(0)}` : "the current turnaround rate";
+
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-900/10">
+      <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+        Enroll this property in turnaround service
+      </p>
+      <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-800 dark:text-amber-300">
+        <li>
+          A subscription of <strong>{monthly}</strong> applies per enrolled property, billed
+          until you unenroll. You can unenroll at any time — no long-term commitment.
+        </li>
+        <li>
+          Each turnaround clean is billed at <strong>{per}</strong> (current rate; shown before
+          anything books). Rates can change with notice.
+        </li>
+        <li>
+          With auto-book on, cleanings are scheduled automatically from your calendar's
+          checkout dates. With review-first (default), nothing books until you approve it.
+        </li>
+        <li>Calendar syncing pauses while a property is unenrolled.</li>
+      </ul>
+      <label className="mt-3 flex cursor-pointer items-start gap-2">
+        <input
+          type="checkbox"
+          checked={accepted}
+          onChange={(e) => setAccepted(e.target.checked)}
+          className="mt-0.5"
+          aria-describedby={`enroll-terms-${property.id}`}
+        />
+        <span id={`enroll-terms-${property.id}`} className="text-xs text-amber-900 dark:text-amber-200">
+          I understand and agree to the subscription and per-turnaround charges above.
+        </span>
+      </label>
+      <Button className="mt-3" onClick={enroll} disabled={!accepted || enrolling}>
+        {enrolling ? "Enrolling…" : "Enroll"}
+      </Button>
+    </div>
+  );
+}
 
 function AddProperty({ authed, onAdded }: { authed: Authed; onAdded: () => void }) {
   const [open, setOpen] = useState(false);
@@ -176,24 +256,52 @@ function PropertyCard({
   property,
   sources,
   reservations,
+  pricing,
   authed,
   onChange,
 }: {
   property: Property;
   sources: Source[];
   reservations: Reservation[];
+  pricing: { monthlyFee: number; perTurnaround: number } | null;
   authed: Authed;
   onChange: () => void;
 }) {
   const [connecting, setConnecting] = useState(false);
   return (
     <Card className="space-y-4">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="font-semibold text-charcoal dark:text-white">{property.nickname}</h3>
           {property.address && <p className="text-xs text-slate-500">{property.address}</p>}
         </div>
+        <span
+          className={
+            property.active
+              ? "shrink-0 rounded-full bg-seafoam-100 px-3 py-1 text-xs font-semibold text-seafoam-700 dark:bg-seafoam-900/30 dark:text-seafoam-300"
+              : "shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+          }
+        >
+          {property.active ? "Enrolled" : "Not enrolled"}
+        </span>
       </div>
+
+      {!property.active && (
+        <EnrollPanel property={property} pricing={pricing} authed={authed} onChange={onChange} />
+      )}
+      {property.active && (
+        <button
+          type="button"
+          className="text-xs text-slate-500 underline-offset-2 hover:text-red-600 hover:underline"
+          onClick={async () => {
+            await authed(`/rentals/properties/${property.id}/unenroll`, { method: "POST" });
+            toast.success(`${property.nickname} unenrolled — billing and syncing stopped`);
+            onChange();
+          }}
+        >
+          Unenroll (stops the monthly subscription and calendar syncing)
+        </button>
+      )}
 
       {sources.map((s) => (
         <SourceRow key={s.id} source={s} authed={authed} onChange={onChange} />

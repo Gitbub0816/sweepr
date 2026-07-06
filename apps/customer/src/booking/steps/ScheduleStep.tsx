@@ -149,7 +149,7 @@ export function ScheduleStep() {
           </p>
 
           {loadingSlots && (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="status" aria-label="Loading availability">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div
                   key={i}

@@ -74,13 +74,14 @@ export async function eligibleCleanersForBooking(
   const scheduledAt = new Date(booking.scheduled_at);
   const cleanerIds = candidates.map((c) => c.id);
 
-  const [scheduleRaw, conflictRaw] = await Promise.all([
-    db`
-      SELECT cleaner_id, slot_type, day_of_week, start_time::text, end_time::text,
-             specific_date::text
-      FROM cleaner_schedule
-      WHERE cleaner_id = ANY(${cleanerIds}) AND is_active = true
-    `,
+  // Unified availability read model (lib/availability.ts): weekly blocks from
+  // cleaner_availability + flexible/available_now from cleaner_schedule, minus
+  // cleaners who explicitly blocked this booking's date.
+  const { getMergedSlots, getBlockedCleaners } = await import("./availability");
+  const dateStr = scheduledAt.toISOString().slice(0, 10);
+  const [mergedSlots, blocked, conflictRaw] = await Promise.all([
+    getMergedSlots(db, cleanerIds),
+    getBlockedCleaners(db, dateStr, cleanerIds),
     db`
       SELECT DISTINCT cleaner_id
       FROM bookings
@@ -92,7 +93,7 @@ export async function eligibleCleanersForBooking(
     `,
   ]);
 
-  const scheduleRows = scheduleRaw as unknown as ScheduleRow[];
+  const scheduleRows = mergedSlots as unknown as ScheduleRow[];
   const conflicts = new Set(
     (conflictRaw as unknown as { cleaner_id: string }[]).map((r) => r.cleaner_id)
   );
@@ -106,6 +107,7 @@ export async function eligibleCleanersForBooking(
 
   return candidates.filter((c) => {
     if (conflicts.has(c.id)) return false;
+    if (blocked.has(c.id)) return false;
     const schedule = byCleaner.get(c.id);
     // Soft schedule gate: a cleaner who hasn't configured any cleaner_schedule
     // rows yet (e.g. freshly approved, hasn't visited the availability screen)

@@ -5,6 +5,7 @@ import { getCleanerByUserId, getUserByClerkId } from "@sweepr/db";
 import { getDb } from "../lib/db";
 import { haversineDistance } from "../lib/haversine";
 import { requireAuth } from "../middleware/auth";
+import { getMergedSlots, getAvailabilityForDate } from "../lib/availability";
 import type { AppBindings } from "../types";
 
 export const scheduleRouter = new Hono<AppBindings>();
@@ -12,25 +13,22 @@ export const scheduleRouter = new Hono<AppBindings>();
 scheduleRouter.use("*", requireAuth);
 
 // ---------------------------------------------------------------------------
-// Cleaner schedule management
+// Cleaner schedule management.
+//
+// UNIFIED MODEL (see lib/availability.ts): weekly "recurring" hours live in
+// `cleaner_availability` — the same rows the dashboard Availability tab edits
+// and the customer booking-slots endpoint reads — so the Schedule page and the
+// dashboard always show the same state. One-off "flexible" slots and the
+// available_now flag stay in `cleaner_schedule`.
 // ---------------------------------------------------------------------------
 
 scheduleRouter.get("/me", async (c) => {
   const { sql, cleanerId } = await currentCleanerId(c);
   if (!cleanerId) return c.json({ slots: [], availableNow: false });
-  const rows = await sql`
-    SELECT id, cleaner_id, slot_type, day_of_week,
-           start_time::text AS start_time, end_time::text AS end_time,
-           specific_date::text AS specific_date, is_active
-    FROM cleaner_schedule
-    WHERE cleaner_id = ${cleanerId} AND is_active = true
-    ORDER BY day_of_week NULLS LAST, start_time
-  `;
-  const availableNow = (rows as Array<{ slot_type: string }>).some(
-    (r) => r.slot_type === "available_now"
-  );
+  const all = await getMergedSlots(sql, [cleanerId]);
+  const availableNow = all.some((s) => s.slot_type === "available_now");
   return c.json({
-    slots: (rows as Array<{ slot_type: string }>).filter((r) => r.slot_type !== "available_now"),
+    slots: all.filter((s) => s.slot_type !== "available_now"),
     availableNow,
   });
 });
@@ -38,15 +36,8 @@ scheduleRouter.get("/me", async (c) => {
 scheduleRouter.get("/cleaner/:cleanerId", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const cleanerId = c.req.param("cleanerId");
-  const rows = await sql`
-    SELECT id, cleaner_id, slot_type, day_of_week,
-           start_time::text AS start_time, end_time::text AS end_time,
-           specific_date::text AS specific_date, is_active
-    FROM cleaner_schedule
-    WHERE cleaner_id = ${cleanerId} AND is_active = true
-    ORDER BY day_of_week NULLS LAST, start_time
-  `;
-  return c.json({ slots: rows });
+  const slots = await getMergedSlots(sql, [cleanerId]);
+  return c.json({ slots: slots.filter((s) => s.slot_type !== "available_now") });
 });
 
 const createSlotSchema = z.object({
@@ -88,7 +79,6 @@ scheduleRouter.post(
     if (!cleanerId) return c.json({ error: "Cleaner not found" }, 404);
 
     if (input.slotType === "available_now") {
-      // Toggle an immediate availability slot on.
       await sql`
         UPDATE cleaner_schedule SET is_active = false
         WHERE cleaner_id = ${cleanerId} AND slot_type = 'available_now'
@@ -101,38 +91,64 @@ scheduleRouter.post(
       return c.json({ slots: rows }, 201);
     }
 
-    const days =
-      input.slotType === "recurring"
-        ? input.daysOfWeek ??
-          (input.dayOfWeek != null ? [input.dayOfWeek] : [])
-        : [null];
-
-    const created: unknown[] = [];
-    for (const day of days) {
-      const rows = await sql`
-        INSERT INTO cleaner_schedule
-          (cleaner_id, slot_type, day_of_week, start_time, end_time, specific_date)
-        VALUES (
-          ${cleanerId}, ${input.slotType}, ${day},
-          ${input.startTime ?? null}, ${input.endTime ?? null},
-          ${input.specificDate ?? null}
-        ) RETURNING id, slot_type, day_of_week,
-                    start_time::text AS start_time, end_time::text AS end_time,
-                    specific_date::text AS specific_date
-      `;
-      if (rows[0]) created.push(rows[0]);
+    if (input.slotType === "recurring") {
+      // Weekly hours → cleaner_availability (shared with the dashboard tab and
+      // the customer slots endpoint). One row per day of week, upserted.
+      const days =
+        input.daysOfWeek ?? (input.dayOfWeek != null ? [input.dayOfWeek] : []);
+      if (days.length === 0 || !input.startTime || !input.endTime) {
+        return c.json({ error: "daysOfWeek, startTime and endTime are required" }, 400);
+      }
+      const created: unknown[] = [];
+      for (const day of days) {
+        const rows = await sql`
+          INSERT INTO cleaner_availability (cleaner_id, day_of_week, start_time, end_time, active)
+          VALUES (${cleanerId}, ${day}, ${input.startTime}, ${input.endTime}, true)
+          ON CONFLICT (cleaner_id, day_of_week)
+          DO UPDATE SET start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time,
+                        active = true, updated_at = NOW()
+          RETURNING id, day_of_week,
+                    start_time::text AS start_time, end_time::text AS end_time
+        `;
+        if (rows[0]) created.push({ ...rows[0], slot_type: "recurring", specific_date: null });
+      }
+      return c.json({ slots: created }, 201);
     }
-    return c.json({ slots: created }, 201);
+
+    // Flexible one-off slot for a specific date.
+    if (!input.specificDate || !input.startTime || !input.endTime) {
+      return c.json({ error: "specificDate, startTime and endTime are required" }, 400);
+    }
+    const rows = await sql`
+      INSERT INTO cleaner_schedule
+        (cleaner_id, slot_type, day_of_week, start_time, end_time, specific_date)
+      VALUES (
+        ${cleanerId}, 'flexible', NULL,
+        ${input.startTime}, ${input.endTime}, ${input.specificDate}
+      ) RETURNING id, slot_type, day_of_week,
+                  start_time::text AS start_time, end_time::text AS end_time,
+                  specific_date::text AS specific_date
+    `;
+    return c.json({ slots: rows }, 201);
   }
 );
 
 scheduleRouter.delete("/cleaner/:slotId", async (c) => {
   const { sql, cleanerId } = await currentCleanerId(c);
   if (!cleanerId) return c.json({ error: "Cleaner not found" }, 404);
-  await sql`
-    DELETE FROM cleaner_schedule
-    WHERE id = ${c.req.param("slotId")} AND cleaner_id = ${cleanerId}
-  `;
+  const slotId = c.req.param("slotId");
+  // The id may belong to either store — try weekly first, then one-offs.
+  const weekly = (await sql`
+    DELETE FROM cleaner_availability
+    WHERE id = ${slotId} AND cleaner_id = ${cleanerId}
+    RETURNING id
+  `) as { id: string }[];
+  if (!weekly[0]) {
+    await sql`
+      DELETE FROM cleaner_schedule
+      WHERE id = ${slotId} AND cleaner_id = ${cleanerId}
+    `;
+  }
   return c.json({ ok: true });
 });
 
@@ -146,19 +162,14 @@ scheduleRouter.post(
     if (!cleanerId) return c.json({ error: "Cleaner not found" }, 404);
     const { available } = c.req.valid("json");
 
+    await sql`
+      DELETE FROM cleaner_schedule
+      WHERE cleaner_id = ${cleanerId} AND slot_type = 'available_now'
+    `;
     if (available) {
-      await sql`
-        DELETE FROM cleaner_schedule
-        WHERE cleaner_id = ${cleanerId} AND slot_type = 'available_now'
-      `;
       await sql`
         INSERT INTO cleaner_schedule (cleaner_id, slot_type, is_active)
         VALUES (${cleanerId}, 'available_now', true)
-      `;
-    } else {
-      await sql`
-        DELETE FROM cleaner_schedule
-        WHERE cleaner_id = ${cleanerId} AND slot_type = 'available_now'
       `;
     }
     return c.json({ available });
@@ -194,30 +205,28 @@ scheduleRouter.get(
   async (c) => {
     const { date, lat, lng } = c.req.valid("query");
     const sql = getDb(c.env.DATABASE_URL);
-    const dayOfWeek = new Date(`${date}T00:00:00Z`).getUTCDay();
 
-    const rows = (await sql`
-      SELECT cs.cleaner_id, cs.slot_type, cs.day_of_week,
-             cs.start_time::text AS start_time, cs.end_time::text AS end_time,
-             cs.specific_date::text AS specific_date,
-             sa.center_lat, sa.center_lng, sa.radius_miles
-      FROM cleaner_schedule cs
-      JOIN cleaners cl ON cl.id = cs.cleaner_id
-      LEFT JOIN cleaner_service_areas sa ON sa.cleaner_id = cs.cleaner_id
-      WHERE cs.is_active = true
-        AND cl.status IN ('approved', 'active')
-        AND (
-          (cs.slot_type = 'recurring' AND cs.day_of_week = ${dayOfWeek})
-          OR (cs.slot_type = 'flexible' AND cs.specific_date = ${date})
-        )
-    `) as Array<{
-      cleaner_id: string;
-      start_time: string | null;
-      end_time: string | null;
-      center_lat: string | null;
-      center_lng: string | null;
-      radius_miles: number | null;
-    }>;
+    // Unified read model: weekly + flexible − blocked dates.
+    const rows = await getAvailabilityForDate(sql, date);
+
+    // Optional service-area proximity filter.
+    let areaByCleaner: Map<string, Array<{ lat: number; lng: number; radius: number }>> | null = null;
+    if (lat != null && lng != null && rows.length > 0) {
+      const ids = Array.from(new Set(rows.map((r) => r.cleaner_id)));
+      const areas = (await sql`
+        SELECT cleaner_id, center_lat, center_lng, radius_miles
+        FROM cleaner_service_areas WHERE cleaner_id = ANY(${ids})
+      `) as Array<{ cleaner_id: string; center_lat: string | null; center_lng: string | null; radius_miles: number | null }>;
+      if (areas.length > 0) {
+        areaByCleaner = new Map();
+        for (const a of areas) {
+          if (a.center_lat == null || a.center_lng == null) continue;
+          const list = areaByCleaner.get(a.cleaner_id) ?? [];
+          list.push({ lat: Number(a.center_lat), lng: Number(a.center_lng), radius: a.radius_miles ?? 25 });
+          areaByCleaner.set(a.cleaner_id, list);
+        }
+      }
+    }
 
     const windowCounts: Record<string, Set<string>> = {
       morning: new Set(),
@@ -226,20 +235,15 @@ scheduleRouter.get(
     };
 
     for (const r of rows) {
-      // Service-area proximity filter (when coordinates available).
-      if (
-        lat != null &&
-        lng != null &&
-        r.center_lat != null &&
-        r.center_lng != null
-      ) {
-        const miles = haversineDistance(
-          lat,
-          lng,
-          Number(r.center_lat),
-          Number(r.center_lng)
-        );
-        if (miles > (r.radius_miles ?? 25)) continue;
+      if (areaByCleaner) {
+        const areas = areaByCleaner.get(r.cleaner_id);
+        // No configured areas → serves everywhere (matches assignment rule).
+        if (areas && areas.length > 0) {
+          const within = areas.some(
+            (a) => haversineDistance(lat as number, lng as number, a.lat, a.lng) <= a.radius,
+          );
+          if (!within) continue;
+        }
       }
 
       const start = timeToMinutes(r.start_time);
@@ -253,7 +257,6 @@ scheduleRouter.get(
       }
     }
 
-    // Anonymized: only return whether each window has availability + a count.
     return c.json({
       date,
       windows: {
