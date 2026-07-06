@@ -26,7 +26,11 @@ import type { AppBindings } from "../types";
 export const adminMailRouter = new Hono<AppBindings>();
 adminMailRouter.use("*", requireAuth, requireAdmin);
 
-export const MAILBOXES = ["caleb", "kristin", "news", "updates", "help", "alerts"] as const;
+// it@ and security@ are included so ALL outgoing mail — including replies sent
+// from the IT and Security consoles — is composable from and archived in the
+// Mail tab's Sent folder. Their inbound still routes to the ticket pipelines
+// (mailboxInbound never writes to these boxes), so their Inbox stays empty.
+export const MAILBOXES = ["caleb", "kristin", "news", "updates", "help", "alerts", "it", "security"] as const;
 type Mailbox = (typeof MAILBOXES)[number];
 
 const BOX_NAMES: Record<Mailbox, string> = {
@@ -36,6 +40,8 @@ const BOX_NAMES: Record<Mailbox, string> = {
   updates: "Sweepr Updates",
   help: "Sweepr Help",
   alerts: "Sweepr Alerts",
+  it: "IT Support",
+  security: "Security",
 };
 
 type DbUser = { id: string; role: string | null; admin_role?: string | null };

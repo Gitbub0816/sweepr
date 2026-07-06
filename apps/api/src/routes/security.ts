@@ -143,12 +143,26 @@ const gate = [requireAuth, requireAdminRole("super_admin")] as const;
 // ── Security events (live telemetry: brute force, auth failures, rate limit
 // strikes, webhook signature failures) ─────────────────────────────────────────
 
+// The console sends `since` as a relative token (1h/24h/7d/30d/all) OR an ISO
+// timestamp. Normalize to an ISO string (or null for "all"/unbounded).
+function resolveSince(raw: string | undefined): string | null {
+  if (!raw || raw === "all") return null;
+  const m = /^(\d+)([hd])$/.exec(raw);
+  if (m) {
+    const n = parseInt(m[1], 10);
+    const ms = m[2] === "h" ? n * 3600_000 : n * 86_400_000;
+    return new Date(Date.now() - ms).toISOString();
+  }
+  const t = Date.parse(raw);
+  return Number.isNaN(t) ? null : new Date(t).toISOString();
+}
+
 securityRouter.get("/events", ...gate, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const type = c.req.query("type");
   const ip = c.req.query("ip");
   const q = c.req.query("q");
-  const since = c.req.query("since");
+  const since = resolveSince(c.req.query("since"));
   const resolvedParam = c.req.query("resolved");
   const limit = Math.min(parseInt(c.req.query("limit") ?? "100", 10) || 100, 500);
   const offset = parseInt(c.req.query("offset") ?? "0", 10) || 0;
@@ -180,7 +194,7 @@ securityRouter.get("/events", ...gate, async (c) => {
 
 securityRouter.get("/events/summary", ...gate, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
-  const since = c.req.query("since") ?? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const since = resolveSince(c.req.query("since")) ?? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
   const [totalRow, byType, topIpsRaw, last24hRow] = await Promise.all([
     sql`SELECT COUNT(*)::int AS total FROM security_events WHERE occurred_at >= ${since}::timestamptz`,
