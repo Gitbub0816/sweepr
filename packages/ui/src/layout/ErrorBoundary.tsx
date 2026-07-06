@@ -7,23 +7,26 @@ interface ReportOpts {
   app?: AppName;
   apiUrl?: string;
   level?: "error" | "warn" | "fatal";
+  componentStack?: string;
   context?: Record<string, unknown>;
 }
 
 /**
  * Best-effort: ship a client error to the admin error feed. Never throws and
- * does nothing unless both `app` and `apiUrl` are provided.
+ * does nothing unless both `app` and `apiUrl` are provided. Resolves with the
+ * customer-visible `reference` code the API hands back (e.g. "ERR-AB12CD34")
+ * so the UI can show it in fine print — or `undefined` if reporting failed.
  */
-export function reportClientError(
+export async function reportClientError(
   error: unknown,
-  { app, apiUrl, level = "error", context }: ReportOpts,
-): void {
-  if (!app || !apiUrl || typeof fetch === "undefined") return;
+  { app, apiUrl, level = "error", componentStack, context }: ReportOpts,
+): Promise<string | undefined> {
+  if (!app || !apiUrl || typeof fetch === "undefined") return undefined;
   try {
     const err = error as { message?: string; stack?: string };
     const message =
       (err && err.message) || (typeof error === "string" ? error : "Unknown client error");
-    void fetch(`${apiUrl}/client-errors`, {
+    const res = await fetch(`${apiUrl}/client-errors`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       keepalive: true,
@@ -33,11 +36,22 @@ export function reportClientError(
         message: String(message).slice(0, 2000),
         stack: err?.stack ? String(err.stack).slice(0, 8000) : undefined,
         path: typeof window !== "undefined" ? window.location.pathname : undefined,
+        componentStack: componentStack ? String(componentStack).slice(0, 4000) : undefined,
+        url: typeof window !== "undefined" ? window.location.href : undefined,
+        userAgent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+        viewport:
+          typeof window !== "undefined" ? `${window.innerWidth}x${window.innerHeight}` : undefined,
+        language: typeof navigator !== "undefined" ? navigator.language : undefined,
+        online: typeof navigator !== "undefined" ? navigator.onLine : undefined,
         context,
       }),
-    }).catch(() => {});
+    });
+    if (!res.ok) return undefined;
+    const data = (await res.json().catch(() => null)) as { reference?: string } | null;
+    return data?.reference;
   } catch {
     /* never let reporting break the app */
+    return undefined;
   }
 }
 
@@ -58,6 +72,7 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+  reference: string | null;
 }
 
 // Playful lines for customer/cleaner-facing screens. Tell them something broke,
@@ -81,24 +96,28 @@ const PLAYFUL = [
 ];
 
 export class ErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false, error: null };
+  state: State = { hasError: false, error: null, reference: null };
 
   static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
+    return { hasError: true, error, reference: null };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("Uncaught error:", error, info);
-    reportClientError(error, {
+    void reportClientError(error, {
       app: this.props.app,
       apiUrl: this.props.apiUrl,
-      context: { componentStack: info.componentStack?.slice(0, 4000) },
+      componentStack: info.componentStack ?? undefined,
+    }).then((reference) => {
+      if (reference) this.setState({ reference });
     });
   }
 
+  /** "Try again" — reset the boundary so React re-attempts rendering the
+   * subtree without a full page reload. If the error persists it will simply
+   * re-trip the boundary. */
   reset = () => {
-    this.setState({ hasError: false, error: null });
-    if (typeof window !== "undefined") window.location.reload();
+    this.setState({ hasError: false, error: null, reference: null });
   };
 
   render() {
@@ -110,7 +129,10 @@ export class ErrorBoundary extends Component<Props, State> {
     if (literal) {
       const err = this.state.error;
       return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-offwhite px-6 py-10 dark:bg-slate-950">
+        <div
+          role="alert"
+          className="flex min-h-screen flex-col items-center justify-center bg-offwhite px-6 py-10 dark:bg-slate-950"
+        >
           <div className="w-full max-w-2xl rounded-2xl border border-red-200 bg-white p-6 shadow-sm dark:border-red-900/40 dark:bg-slate-900">
             <h1 className="text-lg font-bold text-red-700 dark:text-red-400">
               Unhandled error in the UI
@@ -125,13 +147,18 @@ export class ErrorBoundary extends Component<Props, State> {
             )}
             <p className="mt-4 text-xs text-slate-400">
               This error was logged to Observability → Errors.
+              {this.state.reference && (
+                <>
+                  {" "}Reference: <span className="font-mono">{this.state.reference}</span>
+                </>
+              )}
             </p>
             <button
               type="button"
               onClick={this.reset}
               className="mt-6 rounded-xl bg-seafoam-700 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-seafoam-800"
             >
-              Reload
+              Try again
             </button>
           </div>
         </div>
@@ -140,7 +167,10 @@ export class ErrorBoundary extends Component<Props, State> {
 
     const pick = PLAYFUL[Math.floor(Math.random() * PLAYFUL.length)];
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-offwhite px-6 text-center dark:bg-slate-950">
+      <div
+        role="alert"
+        className="flex min-h-screen flex-col items-center justify-center bg-offwhite px-6 text-center dark:bg-slate-950"
+      >
         <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-seafoam-50 text-3xl dark:bg-seafoam-900/20">
           {pick.emoji}
         </div>
@@ -148,15 +178,25 @@ export class ErrorBoundary extends Component<Props, State> {
           {pick.title}
         </h1>
         <p className="mt-2 max-w-sm text-sm text-slate-500 dark:text-slate-400">
-          {pick.body}
+          {pick.body} It's not you — it's us.
         </p>
+        {import.meta.env.DEV && this.state.error?.message && (
+          <p className="mt-3 max-w-sm break-words rounded-lg bg-slate-100 px-3 py-2 font-mono text-xs text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+            (dev only) {this.state.error.message}
+          </p>
+        )}
         <button
           type="button"
           onClick={this.reset}
           className="mt-6 rounded-2xl bg-seafoam-700 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-seafoam-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-seafoam-500 focus-visible:ring-offset-2"
         >
-          Reload
+          Try again
         </button>
+        {this.state.reference && (
+          <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">
+            Reference: <span className="font-mono">{this.state.reference}</span>
+          </p>
+        )}
       </div>
     );
   }
@@ -170,9 +210,9 @@ export function installGlobalErrorHandlers(opts: ReportOpts = {}) {
   if (typeof window === "undefined") return;
   window.addEventListener("unhandledrejection", (event) => {
     console.error("Unhandled promise rejection:", event.reason);
-    reportClientError(event.reason, { ...opts, level: "warn" });
+    void reportClientError(event.reason, { ...opts, level: "warn" });
   });
   window.addEventListener("error", (event) => {
-    reportClientError(event.error ?? event.message, { ...opts });
+    void reportClientError(event.error ?? event.message, { ...opts });
   });
 }

@@ -480,15 +480,27 @@ observabilityRouter.get("/errors", async (c) => {
   const sourceFilter = c.req.query("source"); // 'server' | 'client' | undefined
   const appFilter = c.req.query("app");
   const levelFilter = c.req.query("level"); // 'error' | 'warn' | 'fatal' | undefined
+  const q = c.req.query("q");
+  const fingerprintFilter = c.req.query("fingerprint");
+  const since = c.req.query("since"); // ISO timestamp, optional
 
   const rows = await settle(sql`
     SELECT id, occurred_at, source, app, level, message, stack, path, method,
-           status_code, clerk_id, request_id, resolved, resolved_at
+           status_code, clerk_id, request_id, resolved, resolved_at,
+           fingerprint, reference_id, error_name, error_code, duration_ms
     FROM error_logs
     WHERE (${includeResolved} OR resolved = false)
       AND (${sourceFilter ?? null}::text IS NULL OR source = ${sourceFilter ?? null})
       AND (${appFilter ?? null}::text IS NULL OR app = ${appFilter ?? null})
       AND (${levelFilter ?? null}::text IS NULL OR level = ${levelFilter ?? null})
+      AND (${fingerprintFilter ?? null}::text IS NULL OR fingerprint = ${fingerprintFilter ?? null})
+      AND (${since ?? null}::timestamptz IS NULL OR occurred_at > ${since ?? null}::timestamptz)
+      AND (
+        ${q ?? null}::text IS NULL
+        OR message ILIKE ${q ? `%${q}%` : null}
+        OR path ILIKE ${q ? `%${q}%` : null}
+        OR reference_id ILIKE ${q ? `%${q}%` : null}
+      )
     ORDER BY occurred_at DESC
     LIMIT ${limit} OFFSET ${offset}
   `, [] as unknown[]);
@@ -508,6 +520,75 @@ observabilityRouter.get("/errors", async (c) => {
   });
 });
 
+// GET /admin/observability/errors/groups
+// Groups rows by fingerprint. Rows with a NULL fingerprint (older, pre-v2
+// telemetry rows) are excluded from grouping and remain visible only via the
+// flat "Stream" list (/errors) — grouping them into one "ungrouped" bucket
+// would mix together unrelated errors that happen to lack a fingerprint.
+observabilityRouter.get("/errors/groups", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const includeResolved = c.req.query("resolved") === "true";
+  const sourceFilter = c.req.query("source");
+  const appFilter = c.req.query("app");
+  const levelFilter = c.req.query("level");
+  const q = c.req.query("q");
+  const since = c.req.query("since");
+
+  const rows = await settle(sql`
+    SELECT
+      fingerprint,
+      COUNT(*)::int AS count,
+      MIN(occurred_at) AS "firstSeen",
+      MAX(occurred_at) AS "lastSeen",
+      (ARRAY_AGG(level ORDER BY occurred_at DESC))[1] AS level,
+      (ARRAY_AGG(message ORDER BY occurred_at DESC))[1] AS message,
+      (ARRAY_AGG(error_name ORDER BY occurred_at DESC))[1] AS "errorName",
+      (ARRAY_AGG(error_code ORDER BY occurred_at DESC))[1] AS "errorCode",
+      (ARRAY_AGG(path ORDER BY occurred_at DESC))[1] AS path,
+      ARRAY_AGG(DISTINCT app) FILTER (WHERE app IS NOT NULL) AS apps,
+      COUNT(*) FILTER (WHERE resolved = false)::int AS "unresolvedCount",
+      (ARRAY_AGG(id ORDER BY occurred_at DESC))[1] AS "sampleId"
+    FROM error_logs
+    WHERE fingerprint IS NOT NULL
+      AND (${includeResolved} OR resolved = false)
+      AND (${sourceFilter ?? null}::text IS NULL OR source = ${sourceFilter ?? null})
+      AND (${appFilter ?? null}::text IS NULL OR app = ${appFilter ?? null})
+      AND (${levelFilter ?? null}::text IS NULL OR level = ${levelFilter ?? null})
+      AND (${since ?? null}::timestamptz IS NULL OR occurred_at > ${since ?? null}::timestamptz)
+      AND (
+        ${q ?? null}::text IS NULL
+        OR message ILIKE ${q ? `%${q}%` : null}
+        OR path ILIKE ${q ? `%${q}%` : null}
+        OR reference_id ILIKE ${q ? `%${q}%` : null}
+      )
+    GROUP BY fingerprint
+    ORDER BY MAX(occurred_at) DESC
+    LIMIT 100
+  `, [] as unknown[]);
+
+  return c.json({ groups: rows });
+});
+
+// GET /admin/observability/errors/:id
+// Full row including the entire context JSONB — used by the admin detail drawer.
+observabilityRouter.get("/errors/:id", async (c) => {
+  const { id } = c.req.param();
+  const sql = getDb(c.env.DATABASE_URL);
+
+  const rows = await settle(sql`
+    SELECT id, occurred_at, source, app, level, message, stack, path, method,
+           status_code, clerk_id, request_id, resolved, resolved_at, resolved_by,
+           fingerprint, reference_id, error_name, error_code, duration_ms, context
+    FROM error_logs
+    WHERE id = ${id}
+    LIMIT 1
+  `, [] as unknown[]);
+
+  const row = (rows as unknown[])[0];
+  if (!row) return c.json({ error: "Not found" }, 404);
+  return c.json({ error: row });
+});
+
 // POST /admin/observability/errors/:id/resolve
 observabilityRouter.post("/errors/:id/resolve", async (c) => {
   const { id } = c.req.param();
@@ -520,4 +601,34 @@ observabilityRouter.post("/errors/:id/resolve", async (c) => {
     WHERE id = ${id} AND resolved = false
   `;
   return c.json({ ok: true });
+});
+
+// POST /admin/observability/errors/:id/unresolve
+observabilityRouter.post("/errors/:id/unresolve", async (c) => {
+  const { id } = c.req.param();
+  const sql = getDb(c.env.DATABASE_URL);
+
+  await sql`
+    UPDATE error_logs
+    SET resolved = false, resolved_at = NULL, resolved_by = NULL
+    WHERE id = ${id} AND resolved = true
+  `;
+  return c.json({ ok: true });
+});
+
+// POST /admin/observability/errors/groups/:fingerprint/resolve
+// Resolves every unresolved row sharing the given fingerprint.
+observabilityRouter.post("/errors/groups/:fingerprint/resolve", async (c) => {
+  const { fingerprint } = c.req.param();
+  const sql = getDb(c.env.DATABASE_URL);
+  const clerkId = c.get("user").clerkId;
+
+  const rows = await sql`
+    UPDATE error_logs
+    SET resolved = true, resolved_at = NOW(), resolved_by = ${clerkId}
+    WHERE fingerprint = ${fingerprint} AND resolved = false
+    RETURNING id
+  ` as Array<{ id: string }>;
+
+  return c.json({ ok: true, resolvedCount: rows.length });
 });
