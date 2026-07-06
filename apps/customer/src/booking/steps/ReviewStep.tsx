@@ -8,11 +8,11 @@ import {
   formatDate,
   formatCurrency,
   getAddOn,
-  getCleaningLevelInfo,
   recurringDisplayPrice,
 } from "@sweepr/utils";
 import { useBookingStore } from "../../store/booking";
 import { StepShell } from "../StepShell";
+import { deriveCleaningLevel, ROOM_TYPES, LEVEL_CAPTIONS } from "../roomAssets";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8787";
 
@@ -36,17 +36,6 @@ function Row({
           {value}
         </p>
       </div>
-    </div>
-  );
-}
-
-function LineRow({ label, amount }: { label: string; amount: number }) {
-  return (
-    <div className="flex items-center justify-between py-1 text-sm">
-      <span className="text-slate-600 dark:text-slate-400">{label}</span>
-      <span className="font-medium text-charcoal dark:text-white">
-        {formatCurrency(amount)}
-      </span>
     </div>
   );
 }
@@ -75,7 +64,7 @@ export function ReviewStep() {
     address,
     home,
     serviceType,
-    cleaningLevel,
+    rooms,
     addOnKeys,
     scheduledFor,
     arrivalWindowStart,
@@ -84,42 +73,76 @@ export function ReviewStep() {
     isEmergency,
     isSubscription,
     subscriptionCadence,
-    getQuote,
     setBookingId,
   } = state;
   const [submitting, setSubmitting] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
 
+  // Room conditions drive the price, but the customer never sees any number
+  // until here — and only the final owed total, fetched server-authoritatively.
+  const derivedLevel = deriveCleaningLevel(rooms);
+  const [total, setTotal] = useState<number | null>(null);
+  const [quoteError, setQuoteError] = useState(false);
+
+  const roomsComplete = ROOM_TYPES.every((r) => rooms.some((s) => s.roomType === r.type));
   const missingRequiredFields =
     !address ||
     !serviceType ||
     !scheduledFor ||
     !arrivalWindowStart ||
     !arrivalWindowEnd ||
-    !cleaningLevel;
+    !roomsComplete;
   useEffect(() => {
     if (!address || !serviceType) navigate("/book/address");
+    else if (!roomsComplete) navigate("/book/rooms");
     else if (!scheduledFor || !arrivalWindowStart || !arrivalWindowEnd) navigate("/book/schedule");
-    else if (!cleaningLevel) navigate("/book/condition");
-  }, [address, serviceType, scheduledFor, arrivalWindowStart, arrivalWindowEnd, cleaningLevel, navigate]);
+  }, [address, serviceType, scheduledFor, arrivalWindowStart, arrivalWindowEnd, roomsComplete, navigate]);
+
+  // Fetch the final owed amount from the server (authoritative). Hidden until now.
+  useEffect(() => {
+    if (missingRequiredFields) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getToken();
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+        const res = await fetch(`${API_URL}/bookings/quote`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            serviceType,
+            bedrooms: home.bedrooms,
+            bathrooms: home.bathrooms,
+            sqft: home.sqft,
+            homeType: home.homeType,
+            hasPets: home.pets,
+            cleaningLevel: derivedLevel,
+            addOnKeys,
+          }),
+        });
+        if (!res.ok) throw new Error("quote failed");
+        const data = (await res.json()) as { total?: number; totalPrice?: number };
+        const dollars = data.total ?? (data.totalPrice != null ? data.totalPrice / 100 : null);
+        if (!cancelled && dollars != null) setTotal(dollars);
+        else if (!cancelled) setQuoteError(true);
+      } catch {
+        if (!cancelled) setQuoteError(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [missingRequiredFields, serviceType, home, derivedLevel, addOnKeys, getToken]);
 
   if (missingRequiredFields) return null;
 
-  const quote = getQuote();
-  const total = quote?.total ?? 0;
   const subPrice =
-    isSubscription && subscriptionCadence
+    total != null && isSubscription && subscriptionCadence
       ? recurringDisplayPrice(total, subscriptionCadence)
       : null;
 
-  // Split the itemized line items into three logical sections.
-  const addOnNames = new Set(addOnKeys.map((k) => getAddOn(k)?.name).filter(Boolean));
-  const packageItems = (quote?.lineItems ?? []).filter(
-    (li) => li.label !== "Cleaning level surcharge" && !addOnNames.has(li.label),
-  );
-  const levelItems = (quote?.lineItems ?? []).filter((li) => li.label === "Cleaning level surcharge");
-  const addOnItems = (quote?.lineItems ?? []).filter((li) => addOnNames.has(li.label));
-  const levelInfo = cleaningLevel ? getCleaningLevelInfo(cleaningLevel) : undefined;
+  const addOnSummary = addOnKeys.map((k) => getAddOn(k)?.name).filter(Boolean) as string[];
 
   async function handleContinueToPayment() {
     setSubmitting(true);
@@ -163,7 +186,8 @@ export function ReviewStep() {
           sqft: home.sqft,
           homeType: home.homeType,
           hasPets: home.pets,
-          cleaningLevel,
+          cleaningLevel: derivedLevel,
+          rooms,
           addOnKeys,
           scheduledAt: scheduledFor,
           arrivalWindowStart,
@@ -213,7 +237,7 @@ export function ReviewStep() {
       onBack={() => navigate("/book/schedule")}
       onNext={handleContinueToPayment}
       nextLabel={submitting ? t("booking.review.creatingBooking") : t("booking.review.continueToPayment")}
-      nextDisabled={submitting || !acknowledged}
+      nextDisabled={submitting || !acknowledged || total == null}
     >
       <Card className="divide-y divide-slate-100 dark:divide-slate-800">
         <Row
@@ -247,34 +271,38 @@ export function ReviewStep() {
         />
       </Card>
 
-      {/* Itemized breakdown — three clearly separated sections. */}
+      {/* Room-condition summary — labels only, NO per-item pricing. The single
+          final owed amount below is the only number the customer sees. */}
       <Card className="mt-4">
-        <SectionHeading>{t("booking.review.sectionPackage")}</SectionHeading>
-        <p className="mb-2 text-xs text-slate-500">{t("booking.review.sectionPackageDesc")}</p>
-        {packageItems.map((li) => (
-          <LineRow key={li.label} label={li.label} amount={li.amount} />
-        ))}
+        <SectionHeading>Rooms</SectionHeading>
+        <p className="mb-2 text-xs text-slate-500">What you told us about each room.</p>
+        {ROOM_TYPES.map((room) => {
+          const sel = rooms.find((r) => r.roomType === room.type);
+          if (!sel) return null;
+          return (
+            <div key={room.type} className="flex items-center justify-between py-1 text-sm">
+              <span className="text-slate-600 dark:text-slate-400">{room.label}</span>
+              <span className="font-medium text-charcoal dark:text-white">
+                {LEVEL_CAPTIONS[sel.level]}
+              </span>
+            </div>
+          );
+        })}
 
-        <SectionHeading>{t("booking.review.sectionLevel")}</SectionHeading>
-        <p className="mb-2 text-xs text-slate-500">{t("booking.review.sectionLevelDesc")}</p>
-        {levelInfo && (
-          <p className="py-1 text-sm font-medium text-charcoal dark:text-white">{levelInfo.title}</p>
-        )}
-        {levelItems.length > 0 ? (
-          levelItems.map((li) => <LineRow key={li.label} label={li.label} amount={li.amount} />)
-        ) : (
-          <div className="flex items-center justify-between py-1 text-sm">
-            <span className="text-slate-600 dark:text-slate-400">{t("booking.review.levelSurcharge")}</span>
-            <span className="font-medium text-charcoal dark:text-white">{t("booking.review.noExtraCharge")}</span>
-          </div>
-        )}
-
-        <SectionHeading>{t("booking.review.sectionAddOns")}</SectionHeading>
-        <p className="mb-2 text-xs text-slate-500">{t("booking.review.sectionAddOnsDesc")}</p>
-        {addOnItems.length > 0 ? (
-          addOnItems.map((li) => <LineRow key={li.label} label={li.label} amount={li.amount} />)
-        ) : (
-          <p className="py-1 text-sm text-slate-500">{t("booking.review.noAddOns")}</p>
+        {addOnSummary.length > 0 && (
+          <>
+            <SectionHeading>Add-ons</SectionHeading>
+            <div className="flex flex-wrap gap-2 py-1">
+              {addOnSummary.map((name) => (
+                <span
+                  key={name}
+                  className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                >
+                  {name}
+                </span>
+              ))}
+            </div>
+          </>
         )}
       </Card>
 
@@ -284,7 +312,17 @@ export function ReviewStep() {
             <Zap className="h-3 w-3" /> {t("booking.review.rushBooking")}
           </span>
         )}
-        {subPrice != null ? (
+        {total == null ? (
+          <div>
+            <p className="text-sm text-slate-500">{t("booking.review.yourClean")}</p>
+            <div className="mt-1 h-9 w-32 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+            {quoteError && (
+              <p className="mt-2 text-xs text-red-600">
+                We couldn't calculate your total. Please go back and try again.
+              </p>
+            )}
+          </div>
+        ) : subPrice != null ? (
           <div>
             <p className="text-sm text-slate-500">{t("booking.review.firstClean")}</p>
             <p className="text-3xl font-bold text-charcoal dark:text-white">

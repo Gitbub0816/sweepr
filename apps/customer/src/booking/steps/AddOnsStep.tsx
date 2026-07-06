@@ -15,7 +15,7 @@ export function AddOnsStep() {
 
   // Guard: a package must be chosen before this step is meaningful.
   useEffect(() => {
-    if (!serviceType) navigate("/book/package");
+    if (!serviceType) navigate("/book/rooms");
   }, [serviceType, navigate]);
   if (!serviceType) return null;
 
@@ -23,7 +23,7 @@ export function AddOnsStep() {
     <StepShell
       title={t("booking.addons.title")}
       subtitle={t("booking.addons.subtitle")}
-      onBack={() => navigate("/book/condition")}
+      onBack={() => navigate("/book/rooms")}
       onNext={() => navigate("/book/schedule")}
     >
       <div className="grid gap-3 sm:grid-cols-2">
