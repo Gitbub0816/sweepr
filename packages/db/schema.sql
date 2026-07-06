@@ -8,7 +8,7 @@
 -- This file is GENERATED. Do not edit by hand — edit the migrations in
 -- src/migrations/ and re-run: node packages/db/build-schema.mjs
 --
--- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql, 034_fee_approval_engine.sql, 035_slack_user_tokens.sql, 036_pricing_engine.sql, 037_security_tickets.sql, 038_compact_ticket_ids.sql, 039_report_submitter.sql, 040_classification_and_templates.sql, 041_fix_security_templates.sql, 042_email_deliverability.sql, 043_slack_purpose_security.sql, 044_senior_admin_roles.sql, 045_status_autodetect.sql, 046_seed_pricing_rule.sql, 047_seed_super_admin_invite.sql, 048_customer_home_profile.sql, 049_reset_bootstrap_invite.sql, 050_customers_user_id_unique.sql, 051_preferred_language.sql, 052_payouts_booking_id_unique.sql, 053_sms_consent.sql, 054_strict_rls.sql, 055_mailbox_messages.sql, 056_admin_mail_center.sql, 057_public_privacy_intake.sql, 058_scope_review_engine.sql, 059_scope_review_links.sql, 060_performance_indexes.sql, 061_composite_query_indexes.sql, 062_atomicity_constraints.sql, 063_customers_updated_at.sql, 064_booking_arrival_window.sql
+-- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql, 034_fee_approval_engine.sql, 035_slack_user_tokens.sql, 036_pricing_engine.sql, 037_security_tickets.sql, 038_compact_ticket_ids.sql, 039_report_submitter.sql, 040_classification_and_templates.sql, 041_fix_security_templates.sql, 042_email_deliverability.sql, 043_slack_purpose_security.sql, 044_senior_admin_roles.sql, 045_status_autodetect.sql, 046_seed_pricing_rule.sql, 047_seed_super_admin_invite.sql, 048_customer_home_profile.sql, 049_reset_bootstrap_invite.sql, 050_customers_user_id_unique.sql, 051_preferred_language.sql, 052_payouts_booking_id_unique.sql, 053_sms_consent.sql, 054_strict_rls.sql, 055_mailbox_messages.sql, 056_admin_mail_center.sql, 057_public_privacy_intake.sql, 058_scope_review_engine.sql, 059_scope_review_links.sql, 060_performance_indexes.sql, 061_composite_query_indexes.sql, 062_atomicity_constraints.sql, 063_customers_updated_at.sql, 064_booking_arrival_window.sql, 065_str_calendar_sync.sql
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -3548,3 +3548,101 @@ ALTER TABLE customers ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NO
 -- cleaner and customer apps show the window itself.
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS arrival_window_start TIME;
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS arrival_window_end TIME;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 065_str_calendar_sync.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Migration 065: Short-Term Rental calendar sync.
+--
+-- Hosts of short-term rentals (Airbnb / Vrbo / Booking.com / Google Calendar /
+-- PMS / other) connect an iCal (.ics) feed. Checkout dates from that feed are
+-- turned into turnaround cleanings (review-first by default, or auto-booked).
+--
+-- Security posture (enforced in app code, mirrored here as intent):
+--   * Calendar URLs are validated server-side with SSRF protection before ever
+--     being stored or fetched (see lib/calendarSecurity.ts).
+--   * Raw ICS content is NEVER exposed to cleaners; only the derived fields
+--     below (external uid, source, start/end, title, status) are persisted, and
+--     cleaner-facing endpoints project a subset.
+
+-- ── Connected calendar feeds ─────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS short_term_rental_properties (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  nickname TEXT NOT NULL,
+
+  -- Property address (turnarounds are booked here).
+  street_address TEXT,
+  unit TEXT,
+  city TEXT,
+  state TEXT,
+  zip TEXT,
+
+  bedrooms INTEGER,
+  bathrooms NUMERIC,
+  sqft INTEGER,
+
+  -- Monthly connection fee snapshot (cents) at time of activation.
+  monthly_fee_cents INTEGER NOT NULL DEFAULT 2000,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_str_properties_customer ON short_term_rental_properties(customer_id);
+
+CREATE TABLE IF NOT EXISTS calendar_sources (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  property_id UUID NOT NULL REFERENCES short_term_rental_properties(id) ON DELETE CASCADE,
+
+  provider TEXT NOT NULL DEFAULT 'other'
+    CHECK (provider IN ('airbnb','vrbo','booking_com','google_calendar','pms','other')),
+  ics_url TEXT NOT NULL,
+
+  -- Sync behavior.
+  auto_book BOOLEAN NOT NULL DEFAULT FALSE,          -- false = create pending (review-first)
+  sync_interval_minutes INTEGER NOT NULL DEFAULT 120 -- 1–3h; clamped in app
+    CHECK (sync_interval_minutes BETWEEN 60 AND 180),
+
+  status TEXT NOT NULL DEFAULT 'active'
+    CHECK (status IN ('active','paused','error')),
+  last_synced_at TIMESTAMPTZ,
+  last_sync_error TEXT,
+  last_sync_event_count INTEGER,
+
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_calendar_sources_property ON calendar_sources(property_id);
+CREATE INDEX IF NOT EXISTS idx_calendar_sources_due
+  ON calendar_sources(last_synced_at) WHERE status = 'active';
+
+-- ── Imported reservations (derived; never the raw ICS) ───────────────────────
+CREATE TABLE IF NOT EXISTS imported_calendar_reservations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  property_id UUID NOT NULL REFERENCES short_term_rental_properties(id) ON DELETE CASCADE,
+  calendar_source_id UUID NOT NULL REFERENCES calendar_sources(id) ON DELETE CASCADE,
+
+  external_uid TEXT,          -- VEVENT UID from the feed (may be null)
+  summary TEXT,               -- VEVENT SUMMARY (e.g. "Reserved")
+  ics_status TEXT,            -- VEVENT STATUS
+  checkin_date DATE,          -- DTSTART
+  checkout_date DATE NOT NULL, -- DTEND == turnaround trigger
+
+  -- Lifecycle of the derived turnaround cleaning.
+  cleaning_status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (cleaning_status IN ('pending','scheduled','skipped','cancelled')),
+  booking_id UUID REFERENCES bookings(id) ON DELETE SET NULL,
+
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Duplicate prevention: propertyId + calendarSourceId + externalUid + checkoutDate.
+-- COALESCE so rows with a null UID still dedupe on (property, source, checkout).
+CREATE UNIQUE INDEX IF NOT EXISTS uq_imported_reservation_dedupe
+  ON imported_calendar_reservations(
+    property_id, calendar_source_id, COALESCE(external_uid, ''), checkout_date
+  );
+CREATE INDEX IF NOT EXISTS idx_imported_reservations_pending
+  ON imported_calendar_reservations(property_id) WHERE cleaning_status = 'pending';
