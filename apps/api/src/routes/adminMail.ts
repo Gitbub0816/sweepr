@@ -128,28 +128,38 @@ adminMailRouter.get("/:box/messages", async (c) => {
   const offset = parseInt(c.req.query("offset") ?? "0", 10) || 0;
 
   // folder: inbox = inbound + not archived; sent = outbound; archive = archived_at set.
+  // Built as a plain string + params array — the Neon serverless client does not
+  // support composing nested sql`` fragments into another tagged template.
   const folderCond =
     folder === "sent"
-      ? sql`m.direction = 'outbound'`
+      ? "m.direction = 'outbound'"
       : folder === "archive"
-        ? sql`m.archived_at IS NOT NULL`
-        : sql`m.direction = 'inbound' AND m.archived_at IS NULL`;
+        ? "m.archived_at IS NOT NULL"
+        : "m.direction = 'inbound' AND m.archived_at IS NULL";
 
-  const searchCond = q
-    ? sql`AND (m.subject ILIKE ${`%${q}%`} OR m.body_text ILIKE ${`%${q}%`}
-           OR m.sender_email ILIKE ${`%${q}%`} OR m.to_email ILIKE ${`%${q}%`})`
-    : sql``;
+  const params: unknown[] = [box];
+  let searchCond = "";
+  if (q) {
+    params.push(`%${q}%`);
+    const p = `$${params.length}`;
+    searchCond = `AND (m.subject ILIKE ${p} OR m.body_text ILIKE ${p} OR m.sender_email ILIKE ${p} OR m.to_email ILIKE ${p})`;
+  }
+  params.push(limit);
+  const limitP = `$${params.length}`;
+  params.push(offset);
+  const offsetP = `$${params.length}`;
 
-  const messages = await sql`
-    SELECT m.id, m.direction, m.sender_email, m.sender_name, m.to_email, m.cc_email,
-           m.subject, m.body_text, m.in_reply_to, m.read_at, m.archived_at, m.created_at,
-           u.email AS sent_by_email
-    FROM mailbox_messages m
-    LEFT JOIN users u ON u.id = m.sent_by
-    WHERE m.mailbox = ${box} AND ${folderCond} ${searchCond}
-    ORDER BY m.created_at DESC
-    LIMIT ${limit} OFFSET ${offset}
-  `;
+  const messages = await sql(
+    `SELECT m.id, m.direction, m.sender_email, m.sender_name, m.to_email, m.cc_email,
+            m.subject, m.body_text, m.in_reply_to, m.read_at, m.archived_at, m.created_at,
+            u.email AS sent_by_email
+     FROM mailbox_messages m
+     LEFT JOIN users u ON u.id = m.sent_by
+     WHERE m.mailbox = $1 AND ${folderCond} ${searchCond}
+     ORDER BY m.created_at DESC
+     LIMIT ${limitP} OFFSET ${offsetP}`,
+    params,
+  );
   return c.json({ messages, limit, offset, folder });
 });
 
