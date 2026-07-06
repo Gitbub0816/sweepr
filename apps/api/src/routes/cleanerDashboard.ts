@@ -402,8 +402,14 @@ cleanerDashboardRouter.get("/availability", async (c) => {
   // Onboarding: no cleaner row yet — return empty availability instead of 404.
   if (!ctx) return c.json({ slots: [] });
 
+  // Format TIME as HH:MM (not the raw HH:MM:SS Postgres returns) so the value
+  // round-trips through the PUT schema unchanged — otherwise the seconds cause
+  // untouched days to fail validation and the whole save is rejected.
   const slots = await sql`
-    SELECT day_of_week, start_time, end_time, active
+    SELECT day_of_week,
+           to_char(start_time, 'HH24:MI') AS start_time,
+           to_char(end_time,   'HH24:MI') AS end_time,
+           active
     FROM cleaner_availability
     WHERE cleaner_id = ${ctx.cleaner_id}
     ORDER BY day_of_week
@@ -414,8 +420,10 @@ cleanerDashboardRouter.get("/availability", async (c) => {
 const availabilitySchema = z.object({
   slots: z.array(z.object({
     day_of_week: z.number().int().min(0).max(6),
-    start_time:  z.string().regex(/^\d{2}:\d{2}$/),
-    end_time:    z.string().regex(/^\d{2}:\d{2}$/),
+    // Tolerate an optional :SS suffix (older clients / raw TIME values) and
+    // normalize to HH:MM below.
+    start_time:  z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
+    end_time:    z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
     active:      z.boolean(),
   })),
 });
@@ -427,9 +435,11 @@ cleanerDashboardRouter.put("/availability", zValidator("json", availabilitySchem
   if (!ctx) return c.json({ error: "Cleaner not found" }, 404);
 
   for (const slot of slots) {
+    const start = slot.start_time.slice(0, 5);
+    const end = slot.end_time.slice(0, 5);
     await sql`
       INSERT INTO cleaner_availability (cleaner_id, day_of_week, start_time, end_time, active)
-      VALUES (${ctx.cleaner_id}, ${slot.day_of_week}, ${slot.start_time}, ${slot.end_time}, ${slot.active})
+      VALUES (${ctx.cleaner_id}, ${slot.day_of_week}, ${start}, ${end}, ${slot.active})
       ON CONFLICT (cleaner_id, day_of_week) DO UPDATE
         SET start_time = EXCLUDED.start_time,
             end_time   = EXCLUDED.end_time,
