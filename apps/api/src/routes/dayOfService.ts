@@ -397,13 +397,16 @@ dayOfServiceRouter.post(
       return c.json({ error: "Invalid storage key for booking" }, 400);
     }
 
-    // Idempotent upsert — safe if cleaner retries completion.
+    // Idempotent — safe if the cleaner retries completion. booking_photos has
+    // no unique constraint on (booking_id, photo_type) (before/after allow many
+    // rows per type), so an ON CONFLICT on those columns matches no constraint
+    // and errors — replace any prior checkout photo with a delete-then-insert.
+    await sql`
+      DELETE FROM booking_photos WHERE booking_id = ${bookingId} AND photo_type = 'checkout'
+    `;
     await sql`
       INSERT INTO booking_photos (booking_id, photo_type, storage_key, uploaded_by)
       VALUES (${bookingId}, 'checkout', ${checkout_photo_key}, ${clerkId})
-      ON CONFLICT (booking_id, photo_type) DO UPDATE SET
-        storage_key = EXCLUDED.storage_key,
-        uploaded_by = EXCLUDED.uploaded_by
     `;
 
     const durationMins = booking.started_at
