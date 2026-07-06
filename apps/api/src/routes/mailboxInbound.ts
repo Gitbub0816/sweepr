@@ -50,14 +50,14 @@ mailboxInboundRouter.post("/inbound/:box", async (c) => {
   const raw = await c.req.text();
   const sig = c.req.header("signature") ?? c.req.header("x-mailersend-signature") ?? "";
 
-  // MailerSend pings the endpoint (unsigned) when the inbound route is created
-  // to verify it's reachable. Answer that probe 200 without processing so the
-  // route — and its signing secret — can be provisioned. Real deliveries always
-  // carry a Signature header and still fail closed below.
-  if (!sig) return c.json({ ok: true, probe: true });
-
+  // MailerSend probes the webhook when the inbound route is CREATED to verify
+  // it returns 2xx — but the route's signing secret only exists after creation,
+  // so the secret is necessarily unset during that probe. Accept it (without
+  // processing) so the route can be provisioned. Once the secret is configured
+  // as a wrangler secret, every real delivery is signature-verified below and
+  // forged/unsigned posts are rejected — so this fails safe, not open.
   const secret = c.env[secretName] as string | undefined;
-  if (!secret) return c.json({ error: "Inbound not configured" }, 503);
+  if (!secret) return c.json({ ok: true, probe: true });
 
   if (!timingSafeEqual(sig, await hmacHex(secret, raw))) return c.json({ error: "bad signature" }, 401);
 
