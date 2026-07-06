@@ -27,7 +27,7 @@ function isDarkMode() {
 
 // ─── Order Summary ────────────────────────────────────────────────────────────
 
-function OrderSummary() {
+function OrderSummary({ authoritativeTotal }: { authoritativeTotal?: number | null }) {
   const { t } = useTranslation();
   const serviceType = useBookingStore((s) => s.serviceType);
   const home = useBookingStore((s) => s.home);
@@ -43,7 +43,8 @@ function OrderSummary() {
 
   if (!quote) return null;
 
-  const displayPrice = quote.total;
+  // Prefer the server's PaymentIntent amount — it's exactly what gets charged.
+  const displayPrice = authoritativeTotal ?? quote.total;
 
   // Recurring discount label
   const activeCadence = isSubscription ? subscriptionCadence : null;
@@ -308,12 +309,18 @@ export function PaymentStep() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [intentLoading, setIntentLoading] = useState(false);
   const [dark, setDark] = useState(() => isDarkMode());
+  // Authoritative amount (dollars) from the server's PaymentIntent — this is
+  // exactly what the card is charged. The client-side quote is only a fallback
+  // while the intent loads / in demo mode.
+  const [serverAmount, setServerAmount] = useState<number | null>(null);
 
-  const displayPrice = quote?.total ?? 0;
+  const displayPrice = serverAmount ?? quote?.total ?? 0;
   const chargedPrice =
-    isSubscription && subscriptionCadence
-      ? recurringDisplayPrice(displayPrice, subscriptionCadence)
-      : displayPrice;
+    serverAmount != null
+      ? serverAmount
+      : isSubscription && subscriptionCadence
+        ? recurringDisplayPrice(displayPrice, subscriptionCadence)
+        : displayPrice;
 
   // Track dark-mode changes so the Stripe appearance updates live.
   useEffect(() => {
@@ -341,8 +348,9 @@ export function PaymentStep() {
         body: JSON.stringify({ bookingId }),
       })
         .then((r) => (r.ok ? r.json() : null))
-        .then((data: { clientSecret?: string } | null) => {
+        .then((data: { clientSecret?: string; amount?: number } | null) => {
           if (data?.clientSecret) setClientSecret(data.clientSecret);
+          if (typeof data?.amount === "number") setServerAmount(data.amount / 100);
         })
         .catch(() => {/* clientSecret stays null → DemoCheckout renders */})
         .finally(() => setIntentLoading(false));
@@ -393,7 +401,7 @@ export function PaymentStep() {
 
         {/* Right: order summary */}
         <div className="lg:order-first xl:order-last">
-          <OrderSummary />
+          <OrderSummary authoritativeTotal={serverAmount} />
         </div>
       </div>
     </StepShell>
