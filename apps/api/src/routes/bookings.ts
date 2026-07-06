@@ -343,7 +343,34 @@ bookingsRouter.post(
         AND status NOT IN ('cancelled_by_customer', 'cancelled_by_cleaner', 'cancelled', 'refunded')
       LIMIT 1
     `) as BookingRow[];
-    if (existingRows[0]) return c.json({ booking: existingRows[0] }, 201);
+    if (existingRows[0]) {
+      // The customer resubmitted for the same slot with (possibly) new room
+      // conditions / add-ons. Refresh the existing draft's pricing to the freshly
+      // computed values so the amount create-intent charges (booking.total_price)
+      // always matches the review-step quote — never a stale earlier total.
+      // Only safe while the booking hasn't been paid/confirmed yet.
+      if (existingRows[0].status === "booked") {
+        const refreshed = (await sql`
+          UPDATE bookings SET
+            service_type = ${input.serviceType},
+            bedrooms = ${input.bedrooms}, bathrooms = ${input.bathrooms},
+            sqft = ${input.sqft}, home_type = ${input.homeType},
+            base_price = ${basePrice}, addons_total = ${addonsTotal},
+            service_fee = ${roomPrice ? roomPrice.feeCents : resolved ? 0 : price.serviceFee},
+            tax = ${roomPrice ? roomPrice.taxCents : resolved ? 0 : price.tax},
+            total_price = ${totalPrice}, cleaning_level = ${input.cleaningLevel},
+            cleaning_level_surcharge_cents = ${levelSurchargeCents},
+            pricing_line_items_json = ${roomPrice
+              ? JSON.stringify([...roomPrice.lineItems, { label: "rooms", rooms: input.rooms }])
+              : resolved ? JSON.stringify(resolved.breakdown.line_items) : null},
+            notes = ${input.notes ?? null}, updated_at = NOW()
+          WHERE id = ${existingRows[0].id}
+          RETURNING *
+        `) as BookingRow[];
+        return c.json({ booking: refreshed[0] ?? existingRows[0] }, 201);
+      }
+      return c.json({ booking: existingRows[0] }, 201);
+    }
     throw err;
   }
   if (!created) return c.json({ error: "Failed to create booking" }, 500);
