@@ -25,6 +25,46 @@ export const adminAutomationRouter = new Hono<AppBindings>();
 // All routes require auth + admin (ops or finance for most, super_admin/admin for settings).
 adminAutomationRouter.use("*", requireAuth, requireAdminRole("super_admin", "admin", "ops", "finance"));
 
+// ─── Assignment engine configuration ────────────────────────────────────────
+// The knobs that shape how jobs are matched to cleaners: how random vs.
+// deterministic selection is, how many cleaners are queued per job, how long an
+// offer stays open, and how many free declines a cleaner gets per day.
+
+adminAutomationRouter.get("/assignment-config", async (c) => {
+  const { loadMatchingConfig, DEFAULT_MATCHING_CONFIG } = await import("../lib/matchingConfig");
+  const sql = getDb(c.env.DATABASE_URL);
+  const config = await loadMatchingConfig(sql);
+  return c.json({ config, defaults: DEFAULT_MATCHING_CONFIG });
+});
+
+const assignmentConfigSchema = z.object({
+  randomnessFloor: z.number().min(0).max(0.9),
+  freeDeclinesPerDay: z.number().int().min(0).max(20),
+  offerExpiryMinutes: z.number().int().min(1).max(1440),
+  maxCandidates: z.number().int().min(1).max(25),
+});
+
+adminAutomationRouter.put(
+  "/assignment-config",
+  requireAdminRole("super_admin", "admin", "ops"),
+  zValidator("json", assignmentConfigSchema),
+  async (c) => {
+    const { saveMatchingConfig } = await import("../lib/matchingConfig");
+    const sql = getDb(c.env.DATABASE_URL);
+    const cfg = c.req.valid("json");
+    await saveMatchingConfig(sql, cfg);
+    await audit(sql, {
+      action: "admin.action",
+      actorClerkId: c.get("user").clerkId,
+      targetType: "matching_config",
+      targetId: "singleton",
+      metadata: cfg,
+      timestamp: new Date().toISOString(),
+    });
+    return c.json({ ok: true, config: cfg });
+  },
+);
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function logRun(
