@@ -1,4 +1,4 @@
-import { captureLoggedError } from "./errorContext";
+import { captureLoggedError, addBreadcrumb } from "./errorContext";
 
 const REDACT_KEYS = [
   "password",
@@ -11,6 +11,10 @@ const REDACT_KEYS = [
   "secret",
   "authorization",
   "cookie",
+  "apikey",
+  "api_key",
+  "card",
+  "cvc",
 ];
 
 export function redact(obj: unknown): unknown {
@@ -26,40 +30,55 @@ export function redact(obj: unknown): unknown {
   );
 }
 
+/** Serialize an Error (with its `.cause` chain, up to 5 deep) for logging. */
+function serializeErrForLog(err: unknown, depth = 0): unknown {
+  if (depth >= 5) return undefined;
+  if (err instanceof Error) {
+    const out: Record<string, unknown> = { name: err.name, message: err.message, stack: err.stack };
+    if (err.cause !== undefined) out.cause = serializeErrForLog(err.cause, depth + 1);
+    return out;
+  }
+  return err;
+}
+
 export const logger = {
-  info: (msg: string, data?: unknown) =>
+  info: (msg: string, data?: unknown) => {
+    const redacted = redact(data);
     console.log(
       JSON.stringify({
         level: "info",
         msg,
-        data: redact(data),
+        data: redacted,
         ts: new Date().toISOString(),
       })
-    ),
+    );
+    addBreadcrumb("info", msg, redacted);
+  },
   warn: (msg: string, data?: unknown) => {
+    const redacted = redact(data);
     console.warn(
       JSON.stringify({
         level: "warn",
         msg,
-        data: redact(data),
+        data: redacted,
         ts: new Date().toISOString(),
       })
     );
-    captureLoggedError("warn", msg, undefined, redact(data));
+    captureLoggedError("warn", msg, undefined, redacted);
+    addBreadcrumb("warn", msg, redacted);
   },
   error: (msg: string, err: unknown, data?: unknown) => {
+    const redacted = redact(data);
     console.error(
       JSON.stringify({
         level: "error",
         msg,
-        err:
-          err instanceof Error
-            ? { message: err.message, name: err.name }
-            : err,
-        data: redact(data),
+        err: serializeErrForLog(err),
+        data: redacted,
         ts: new Date().toISOString(),
       })
     );
-    captureLoggedError("error", msg, err, redact(data));
+    captureLoggedError("error", msg, err, redacted);
+    addBreadcrumb("error", msg, redacted);
   },
 };

@@ -10,13 +10,23 @@ export class AppError extends Error {
   }
 }
 
-// Safe error serializer — never leak stack traces or internal details to clients
+export const GENERIC_5XX_MESSAGE = "Something went wrong on our end. Please try again in a moment.";
+
+/**
+ * Safe error serializer for unexpected (5xx) failures — never leaks stack
+ * traces, SQL, or class names to the client. Always includes a `reference`
+ * code the customer can quote to support, which must match the row written
+ * to the admin error feed for this incident (see `setResponseReference` in
+ * lib/errorContext.ts). In development only, a non-sensitive `detail` field
+ * is added to speed up local debugging — the shape stays the same.
+ */
 export function toSafeError(
   err: unknown,
-  isDev: boolean
-): { error: string; detail?: string } {
-  if (err instanceof AppError) return { error: err.message };
-  if (!isDev) return { error: "An unexpected error occurred" };
-  if (err instanceof Error) return { error: "An unexpected error occurred", detail: err.message };
-  return { error: "An unexpected error occurred", detail: String(err) };
+  isDev: boolean,
+  reference: string
+): { error: string; code: string; reference: string; detail?: string } {
+  const base = { error: GENERIC_5XX_MESSAGE, code: "internal_error", reference };
+  if (!isDev) return base;
+  if (err instanceof Error) return { ...base, detail: err.message };
+  return { ...base, detail: String(err) };
 }
