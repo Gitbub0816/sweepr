@@ -437,7 +437,7 @@ function LessonViewer({
   const showComplete = canComplete || lessonDone;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-24 sm:pb-6">
       <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" size="sm" onClick={onBack}>
           <ChevronLeft className="h-4 w-4" /> {t("cleaner.training.backToAcademy")}
@@ -640,7 +640,7 @@ function Quiz({
   if (!question) return null;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
+    <div className="mx-auto max-w-2xl space-y-5 pb-24 sm:pb-6">
       <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" size="sm" onClick={onBack}>
           <ChevronLeft className="h-4 w-4" /> {t("cleaner.training.backToAcademy")}
@@ -750,7 +750,7 @@ function QuizResultView({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
+    <div className="mx-auto max-w-2xl space-y-5 pb-24 sm:pb-6">
       {passed && <Confetti />}
 
       {/* Completion card */}

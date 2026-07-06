@@ -245,7 +245,13 @@ const applySchema = z.object({
   fullName: z.string().optional(),
   phone: z.string().optional(),
   bio: z.string().optional(),
-  avatarUrl: z.string().url().optional(),
+  // The profile photo is optional; the client may send "" or null when skipped.
+  // Coerce those to undefined so an empty value doesn't fail url() validation
+  // and block an otherwise-valid application.
+  avatarUrl: z.preprocess(
+    (v) => (v === "" || v === null ? undefined : v),
+    z.string().url().max(512).optional(),
+  ),
   basedIn: z.string().optional(),
   radiusMi: z.number().optional(),
   services: z.array(z.string()).optional(),
