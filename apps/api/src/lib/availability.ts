@@ -56,7 +56,7 @@ export async function getMergedSlots(sql: Sql, cleanerIds?: string[]): Promise<M
                start_time::text AS start_time, end_time::text AS end_time,
                specific_date::text AS specific_date
         FROM cleaner_schedule
-        WHERE is_active = true AND slot_type IN ('flexible', 'available_now')
+        WHERE is_active = true AND slot_type IN ('recurring', 'flexible', 'available_now')
           AND cleaner_id = ANY(${cleanerIds})
       `
     : await sql`
@@ -64,7 +64,7 @@ export async function getMergedSlots(sql: Sql, cleanerIds?: string[]): Promise<M
                start_time::text AS start_time, end_time::text AS end_time,
                specific_date::text AS specific_date
         FROM cleaner_schedule
-        WHERE is_active = true AND slot_type IN ('flexible', 'available_now')
+        WHERE is_active = true AND slot_type IN ('recurring', 'flexible', 'available_now')
       `) as MergedSlot[];
 
   return [
