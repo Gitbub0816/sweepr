@@ -4,8 +4,12 @@ import type {
   Address,
   Booking,
   CleaningLevel,
+  HomeCleaningIntent,
   HomeDetails,
   RecurringCadence,
+  RoomConditionLevel,
+  RoomConditionSelection,
+  RoomType,
   ServiceType,
 } from "@sweepr/types";
 import {
@@ -16,8 +20,12 @@ import {
 
 export interface BookingState {
   address: Address | null;
+  /** Booking entry choice: normal home vs short-term rental turnaround. */
+  intent: HomeCleaningIntent | null;
   home: HomeDetails;
   serviceType: ServiceType | null;
+  /** Per-room worst-condition selections (Clean My Home flow). */
+  rooms: RoomConditionSelection[];
   /** Customer-declared cleaning level (scope review). Required before Review. */
   cleaningLevel: CleaningLevel | null;
   addOnKeys: string[];
@@ -41,6 +49,8 @@ export interface BookingState {
   draftSavedAt: string | null;
 
   setAddress: (address: Address) => void;
+  setIntent: (intent: HomeCleaningIntent) => void;
+  setRoomCondition: (roomType: RoomType, level: RoomConditionLevel) => void;
   setTimeWindow: (window: "morning" | "afternoon" | "evening" | null) => void;
   setArrivalWindow: (window: { start: string; end: string } | null) => void;
   setSubscription: (
@@ -76,8 +86,10 @@ export const useBookingStore = create<BookingState>()(
   persist(
     (set, get) => ({
   address: null,
+  intent: null,
   home: defaultHome,
   serviceType: null,
+  rooms: [],
   cleaningLevel: null,
   addOnKeys: [],
   cadence: "none",
@@ -97,6 +109,22 @@ export const useBookingStore = create<BookingState>()(
   draftSavedAt: null,
 
   setAddress: (address) => set({ address, draftSavedAt: new Date().toISOString() }),
+  setIntent: (intent) =>
+    set({
+      intent,
+      // The room-condition flow drives pricing itself; anchor serviceType to
+      // standard so downstream steps (schedule/review/booking) keep working.
+      serviceType: intent === "home" ? "standard" : null,
+      draftSavedAt: new Date().toISOString(),
+    }),
+  setRoomCondition: (roomType, level) =>
+    set((s) => ({
+      rooms: [
+        ...s.rooms.filter((r) => r.roomType !== roomType),
+        { roomType, level },
+      ],
+      draftSavedAt: new Date().toISOString(),
+    })),
   setTimeWindow: (timeWindow) => set({ timeWindow }),
   setArrivalWindow: (window) =>
     set({
@@ -174,8 +202,10 @@ export const useBookingStore = create<BookingState>()(
   reset: () =>
     set({
       address: null,
+      intent: null,
       home: defaultHome,
       serviceType: null,
+      rooms: [],
       cleaningLevel: null,
       addOnKeys: [],
       cadence: "none",
@@ -213,8 +243,10 @@ export const useBookingStore = create<BookingState>()(
       // getQuote is derived; don't persist the function or transient flags.
       partialize: (s) => ({
         address: s.address,
+        intent: s.intent,
         home: s.home,
         serviceType: s.serviceType,
+        rooms: s.rooms,
         cleaningLevel: s.cleaningLevel,
         addOnKeys: s.addOnKeys,
         cadence: s.cadence,

@@ -367,7 +367,7 @@ export function PaymentStep() {
   );
 
   if (!quote) {
-    navigate("/book/package");
+    navigate("/book/rooms");
     return null;
   }
 

@@ -30,8 +30,9 @@ import { BookingLayout } from "./booking/BookingLayout";
 import { SubscriptionsPage } from "./pages/SubscriptionsPage";
 import { AddressStep } from "./booking/steps/AddressStep";
 import { HomeStep } from "./booking/steps/HomeStep";
-import { PackageStep } from "./booking/steps/PackageStep";
-import { ConditionStep } from "./booking/steps/ConditionStep";
+import { StartStep } from "./booking/steps/StartStep";
+import { RentalIntroStep } from "./booking/steps/RentalIntroStep";
+import { RoomConditionStep } from "./booking/steps/RoomConditionStep";
 import { AddOnsStep } from "./booking/steps/AddOnsStep";
 import { ScheduleStep } from "./booking/steps/ScheduleStep";
 import { ReviewStep } from "./booking/steps/ReviewStep";
@@ -208,14 +209,17 @@ export default function App() {
 
           {/* Booking flow (no sidebar — focused funnel) — auth required */}
           <Route element={<ProtectedRoute><BookingLayout /></ProtectedRoute>}>
-            <Route path="/book" element={<Navigate to="/book/address" replace />} />
+            <Route path="/book" element={<Navigate to="/book/start" replace />} />
+            <Route path="/book/start" element={<StartStep />} />
+            <Route path="/book/rental" element={<RentalIntroStep />} />
             <Route path="/book/address" element={<AddressStep />} />
             <Route path="/book/home" element={<HomeStep />} />
-            <Route path="/book/package" element={<PackageStep />} />
-            <Route path="/book/condition" element={<ConditionStep />} />
+            <Route path="/book/rooms" element={<RoomConditionStep />} />
             <Route path="/book/addons" element={<AddOnsStep />} />
-            {/* Legacy route redirect for persisted/bookmarked links. */}
-            <Route path="/book/service" element={<Navigate to="/book/package" replace />} />
+            {/* Legacy route redirects for persisted/bookmarked links. */}
+            <Route path="/book/service" element={<Navigate to="/book/rooms" replace />} />
+            <Route path="/book/package" element={<Navigate to="/book/rooms" replace />} />
+            <Route path="/book/condition" element={<Navigate to="/book/rooms" replace />} />
             <Route path="/book/schedule" element={<ScheduleStep />} />
             <Route path="/book/review" element={<ReviewStep />} />
             <Route path="/book/payment" element={<PaymentStep />} />

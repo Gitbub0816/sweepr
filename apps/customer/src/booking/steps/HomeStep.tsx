@@ -56,7 +56,7 @@ export function HomeStep() {
       title={t("booking.home.title")}
       subtitle={t("booking.home.subtitle")}
       onBack={() => navigate("/book/address")}
-      onNext={() => navigate("/book/package")}
+      onNext={() => navigate("/book/rooms")}
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <Input
