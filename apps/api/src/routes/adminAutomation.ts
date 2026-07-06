@@ -108,7 +108,7 @@ adminAutomationRouter.post("/expire-offers", async (c) => {
     const expired = await sql`
       SELECT COUNT(*)::int AS count
       FROM assignment_queue
-      WHERE status = 'expired' AND updated_at > NOW() - INTERVAL '5 minutes'
+      WHERE status = 'expired' AND expires_at > NOW() - INTERVAL '5 minutes'
     ` as { count: number }[];
     return { expiredOffers: expired[0]?.count ?? 0 };
   });
