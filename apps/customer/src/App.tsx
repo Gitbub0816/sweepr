@@ -10,6 +10,7 @@ import {
   User,
   Home as HomeIcon,
   Repeat,
+  KeyRound,
 } from "lucide-react";
 import { AppShell, PrelaunchGate, ReportProblem, CookieConsent } from "@sweepr/ui";
 import { useAuth } from "@clerk/clerk-react";
@@ -39,6 +40,7 @@ import { ReviewStep } from "./booking/steps/ReviewStep";
 import { PaymentStep } from "./booking/steps/PaymentStep";
 import { ConfirmedStep } from "./booking/steps/ConfirmedStep";
 import { BookingsPage } from "./pages/BookingsPage";
+import { RentalsPage } from "./pages/RentalsPage";
 import { BookingDetailPage } from "./pages/BookingDetailPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { PaymentMethodsPage } from "./pages/PaymentMethodsPage";
@@ -52,6 +54,7 @@ const nav = [
   { to: "/home", label: "Home", icon: HomeIcon, end: true },
   { to: "/book", label: "Book", icon: CalendarCheck },
   { to: "/bookings", label: "My Bookings", icon: CalendarCheck, end: true },
+  { to: "/rentals", label: "Rentals", icon: KeyRound },
   { to: "/subscriptions", label: "Subscriptions", icon: Repeat },
   { to: "/payment-methods", label: "Payment Methods", icon: CreditCard },
   { to: "/profile", label: "Profile", icon: User },
@@ -231,6 +234,7 @@ export default function App() {
 
           {/* Account area — auth required */}
           <Route path="/bookings" element={<Protected><BookingsPage /></Protected>} />
+          <Route path="/rentals" element={<Protected><RentalsPage /></Protected>} />
           <Route
             path="/bookings/:id"
             element={<Protected><BookingDetailPage /></Protected>}
