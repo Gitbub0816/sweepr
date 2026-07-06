@@ -3,7 +3,20 @@
 > Sweepr is a home-cleaning marketplace: book trusted, background-checked
 > independent cleaners in minutes, track your appointment in real time, and
 > get a satisfaction guarantee. Cleaners can sign up to receive jobs and
-> get paid through the platform.
+> get paid through the platform. Operated by ClearKey Solutions; serving the
+> United States.
+
+## How it works
+
+- Customers enter their address and home details, see the exact price up front
+  (based on service type, bedrooms, bathrooms, and add-ons — no hidden fees),
+  and book a one-time or recurring cleaning.
+- Jobs are matched to nearby background-checked cleaners by location,
+  availability, ratings, and job type. Customers track arrival in real time.
+- Every cleaner completes identity verification, a third-party background
+  check, and training before accepting jobs. Not-done-right jobs are re-cleaned
+  or refunded when reported within 48 hours.
+- Cancel or reschedule free up to 24 hours before the appointment.
 
 ## Key pages
 

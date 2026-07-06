@@ -40,14 +40,57 @@
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "LocalBusiness",
-        "name": "Sweepr",
-        "description": "Book trusted, background-checked home cleaners in minutes. Track in real time. Satisfaction guaranteed.",
-        "url": "https://getsweepr.com/",
-        "image": "https://getsweepr.com/brand/sweepr-logo-og.jpg",
-        "priceRange": "$$",
-        "areaServed": "United States",
-        "serviceType": "Home Cleaning Service"
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://getsweepr.com/#organization",
+            "name": "Sweepr",
+            "url": "https://getsweepr.com/",
+            "logo": "https://getsweepr.com/brand/sweepr-logo-256.png",
+            "image": "https://getsweepr.com/brand/sweepr-logo-og.jpg",
+            "description": "Sweepr is a home-cleaning marketplace: book trusted, background-checked independent cleaners in minutes, track your appointment in real time, and get a satisfaction guarantee.",
+            "parentOrganization": { "@type": "Organization", "name": "ClearKey Solutions" }
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://getsweepr.com/#website",
+            "url": "https://getsweepr.com/",
+            "name": "Sweepr",
+            "publisher": { "@id": "https://getsweepr.com/#organization" },
+            "inLanguage": "en-US"
+          },
+          {
+            "@type": "Service",
+            "@id": "https://getsweepr.com/#service",
+            "serviceType": "Home cleaning",
+            "provider": { "@id": "https://getsweepr.com/#organization" },
+            "areaServed": { "@type": "Country", "name": "United States" },
+            "description": "On-demand and recurring home cleaning by background-checked independent cleaners. Transparent pricing shown before you book, real-time tracking, and a satisfaction guarantee.",
+            "offers": {
+              "@type": "Offer",
+              "priceCurrency": "USD",
+              "priceSpecification": {
+                "@type": "PriceSpecification",
+                "priceCurrency": "USD",
+                "description": "Price is calculated from service type, bedrooms, bathrooms, and add-ons, and shown in full before booking. No hidden fees."
+              }
+            }
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://getsweepr.com/#faq",
+            "mainEntity": [
+              { "@type": "Question", "name": "How is pricing calculated?", "acceptedAnswer": { "@type": "Answer", "text": "Your exact price is shown before you book — based on service type, number of bedrooms and bathrooms, and any add-ons you select. There are no hidden fees, no charges after the fact, and no surprises when the invoice arrives." } },
+              { "@type": "Question", "name": "How are Sweeprs vetted?", "acceptedAnswer": { "@type": "Answer", "text": "Every Sweepr completes identity verification, a third-party background check, and training before they can accept jobs on the platform. We review work history and ratings on an ongoing basis. If a Sweepr's standards slip, they don't stay active." } },
+              { "@type": "Question", "name": "Can I cancel or reschedule?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Cancel or reschedule for free up to 24 hours before your appointment. Changes made inside that window may incur a small fee." } },
+              { "@type": "Question", "name": "What if the job isn't done right?", "acceptedAnswer": { "@type": "Answer", "text": "Report it within 48 hours and we'll send your Sweepr back to fix it — or refund the booking." } },
+              { "@type": "Question", "name": "Do Sweeprs bring their own supplies?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Every Sweepr arrives with professional-grade equipment and supplies. If you'd prefer they use yours instead, leave a note when you book." } },
+              { "@type": "Question", "name": "Will I get the same Sweepr each time?", "acceptedAnswer": { "@type": "Answer", "text": "Sweeprs are assigned on a best-match basis — factoring in location, availability, ratings, and job type. If you've worked with a Sweepr before and want to request them again, you can do that from your booking history." } },
+              { "@type": "Question", "name": "How does recurring pricing work?", "acceptedAnswer": { "@type": "Answer", "text": "Recurring bookings are billed per visit at a lower rate than one-time cleans. Pause or cancel anytime — no lock-in." } },
+              { "@type": "Question", "name": "What areas does Sweepr serve?", "acceptedAnswer": { "@type": "Answer", "text": "Enter your address when you book and we'll show you real availability in your area. We're expanding regularly — if we're not in your city yet, you can join the waitlist." } }
+            ]
+          }
+        ]
       }
     </script>
   </head>

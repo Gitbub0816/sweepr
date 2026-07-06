@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSeo } from "../lib/useSeo";
 import { CheckCircle2, AlertTriangle, XCircle, Clock, ChevronDown, ChevronUp } from "lucide-react";
 import { MarketingShell, SweeprLogo } from "@sweepr/ui";
 
@@ -111,6 +112,7 @@ function IncidentCard({ incident }: { incident: Incident }) {
 }
 
 export default function StatusPage() {
+  useSeo({ title: 'System status — Sweepr', description: "Live uptime and incident history for Sweepr's platform and services.", canonical: "https://getsweepr.com/status" });
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
 

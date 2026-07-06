@@ -1,4 +1,5 @@
 import { MarketingShell, Button, Accordion, SweeprLogo, NewsletterSubscribe, type AccordionItemData } from "@sweepr/ui";
+import { useSeo } from "../lib/useSeo";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { LanguageSelector } from "../i18n/LanguageSelector";
@@ -170,6 +171,7 @@ const pricingRows = [
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
 export default function Landing() {
+  useSeo({ title: 'Sweepr — Home cleaning, ordered like delivery', description: 'Book trusted, background-checked home cleaners in minutes. Transparent pricing shown before you book, real-time tracking, and a satisfaction guarantee.', canonical: "https://getsweepr.com/" });
   const { t, i18n } = useTranslation();
   const [pricingGated, setPricingGated] = useState(false);
 
