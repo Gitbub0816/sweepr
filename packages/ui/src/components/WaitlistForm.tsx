@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { validateEmail, validatePhone } from "../lib/validation";
 
 interface WaitlistFormProps {
   type: "cleaner" | "customer";
@@ -17,6 +18,10 @@ export function WaitlistForm({ type, apiUrl, onSuccess }: WaitlistFormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const emailErr = validateEmail(email);
+    if (emailErr) { setError(emailErr); return; }
+    const phoneErr = validatePhone(phone);
+    if (phoneErr) { setError(phoneErr); return; }
     setLoading(true);
     setError(null);
     try {
@@ -24,10 +29,10 @@ export function WaitlistForm({ type, apiUrl, onSuccess }: WaitlistFormProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email,
-          name: name || undefined,
-          phone: phone || undefined,
-          zipCode: zip || undefined,
+          email: email.trim(),
+          name: name.trim() || undefined,
+          phone: phone.trim() || undefined,
+          zipCode: zip.trim() || undefined,
           type,
         }),
       });
@@ -62,10 +67,12 @@ export function WaitlistForm({ type, apiUrl, onSuccess }: WaitlistFormProps) {
       <input
         type="email"
         aria-label="Email address"
+        aria-invalid={!!error}
         placeholder="Email address *"
         required
         value={email}
-        onChange={(e) => setEmail(e.target.value)}
+        onChange={(e) => { setEmail(e.target.value); if (error) setError(null); }}
+        onBlur={() => { const m = validateEmail(email); if (m) setError(m); }}
         className="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400"
       />
       <input
@@ -84,7 +91,7 @@ export function WaitlistForm({ type, apiUrl, onSuccess }: WaitlistFormProps) {
         onChange={(e) => setZip(e.target.value)}
         className="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400"
       />
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
       <button
         type="submit"
         disabled={loading}

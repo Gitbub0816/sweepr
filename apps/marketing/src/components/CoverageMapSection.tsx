@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { getMapStyle, getMapboxToken } from "@sweepr/ui";
+import { getMapStyle, getMapboxToken, validateEmail } from "@sweepr/ui";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 const TOKEN = getMapboxToken();
@@ -226,7 +226,11 @@ export function CoverageMapSection() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim()) { setError("Please enter a city or ZIP code."); return; }
+    if (subscribe) {
+      const emailErr = validateEmail(email);
+      if (emailErr) { setError(emailErr); return; }
+    }
     setLoading(true);
     setError("");
     try {
@@ -234,7 +238,7 @@ export function CoverageMapSection() {
       const body: Record<string, unknown> = {
         input: input.trim(),
         ...(coords ?? {}),
-        ...(subscribe && email ? { email, subscribeUpdates: true } : {}),
+        ...(subscribe && email.trim() ? { email: email.trim(), subscribeUpdates: true } : {}),
       };
       const res = await fetch(`${API}/status/city-request`, {
         method: "POST",

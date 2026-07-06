@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { validateEmail } from "../lib/validation";
 
 interface NewsletterSubscribeProps {
   apiUrl: string;
@@ -13,13 +14,15 @@ export function NewsletterSubscribe({ apiUrl, className }: NewsletterSubscribePr
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const invalid = validateEmail(email);
+    if (invalid) { setError(invalid); return; }
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(`${apiUrl}/status/newsletter`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: email.trim() }),
       });
       if (!res.ok) throw new Error("Failed to subscribe");
       setSubmitted(true);
@@ -45,10 +48,12 @@ export function NewsletterSubscribe({ apiUrl, className }: NewsletterSubscribePr
         <input
           type="email"
           aria-label="Email address"
+          aria-invalid={!!error}
           placeholder="Your email"
           required
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => { setEmail(e.target.value); if (error) setError(null); }}
+          onBlur={() => { const m = validateEmail(email); if (m) setError(m); }}
           className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400"
         />
         <button
@@ -59,7 +64,7 @@ export function NewsletterSubscribe({ apiUrl, className }: NewsletterSubscribePr
           {loading ? "…" : "Subscribe"}
         </button>
       </form>
-      {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
+      {error && <p role="alert" className="mt-2 text-sm text-red-500">{error}</p>}
     </div>
   );
 }
