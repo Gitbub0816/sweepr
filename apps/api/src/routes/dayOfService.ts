@@ -62,10 +62,14 @@ interface BookingRow {
 // Full address is revealed to cleaner at this point.
 dayOfServiceRouter.post(
   "/bookings/:id/start-route",
-  zValidator("json", z.object({ lat: z.number(), lng: z.number() })),
   async (c) => {
     const bookingId = c.req.param("id");
-    const { lat, lng } = c.req.valid("json");
+    // Coordinates are optional telemetry (stored + audited). Parse defensively:
+    // the client may send an empty body (geolocation denied/unavailable), which
+    // must NOT 400 the whole "start route" action with "Invalid JSON body".
+    const body = (await c.req.json().catch(() => ({}))) as { lat?: unknown; lng?: unknown };
+    const lat = typeof body.lat === "number" ? body.lat : null;
+    const lng = typeof body.lng === "number" ? body.lng : null;
     const clerkId = c.get("user").clerkId;
     const sql = getDb(c.env.DATABASE_URL);
 
