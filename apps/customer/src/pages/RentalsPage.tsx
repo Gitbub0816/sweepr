@@ -212,19 +212,32 @@ function EnrollPanel({
 
 function AddProperty({ authed, onAdded }: { authed: Authed; onAdded: () => void }) {
   const [open, setOpen] = useState(false);
-  const [nickname, setNickname] = useState("");
+  const [f, setF] = useState({ nickname: "", street: "", city: "", state: "", zip: "" });
   const [saving, setSaving] = useState(false);
+  // The address is what cleaners navigate to — require it up front.
+  const valid =
+    f.nickname.trim().length > 0 &&
+    f.street.trim().length >= 3 &&
+    f.city.trim().length > 0 &&
+    f.state.trim().length === 2 &&
+    /^\d{5}/.test(f.zip.trim());
 
   async function save() {
-    if (!nickname.trim()) return;
+    if (!valid) return;
     setSaving(true);
     try {
       const res = await authed("/rentals/properties", {
         method: "POST",
-        body: JSON.stringify({ nickname: nickname.trim() }),
+        body: JSON.stringify({
+          nickname: f.nickname.trim(),
+          streetAddress: f.street.trim(),
+          city: f.city.trim(),
+          state: f.state.trim().toUpperCase(),
+          zip: f.zip.trim(),
+        }),
       });
       if (!res.ok) throw new Error("Failed to add property");
-      setNickname("");
+      setF({ nickname: "", street: "", city: "", state: "", zip: "" });
       setOpen(false);
       onAdded();
     } catch (e) {
@@ -243,9 +256,15 @@ function AddProperty({ authed, onAdded }: { authed: Authed; onAdded: () => void 
   }
   return (
     <Card className="space-y-3">
-      <Input label="Property nickname" placeholder="Beach condo" value={nickname} onChange={(e) => setNickname(e.target.value)} />
+      <Input label="Property nickname" placeholder="Beach condo" value={f.nickname} onChange={(e) => setF({ ...f, nickname: e.target.value })} />
+      <Input label="Street address" placeholder="123 Shoreline Dr" value={f.street} onChange={(e) => setF({ ...f, street: e.target.value })} />
+      <div className="grid grid-cols-3 gap-2">
+        <Input label="City" value={f.city} onChange={(e) => setF({ ...f, city: e.target.value })} />
+        <Input label="State" placeholder="CA" value={f.state} onChange={(e) => setF({ ...f, state: e.target.value })} />
+        <Input label="ZIP" value={f.zip} onChange={(e) => setF({ ...f, zip: e.target.value })} />
+      </div>
       <div className="flex gap-2">
-        <Button onClick={save} disabled={saving || !nickname.trim()}>Save</Button>
+        <Button onClick={save} disabled={saving || !valid}>Save</Button>
         <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
       </div>
     </Card>
@@ -328,23 +347,63 @@ function PropertyCard({
           <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Upcoming turnovers</p>
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {reservations.slice(0, 8).map((r) => (
-              <div key={r.id} className="flex items-center justify-between py-1.5 text-sm">
-                <span className="text-slate-600 dark:text-slate-300">Checkout {r.checkoutDate}</span>
-                <span
-                  className={
-                    r.cleaningStatus === "scheduled"
-                      ? "text-xs font-semibold text-seafoam-700 dark:text-seafoam-300"
-                      : "text-xs font-medium text-amber-600"
-                  }
-                >
-                  {r.cleaningStatus === "scheduled" ? "Cleaning booked" : "Pending review"}
-                </span>
-              </div>
+              <TurnoverRow key={r.id} reservation={r} propertyActive={property.active} authed={authed} onChange={onChange} />
             ))}
           </div>
         </div>
       )}
     </Card>
+  );
+}
+
+/** One pending/booked turnover with review-first Book / Skip actions. */
+function TurnoverRow({
+  reservation: r,
+  propertyActive,
+  authed,
+  onChange,
+}: {
+  reservation: Reservation;
+  propertyActive: boolean;
+  authed: Authed;
+  onChange: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  async function act(action: "book" | "skip") {
+    setBusy(true);
+    try {
+      const res = await authed(`/rentals/reservations/${r.id}/${action}`, { method: "POST" });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+      if (!res.ok) throw new Error(data.message ?? "Something went wrong.");
+      toast.success(action === "book" ? "Turnover cleaning booked" : "Turnover skipped");
+      onChange();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-2 py-1.5 text-sm">
+      <span className="text-slate-600 dark:text-slate-300">Checkout {r.checkoutDate}</span>
+      {r.cleaningStatus === "scheduled" ? (
+        <span className="text-xs font-semibold text-seafoam-700 dark:text-seafoam-300">Cleaning booked</span>
+      ) : r.cleaningStatus === "skipped" ? (
+        <span className="text-xs text-slate-400">Skipped</span>
+      ) : (
+        <span className="flex items-center gap-1.5">
+          <Button size="sm" onClick={() => act("book")} disabled={busy || !propertyActive}
+            title={!propertyActive ? "Enroll this property to book turnovers" : undefined}>
+            Book clean
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => act("skip")} disabled={busy}>
+            Skip
+          </Button>
+        </span>
+      )}
+    </div>
   );
 }
 

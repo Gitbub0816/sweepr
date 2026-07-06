@@ -111,24 +111,59 @@ export async function syncCalendarSource(sql: Sql, sourceId: string): Promise<Sy
  * Create a minimal turnaround booking for an STR property at a checkout date.
  * Priced from the admin-configured STR turnaround fee (never hardcoded).
  * Returns the booking id, or null if the property can't be booked.
+ * Exported for the review-first flow (host approves a pending reservation).
  */
-async function createTurnaroundBooking(
+export async function createTurnaroundBooking(
   sql: Sql,
   propertyId: string,
   checkoutDate: string,
 ): Promise<string | null> {
   const props = (await sql`
-    SELECT customer_id, nickname, bedrooms, bathrooms, sqft
-    FROM short_term_rental_properties WHERE id = ${propertyId} AND active = TRUE LIMIT 1
+    SELECT p.customer_id, p.nickname, p.bedrooms, p.bathrooms, p.sqft,
+           p.street_address, p.unit, p.city, p.state, p.zip, c.user_id
+    FROM short_term_rental_properties p
+    JOIN customers c ON c.id = p.customer_id
+    WHERE p.id = ${propertyId} AND p.active = TRUE LIMIT 1
   `) as {
     customer_id: string;
     nickname: string;
     bedrooms: number | null;
     bathrooms: number | null;
     sqft: number | null;
+    street_address: string | null;
+    unit: string | null;
+    city: string | null;
+    state: string | null;
+    zip: string | null;
+    user_id: string;
   }[];
   const prop = props[0];
   if (!prop) return null;
+
+  // The cleaner needs somewhere to go: attach the property's address to the
+  // booking (reusing an identical saved address when one exists).
+  let addressId: string | null = null;
+  if (prop.street_address && prop.city && prop.state && prop.zip) {
+    const existing = (await sql`
+      SELECT id FROM addresses
+      WHERE user_id = ${prop.user_id}
+        AND LOWER(street) = LOWER(${prop.street_address})
+        AND LOWER(city) = LOWER(${prop.city})
+        AND zip = ${prop.zip}
+      LIMIT 1
+    `) as { id: string }[];
+    if (existing[0]) {
+      addressId = existing[0].id;
+    } else {
+      const created = (await sql`
+        INSERT INTO addresses (user_id, label, street, unit, city, state, zip, property_type)
+        VALUES (${prop.user_id}, ${prop.nickname}, ${prop.street_address}, ${prop.unit},
+                ${prop.city}, ${prop.state}, ${prop.zip}, 'short_term_rental')
+        RETURNING id
+      `) as { id: string }[];
+      addressId = created[0]?.id ?? null;
+    }
+  }
 
   const cfg = await loadStrConfig(sql);
   const price = calculateTurnaroundPrice(cfg);
@@ -139,17 +174,29 @@ async function createTurnaroundBooking(
   try {
     const rows = (await sql`
       INSERT INTO bookings (
-        customer_id, status, service_type, bedrooms, bathrooms, sqft, home_type,
+        customer_id, address_id, status, service_type, bedrooms, bathrooms, sqft, home_type,
         scheduled_at, base_price, addons_total, service_fee, tax, total_price,
         notes, arrival_window_start, arrival_window_end
       ) VALUES (
-        ${prop.customer_id}, 'booked', 'vacation_rental',
+        ${prop.customer_id}, ${addressId}, 'booked', 'vacation_rental',
         ${prop.bedrooms ?? 1}, ${prop.bathrooms ?? 1}, ${prop.sqft ?? 800}, 'apartment',
         ${scheduledAt}, ${price.turnaroundCents}, 0, 0, ${price.taxCents}, ${totalCents},
         ${`STR turnaround — ${prop.nickname}`}, '11:00', '13:00'
       ) RETURNING id
     `) as { id: string }[];
-    return rows[0]?.id ?? null;
+    const bookingId = rows[0]?.id ?? null;
+
+    // Kick off cleaner matching — without this a turnaround booking would sit
+    // unassigned forever (normal bookings do the same in POST /bookings).
+    if (bookingId) {
+      try {
+        const { initiateAssignment } = await import("./assignment");
+        await initiateAssignment(sql, bookingId);
+      } catch (err) {
+        logger.error("calendar_sync.assignment_failed", err, { bookingId });
+      }
+    }
+    return bookingId;
   } catch (err) {
     logger.warn("calendar_sync.booking_failed", { propertyId, error: String(err) });
     return null;
