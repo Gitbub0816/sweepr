@@ -18,8 +18,8 @@
     "@sweepr/types": "workspace:*",
     "@sweepr/utils": "workspace:*",
     "hono": "^4.12.26",
-    "posthog-node": "^5.38.2",
-    "stripe": "^22.2.2",
+    "posthog-node": "^5.39.4",
+    "stripe": "^22.3.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
