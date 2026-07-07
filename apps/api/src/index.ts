@@ -533,6 +533,14 @@ async function runScheduled(event: ScheduledEvent, env: Record<string, unknown>)
       // Every 15 minutes: expire stale assignment offers.
       await processExpiredOffers(sql);
 
+      // Status engine: probe every public component and record health.
+      try {
+        const { runStatusChecks } = await import("./lib/statusChecks");
+        await runStatusChecks(sql);
+      } catch (err) {
+        logger.error("status checks failed", err);
+      }
+
       // Hourly jobs (run on every fire, guard with DB dedup via automation_runs).
       const { adminAutomationRouter: _ } = await import("./routes/adminAutomation");
       // Directly call the business logic instead of HTTP self-calls.
