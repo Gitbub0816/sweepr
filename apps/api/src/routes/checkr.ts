@@ -12,6 +12,7 @@ import {
   type CheckrReport,
 } from "../lib/checkr";
 import { adjudicateConsiderReport } from "../lib/adjudication";
+import { hasAcknowledgedAdjudicationPolicy } from "./adjudication";
 import { serverTrack } from "../lib/posthog";
 import type { AppBindings } from "../types";
 
@@ -38,6 +39,16 @@ checkrRouter.post("/invite", requireAuth, zValidator("json", inviteSchema), asyn
   const { firstName, lastName, workState, candidateId: clientCandidateId } = c.req.valid("json");
   const sql = getDb(c.env.DATABASE_URL);
   const authUser = c.get("user");
+
+  // The Background Check Adjudication Policy must be reviewed and acknowledged
+  // immediately before any background check starts — the client shows the
+  // acknowledgment modal when it sees this error code.
+  if (!(await hasAcknowledgedAdjudicationPolicy(sql, authUser.clerkId))) {
+    return c.json(
+      { error: "policy_ack_required", message: "Please review and acknowledge the Background Check Adjudication Policy first." },
+      403,
+    );
+  }
 
   let user;
   try {

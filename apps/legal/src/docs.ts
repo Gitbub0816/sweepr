@@ -176,6 +176,13 @@ export const DOCS: DocMeta[] = [
     category: "Trust & Safety",
   },
   {
+    slug: "background-check-adjudication",
+    title: "Background Check Adjudication Policy",
+    description: "Standards used to evaluate criminal background checks for cleaner applicants.",
+    category: "Trust & Safety",
+    version: "1.0.0",
+  },
+  {
     slug: "community-guidelines",
     title: "Community Guidelines",
     description: "Behavior standards for everyone on Sweepr.",

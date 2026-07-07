@@ -100,7 +100,9 @@
     "q7": "Como funciona o preço dos agendamentos recorrentes?",
     "a7": "Agendamentos recorrentes são cobrados por visita, com uma tarifa menor do que limpezas pontuais. Pause ou cancele quando quiser — sem período mínimo de fidelidade.",
     "q8": "Quais áreas o Sweepr atende?",
-    "a8": "Informe seu endereço ao agendar e mostraremos a disponibilidade real na sua região. Estamos expandindo regularmente — se ainda não estivermos na sua cidade, você pode entrar na lista de espera."
+    "a8": "Informe seu endereço ao agendar e mostraremos a disponibilidade real na sua região. Estamos expandindo regularmente — se ainda não estivermos na sua cidade, você pode entrar na lista de espera.",
+    "q9": "Como a Sweepr avalia o histórico dos profissionais de limpeza?",
+    "a9": "A Sweepr se esforça para avaliar o histórico dos profissionais de forma justa e consistente, priorizando a segurança do cliente. Cada candidato passa por uma verificação de antecedentes de terceiros, e os resultados são analisados sob nossa Política de Adjudicação de Verificação de Antecedentes publicada — padrões escritos e objetivos, baseados apenas em condenações, com análise individualizada quando apropriado. Leia a política completa em legal.getsweepr.com/background-check-adjudication."
   },
   "cleaner": {
     "title": "Preste serviços de limpeza pelo Sweepr",
@@ -182,7 +184,10 @@
     "coverageTitle": "Onde os Sweeprs estão trabalhando",
     "coverageSubtitle": "Estamos crescendo rápido. Veja onde a Sweepr está ativa e o que vem por aí.",
     "finalTitle": "Pronto para se tornar um Sweepr?",
-    "finalSubtitle": "Crie seu perfil hoje e comece sua jornada. Você pode concluir cada etapa no seu ritmo pelo painel."
+    "finalSubtitle": "Crie seu perfil hoje e comece sua jornada. Você pode concluir cada etapa no seu ritmo pelo painel.",
+    "faqTitle": "Verificação de antecedentes",
+    "faqBgQ": "O que devo saber sobre a verificação de antecedentes?",
+    "faqBgA": "Cada candidato passa por uma verificação de antecedentes de terceiros antes da aprovação. Os resultados são avaliados sob nossa política publicada — padrões escritos e consistentes que consideram apenas condenações, com análise individualizada em muitos casos e a oportunidade de responder antes de qualquer decisão final. Leia em legal.getsweepr.com/background-check-adjudication."
   },
   "cookies": {
     "title": "Valorizamos sua privacidade",

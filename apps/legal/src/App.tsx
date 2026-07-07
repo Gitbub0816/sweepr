@@ -21,6 +21,7 @@ import { CleanerPlatformAgreement } from "./pages/CleanerPlatformAgreement";
 import { BackgroundCheckDisclosure } from "./pages/BackgroundCheckDisclosure";
 import { BackgroundCheckAuthorization } from "./pages/BackgroundCheckAuthorization";
 import { BackgroundCheckAdverseAction } from "./pages/BackgroundCheckAdverseAction";
+import { BackgroundCheckAdjudicationPolicy } from "./pages/BackgroundCheckAdjudicationPolicy";
 import { PaymentServicesTerms } from "./pages/PaymentServicesTerms";
 import { PlatformFeePolicy } from "./pages/PlatformFeePolicy";
 import { TaxReportingPolicy } from "./pages/TaxReportingPolicy";
@@ -83,6 +84,10 @@ export default function App() {
         <Route
           path="/background-check-adverse-action"
           element={<BackgroundCheckAdverseAction />}
+        />
+        <Route
+          path="/background-check-adjudication"
+          element={<BackgroundCheckAdjudicationPolicy />}
         />
 
         {/* Payments & Tax */}
