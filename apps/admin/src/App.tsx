@@ -52,7 +52,6 @@ import { CleanersPage } from "./pages/CleanersPage";
 import { ApplicationsPage } from "./pages/ApplicationsPage";
 import { ApplicationDetailPage } from "./pages/ApplicationDetailPage";
 import { PricingPage } from "./pages/PricingPage";
-import { CleaningPricingPage } from "./pages/CleaningPricingPage";
 import { DisputesPage } from "./pages/DisputesPage";
 import { DisputeDetailPage } from "./pages/DisputeDetailPage";
 import { PayoutsPage } from "./pages/PayoutsPage";
@@ -227,7 +226,7 @@ export default function App() {
         element={<Guarded><ApplicationDetailPage /></Guarded>}
       />
       <Route path="/pricing" element={<Guarded><PricingPage /></Guarded>} />
-      <Route path="/cleaning-pricing" element={<Guarded><CleaningPricingPage /></Guarded>} />
+      <Route path="/cleaning-pricing" element={<Navigate to="/pricing?tab=home-cleaning" replace />} />
       <Route path="/pricing/rules/:id" element={<Guarded><PricingRulePage /></Guarded>} />
       <Route path="/pricing/approvals/:id" element={<Guarded><PricingApprovalDetailPage /></Guarded>} />
       <Route path="/disputes" element={<Guarded><DisputesPage /></Guarded>} />
