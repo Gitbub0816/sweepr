@@ -10,10 +10,11 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { DollarSign, Plus, Copy, RefreshCw, Calculator } from "lucide-react";
 import { DashboardShell, Card, Button, Badge, Select, Input, toast } from "@sweepr/ui";
 import { DataTable, type Column } from "../components/DataTable";
+import { CleaningPricingPanel } from "./CleaningPricingPage";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
@@ -28,7 +29,49 @@ const PROP_STATUS: Record<string, "info" | "warning" | "success" | "error"> = {
   declined: "error", expired_declined: "error", cancelled: "error", revoked: "error",
 };
 
+type PricingTab = "rules" | "home-cleaning";
+
 export function PricingPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab: PricingTab = searchParams.get("tab") === "home-cleaning" ? "home-cleaning" : "rules";
+
+  function setTab(next: PricingTab) {
+    const params = new URLSearchParams(searchParams);
+    if (next === "rules") params.delete("tab");
+    else params.set("tab", next);
+    setSearchParams(params, { replace: true });
+  }
+
+  return (
+    <DashboardShell
+      title="Pricing"
+      description="Algorithmic pricing rules, live simulator, and home-cleaning configuration."
+    >
+      <div className="mb-4 flex gap-2 border-b border-slate-200 dark:border-slate-800">
+        {([
+          ["rules", "Rules & Simulator"],
+          ["home-cleaning", "Home Cleaning"],
+        ] as [PricingTab, string][]).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+              tab === key
+                ? "border-seafoam-600 text-seafoam-700 dark:text-seafoam-400"
+                : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "rules" ? <RulesSimulatorTab /> : <CleaningPricingPanel />}
+    </DashboardShell>
+  );
+}
+
+function RulesSimulatorTab() {
   const { getToken } = useAuth();
   const navigate = useNavigate();
   const [rules, setRules] = useState<Rule[]>([]);
@@ -98,61 +141,55 @@ export function PricingPage() {
   const activeRule = rules.find((r) => r.status === "active");
 
   return (
-    <DashboardShell
-      title="Pricing"
-      description="Algorithmic cleaning pricing. Edit drafts, simulate, and submit changes through Super-Admin approval."
-      actions={
-        <div className="flex items-center gap-2">
-          <button onClick={() => void load()} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"><RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh</button>
-          {activeRule && <Button size="sm" variant="secondary" onClick={() => newRule(activeRule.id)}><Copy className="h-4 w-4" /> Clone active</Button>}
-          <Button size="sm" onClick={() => newRule()}><Plus className="h-4 w-4" /> New rule</Button>
-        </div>
-      }
-    >
-      <div className="space-y-8">
-        <section>
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-charcoal dark:text-white"><DollarSign className="h-4 w-4" /> Pricing rules</h2>
-          {rules.length === 0 ? <Card><p className="text-sm text-slate-600">No pricing rules yet. Create one to begin.</p></Card> : <DataTable columns={ruleCols} rows={rules} />}
-        </section>
-
-        <section>
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-charcoal dark:text-white"><Calculator className="h-4 w-4" /> Simulator (active rule)</h2>
-          <Card className="space-y-3">
-            <div className="grid gap-3 sm:grid-cols-4">
-              <Input label="Sq ft" type="number" value={sim.squareFeet} onChange={(e) => setS("squareFeet", e.target.value)} />
-              <Input label="Bedrooms" type="number" value={sim.bedrooms} onChange={(e) => setS("bedrooms", e.target.value)} />
-              <Input label="Bathrooms" type="number" value={sim.bathrooms} onChange={(e) => setS("bathrooms", e.target.value)} />
-              <Input label="Half baths" type="number" value={sim.halfBathrooms} onChange={(e) => setS("halfBathrooms", e.target.value)} />
-              <Select label="Service" options={["standard_cleaning", "deep_cleaning", "move_in_move_out", "post_construction", "short_term_rental_turnover"].map((v) => ({ value: v, label: v.replace(/_/g, " ") }))} value={sim.serviceType} onChange={(e) => setS("serviceType", e.target.value)} />
-              <Select label="Intensity" options={["light", "normal", "heavy", "extreme"].map((v) => ({ value: v, label: v }))} value={sim.cleaningIntensity} onChange={(e) => setS("cleaningIntensity", e.target.value)} />
-              <Select label="Frequency" options={["one_time", "weekly", "biweekly", "monthly"].map((v) => ({ value: v, label: v.replace(/_/g, " ") }))} value={sim.recurringFrequency} onChange={(e) => setS("recurringFrequency", e.target.value)} />
-              <Select label="Pets" options={[{ value: "no", label: "No pets" }, { value: "yes", label: "Has pets" }]} value={sim.petsPresent ? "yes" : "no"} onChange={(e) => setS("petsPresent", e.target.value === "yes")} />
-            </div>
-            <Button size="sm" onClick={simulate}>Run simulation</Button>
-            {simResult && (
-              <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
-                <div className="flex flex-wrap gap-6">
-                  <div><p className="text-xs text-slate-600">Customer total</p><p className="text-lg font-bold text-charcoal dark:text-white">{fmt(simResult.customer_total_cents)}</p></div>
-                  <div><p className="text-xs text-slate-600">Est. cleaner payout</p><p className="text-lg font-semibold text-charcoal dark:text-white">{fmt(simResult.estimated_cleaner_payout_cents)}</p></div>
-                  <div><p className="text-xs text-slate-600">Est. platform</p><p className="text-lg font-semibold text-charcoal dark:text-white">{fmt(simResult.estimated_platform_revenue_cents)}</p></div>
-                  {simResult.requires_custom_quote && <Badge variant="warning">Custom quote</Badge>}
-                </div>
-                <div className="mt-3 space-y-0.5">
-                  {simResult.line_items.map((li, i) => (
-                    <div key={i} className="flex justify-between text-sm text-slate-500"><span>{li.label}</span><span>{fmt(li.cents)}</span></div>
-                  ))}
-                </div>
-                {simResult.warnings.length > 0 && <p className="mt-2 text-xs text-amber-600">{simResult.warnings.join(" ")}</p>}
-              </div>
-            )}
-          </Card>
-        </section>
-
-        <section>
-          <h2 className="mb-3 text-sm font-semibold text-charcoal dark:text-white">Pricing change approvals</h2>
-          {proposals.length === 0 ? <Card><p className="text-sm text-slate-600">No pricing proposals.</p></Card> : <DataTable columns={propCols} rows={proposals} />}
-        </section>
+    <div className="space-y-8">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <button onClick={() => void load()} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"><RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh</button>
+        {activeRule && <Button size="sm" variant="secondary" onClick={() => newRule(activeRule.id)}><Copy className="h-4 w-4" /> Clone active</Button>}
+        <Button size="sm" onClick={() => newRule()}><Plus className="h-4 w-4" /> New rule</Button>
       </div>
-    </DashboardShell>
+
+      <section>
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-charcoal dark:text-white"><DollarSign className="h-4 w-4" /> Pricing rules</h2>
+        {rules.length === 0 ? <Card><p className="text-sm text-slate-600">No pricing rules yet. Create one to begin.</p></Card> : <DataTable columns={ruleCols} rows={rules} />}
+      </section>
+
+      <section>
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-charcoal dark:text-white"><Calculator className="h-4 w-4" /> Simulator (active rule)</h2>
+        <Card className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-4">
+            <Input label="Sq ft" type="number" value={sim.squareFeet} onChange={(e) => setS("squareFeet", e.target.value)} />
+            <Input label="Bedrooms" type="number" value={sim.bedrooms} onChange={(e) => setS("bedrooms", e.target.value)} />
+            <Input label="Bathrooms" type="number" value={sim.bathrooms} onChange={(e) => setS("bathrooms", e.target.value)} />
+            <Input label="Half baths" type="number" value={sim.halfBathrooms} onChange={(e) => setS("halfBathrooms", e.target.value)} />
+            <Select label="Service" options={["standard_cleaning", "deep_cleaning", "move_in_move_out", "post_construction", "short_term_rental_turnover"].map((v) => ({ value: v, label: v.replace(/_/g, " ") }))} value={sim.serviceType} onChange={(e) => setS("serviceType", e.target.value)} />
+            <Select label="Intensity" options={["light", "normal", "heavy", "extreme"].map((v) => ({ value: v, label: v }))} value={sim.cleaningIntensity} onChange={(e) => setS("cleaningIntensity", e.target.value)} />
+            <Select label="Frequency" options={["one_time", "weekly", "biweekly", "monthly"].map((v) => ({ value: v, label: v.replace(/_/g, " ") }))} value={sim.recurringFrequency} onChange={(e) => setS("recurringFrequency", e.target.value)} />
+            <Select label="Pets" options={[{ value: "no", label: "No pets" }, { value: "yes", label: "Has pets" }]} value={sim.petsPresent ? "yes" : "no"} onChange={(e) => setS("petsPresent", e.target.value === "yes")} />
+          </div>
+          <Button size="sm" onClick={simulate}>Run simulation</Button>
+          {simResult && (
+            <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+              <div className="flex flex-wrap gap-6">
+                <div><p className="text-xs text-slate-600">Customer total</p><p className="text-lg font-bold text-charcoal dark:text-white">{fmt(simResult.customer_total_cents)}</p></div>
+                <div><p className="text-xs text-slate-600">Est. cleaner payout</p><p className="text-lg font-semibold text-charcoal dark:text-white">{fmt(simResult.estimated_cleaner_payout_cents)}</p></div>
+                <div><p className="text-xs text-slate-600">Est. platform</p><p className="text-lg font-semibold text-charcoal dark:text-white">{fmt(simResult.estimated_platform_revenue_cents)}</p></div>
+                {simResult.requires_custom_quote && <Badge variant="warning">Custom quote</Badge>}
+              </div>
+              <div className="mt-3 space-y-0.5">
+                {simResult.line_items.map((li, i) => (
+                  <div key={i} className="flex justify-between text-sm text-slate-500"><span>{li.label}</span><span>{fmt(li.cents)}</span></div>
+                ))}
+              </div>
+              {simResult.warnings.length > 0 && <p className="mt-2 text-xs text-amber-600">{simResult.warnings.join(" ")}</p>}
+            </div>
+          )}
+        </Card>
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-sm font-semibold text-charcoal dark:text-white">Pricing change approvals</h2>
+        {proposals.length === 0 ? <Card><p className="text-sm text-slate-600">No pricing proposals.</p></Card> : <DataTable columns={propCols} rows={proposals} />}
+      </section>
+    </div>
   );
 }

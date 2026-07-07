@@ -31,7 +31,8 @@ import { requireAdmin } from "../middleware/adminRoles";
 import { generateTicketId, itTypeCode } from "../lib/ticketId";
 import { sendEmail, SENDERS, TEMPLATES, formatEmailTimestamp } from "../lib/mailer";
 import { getTicketContext } from "../lib/ticketContext";
-import { inferIT } from "../lib/classify";
+import { inferIT, inferSecurity } from "../lib/classify";
+import { securityTypeFromLabel } from "../lib/issueTypes";
 import { sanitizeText } from "../lib/sanitizeText";
 import type { AppBindings } from "../types";
 
@@ -205,6 +206,20 @@ itTicketsRouter.get("/admin", requireAdmin, async (c) => {
   return c.json({ tickets: rows, counts: (counts as Array<Record<string, number>>)[0] });
 });
 
+itTicketsRouter.get("/admin/stats", requireAdmin, async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const rows = (await sql`
+    SELECT
+      COUNT(*) FILTER (WHERE status = 'open')::int AS open,
+      COUNT(*) FILTER (WHERE status = 'in_progress')::int AS in_progress,
+      COUNT(*) FILTER (WHERE status = 'resolved' AND resolved_at >= NOW() - INTERVAL '7 days')::int AS resolved_7d,
+      EXTRACT(EPOCH FROM (NOW() - MIN(created_at) FILTER (WHERE status IN ('open','in_progress'))))::bigint AS oldest_open_seconds,
+      EXTRACT(EPOCH FROM (PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY (resolved_at - created_at)) FILTER (WHERE resolved_at IS NOT NULL)))::bigint AS median_resolution_seconds
+    FROM it_tickets
+  `) as Array<{ open: number; in_progress: number; resolved_7d: number; oldest_open_seconds: number | null; median_resolution_seconds: number | null }>;
+  return c.json({ stats: rows[0] });
+});
+
 itTicketsRouter.get("/admin/:id", requireAdmin, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const id = c.req.param("id");
@@ -255,6 +270,83 @@ itTicketsRouter.patch("/admin/:id", requireAdmin, zValidator("json", updateSchem
   `) as Array<{ id: string; status: string }>;
   if (!row) return c.json({ error: "Not found" }, 404);
   return c.json({ ok: true, ticket: row });
+});
+
+const bulkSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(200),
+  status: z.enum(STATUS).optional(),
+  assigned_to: z.string().nullable().optional(),
+});
+
+itTicketsRouter.post("/admin/bulk", requireAdmin, zValidator("json", bulkSchema), async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const b = c.req.valid("json");
+  if (b.status === undefined && b.assigned_to === undefined) {
+    return c.json({ error: "Nothing to update" }, 400);
+  }
+  const setAssigned = b.assigned_to !== undefined;
+  const rows = (await sql`
+    UPDATE it_tickets SET
+      status      = COALESCE(${b.status ?? null}, status),
+      assigned_to = CASE WHEN ${setAssigned} THEN ${b.assigned_to ?? null} ELSE assigned_to END,
+      resolved_at = CASE WHEN ${b.status ?? null} = 'resolved' THEN NOW() ELSE resolved_at END,
+      closed_at   = CASE WHEN ${b.status ?? null} = 'closed' THEN NOW() ELSE closed_at END,
+      updated_at  = NOW()
+    WHERE id = ANY(${b.ids}::uuid[])
+    RETURNING id
+  `) as Array<{ id: string }>;
+  return c.json({ ok: true, count: rows.length });
+});
+
+/** Escalate an IT ticket into a linked security ticket (SOC intake). */
+itTicketsRouter.post("/admin/:id/escalate-security", requireAdmin, async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const id = c.req.param("id");
+  const { clerkId, email } = c.get("user");
+
+  const [t] = (await sql`SELECT * FROM it_tickets WHERE id = ${id} LIMIT 1`) as Array<Record<string, unknown>>;
+  if (!t) return c.json({ error: "Not found" }, 404);
+
+  const title = (t.title as string) ?? "";
+  const description = (t.description as string | null) ?? "";
+  const itCase = (t.case_code as string) ?? (t.ticket_id as string) ?? `#${String(t.ticket_number ?? "")}`;
+  const inf = inferSecurity(title, description);
+  const receivedAt = new Date();
+  const gen = generateTicketId("SR", securityTypeFromLabel(inf.label).code, receivedAt);
+  const senderEmail = (t.reporter_email as string | null) ?? email ?? "it-escalation@getsweepr.com";
+  const subject = `[Escalated from IT ${itCase}] ${title}`;
+
+  const rows = (await sql`
+    INSERT INTO security_tickets (
+      sender_email, sender_name, subject, classification,
+      received_at, ticket_number, ticket_id, case_code, ticket_prefix,
+      encoded_date, encoded_time, issue_type, hex_suffix,
+      classification_confidence, classification_signals, auto_classified, case_owner
+    )
+    VALUES (
+      ${senderEmail}, ${email ?? null}, ${subject}, ${inf.label},
+      ${receivedAt.toISOString()}, ${gen.ticketId}, ${gen.ticketId}, ${gen.caseCode}, 'SR',
+      ${gen.encodedDate}, ${gen.encodedTime}, ${gen.issueType}, ${gen.hex},
+      ${inf.confidence}, ${JSON.stringify(inf.signals)}, ${inf.auto}, ${email ?? null}
+    )
+    RETURNING id, case_code
+  `) as Array<{ id: string; case_code: string }>;
+  const secTicket = rows[0];
+
+  await sql`
+    INSERT INTO security_ticket_messages (ticket_id, direction, from_email, to_email, subject, body)
+    VALUES (${secTicket.id}, 'inbound', ${email ?? "it@getsweepr.com"}, 'security@getsweepr.com', ${subject},
+            ${`Escalated from IT ticket ${itCase} by ${email ?? clerkId}.\n\n${description || "(no description)"}`})
+  `;
+
+  await sql`
+    INSERT INTO it_ticket_comments (ticket_id, author_clerk_id, author_email, is_admin, body)
+    VALUES (${id}, ${clerkId}, ${email ?? null}, TRUE,
+            ${`[Escalated to Security — ${secTicket.case_code}]`})
+  `;
+  await sql`UPDATE it_tickets SET updated_at = NOW() WHERE id = ${id}`;
+
+  return c.json({ ok: true, security: secTicket });
 });
 
 itTicketsRouter.post(

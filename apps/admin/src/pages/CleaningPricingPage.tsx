@@ -87,7 +87,7 @@ function pick<T extends object>(obj: T, keys: readonly string[]): Record<string,
   return out;
 }
 
-export function CleaningPricingPage() {
+export function CleaningPricingPanel() {
   const { getToken } = useAuth();
   const [home, setHome] = useState<HomeCleaningPricingConfig | null>(null);
   const [str, setStr] = useState<ShortTermRentalPricingConfig | null>(null);
@@ -189,7 +189,7 @@ export function CleaningPricingPage() {
   }
 
   if (!home || !str) {
-    return <div className="p-6"><div className="h-40 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" /></div>;
+    return <div className="h-40 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />;
   }
 
   // Live preview: a representative 2bd/2ba home with mixed conditions.
@@ -210,13 +210,8 @@ export function CleaningPricingPage() {
   const patchHome = (p: Partial<HomeCleaningPricingConfig>) => setHome({ ...home, ...p });
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-charcoal dark:text-white">Cleaning Pricing</h1>
-          <p className="text-sm text-slate-500">Room-condition home cleaning and short-term rental turnarounds.</p>
-        </div>
-      </div>
+    <div className="max-w-3xl space-y-6">
+      <p className="text-sm text-slate-500">Room-condition home cleaning and short-term rental turnarounds.</p>
 
       <Card className="flex items-center justify-between bg-seafoam-50 dark:bg-seafoam-900/20">
         <span className="text-sm text-slate-600 dark:text-slate-300">Preview — 1,500 sqft, 2bd/2ba, mixed conditions</span>

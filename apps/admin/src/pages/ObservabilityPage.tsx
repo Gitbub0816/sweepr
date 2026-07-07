@@ -200,14 +200,14 @@ function OverviewTab() {
       {!loading && (data?.recentErrors?.length ?? 0) > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-slate-600 mb-2">Recent 5xx Errors</h3>
-          <div className="rounded-xl border border-slate-200 overflow-hidden">
+          <div className="rounded-xl border border-slate-200 overflow-x-auto">
             <table className="w-full text-xs">
               <thead className="bg-slate-50 text-slate-500 uppercase tracking-wide">
                 <tr>
-                  <th className="px-3 py-2 text-left">Path</th>
-                  <th className="px-3 py-2 text-left">Status</th>
-                  <th className="px-3 py-2 text-left">Error</th>
-                  <th className="px-3 py-2 text-left">Time</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-left">Path</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-left">Status</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-left">Error</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-left">Time</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -278,14 +278,14 @@ function ApiHealthTab() {
           {data.byPath.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold text-slate-600 mb-2">Top Paths</h3>
-              <div className="rounded-xl border border-slate-200 overflow-hidden">
+              <div className="rounded-xl border border-slate-200 overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead className="bg-slate-50 text-slate-500 uppercase tracking-wide">
                     <tr>
-                      <th className="px-3 py-2 text-left">Path</th>
-                      <th className="px-3 py-2 text-right">Requests</th>
-                      <th className="px-3 py-2 text-right">Errors</th>
-                      <th className="px-3 py-2 text-right">Avg ms</th>
+                      <th className="whitespace-nowrap px-3 py-2 text-left">Path</th>
+                      <th className="whitespace-nowrap px-3 py-2 text-right">Requests</th>
+                      <th className="whitespace-nowrap px-3 py-2 text-right">Errors</th>
+                      <th className="whitespace-nowrap px-3 py-2 text-right">Avg ms</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -310,16 +310,16 @@ function ApiHealthTab() {
           {data.recentErrors.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold text-slate-600 mb-2">Recent Errors ({data.recentErrors.length})</h3>
-              <div className="rounded-xl border border-slate-200 overflow-hidden">
+              <div className="rounded-xl border border-slate-200 overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead className="bg-slate-50 text-slate-500 uppercase tracking-wide">
                     <tr>
-                      <th className="px-3 py-2 text-left">Method</th>
-                      <th className="px-3 py-2 text-left">Path</th>
-                      <th className="px-3 py-2 text-left">Status</th>
-                      <th className="px-3 py-2 text-left">Ms</th>
-                      <th className="px-3 py-2 text-left">Error</th>
-                      <th className="px-3 py-2 text-left">Time</th>
+                      <th className="whitespace-nowrap px-3 py-2 text-left">Method</th>
+                      <th className="whitespace-nowrap px-3 py-2 text-left">Path</th>
+                      <th className="whitespace-nowrap px-3 py-2 text-left">Status</th>
+                      <th className="whitespace-nowrap px-3 py-2 text-left">Ms</th>
+                      <th className="whitespace-nowrap px-3 py-2 text-left">Error</th>
+                      <th className="whitespace-nowrap px-3 py-2 text-left">Time</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -420,15 +420,15 @@ function PaymentsTab() {
               <h3 className="text-sm font-semibold text-red-600 mb-2 flex items-center gap-1.5">
                 <AlertTriangle className="h-3.5 w-3.5" /> Payment Failures
               </h3>
-              <div className="rounded-xl border border-red-100 overflow-hidden">
+              <div className="rounded-xl border border-red-100 overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead className="bg-red-50 text-red-800 uppercase tracking-wide">
                     <tr>
-                      <th className="px-3 py-2 text-left">Type</th>
-                      <th className="px-3 py-2 text-left">Error Code</th>
-                      <th className="px-3 py-2 text-left">Message</th>
-                      <th className="px-3 py-2 text-right">Amount</th>
-                      <th className="px-3 py-2 text-left">Time</th>
+                      <th className="whitespace-nowrap px-3 py-2 text-left">Type</th>
+                      <th className="whitespace-nowrap px-3 py-2 text-left">Error Code</th>
+                      <th className="whitespace-nowrap px-3 py-2 text-left">Message</th>
+                      <th className="whitespace-nowrap px-3 py-2 text-right">Amount</th>
+                      <th className="whitespace-nowrap px-3 py-2 text-left">Time</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-red-50">
@@ -452,14 +452,14 @@ function PaymentsTab() {
           {data.byType.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold text-slate-600 mb-2">By Event Type</h3>
-              <div className="rounded-xl border border-slate-200 overflow-hidden">
+              <div className="rounded-xl border border-slate-200 overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead className="bg-slate-50 text-slate-500 uppercase tracking-wide">
                     <tr>
-                      <th className="px-3 py-2 text-left">Type</th>
-                      <th className="px-3 py-2 text-right">Total</th>
-                      <th className="px-3 py-2 text-right">Success</th>
-                      <th className="px-3 py-2 text-right">Failed</th>
+                      <th className="whitespace-nowrap px-3 py-2 text-left">Type</th>
+                      <th className="whitespace-nowrap px-3 py-2 text-right">Total</th>
+                      <th className="whitespace-nowrap px-3 py-2 text-right">Success</th>
+                      <th className="whitespace-nowrap px-3 py-2 text-right">Failed</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -691,15 +691,15 @@ function AuditTrailTab() {
       {loading ? (
         <div className="space-y-2 animate-pulse">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-12 bg-slate-100 rounded-lg" />)}</div>
       ) : (
-        <div className="rounded-xl border border-slate-200 overflow-hidden">
+        <div className="rounded-xl border border-slate-200 overflow-x-auto">
           <table className="w-full text-xs">
             <thead className="bg-slate-50 text-slate-500 uppercase tracking-wide">
               <tr>
-                <th className="px-3 py-2 text-left">Actor</th>
-                <th className="px-3 py-2 text-left">Action</th>
-                <th className="px-3 py-2 text-left">Table</th>
-                <th className="px-3 py-2 text-left">Record</th>
-                <th className="px-3 py-2 text-left">Time</th>
+                <th className="whitespace-nowrap px-3 py-2 text-left">Actor</th>
+                <th className="whitespace-nowrap px-3 py-2 text-left">Action</th>
+                <th className="whitespace-nowrap px-3 py-2 text-left">Table</th>
+                <th className="whitespace-nowrap px-3 py-2 text-left">Record</th>
+                <th className="whitespace-nowrap px-3 py-2 text-left">Time</th>
                 <th className="px-3 py-2" />
               </tr>
             </thead>

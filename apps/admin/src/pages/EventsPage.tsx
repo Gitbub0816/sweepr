@@ -150,11 +150,11 @@ export function EventsPage() {
             <table className="w-full text-left text-sm">
               <thead className="text-xs uppercase text-slate-600">
                 <tr>
-                  <th className="py-2 pr-4">Timestamp</th>
-                  <th className="py-2 pr-4">Action</th>
-                  <th className="py-2 pr-4">Actor</th>
-                  <th className="py-2 pr-4">Target</th>
-                  <th className="py-2 pr-4">IP</th>
+                  <th className="whitespace-nowrap py-2 pr-4">Timestamp</th>
+                  <th className="whitespace-nowrap py-2 pr-4">Action</th>
+                  <th className="whitespace-nowrap py-2 pr-4">Actor</th>
+                  <th className="whitespace-nowrap py-2 pr-4">Target</th>
+                  <th className="whitespace-nowrap py-2 pr-4">IP</th>
                 </tr>
               </thead>
               <tbody>

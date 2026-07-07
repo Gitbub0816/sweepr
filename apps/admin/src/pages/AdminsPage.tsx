@@ -212,13 +212,13 @@ export function AdminsPage() {
           <h2 className="text-sm font-semibold text-slate-600 mb-2 flex items-center gap-1.5">
             <Clock className="h-3.5 w-3.5" /> Pending Invites ({invites.length})
           </h2>
-          <div className="rounded-xl border border-slate-200 overflow-hidden">
+          <div className="rounded-xl border border-slate-200 overflow-x-auto">
             <table className="w-full text-xs">
               <thead className="bg-slate-50 text-slate-500 uppercase tracking-wide">
                 <tr>
-                  <th className="px-4 py-2 text-left">Email</th>
-                  <th className="px-4 py-2 text-left">Role</th>
-                  <th className="px-4 py-2 text-left">Expires</th>
+                  <th className="whitespace-nowrap px-4 py-2 text-left">Email</th>
+                  <th className="whitespace-nowrap px-4 py-2 text-left">Role</th>
+                  <th className="whitespace-nowrap px-4 py-2 text-left">Expires</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -240,13 +240,13 @@ export function AdminsPage() {
         <h2 className="text-sm font-semibold text-slate-600 mb-2 flex items-center gap-1.5">
           <Shield className="h-3.5 w-3.5" /> Active Admins ({admins.length})
         </h2>
-        <div className="rounded-xl border border-slate-200 overflow-hidden">
+        <div className="rounded-xl border border-slate-200 overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
               <tr>
-                <th className="px-4 py-2 text-left">Email</th>
-                <th className="px-4 py-2 text-left">Role</th>
-                <th className="px-4 py-2 text-left">Since</th>
+                <th className="whitespace-nowrap px-4 py-2 text-left">Email</th>
+                <th className="whitespace-nowrap px-4 py-2 text-left">Role</th>
+                <th className="whitespace-nowrap px-4 py-2 text-left">Since</th>
                 {canChangeRoles && <th className="px-4 py-2" />}
               </tr>
             </thead>
