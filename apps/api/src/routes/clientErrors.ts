@@ -103,7 +103,7 @@ clientErrorsRouter.post("/", zValidator("json", schema), async (c) => {
       breadcrumbs: redact(body.breadcrumbs ?? []),
       logData: null,
     },
-  });
+  }, c.env);
 
   return c.json({ received: true, reference });
 });

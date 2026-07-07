@@ -58,6 +58,7 @@ import { itTicketsRouter } from "./routes/itTickets";
 import { itRouter } from "./routes/it";
 import { accountRouter } from "./routes/account";
 import { adminNotificationSettingsRouter } from "./routes/adminNotificationSettings";
+import { adminAlertsRouter } from "./routes/adminAlerts";
 import { slackRouter } from "./routes/slack";
 import { feeProposalsRouter, feeActionRouter } from "./routes/feeProposals";
 import { scopeReviewRouter } from "./routes/scopeReview";
@@ -270,7 +271,7 @@ app.use("*", async (c, next) => {
                       breadcrumbs,
                       logData: entry.data ?? null,
                     },
-                  });
+                  }, c.env);
                 }
               } catch {
                 /* flushing must never throw inside waitUntil */
@@ -350,6 +351,7 @@ app.route("/it-tickets", itTicketsRouter);
 app.route("/it", itRouter);
 app.route("/account", accountRouter);
 app.route("/admin/notification-settings", adminNotificationSettingsRouter);
+app.route("/admin/alerts", adminAlertsRouter);
 app.route("/admin/mail", adminMailRouter);
 // Alias used by the rebuilt admin Mail tab (contract path).
 app.route("/admin-mail", adminMailRouter);

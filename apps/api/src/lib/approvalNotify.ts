@@ -20,6 +20,7 @@ import { logger } from "./logger";
 import { sendEmail, SENDERS, TEMPLATES, formatEmailTimestamp } from "./mailer";
 import { sendNotification } from "./notifications";
 import { listSuperAdmins } from "./approvalEngine";
+import { alertAdmins } from "./adminAlerts";
 import { approvalCardBlocks, postMessage, updateMessage, conversationsJoin, inviteUsers } from "./slack";
 
 function adminUrl(env: Env): string {
@@ -76,6 +77,14 @@ async function logNotif(
 export async function notifyProposalCreated(sql: Sql, env: Env, proposal: ProposalRow): Promise<void> {
   const admins = await listSuperAdmins(sql);
   const link = `${adminUrl(env)}/approvals/${proposal.id}`;
+
+  await alertAdmins(sql, env, {
+    category: "approvals",
+    title: `Fee change proposed: ${proposal.title}`,
+    body: proposal.reason,
+    linkPath: "/approvals",
+    dedupeKey: proposal.id,
+  });
 
   // Per-admin: in-app + email + secure action link.
   for (const a of admins) {
@@ -239,6 +248,14 @@ interface PricingProposalRow {
 export async function notifyPricingProposalCreated(sql: Sql, env: Env, proposal: PricingProposalRow): Promise<void> {
   const admins = await listSuperAdmins(sql);
   const link = `${adminUrl(env)}/pricing/approvals/${proposal.id}`;
+
+  await alertAdmins(sql, env, {
+    category: "approvals",
+    title: `Pricing change proposed: ${proposal.title}`,
+    body: proposal.reason,
+    linkPath: "/approvals",
+    dedupeKey: proposal.id,
+  });
   for (const a of admins) {
     try {
       await sendNotification(sql, a.user_id, {

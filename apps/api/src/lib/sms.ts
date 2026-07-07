@@ -42,7 +42,8 @@ export type SmsMessageType =
   | "cancellation"
   | "reschedule"
   | "customer_support"
-  | "consent_confirmation";
+  | "consent_confirmation"
+  | "admin_alert";
 
 /** Carrier-required canned replies/confirmations. */
 export const SMS_MESSAGES = {
