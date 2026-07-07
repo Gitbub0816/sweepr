@@ -36,6 +36,7 @@ import { SECURITY_LABELS, securityTypeFromLabel } from "../lib/issueTypes";
 import { inferSecurity } from "../lib/classify";
 import { getTicketContext } from "../lib/ticketContext";
 import { recordWebhookSignatureFailure } from "../lib/webhookAuth";
+import { alertAdminsFromContext } from "../lib/adminAlerts";
 import type { AppBindings } from "../types";
 
 export const securityRouter = new Hono<AppBindings>();
@@ -117,6 +118,14 @@ securityRouter.post("/inbound", async (c) => {
     INSERT INTO security_ticket_messages (ticket_id, direction, from_email, to_email, subject, body, message_id)
     VALUES (${ticket.id}, 'inbound', ${senderEmail}, 'security@getsweepr.com', ${subject}, ${bodyText}, ${messageId})
   `;
+
+  alertAdminsFromContext(c, {
+    category: "security",
+    title: `New security ticket ${gen.caseCode}`,
+    body: `${classification} — ${subject}\nFrom: ${senderEmail}`,
+    linkPath: "/security",
+    dedupeKey: gen.ticketId,
+  });
 
   // Auto-reply (best-effort).
   if (c.env.MAILERSEND_API_KEY) {

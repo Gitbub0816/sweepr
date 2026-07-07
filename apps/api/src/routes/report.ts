@@ -30,6 +30,7 @@ import { generateTicketId } from "../lib/ticketId";
 import { itTypeFromLabel, securityTypeFromLabel } from "../lib/issueTypes";
 import { sanitizeText } from "../lib/sanitizeText";
 import { resolveReporterTelemetry } from "./itTickets";
+import { alertAdminsFromContext } from "../lib/adminAlerts";
 import type { AppBindings } from "../types";
 
 export const reportRouter = new Hono<AppBindings>();
@@ -103,6 +104,13 @@ reportRouter.post("/", zValidator("json", schema), async (c) => {
       INSERT INTO security_ticket_messages (ticket_id, direction, from_email, to_email, subject, body)
       VALUES (${rows[0].id}, 'inbound', ${email}, 'security@getsweepr.com', ${title}, ${description ?? ""})
     `;
+    alertAdminsFromContext(c, {
+      category: "security",
+      title: `New security ticket ${gen.caseCode}`,
+      body: `${body.category} — ${title}\nFrom: ${email}`,
+      linkPath: "/security",
+      dedupeKey: gen.ticketId,
+    });
     if (c.env.MAILERSEND_API_KEY) {
       try {
         await sendEmail(c.env.MAILERSEND_API_KEY, {
@@ -141,6 +149,13 @@ reportRouter.post("/", zValidator("json", schema), async (c) => {
       ${telemetry.device ? JSON.stringify(telemetry.device) : null}, ${telemetry.consent}
     )
   `;
+  alertAdminsFromContext(c, {
+    category: "it",
+    title: `New IT ticket ${gen.caseCode}`,
+    body: `${body.category} — ${title}\nFrom: ${email}`,
+    linkPath: "/it-portal",
+    dedupeKey: gen.ticketId,
+  });
   if (c.env.MAILERSEND_API_KEY) {
     try {
       await sendEmail(c.env.MAILERSEND_API_KEY, {

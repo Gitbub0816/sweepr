@@ -48,6 +48,7 @@ export const SENDERS = {
   APPROVALS: { email: "approvals@getsweepr.com",  name: "Sweepr Approvals" },
   BOOKINGS:  { email: "bookings@getsweepr.com",   name: "Sweepr Bookings" },
   BILLING:   { email: "billing@getsweepr.com",    name: "Sweepr Billing" },
+  ALERTS:    { email: "alerts@getsweepr.com",     name: "Sweepr Alerts" },
 } as const;
 
 /**

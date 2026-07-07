@@ -26,12 +26,14 @@
  *
  * Fails closed once secrets are configured; before that it acks MailerSend's
  * create-time probe so routes can be provisioned. Messages land in
- * mailbox_messages; help@ also notifies admins so support mail isn't missed.
+ * mailbox_messages; every box also raises a 'mail' admin alert (each admin's
+ * alert preferences decide whether/how it's delivered) so inbound mail isn't
+ * missed.
  */
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { getDb } from "../lib/db";
-import { logger } from "../lib/logger";
+import { alertAdminsFromContext } from "../lib/adminAlerts";
 import type { AppBindings, Env } from "../types";
 
 export const mailboxInboundRouter = new Hono<AppBindings>();
@@ -121,18 +123,6 @@ async function storeToBox(
     INSERT INTO mailbox_messages (mailbox, sender_email, sender_name, subject, body_text, message_id)
     VALUES (${box}, ${msg.senderEmail}, ${msg.senderName}, ${msg.subject}, ${msg.bodyText}, ${msg.messageId})
   `;
-  // Support mail shouldn't sit unseen — ping the admin notification feed.
-  if (box === "help") {
-    try {
-      await sql`
-        INSERT INTO notifications (user_id, type, body, created_at)
-        SELECT u.id, 'help_inbound', ${`New help@ email from ${msg.senderEmail}: ${msg.subject}`.slice(0, 500)}, NOW()
-        FROM users u WHERE u.role IN ('admin', 'super_admin') LIMIT 5
-      `;
-    } catch (err) {
-      logger.error("help inbound: admin notify failed", err);
-    }
-  }
 }
 
 /**
@@ -193,6 +183,18 @@ async function handleInbound(
 
   const sql = getDb(c.env.DATABASE_URL);
   for (const box of boxes) await storeToBox(sql, box, msg);
+
+  // Inbound mail shouldn't sit unseen — raise a 'mail' alert per box; each
+  // admin's alert preferences decide the delivery channels.
+  for (const box of boxes) {
+    alertAdminsFromContext(c, {
+      category: "mail",
+      title: `New ${box}@ email from ${msg.senderEmail}`,
+      body: msg.subject.slice(0, 500),
+      linkPath: "/mail",
+      dedupeKey: msg.messageId ? `${box}:${msg.messageId}` : null,
+    });
+  }
 
   return c.json({ ok: true, stored: boxes });
 }

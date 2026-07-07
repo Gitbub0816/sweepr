@@ -10,6 +10,8 @@
 
 import type { Sql } from "@sweepr/db";
 import { logger } from "./logger";
+import { alertAdmins } from "./adminAlerts";
+import type { Env } from "../types";
 
 export interface ErrorLogInput {
   source?: "server" | "client";
@@ -45,9 +47,25 @@ function trunc(s: string | null | undefined, max: number): string | null {
 /**
  * Persist an error to the admin error feed. Best-effort: never throws, so
  * logging an error can't itself break a request.
+ *
+ * When `env` is provided and this is the first 'error'-level occurrence of a
+ * fingerprint in the trailing 24h (a new/re-emerged error group), admins are
+ * alerted through their configured channels.
  */
-export async function recordError(sql: Sql, input: ErrorLogInput): Promise<void> {
+export async function recordError(sql: Sql, input: ErrorLogInput, env?: Env): Promise<void> {
   try {
+    let newGroup = false;
+    const fingerprint = trunc(input.fingerprint, 32);
+    if (env && (input.level ?? "error") === "error" && fingerprint) {
+      const seen = (await sql`
+        SELECT 1 AS hit FROM error_logs
+        WHERE fingerprint = ${fingerprint}
+          AND occurred_at > NOW() - INTERVAL '24 hours'
+        LIMIT 1
+      `) as Array<{ hit: number }>;
+      newGroup = !seen[0];
+    }
+
     await sql`
       INSERT INTO error_logs (
         source, app, level, message, stack, path, method,
@@ -73,6 +91,23 @@ export async function recordError(sql: Sql, input: ErrorLogInput): Promise<void>
         ${input.durationMs ?? null}
       )
     `;
+
+    if (env && newGroup) {
+      await alertAdmins(sql, env, {
+        category: "errors",
+        title: `New error group: ${trunc(input.message, 140) ?? "Unknown error"}`,
+        body: [
+          input.errorName ? `Error: ${input.errorName}` : null,
+          input.method || input.path ? `Request: ${input.method ?? ""} ${input.path ?? ""}`.trim() : null,
+          input.referenceId ? `Reference: ${input.referenceId}` : null,
+          `Message: ${trunc(input.message, 500) ?? "Unknown error"}`,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+        linkPath: "/errors",
+        dedupeKey: fingerprint,
+      });
+    }
   } catch (err) {
     // Swallow — the error feed must never take down the request path.
     logger.error("recordError failed", err);

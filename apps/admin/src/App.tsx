@@ -12,6 +12,8 @@ import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { SignInPage } from "./components/SignInPage";
 import { AccessControlPage } from "./pages/AccessControlPage";
 import { usePermissions, ROUTE_SCREEN } from "./lib/permissions";
+import { useAlertBadges } from "./lib/alerts";
+import { AdminNotificationBell } from "./components/AdminNotificationBell";
 import {
   KeyRound,
   LayoutDashboard,
@@ -125,13 +127,26 @@ const nav = [
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { has } = usePermissions();
+  const { pathCounts } = useAlertBadges();
   // Hide nav entries the signed-in admin can't access. (API still enforces.)
-  const visibleNav = nav.filter((n) => {
-    const key = ROUTE_SCREEN[n.to];
-    return !key || has(key);
-  });
+  const visibleNav = nav
+    .filter((n) => {
+      const key = ROUTE_SCREEN[n.to];
+      return !key || has(key);
+    })
+    .map((n) => (pathCounts[n.to] ? { ...n, badge: pathCounts[n.to] } : n));
   return (
-    <AppShell brand="Admin" accent="Sweepr Ops" nav={visibleNav} headerRight={<NavAuth />}>
+    <AppShell
+      brand="Admin"
+      accent="Sweepr Ops"
+      nav={visibleNav}
+      headerRight={
+        <div className="flex items-center gap-1">
+          <AdminNotificationBell />
+          <NavAuth />
+        </div>
+      }
+    >
       {children}
     </AppShell>
   );

@@ -24,6 +24,7 @@ import { generateTicketId } from "../lib/ticketId";
 import { itTypeFromLabel } from "../lib/issueTypes";
 import { inferIT } from "../lib/classify";
 import { hmacHex, timingSafeEqual, recordWebhookSignatureFailure } from "../lib/webhookAuth";
+import { alertAdminsFromContext } from "../lib/adminAlerts";
 import type { AppBindings } from "../types";
 
 export const itInboundRouter = new Hono<AppBindings>();
@@ -73,6 +74,14 @@ itInboundRouter.post("/inbound", async (c) => {
     INSERT INTO it_ticket_comments (ticket_id, author_email, is_admin, body)
     VALUES (${ticketId}, ${senderEmail}, FALSE, ${bodyText})
   `;
+
+  alertAdminsFromContext(c, {
+    category: "it",
+    title: `New IT ticket ${gen.caseCode}`,
+    body: `${cls.label} — ${subject}\nFrom: ${senderEmail}`,
+    linkPath: "/it-portal",
+    dedupeKey: gen.ticketId,
+  });
 
   if (c.env.MAILERSEND_API_KEY) {
     try {
