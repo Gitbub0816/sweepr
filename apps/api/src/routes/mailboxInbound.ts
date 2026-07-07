@@ -3,10 +3,14 @@
  *
  *   POST /mail/inbound/:box   box ∈ caleb | kristin | news | updates | help | alerts
  *
- * Each MailerSend inbound route has its own signing secret; the handler
- * verifies the HMAC-SHA256 of the raw body against the box's secret (same
- * scheme as the IT/security inboxes) and fails closed when unconfigured.
- * Messages are stored in mailbox_messages for the admin console; help@ also
+ * MailerSend caps inbound routes at 5 per domain (IT@ and security@ hold two
+ * slots), so the six boxes share two combined routes — caleb/kristin/news and
+ * updates/help/alerts. Each combined route fans every caught message out to
+ * all three sibling webhooks, each forward signed with its own secret; the
+ * handler verifies the HMAC-SHA256 of the raw body against the box's secret
+ * (same scheme as the IT/security inboxes, fails closed when unconfigured)
+ * and then stores the message only if it was actually addressed to this box.
+ * Messages land in mailbox_messages for the admin console; help@ also
  * notifies admins so support mail doesn't sit unseen.
  */
 import { Hono } from "hono";
@@ -42,6 +46,32 @@ function stripHtml(html: string): string {
   return html.replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
+/**
+ * Pull every recipient email out of the inbound payload, tolerating the
+ * shapes MailerSend uses (recipients.rcptTo[].email, recipients.to.data[],
+ * bare strings/arrays, "Name <addr>" raw headers).
+ */
+function extractRecipientEmails(data: Record<string, unknown>): string[] {
+  const out = new Set<string>();
+  const add = (v: unknown): void => {
+    if (typeof v === "string") {
+      for (const e of v.toLowerCase().match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/g) ?? []) out.add(e);
+    } else if (Array.isArray(v)) {
+      v.forEach(add);
+    } else if (v && typeof v === "object") {
+      const o = v as Record<string, unknown>;
+      add(o.email);
+      add(o.data);
+      add(o.raw);
+      add(o.rcptTo);
+      add(o.to);
+    }
+  };
+  add(data.recipients);
+  add(data.to);
+  return [...out];
+}
+
 mailboxInboundRouter.post("/inbound/:box", async (c) => {
   const box = c.req.param("box");
   const secretName = BOX_SECRETS[box];
@@ -64,6 +94,15 @@ mailboxInboundRouter.post("/inbound/:box", async (c) => {
   let payload: Record<string, unknown> = {};
   try { payload = JSON.parse(raw || "{}"); } catch { return c.json({ error: "bad json" }, 400); }
   const data = (payload.data ?? payload) as Record<string, unknown>;
+
+  // Combined routes deliver every message to all three sibling webhooks; only
+  // the box the mail was addressed to may store it. If the payload carries no
+  // recognizable recipient, store rather than drop (duplicates beat lost mail).
+  const recipients = extractRecipientEmails(data);
+  if (recipients.length > 0 && !recipients.includes(`${box}@getsweepr.com`)) {
+    return c.json({ ok: true, ignored: "recipient mismatch" });
+  }
+
   const from = (data.from ?? {}) as { email?: string; name?: string };
   const senderEmail = from.email ?? (data.sender as string) ?? "";
   if (!senderEmail) return c.json({ ok: true });

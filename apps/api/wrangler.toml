@@ -69,6 +69,12 @@ preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
 # SLACK_SIGNING_SECRET      (Slack app → Basic Information → App Credentials; verifies inbound webhooks)
 # MAILERSEND_IT_INBOUND_SECRET        (MailerSend → Inbound routes → IT@ route signing secret)
 # MAILERSEND_SECURITY_INBOUND_SECRET  (MailerSend → Inbound routes → security@ route signing secret)
+# MAILERSEND_CALEB_INBOUND_SECRET     (MailerSend inbound routes are capped at 5/domain, so the six
+# MAILERSEND_KRISTIN_INBOUND_SECRET    mailboxes share two combined routes — "caleb+kristin+news@"
+# MAILERSEND_NEWS_INBOUND_SECRET       and "updates+help+alerts@". Each route fans out to all three
+# MAILERSEND_UPDATES_INBOUND_SECRET    sibling /mail/inbound/<box> webhooks with a per-forward secret;
+# MAILERSEND_HELP_INBOUND_SECRET       the handler drops deliveries whose recipient isn't its own box.
+# MAILERSEND_ALERTS_INBOUND_SECRET     Secrets: MailerSend → Domains → getsweepr.com → Inbound routes.
 # OPENAI_API_KEY            (OpenAI API key — vision scope review; server-side only)
 # OPENAI_VISION_MODEL       (optional — vision model override; defaults to gpt-4.1-mini)
 
