@@ -100,7 +100,9 @@
     "q7": "How does recurring pricing work?",
     "a7": "Recurring bookings are billed per visit at a lower rate than one-time cleans. Pause or cancel anytime — no lock-in.",
     "q8": "What areas does Sweepr serve?",
-    "a8": "Enter your address when you book and we'll show you real availability in your area. We're expanding regularly — if we're not in your city yet, you can join the waitlist."
+    "a8": "Enter your address when you book and we'll show you real availability in your area. We're expanding regularly — if we're not in your city yet, you can join the waitlist.",
+    "q9": "How does Sweepr evaluate cleaner backgrounds?",
+    "a9": "Sweepr strives to evaluate cleaner backgrounds fairly, consistently, and with customer safety first. Every applicant completes a third-party background check, and results are reviewed under our published Background Check Adjudication Policy — objective written standards, based on convictions only, with individualized review where appropriate. Read the full policy at legal.getsweepr.com/background-check-adjudication."
   },
   "cleaner": {
     "title": "Provide cleaning services through Sweepr",
@@ -182,7 +184,10 @@
     "coverageTitle": "Where Sweeprs are working",
     "coverageSubtitle": "We're growing fast. See where Sweepr is live and what's coming next.",
     "finalTitle": "Ready to become a Sweepr?",
-    "finalSubtitle": "Create your profile today and start your journey. You can complete each step at your own pace from your dashboard."
+    "finalSubtitle": "Create your profile today and start your journey. You can complete each step at your own pace from your dashboard.",
+    "faqTitle": "Background checks",
+    "faqBgQ": "What should I know about the background check?",
+    "faqBgA": "Every applicant completes a third-party background check before approval. Results are evaluated under our published Background Check Adjudication Policy — consistent written standards that consider convictions only, with individualized review in many cases and a chance to respond before any final decision. Read it at legal.getsweepr.com/background-check-adjudication."
   },
   "cookies": {
     "title": "We value your privacy",

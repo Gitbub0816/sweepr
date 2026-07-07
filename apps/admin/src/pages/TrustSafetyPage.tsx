@@ -3,6 +3,7 @@ import { useAuth } from "@clerk/clerk-react";
 import { ShieldAlert, RefreshCw } from "lucide-react";
 import { DashboardShell, Card, Button, Badge, Select, Input, Textarea, Modal, TableSkeleton, EmptyState, toast } from "@sweepr/ui";
 import { DataTable, type Column } from "../components/DataTable";
+import { AdjudicationTab } from "../components/AdjudicationTab";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
@@ -49,7 +50,7 @@ const STATUS_OPTIONS = [
   { value: "banned", label: "Banned" },
 ];
 
-type Tab = "customers" | "greylist" | "privileges";
+type Tab = "customers" | "greylist" | "privileges" | "adjudication";
 
 function useAuthed() {
   const { getToken } = useAuth();
@@ -306,7 +307,7 @@ export function TrustSafetyPage() {
   return (
     <DashboardShell
       title="Trust & Safety"
-      description="Customer account status, address greylist, and cleaner scope-review privileges."
+      description="Customer account status, address greylist, cleaner privileges, and background-check adjudication."
       actions={
         <button onClick={() => window.location.reload()} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50">
           <RefreshCw className="h-3.5 w-3.5" /> Refresh
@@ -318,6 +319,7 @@ export function TrustSafetyPage() {
           ["customers", "Customer statuses"],
           ["greylist", "Address greylist"],
           ["privileges", "Cleaner privileges"],
+          ["adjudication", "Adjudication"],
         ] as [Tab, string][]).map(([key, label]) => (
           <button
             key={key}
@@ -336,6 +338,7 @@ export function TrustSafetyPage() {
       {tab === "customers" && <CustomersTab />}
       {tab === "greylist" && <GreylistTab />}
       {tab === "privileges" && <PrivilegesTab />}
+      {tab === "adjudication" && <AdjudicationTab />}
     </DashboardShell>
   );
 }

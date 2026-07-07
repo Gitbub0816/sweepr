@@ -18,6 +18,7 @@ import { notificationsRouter } from "./routes/notifications";
 import { scheduleRouter } from "./routes/schedule";
 import { subscriptionsRouter } from "./routes/subscriptions";
 import { checkrRouter } from "./routes/checkr";
+import { adjudicationRouter, adminAdjudicationRouter } from "./routes/adjudication";
 import { diditRouter, diditWebhookRouter } from "./routes/didit";
 import { clerkWebhookRouter } from "./routes/webhooks/clerk";
 import { smsInboundRouter } from "./routes/smsInbound";
@@ -349,6 +350,9 @@ app.route("/notifications", notificationsRouter);
 app.route("/schedule", scheduleRouter);
 app.route("/subscriptions", subscriptionsRouter);
 app.route("/checkr", checkrRouter);
+// Background Check Adjudication: cleaner acknowledgment + admin T&S queue.
+app.route("/adjudication", adjudicationRouter);
+app.route("/admin/adjudication", adminAdjudicationRouter);
 // Checkr webhooks use a separate, unauthenticated path verified by HMAC signature.
 app.route("/webhooks/checkr", checkrRouter);
 app.route("/didit", diditRouter);

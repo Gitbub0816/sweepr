@@ -3,6 +3,7 @@ import { useUser } from "@clerk/clerk-react";
 import { ShieldCheck, ExternalLink, Clock, CheckCircle2, AlertCircle } from "lucide-react";
 import { Input, Button, Card } from "@sweepr/ui";
 import { TrainingGate } from "../TrainingPage";
+import { AdjudicationAckModal } from "./AdjudicationAckModal";
 import type { CheckrStatus } from "../../types/checkr";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -28,10 +29,28 @@ export function BackgroundCheckStep({ n, workState = "CA", getToken, onComplete,
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phase, setPhase] = useState<Phase>({ kind: "intro" });
+  const [ackOpen, setAckOpen] = useState(false);
   const email = user?.primaryEmailAddress?.emailAddress ?? "";
+
+  /** Gate: the Adjudication Policy must be acknowledged before the check starts. */
+  async function ensureAcknowledged(): Promise<boolean> {
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_URL}/adjudication/acknowledgment`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const d = (await res.json()) as { acknowledged: boolean };
+        if (d.acknowledged) return true;
+      }
+    } catch { /* fall through to the modal */ }
+    setAckOpen(true);
+    return false;
+  }
 
   async function startInvitation() {
     if (!firstName.trim() || !lastName.trim() || !email) return;
+    if (!(await ensureAcknowledged())) return;
     setPhase({ kind: "loading" });
     try {
       const token = await getToken();
@@ -87,6 +106,13 @@ export function BackgroundCheckStep({ n, workState = "CA", getToken, onComplete,
         <p className="text-xs text-slate-500">Sweepr creates your Checkr candidate record and sends you to a secure, Checkr-hosted page to complete your background check.</p>
         {!email && <Card className="border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">We could not read your account email yet. Refresh or sign in again before starting the check.</Card>}
         <Button onClick={startInvitation} disabled={!firstName.trim() || !lastName.trim() || !email} className="w-full">Continue to background check</Button>
+        <AdjudicationAckModal
+          open={ackOpen}
+          onClose={() => setAckOpen(false)}
+          onAcknowledged={() => { setAckOpen(false); void startInvitation(); }}
+          getToken={getToken}
+          apiUrl={API_URL}
+        />
       </div>
     );
   }

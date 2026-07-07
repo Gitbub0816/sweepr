@@ -100,7 +100,9 @@
     "q7": "Giá dịch vụ định kỳ hoạt động như thế nào?",
     "a7": "Các lượt đặt định kỳ được tính phí theo từng lần ghé thăm với mức giá thấp hơn so với dọn dẹp một lần. Tạm ngưng hoặc hủy bất cứ lúc nào — không ràng buộc.",
     "q8": "Sweepr phục vụ những khu vực nào?",
-    "a8": "Nhập địa chỉ của bạn khi đặt lịch và chúng tôi sẽ hiển thị tình trạng khả dụng thực tế trong khu vực của bạn. Chúng tôi đang mở rộng thường xuyên — nếu chúng tôi chưa có ở thành phố của bạn, bạn có thể tham gia danh sách chờ."
+    "a8": "Nhập địa chỉ của bạn khi đặt lịch và chúng tôi sẽ hiển thị tình trạng khả dụng thực tế trong khu vực của bạn. Chúng tôi đang mở rộng thường xuyên — nếu chúng tôi chưa có ở thành phố của bạn, bạn có thể tham gia danh sách chờ.",
+    "q9": "Sweepr đánh giá lý lịch của người dọn dẹp như thế nào?",
+    "a9": "Sweepr nỗ lực đánh giá lý lịch của người dọn dẹp một cách công bằng, nhất quán và đặt an toàn của khách hàng lên hàng đầu. Mỗi ứng viên hoàn thành kiểm tra lý lịch của bên thứ ba, và kết quả được xem xét theo Chính sách Xét duyệt Kiểm tra Lý lịch đã công bố — tiêu chuẩn khách quan bằng văn bản, chỉ dựa trên các bản án, với xem xét cá nhân khi phù hợp. Đọc toàn bộ chính sách tại legal.getsweepr.com/background-check-adjudication."
   },
   "cleaner": {
     "title": "Cung cấp dịch vụ dọn dẹp thông qua Sweepr",
@@ -182,7 +184,10 @@
     "coverageTitle": "Các Sweepr đang làm việc ở đâu",
     "coverageSubtitle": "Chúng tôi đang phát triển nhanh. Xem Sweepr đã hoạt động ở đâu và sắp đến đâu.",
     "finalTitle": "Sẵn sàng trở thành Sweepr?",
-    "finalSubtitle": "Tạo hồ sơ ngay hôm nay và bắt đầu hành trình. Bạn có thể hoàn thành từng bước theo tốc độ của mình trên bảng điều khiển."
+    "finalSubtitle": "Tạo hồ sơ ngay hôm nay và bắt đầu hành trình. Bạn có thể hoàn thành từng bước theo tốc độ của mình trên bảng điều khiển.",
+    "faqTitle": "Kiểm tra lý lịch",
+    "faqBgQ": "Tôi cần biết gì về kiểm tra lý lịch?",
+    "faqBgA": "Mỗi ứng viên hoàn thành kiểm tra lý lịch của bên thứ ba trước khi được phê duyệt. Kết quả được đánh giá theo Chính sách Xét duyệt đã công bố — tiêu chuẩn nhất quán bằng văn bản, chỉ xem xét các bản án, thường có xem xét cá nhân và cơ hội phản hồi trước mọi quyết định cuối cùng. Xem tại legal.getsweepr.com/background-check-adjudication."
   },
   "cookies": {
     "title": "Chúng tôi coi trọng quyền riêng tư của bạn",

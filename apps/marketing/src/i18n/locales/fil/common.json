@@ -100,7 +100,9 @@
     "q7": "Paano gumagana ang recurring pricing?",
     "a7": "Ang recurring bookings ay siningil kada visit sa mas mababang presyo kaysa one-time cleans. I-pause o i-cancel anytime — walang lock-in.",
     "q8": "Saang mga lugar available ang Sweepr?",
-    "a8": "I-enter ang address mo pag nag-book ka at ipapakita namin ang totoong availability sa area mo. Palagi kaming nag-e-expand — kung wala pa kami sa city mo, pwede kang sumali sa waitlist."
+    "a8": "I-enter ang address mo pag nag-book ka at ipapakita namin ang totoong availability sa area mo. Palagi kaming nag-e-expand — kung wala pa kami sa city mo, pwede kang sumali sa waitlist.",
+    "q9": "Paano sinusuri ng Sweepr ang background ng mga cleaner?",
+    "a9": "Sinisikap ng Sweepr na suriin ang background ng mga cleaner nang patas, pare-pareho, at inuuna ang kaligtasan ng customer. Bawat aplikante ay kumukumpleto ng third-party background check, at ang mga resulta ay sinusuri ayon sa aming nakalathalang Background Check Adjudication Policy — mga obhetibo at nakasulat na pamantayan, batay lamang sa mga hatol, na may indibidwal na pagsusuri kung naaangkop. Basahin ang buong patakaran sa legal.getsweepr.com/background-check-adjudication."
   },
   "cleaner": {
     "title": "Mag-offer ng cleaning services sa Sweepr",
@@ -182,7 +184,10 @@
     "coverageTitle": "Saan nagtatrabaho ang mga Sweepr",
     "coverageSubtitle": "Mabilis kaming lumalago. Tingnan kung saan live ang Sweepr at kung ano ang susunod.",
     "finalTitle": "Ready ka na bang maging Sweepr?",
-    "finalSubtitle": "Gawin ang profile mo ngayon at simulan ang journey mo. Pwede mong tapusin ang bawat step sa sarili mong pace mula sa dashboard mo."
+    "finalSubtitle": "Gawin ang profile mo ngayon at simulan ang journey mo. Pwede mong tapusin ang bawat step sa sarili mong pace mula sa dashboard mo.",
+    "faqTitle": "Background check",
+    "faqBgQ": "Ano ang dapat kong malaman tungkol sa background check?",
+    "faqBgA": "Bawat aplikante ay kumukumpleto ng third-party background check bago maaprubahan. Ang mga resulta ay sinusuri ayon sa aming nakalathalang patakaran — pare-parehong nakasulat na pamantayan na isinasaalang-alang lamang ang mga hatol, na may indibidwal na pagsusuri sa maraming kaso at pagkakataong tumugon bago ang anumang pinal na desisyon. Basahin ito sa legal.getsweepr.com/background-check-adjudication."
   },
   "cookies": {
     "title": "Mahalaga sa amin ang privacy mo",

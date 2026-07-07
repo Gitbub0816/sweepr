@@ -3,7 +3,7 @@ import { useSeo } from "../lib/useSeo";
 import { useTranslation } from "react-i18next";
 import { withLang } from "../i18n/languages";
 import { LanguageSelector } from "../i18n/LanguageSelector";
-import { MarketingShell, Button, SweeprLogo } from "@sweepr/ui";
+import { MarketingShell, Button, SweeprLogo, Accordion } from "@sweepr/ui";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Sparkles,
@@ -301,7 +301,19 @@ export default function CleanWithUs() {
       </section>
 
       {/* Final CTA */}
-      <section className="mx-auto max-w-4xl px-4 py-20 text-center">
+            {/* Background check FAQ */}
+      <section id="background-checks" className="py-14">
+        <div className="mx-auto max-w-2xl px-4">
+          <h2 className="text-center text-2xl font-bold text-charcoal dark:text-white">
+            {t("cleanWithUs.faqTitle")}
+          </h2>
+          <div className="mt-6">
+            <Accordion items={[{ question: t("cleanWithUs.faqBgQ"), answer: t("cleanWithUs.faqBgA") }]} />
+          </div>
+        </div>
+      </section>
+
+<section className="mx-auto max-w-4xl px-4 py-20 text-center">
         <h2 className="text-3xl font-black text-charcoal dark:text-white sm:text-4xl">
           {t("cleanWithUs.finalTitle")}
         </h2>
