@@ -69,6 +69,12 @@ preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
 # SLACK_SIGNING_SECRET      (Slack app → Basic Information → App Credentials; verifies inbound webhooks)
 # MAILERSEND_IT_INBOUND_SECRET        (MailerSend → Inbound routes → IT@ route signing secret)
 # MAILERSEND_SECURITY_INBOUND_SECRET  (MailerSend → Inbound routes → security@ route signing secret)
+# MAILERSEND_INBOUND_SECRET_1         (Mail-tab combined route caleb/kristin/news → single /mail/inbound dispatcher)
+# MAILERSEND_INBOUND_SECRET_2         (Mail-tab combined route updates/help/alerts → single /mail/inbound dispatcher)
+#   The six Mail-tab boxes (caleb, kristin, news, updates, help, alerts) are served by two combined MailerSend
+#   routes; point each route's single webhook forward at https://api.getsweepr.com/mail/inbound and set the two
+#   secrets above. Legacy per-box secrets (MAILERSEND_<BOX>_INBOUND_SECRET) are still accepted during migration
+#   if a route still fans out to /mail/inbound/<box>.
 # OPENAI_API_KEY            (OpenAI API key — vision scope review; server-side only)
 # OPENAI_VISION_MODEL       (optional — vision model override; defaults to gpt-4.1-mini)
 
