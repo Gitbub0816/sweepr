@@ -88,50 +88,89 @@ import { ScopeReviewPage } from "./pages/ScopeReviewPage";
 import { ScopeReviewDetailPage } from "./pages/ScopeReviewDetailPage";
 import { TrustSafetyPage } from "./pages/TrustSafetyPage";
 
-const nav = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/jobs", label: "Jobs", icon: Briefcase },
-  { to: "/customers", label: "Customers", icon: Users },
-  { to: "/cleaners", label: "Cleaners", icon: Sparkles },
-  { to: "/applications", label: "Applications", icon: FileText },
-  { to: "/pricing", label: "Pricing", icon: DollarSign },
-  { to: "/cleaning-pricing", label: "Cleaning Pricing", icon: DollarSign },
-  { to: "/approvals", label: "Approvals", icon: GitPullRequest },
-  { to: "/scope-review", label: "Scope Review", icon: ScanEye },
-  { to: "/trust-safety", label: "Trust & Safety", icon: ShieldBan },
-  { to: "/insurance", label: "Insurance", icon: ShieldCheck },
-  { to: "/disputes", label: "Disputes", icon: AlertTriangle },
-  { to: "/payouts", label: "Payouts", icon: Wallet },
-  { to: "/service-areas", label: "Service Areas", icon: Map },
-  { to: "/events", label: "Events", icon: Activity },
-  { to: "/status", label: "Status", icon: Activity },
-  { to: "/training", label: "Training", icon: GraduationCap },
-  { to: "/courses", label: "Course Builder", icon: MonitorPlay },
-  { to: "/email", label: "Email", icon: Mail },
-  { to: "/broadcasts", label: "Broadcasts", icon: Radio },
-  { to: "/newsletter", label: "Newsletter", icon: Mail },
-  { to: "/mail", label: "Mail", icon: Inbox },
-  { to: "/observability", label: "Observability", icon: Telescope },
-  { to: "/errors", label: "Errors", icon: Bug },
-  { to: "/it-portal", label: "IT Portal", icon: LifeBuoy },
-  { to: "/security", label: "Security", icon: ShieldAlert },
-  { to: "/notifications", label: "Notifications", icon: BellRing },
-  { to: "/slack", label: "Slack", icon: Slack },
-  { to: "/automation", label: "Automation", icon: Zap },
-  { to: "/admins", label: "Admin Team", icon: Users2 },
-  { to: "/access-control", label: "Access Control", icon: KeyRound },
-  { to: "/settings", label: "Settings", icon: Settings },
+const navGroups = [
+  {
+    label: "Overview",
+    items: [
+      { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
+      { to: "/observability", label: "Observability", icon: Telescope },
+      { to: "/errors", label: "Errors", icon: Bug },
+      { to: "/status", label: "Status", icon: Activity },
+    ],
+  },
+  {
+    label: "Operations",
+    items: [
+      { to: "/jobs", label: "Jobs", icon: Briefcase },
+      { to: "/customers", label: "Customers", icon: Users },
+      { to: "/cleaners", label: "Cleaners", icon: Sparkles },
+      { to: "/applications", label: "Applications", icon: FileText },
+      { to: "/approvals", label: "Approvals", icon: GitPullRequest },
+      { to: "/scope-review", label: "Scope Review", icon: ScanEye },
+      { to: "/service-areas", label: "Service Areas", icon: Map },
+      { to: "/disputes", label: "Disputes", icon: AlertTriangle },
+    ],
+  },
+  {
+    label: "Money",
+    items: [
+      { to: "/pricing", label: "Pricing", icon: DollarSign },
+      { to: "/payouts", label: "Payouts", icon: Wallet },
+      { to: "/insurance", label: "Insurance", icon: ShieldCheck },
+    ],
+  },
+  {
+    label: "Trust & Safety",
+    items: [
+      { to: "/trust-safety", label: "Trust & Safety", icon: ShieldBan },
+      { to: "/security", label: "Security", icon: ShieldAlert },
+    ],
+  },
+  {
+    label: "Comms",
+    items: [
+      { to: "/mail", label: "Mail", icon: Inbox },
+      { to: "/email", label: "Email", icon: Mail },
+      { to: "/broadcasts", label: "Broadcasts", icon: Radio },
+      { to: "/newsletter", label: "Newsletter", icon: Mail },
+      { to: "/notifications", label: "Notifications", icon: BellRing },
+      { to: "/slack", label: "Slack", icon: Slack },
+    ],
+  },
+  {
+    label: "Learning",
+    items: [
+      { to: "/training", label: "Training", icon: GraduationCap },
+      { to: "/courses", label: "Course Builder", icon: MonitorPlay },
+    ],
+  },
+  {
+    label: "System",
+    items: [
+      { to: "/it-portal", label: "IT Portal", icon: LifeBuoy },
+      { to: "/automation", label: "Automation", icon: Zap },
+      { to: "/events", label: "Events", icon: Activity },
+      { to: "/admins", label: "Admin Team", icon: Users2 },
+      { to: "/access-control", label: "Access Control", icon: KeyRound },
+      { to: "/settings", label: "Settings", icon: Settings },
+    ],
+  },
 ];
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { has } = usePermissions();
   // Hide nav entries the signed-in admin can't access. (API still enforces.)
-  const visibleNav = nav.filter((n) => {
-    const key = ROUTE_SCREEN[n.to];
-    return !key || has(key);
-  });
+  const visibleGroups = navGroups
+    .map((g) => ({
+      ...g,
+      items: g.items.filter((n) => {
+        const key = ROUTE_SCREEN[n.to];
+        return !key || has(key);
+      }),
+    }))
+    .filter((g) => g.items.length > 0);
   return (
-    <AppShell brand="Admin" accent="Sweepr Ops" nav={visibleNav} headerRight={<NavAuth />}>
+    <AppShell brand="Admin" accent="Sweepr Ops" navGroups={visibleGroups} headerRight={<NavAuth />}>
       {children}
     </AppShell>
   );
