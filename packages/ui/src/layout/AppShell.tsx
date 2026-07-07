@@ -20,6 +20,8 @@ export interface NavItem {
   label: string;
   icon: LucideIcon;
   end?: boolean;
+  /** Unread count rendered as a small bubble after the label ("9+" past 9). */
+  badge?: number;
 }
 
 export interface AppShellProps {
@@ -64,6 +66,11 @@ export function AppShell({
           >
             <item.icon className="h-4 w-4 flex-shrink-0" />
             {item.label}
+            {typeof item.badge === "number" && item.badge > 0 && (
+              <span className="ml-auto flex h-5 min-w-[1.25rem] flex-shrink-0 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-semibold leading-none text-white">
+                {item.badge > 9 ? "9+" : item.badge}
+              </span>
+            )}
           </NavLink>
         ))}
       </div>

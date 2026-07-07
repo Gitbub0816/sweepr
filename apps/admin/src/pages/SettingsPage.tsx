@@ -12,6 +12,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { DashboardShell, Card, Input, Button, toast } from "@sweepr/ui";
 import { SlackSettings } from "../components/SlackSettings";
+import { AlertPrefsPanel } from "../components/AlertPrefsPanel";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
@@ -335,6 +336,10 @@ export function SettingsPage() {
       <div className="space-y-6">
         <GeneralSettingsPanel />
         <AdminInvitePanel />
+        <div>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-600">My account</h2>
+          <AlertPrefsPanel />
+        </div>
         <div>
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-600">Scope Review</h2>
           <ScopeReviewSettingsPanel />
