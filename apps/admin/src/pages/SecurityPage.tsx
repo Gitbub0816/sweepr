@@ -23,6 +23,7 @@ const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 interface Ticket {
   id: string; case_code: string | null; ticket_id: string | null; sender_email: string; sender_name: string | null;
   subject: string | null; classification: string; status: string; assigned_to: string | null;
+  triage_state?: string | null;
   received_at: string; last_reply_at: string | null; auto_reply_sent_at: string | null;
   classification_confidence?: number | null; classification_signals?: string[] | null; auto_classified?: boolean | null;
   reporter_ip?: string | null; reporter_user_agent?: string | null;
@@ -38,6 +39,14 @@ const STATUS_VARIANT: Record<string, "info" | "warning" | "success" | "error"> =
   Active: "warning", "Pending Review": "info", "Awaiting Response": "info", Investigating: "info",
   "Information Requested": "info", Resolved: "success", Closed: "success",
   Rejected: "error", Duplicate: "error", "Unable to Reproduce": "error",
+};
+
+const TRIAGE_STATES = ["open", "investigating", "contained", "resolved"] as const;
+const TRIAGE_STYLE: Record<string, string> = {
+  open: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+  investigating: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  contained: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  resolved: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
 };
 
 type Tab = "threats" | "reports";
@@ -147,6 +156,16 @@ function SecurityReportsTab({ authed }: { authed: (path: string, init?: RequestI
     else toast.error("Could not update status.");
   }
 
+  async function setTriage(triageState: string) {
+    if (!active) return;
+    const res = await authed(`/security/tickets/${active.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ triageState }),
+    });
+    if (res.ok) { toast.success(`Triage moved to ${triageState}.`); await open(active); void load(); }
+    else toast.error("Could not update triage state.");
+  }
+
   return (
     <>
       {tickets.length === 0 && !loading ? (
@@ -173,6 +192,9 @@ function SecurityReportsTab({ authed }: { authed: (path: string, init?: RequestI
                 <p className="mt-1 truncate text-sm font-medium text-charcoal dark:text-white">{t.subject ?? "(no subject)"}</p>
                 <p className="truncate text-xs text-slate-600">{t.sender_email}</p>
                 <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-600">
+                  <span className={`whitespace-nowrap rounded-full px-1.5 py-0.5 font-medium ${TRIAGE_STYLE[t.triage_state ?? "open"] ?? TRIAGE_STYLE.open}`}>
+                    {t.triage_state ?? "open"}
+                  </span>
                   <span>{t.classification}</span>
                   {t.classification_confidence != null && (
                     <span className={`rounded-full px-1.5 ${t.auto_classified ? "bg-seafoam-100 text-seafoam-700" : "bg-slate-100 text-slate-500"}`}>
@@ -214,6 +236,29 @@ function SecurityReportsTab({ authed }: { authed: (path: string, init?: RequestI
                   ) : (
                     <span className="text-slate-600">manual / pre-inference</span>
                   )}
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-slate-100 px-3 py-2 dark:border-slate-800">
+                  <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Triage</span>
+                  {TRIAGE_STATES.map((state, i) => {
+                    const current = (active.triage_state ?? "open") === state;
+                    return (
+                      <span key={state} className="flex items-center gap-1.5">
+                        {i > 0 && <span className="text-slate-300">→</span>}
+                        <button
+                          onClick={() => void setTriage(state)}
+                          disabled={current}
+                          aria-pressed={current}
+                          className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                            current
+                              ? TRIAGE_STYLE[state]
+                              : "bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:bg-slate-800 dark:text-slate-500"
+                          }`}
+                        >
+                          {state}
+                        </button>
+                      </span>
+                    );
+                  })}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Select
