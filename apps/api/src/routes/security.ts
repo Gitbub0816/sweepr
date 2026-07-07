@@ -48,6 +48,9 @@ const STATUSES = [
   "Resolved", "Closed", "Rejected", "Duplicate", "Unable to Reproduce",
 ] as const;
 
+// SOC incident triage workflow, independent of the reporter-facing status.
+const TRIAGE_STATES = ["open", "investigating", "contained", "resolved"] as const;
+
 
 async function hmacHex(secret: string, raw: string): Promise<string> {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
@@ -170,6 +173,7 @@ function resolveSince(raw: string | undefined): string | null {
 securityRouter.get("/events", ...gate, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const type = c.req.query("type");
+  const severity = c.req.query("severity");
   const ip = c.req.query("ip");
   const q = c.req.query("q");
   const since = resolveSince(c.req.query("since"));
@@ -180,6 +184,7 @@ securityRouter.get("/events", ...gate, async (c) => {
   const conds: string[] = [];
   const params: unknown[] = [];
   if (type) { params.push(type); conds.push(`event_type = $${params.length}`); }
+  if (severity) { params.push(severity); conds.push(`severity = $${params.length}`); }
   if (ip) { params.push(ip); conds.push(`ip = $${params.length}`); }
   if (since) { params.push(since); conds.push(`occurred_at >= $${params.length}::timestamptz`); }
   if (resolvedParam === "true" || resolvedParam === "false") {
@@ -205,8 +210,12 @@ securityRouter.get("/events", ...gate, async (c) => {
 securityRouter.get("/events/summary", ...gate, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const since = resolveSince(c.req.query("since")) ?? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  // The preceding window of equal length, for delta comparisons.
+  const sinceMs = Date.parse(since);
+  const windowMs = Math.max(Date.now() - sinceMs, 60_000);
+  const prevSince = new Date(sinceMs - windowMs).toISOString();
 
-  const [totalRow, byType, topIpsRaw, last24hRow] = await Promise.all([
+  const [totalRow, byType, topIpsRaw, last24hRow, prevTotalRow, prevByType] = await Promise.all([
     sql`SELECT COUNT(*)::int AS total FROM security_events WHERE occurred_at >= ${since}::timestamptz`,
     sql`
       SELECT event_type, COUNT(*)::int AS count
@@ -229,11 +238,23 @@ securityRouter.get("/events/summary", ...gate, async (c) => {
       SELECT COUNT(*)::int AS count FROM security_events
       WHERE occurred_at >= NOW() - INTERVAL '24 hours'
     `,
+    sql`
+      SELECT COUNT(*)::int AS total FROM security_events
+      WHERE occurred_at >= ${prevSince}::timestamptz AND occurred_at < ${since}::timestamptz
+    `,
+    sql`
+      SELECT event_type, COUNT(*)::int AS count
+      FROM security_events
+      WHERE occurred_at >= ${prevSince}::timestamptz AND occurred_at < ${since}::timestamptz
+      GROUP BY event_type
+    `,
   ]) as [
     Array<{ total: number }>,
     Array<{ event_type: string; count: number }>,
     Array<{ ip: string; count: number; last_seen: string; country: string | null; city: string | null; types: string[]; strike_count: number }>,
     Array<{ count: number }>,
+    Array<{ total: number }>,
+    Array<{ event_type: string; count: number }>,
   ];
 
   const topIps = topIpsRaw.map((r) => ({
@@ -251,6 +272,8 @@ securityRouter.get("/events/summary", ...gate, async (c) => {
     byType,
     topIps,
     last24h: last24hRow[0]?.count ?? 0,
+    prevTotal: prevTotalRow[0]?.total ?? 0,
+    prevByType,
   });
 });
 
@@ -282,6 +305,49 @@ securityRouter.post(
   },
 );
 
+// ── IP blocklist (enforced edge-side by middleware/blocklist.ts) ──────────────
+securityRouter.get("/blocklist", ...gate, async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const rows = await sql`
+    SELECT id, ip, reason, created_by, created_at, expires_at
+    FROM ip_blocklist ORDER BY created_at DESC LIMIT 500
+  `;
+  return c.json({ blocklist: rows });
+});
+
+securityRouter.post(
+  "/blocklist",
+  ...gate,
+  zValidator("json", z.object({
+    ip: z.string().min(3).max(64).regex(/^[0-9a-fA-F:.]+$/, "Not a valid IP address"),
+    reason: z.string().max(500).optional(),
+    expiresAt: z.string().nullable().optional(),
+  })),
+  async (c) => {
+    const sql = getDb(c.env.DATABASE_URL);
+    const { ip, reason, expiresAt } = c.req.valid("json");
+    const { clerkId, email } = c.get("user");
+    const rows = (await sql`
+      INSERT INTO ip_blocklist (ip, reason, created_by, expires_at)
+      VALUES (${ip}, ${reason ?? null}, ${email ?? clerkId}, ${expiresAt ?? null})
+      ON CONFLICT (ip) DO UPDATE SET
+        reason = EXCLUDED.reason,
+        created_by = EXCLUDED.created_by,
+        expires_at = EXCLUDED.expires_at
+      RETURNING id, ip, reason, created_by, created_at, expires_at
+    `) as Array<Record<string, unknown>>;
+    return c.json({ ok: true, entry: rows[0] });
+  },
+);
+
+securityRouter.delete("/blocklist/:id", ...gate, async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const id = c.req.param("id");
+  const rows = (await sql`DELETE FROM ip_blocklist WHERE id = ${id} RETURNING id`) as Array<{ id: string }>;
+  if (!rows[0]) return c.json({ error: "Not found" }, 404);
+  return c.json({ ok: true });
+});
+
 securityRouter.get("/tickets", ...gate, async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const status = c.req.query("status");
@@ -298,14 +364,14 @@ securityRouter.get("/tickets", ...gate, async (c) => {
   const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
   const rows = await sql(
     `SELECT id, case_code, ticket_id, sender_email, sender_name, subject, classification, status,
-            case_owner, assigned_to, received_at, last_reply_at, auto_reply_sent_at,
+            triage_state, case_owner, assigned_to, received_at, last_reply_at, auto_reply_sent_at,
             classification_confidence, classification_signals, auto_classified,
             reporter_ip, reporter_user_agent, reporter_geo, reporter_device, telemetry_consent
      FROM security_tickets ${where}
      ORDER BY received_at DESC LIMIT 300`,
     params,
   );
-  return c.json({ tickets: rows, classifications: CLASSIFICATIONS, statuses: STATUSES });
+  return c.json({ tickets: rows, classifications: CLASSIFICATIONS, statuses: STATUSES, triageStates: TRIAGE_STATES });
 });
 
 securityRouter.get("/tickets/:id", ...gate, async (c) => {
@@ -314,7 +380,7 @@ securityRouter.get("/tickets/:id", ...gate, async (c) => {
   const t = (await sql`SELECT * FROM security_tickets WHERE id = ${id} LIMIT 1`) as unknown[];
   if (!t[0]) return c.json({ error: "Not found" }, 404);
   const messages = (await sql`SELECT * FROM security_ticket_messages WHERE ticket_id = ${id} ORDER BY created_at ASC`) as unknown[];
-  return c.json({ ticket: t[0], messages, classifications: CLASSIFICATIONS, statuses: STATUSES });
+  return c.json({ ticket: t[0], messages, classifications: CLASSIFICATIONS, statuses: STATUSES, triageStates: TRIAGE_STATES });
 });
 
 securityRouter.get("/tickets/:id/context", ...gate, async (c) => {
@@ -394,6 +460,7 @@ securityRouter.patch(
   ...gate,
   zValidator("json", z.object({
     status: z.enum(STATUSES).optional(),
+    triageState: z.enum(TRIAGE_STATES).optional(),
     classification: z.string().optional(),
     caseOwner: z.string().optional(),
     assignedTo: z.string().optional(),
@@ -405,6 +472,7 @@ securityRouter.patch(
     const rows = (await sql`
       UPDATE security_tickets SET
         status = COALESCE(${b.status ?? null}, status),
+        triage_state = COALESCE(${b.triageState ?? null}, triage_state),
         classification = COALESCE(${b.classification ?? null}, classification),
         case_owner = COALESCE(${b.caseOwner ?? null}, case_owner),
         assigned_to = COALESCE(${b.assignedTo ?? null}, assigned_to),
