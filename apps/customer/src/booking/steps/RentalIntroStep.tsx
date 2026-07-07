@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 import { useNavigate } from "react-router-dom";
 import { CalendarClock, RefreshCw, ShieldCheck } from "lucide-react";
 import { Button } from "@sweepr/ui";

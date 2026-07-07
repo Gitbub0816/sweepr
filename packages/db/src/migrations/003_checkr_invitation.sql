@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 003: Checkr native invitation flow columns
 -- Replaces any ad-hoc "submitted" stub with proper invitation tracking.
 -- PII (SSN, DOB, address) is never stored here — Checkr owns it.

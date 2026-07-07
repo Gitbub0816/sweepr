@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 027: ensure the founding owner has full super_admin access.
 --
 -- Symptom this fixes: admin pages gated by a specific admin_role (e.g. Payouts →

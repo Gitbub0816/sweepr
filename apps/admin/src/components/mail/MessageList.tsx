@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 import { useEffect, useRef, useState } from "react";
 import { Search, Archive, ArchiveRestore, Mail as MailIcon, MailOpen, Send, Loader2 } from "lucide-react";
 import { Input } from "@sweepr/ui";

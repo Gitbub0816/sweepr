@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- ============================================================================
 -- neon-ensure.sql  —  FULL IDEMPOTENT SCHEMA REPAIR
 -- Paste into Neon SQL editor (or psql -f). Safe to re-run; never drops data.

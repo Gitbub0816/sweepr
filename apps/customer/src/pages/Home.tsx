@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, CalendarClock, Repeat, Home as HomeIcon, RotateCcw, KeyRound } from "lucide-react";
 import { useTranslation } from "react-i18next";

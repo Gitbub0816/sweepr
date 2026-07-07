@@ -1,3 +1,7 @@
+> Copyright © 2026–Present ClearKey Solutions, LLC.
+> Proprietary & Confidential.
+> Internal Use Only.
+
 # Sweepr Production Readiness Report
 
 **Generated:** 2026-06-24  

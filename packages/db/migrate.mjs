@@ -1,4 +1,14 @@
 #!/usr/bin/env node
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 /**
  * Migration runner — applies every src/migrations/*.sql file that hasn't been
  * applied yet, in filename order, each inside its own transaction, and records

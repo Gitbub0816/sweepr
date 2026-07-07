@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- 073_customer_fk_cascade.sql
 -- Companion to 072 for the customer side. Tables added after migration 031
 -- ("cascade-deletability") never got ON DELETE CASCADE on their customers(id)

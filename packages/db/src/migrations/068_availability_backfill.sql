@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 068: backfill legacy weekly hours into the unified store.
 --
 -- Before unification, the Schedule page saved weekly hours as

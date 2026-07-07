@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Generic inbound mailboxes (caleb@, kristin@, news@, updates@, help@, alerts@).
 -- IT@ and security@ keep their dedicated ticket pipelines.
 CREATE TABLE IF NOT EXISTS mailbox_messages (

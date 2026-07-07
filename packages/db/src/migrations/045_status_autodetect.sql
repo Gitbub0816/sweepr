@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- ─────────────────────────────────────────────────────────────────────────
 -- 045_status_autodetect.sql
 -- Auto-detection fields on status_incidents, moderate severity tier,

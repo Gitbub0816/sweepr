@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 import { useEffect, useState, useRef } from "react";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
@@ -328,7 +338,7 @@ export default function App() {
       <footer className="mt-12 border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-6">
           <img src="/brand/sweepr-logo.png" className="h-10 w-auto opacity-60" alt="Sweepr" />
-          <p className="text-xs text-slate-600">&copy; {new Date().getFullYear()} Sweepr, Inc.</p>
+          <p className="text-xs text-slate-600">Copyright &copy; 2026&ndash;Present Sweepr, operated by ClearKey Solutions, LLC. All Rights Reserved.</p>
         </div>
       </footer>
     </div>

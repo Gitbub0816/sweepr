@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 053: A2P/TCPA SMS consent tracking.
 --
 -- Current consent state lives on users; every grant/revoke is ALSO appended

@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 // DRAFT — attorney review required before production use. A designated DMCA agent
 // must be registered with the U.S. Copyright Office before relying on safe harbor.
 import { DocPage } from "../components/DocPage";

@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- 015_course_block_types.sql
 -- Widen the slide_blocks.block_type CHECK to support the richer, PowerPoint-style
 -- course editor (headings, shapes, dividers, callouts, spacers).

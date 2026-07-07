@@ -1,3 +1,7 @@
+> Copyright © 2026–Present ClearKey Solutions, LLC.
+> Proprietary & Confidential.
+> Internal Use Only.
+
 # 11 · Policies & Code of Conduct
 
 These policies apply to everyone on the platform. Cleaners acknowledge the

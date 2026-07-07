@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 043: Add 'security' to slack_channels purpose check constraint.
 -- Postgres doesn't allow ALTER CONSTRAINT on a CHECK — drop and re-add.
 

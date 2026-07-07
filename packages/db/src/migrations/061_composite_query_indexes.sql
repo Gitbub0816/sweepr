@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 061: Composite / partial indexes matching hot query shapes.
 --
 -- Refines the single-column indexes from migration 060 for two queries whose

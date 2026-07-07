@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 021: Payout ledger + stripe event idempotency
 
 CREATE TABLE IF NOT EXISTS payout_ledger (

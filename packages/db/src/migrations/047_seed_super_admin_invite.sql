@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 047: Seed super_admin invite for initial owner
 INSERT INTO admin_invites (token, email, created_by, admin_role, expires_at)
 VALUES (

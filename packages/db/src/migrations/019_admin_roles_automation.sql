@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Admin sub-roles: granular permissions within the admin interface.
 -- 'admin_role' is only set for users whose 'role' is 'admin' or 'super_admin'.
 ALTER TABLE users

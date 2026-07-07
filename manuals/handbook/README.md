@@ -1,3 +1,7 @@
+> Copyright © 2026–Present ClearKey Solutions, LLC.
+> Proprietary & Confidential.
+> Internal Use Only.
+
 # The Sweepr Handbook
 
 > The single source of truth for how Sweepr works — for the people who build it,

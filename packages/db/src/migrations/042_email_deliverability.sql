@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 042: Email deliverability infrastructure.
 -- Adds email_delivery_log (audit trail for every outbound send) and
 -- email_suppressions (hard bounces, spam complaints, manual blocks).

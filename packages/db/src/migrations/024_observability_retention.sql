@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 024: Observability retention (cleanup driven by cron)
 -- Adds logged_at column aliases so the retention cron can use a uniform column name.
 

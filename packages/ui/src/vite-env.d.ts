@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 interface ImportMetaEnv {
   readonly VITE_MAPBOX_PUBLIC_TOKEN?: string;
   readonly VITE_MAPBOX_TOKEN?: string;

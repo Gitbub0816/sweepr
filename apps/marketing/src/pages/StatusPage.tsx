@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 import { useEffect, useState } from "react";
 import { useSeo } from "../lib/useSeo";
 import { CheckCircle2, AlertTriangle, XCircle, Clock, ChevronDown, ChevronUp } from "lucide-react";

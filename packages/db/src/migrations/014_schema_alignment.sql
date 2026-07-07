@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- 014_schema_alignment.sql
 -- Aligns the live DB with columns the API code references.
 -- Idempotent — safe to run multiple times.

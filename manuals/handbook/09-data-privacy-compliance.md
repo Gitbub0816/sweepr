@@ -1,3 +1,7 @@
+> Copyright © 2026–Present ClearKey Solutions, LLC.
+> Proprietary & Confidential.
+> Internal Use Only.
+
 # 09 · Data, Privacy & Compliance
 
 This chapter is the reference for how Sweepr handles personal data. It complements

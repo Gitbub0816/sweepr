@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Confirmed service areas (live + upcoming) with GeoJSON polygon for map display
 CREATE TABLE IF NOT EXISTS service_areas (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),

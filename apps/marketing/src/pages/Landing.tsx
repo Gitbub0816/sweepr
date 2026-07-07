@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 import { MarketingShell, Button, Accordion, SweeprLogo, NewsletterSubscribe, type AccordionItemData } from "@sweepr/ui";
 import { useSeo } from "../lib/useSeo";
 import { useState, useEffect } from "react";
@@ -467,7 +477,7 @@ export default function Landing() {
                 {t("footer.cookieSettings")}
               </button>
             </nav>
-            <p className="text-xs text-slate-500">© {new Date().getFullYear()} Sweepr, Inc.</p>
+            <p className="text-xs text-slate-500">Copyright © 2026–Present Sweepr, operated by ClearKey Solutions, LLC. All Rights Reserved.</p>
           </div>
         </div>
       </footer>

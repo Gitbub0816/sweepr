@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 import { PenSquare, Inbox as InboxIcon, Send, Archive } from "lucide-react";
 import { Button } from "@sweepr/ui";
 import type { Box, Folder } from "./types";

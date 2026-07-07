@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 // Client-side upload helpers. We never embed Firebase credentials in the
 // browser — instead we ask the API for a short-lived signed upload URL and
 // PUT the file straight to storage.

@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 052: Unique constraint on payouts.booking_id so the release-payout
 -- route can use INSERT ... ON CONFLICT / a guaranteed-unique row to prevent
 -- concurrent/retried requests from creating two Stripe transfers for one booking.

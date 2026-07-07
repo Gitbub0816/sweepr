@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Admin mail center: outbound support on mailbox_messages + per-admin mailbox permissions.
 
 -- Outbound columns (replies/composes sent from box@getsweepr.com via MailerSend).

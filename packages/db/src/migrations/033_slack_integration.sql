@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 033: Slack workspace integration.
 --
 -- Sweepr remains the source of truth. Slack is a notification/collaboration

@@ -1,3 +1,7 @@
+> Copyright © 2026–Present ClearKey Solutions, LLC.
+> Proprietary & Confidential.
+> Internal Use Only.
+
 # ISO 27001:2022 Annex A Controls — Implementation Status
 
 | Control | Title | Status | Implementation |

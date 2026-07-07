@@ -1,3 +1,7 @@
+> Copyright © 2026–Present ClearKey Solutions, LLC.
+> Proprietary & Confidential.
+> Internal Use Only.
+
 # CIS Controls v8 — Implementation Group 1 (IG1)
 
 IG1 represents "essential cyber hygiene" — the minimum controls every organization should implement.

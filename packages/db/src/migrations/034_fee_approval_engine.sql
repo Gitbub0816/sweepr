@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 034: Fee Change Approval Engine.
 --
 -- Versioned fee configurations plus a full proposal/approval state machine:

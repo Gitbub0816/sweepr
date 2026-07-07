@@ -1,4 +1,14 @@
 #!/usr/bin/env node
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 /**
  * Verifies that packages/db/schema.sql contains all required tables and columns.
  * Exits non-zero if anything is missing — used in CI to catch stale schema.

@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Training modules (base + service-specific)
 CREATE TABLE IF NOT EXISTS training_modules (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 023: Booking auth performance indexes
 
 CREATE INDEX IF NOT EXISTS idx_bookings_customer_id ON bookings(customer_id);

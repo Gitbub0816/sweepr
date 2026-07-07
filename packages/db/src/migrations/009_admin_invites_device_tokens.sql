@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Admin invite tokens — one-time signed URLs for granting admin access.
 -- The first admin is created by running:
 --   UPDATE users SET role = 'admin' WHERE email = '<your-email>';

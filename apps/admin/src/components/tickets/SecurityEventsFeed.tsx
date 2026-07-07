@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ShieldAlert, RefreshCw, ChevronDown, ChevronRight, CheckCircle2, Siren, Radio,

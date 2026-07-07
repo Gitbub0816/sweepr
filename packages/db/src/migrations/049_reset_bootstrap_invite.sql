@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 049: Reset bootstrap super-admin invite so it can be re-used
 -- The token was consumed during an earlier failed sign-up (Clerk CAPTCHA bug)
 -- but no Clerk account was created. Reset used_at so the invite can be accepted.

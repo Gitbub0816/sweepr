@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 051: Add preferred_language to users table
 -- Stores the user's selected UI language code.
 -- Valid values match the SUPPORTED_CODES in apps/*/src/i18n/languages.ts.

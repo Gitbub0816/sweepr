@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 029: fix cleaner self-service dashboard schema gaps.
 --
 -- 1) cleaner_availability was created in 001 WITHOUT active/created_at/updated_at.

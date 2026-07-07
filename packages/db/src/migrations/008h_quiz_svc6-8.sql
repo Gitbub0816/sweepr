@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 
 -- Dishes quiz
 INSERT INTO training_quiz_questions (module_id, question, choices, correct_answer, explanation, sort_order) VALUES

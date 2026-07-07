@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- 070_error_telemetry_v2.sql
 -- Rich error telemetry: grouping fingerprint, customer-visible reference code,
 -- structured error identity, and request duration.

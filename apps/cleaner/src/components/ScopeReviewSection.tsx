@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, Camera, X, ShieldAlert } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";

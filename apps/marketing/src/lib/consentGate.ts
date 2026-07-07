@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 // Reads the same consent record written by <CookieConsent /> and decides
 // whether it's OK to start analytics. Keep the storage key and shape in sync
 // with apps/marketing/src/components/CookieConsent.tsx.

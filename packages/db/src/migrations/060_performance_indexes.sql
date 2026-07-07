@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 060: Performance indexes for hot query paths.
 --
 -- Each index below is backed by an actual WHERE/JOIN/ORDER BY usage found in

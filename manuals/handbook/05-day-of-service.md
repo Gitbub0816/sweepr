@@ -1,3 +1,7 @@
+> Copyright © 2026–Present ClearKey Solutions, LLC.
+> Proprietary & Confidential.
+> Internal Use Only.
+
 # 05 · Day-of-Service Operations
 
 > **Version 1.0 · Applies to:** Residential cleaning services.

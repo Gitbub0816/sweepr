@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Day-of-service operational flow
 -- Extends bookings with real-time tracking, photo evidence, GPS verification,
 -- and secure access code delivery.

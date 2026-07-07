@@ -1,3 +1,7 @@
+> Copyright © 2026–Present ClearKey Solutions, LLC.
+> Proprietary & Confidential.
+> Internal Use Only.
+
 # Access Control Matrix
 
 Authoritative reference for who can reach what in `apps/api`. Derived from

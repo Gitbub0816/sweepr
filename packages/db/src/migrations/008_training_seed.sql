@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- =============================================================================
 -- Training seed: 10 base modules + 8 service-specific modules
 -- Interactive SCORM-style content. Lesson bodies are authored HTML rendered

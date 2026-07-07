@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- GDPR data subject request log
 CREATE TABLE IF NOT EXISTS data_subject_requests (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

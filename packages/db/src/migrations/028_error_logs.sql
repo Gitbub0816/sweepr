@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 028: centralized error log feed for the admin dashboard.
 --
 -- Captures both server-side (API onError) and client-side (React error

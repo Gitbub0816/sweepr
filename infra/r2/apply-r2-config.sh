@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+#
+# Copyright © 2026–Present ClearKey Solutions, LLC.
+# All Rights Reserved.
+#
+
 # =============================================================================
 # apply-r2-config.sh
 # Applies CORS and lifecycle rules to the sweepr-media R2 bucket.

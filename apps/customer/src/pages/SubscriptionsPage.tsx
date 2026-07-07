@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Repeat, Pause, Play, SkipForward, X, Sparkles } from "lucide-react";

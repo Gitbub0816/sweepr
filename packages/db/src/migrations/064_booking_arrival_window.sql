@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Persist the customer-selected 2-hour arrival window on the booking.
 -- scheduled_at continues to be the authoritative "cleaner arrives at" instant
 -- (set to the window start when a window is chosen); these columns let the

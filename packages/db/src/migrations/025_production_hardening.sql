@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 025: Production hardening — completion requirements, webhook DLQ,
 --                address reveal config, booking auth indexes
 

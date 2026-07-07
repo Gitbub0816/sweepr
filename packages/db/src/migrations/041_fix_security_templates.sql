@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 041: Fix security response templates that duplicated the auto-reply.
 -- The seeded security/acknowledge template had the same copy as the auto-reply
 -- ("we received your report"). Updated to a meaningful follow-up message.

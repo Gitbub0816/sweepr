@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 065: Short-Term Rental calendar sync.
 --
 -- Hosts of short-term rentals (Airbnb / Vrbo / Booking.com / Google Calendar /
