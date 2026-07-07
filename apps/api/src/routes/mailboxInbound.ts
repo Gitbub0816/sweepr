@@ -151,17 +151,29 @@ async function handleInbound(
     .map((k) => c.env[k] as string | undefined)
     .filter((s): s is string => !!s);
 
-  // No secret configured yet (e.g. MailerSend's create-time probe, which fires
-  // before a route's secret exists): accept without processing so the route can
-  // be provisioned. Real deliveries once configured are verified below.
-  if (secrets.length === 0) return c.json({ ok: true, probe: true });
-
-  const expected = await Promise.all(secrets.map((s) => hmacHex(s, raw)));
-  if (!expected.some((e) => timingSafeEqual(sig, e))) return c.json({ error: "bad signature" }, 401);
+  // Signature posture:
+  //  - Secrets configured → verify strictly; forged posts are rejected.
+  //  - No secret configured yet → we CANNOT verify, but dropping real mail is
+  //    worse than accepting a spoofing window that only exists pre-config.
+  //    MailerSend's create-time probe (empty payload) is acked without storing;
+  //    payload-bearing deliveries are stored with an [unverified] subject tag
+  //    so the reader knows the sender wasn't authenticated. Set the
+  //    MAILERSEND_INBOUND_SECRET_* wrangler secrets to close the window.
+  let unverified = false;
+  if (secrets.length === 0) {
+    unverified = true;
+  } else {
+    const expected = await Promise.all(secrets.map((s) => hmacHex(s, raw)));
+    if (!expected.some((e) => timingSafeEqual(sig, e))) return c.json({ error: "bad signature" }, 401);
+  }
 
   let payload: Record<string, unknown> = {};
   try { payload = JSON.parse(raw || "{}"); } catch { return c.json({ error: "bad json" }, 400); }
   const data = (payload.data ?? payload) as Record<string, unknown>;
+
+  // MailerSend's route-creation probe has no meaningful payload — ack it
+  // without storing (this is what lets routes be provisioned pre-secret).
+  if (unverified && Object.keys(data).length === 0) return c.json({ ok: true, probe: true });
 
   const recipients = extractRecipientEmails(data);
   const dispatch = boxesForRecipients(recipients, boxHint);
@@ -174,7 +186,7 @@ async function handleInbound(
   const msg = {
     senderEmail,
     senderName: from.name ?? null,
-    subject: (data.subject as string) ?? "(no subject)",
+    subject: `${unverified ? "[unverified] " : ""}${(data.subject as string) ?? "(no subject)"}`,
     bodyText: (data.text as string) ?? (data.html ? stripHtml(data.html as string) : ""),
     messageId: (data.id as string) ?? (data.message_id as string) ?? null,
   };

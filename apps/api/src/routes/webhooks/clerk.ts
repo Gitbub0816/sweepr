@@ -105,6 +105,9 @@ interface ClerkUserEvent {
   };
 }
 
+/** Last time a signature failure was recorded to telemetry (per isolate). */
+let lastSigFailureRecordedAt = 0;
+
 clerkWebhookRouter.post("/", async (c) => {
   // Accept either env name — some deployments set CLERK_WEBHOOK_SIGNING_SECRET.
   const secret =
@@ -123,14 +126,23 @@ clerkWebhookRouter.post("/", async (c) => {
 
   const verdict = await verifyClerkWebhook(secret, body, svixId, svixTimestamp, svixSignatures);
   if (!verdict.ok) {
-    // Log the SPECIFIC reason so the error feed says *why* (wrong secret type,
-    // rotated secret, replay window, etc.) instead of an opaque "invalid".
-    logger.warn("clerk.webhook.invalid_signature", {
-      svixId,
-      reason: verdict.reason,
-      secretPrefix: secret.slice(0, 6),
-    });
-    recordWebhookSignatureFailure(c, { source: "clerk", reason: verdict.reason });
+    // A misconfigured secret makes EVERY Clerk event fail, which floods the
+    // error feed (thousands of identical warnings drowning real signals).
+    // Rejection is unchanged; telemetry records at most once per 10 minutes
+    // per isolate — enough to keep the misconfiguration visible.
+    const now = Date.now();
+    if (now - lastSigFailureRecordedAt > 10 * 60 * 1000) {
+      lastSigFailureRecordedAt = now;
+      // Log the SPECIFIC reason so the error feed says *why* (wrong secret
+      // type, rotated secret, replay window, etc.) instead of an opaque
+      // "invalid".
+      logger.warn("clerk.webhook.invalid_signature", {
+        svixId,
+        reason: verdict.reason,
+        secretPrefix: secret.slice(0, 6),
+      });
+      recordWebhookSignatureFailure(c, { source: "clerk", reason: verdict.reason });
+    }
     return c.json({ error: "Invalid signature", reason: verdict.reason }, 401);
   }
 
