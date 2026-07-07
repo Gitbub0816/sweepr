@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 038: compact ticket identifiers for security + IT tickets.
 --
 -- Two identifiers per ticket:

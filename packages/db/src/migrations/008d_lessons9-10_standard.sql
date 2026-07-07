@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 
 -- ── Module 9: Reliability & Ratings ──────────────────────────────────────────
 INSERT INTO training_lessons (module_id, title, body, sort_order, estimated_minutes) VALUES

@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 // All queries use @neondatabase/serverless tagged templates which are
 // parameterized — never interpolate user input outside of template slots.
 import { createClient, type Sql } from "@sweepr/db";

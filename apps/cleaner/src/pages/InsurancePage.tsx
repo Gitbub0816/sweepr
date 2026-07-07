@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Shield, ShieldCheck, ShieldAlert, Upload, CheckCircle2, AlertTriangle, Clock } from "lucide-react";

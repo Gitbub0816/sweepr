@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 044: S-level (senior) admin roles per department
 -- Senior admins can: manage admins within their department scope, see unredacted PII relevant to their scope.
 

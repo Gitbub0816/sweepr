@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 054: Strict row-level security (deny-by-default).
 --
 -- Architecture note: the Sweepr API (Cloudflare Worker) connects to Neon as

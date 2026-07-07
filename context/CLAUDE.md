@@ -1,3 +1,7 @@
+> Copyright © 2026–Present ClearKey Solutions, LLC.
+> Proprietary & Confidential.
+> Internal Use Only.
+
 # Sweepr — Working Context for Claude
 
 Read `context/passdown.md` for what the last session shipped. This file is the stable orientation doc.

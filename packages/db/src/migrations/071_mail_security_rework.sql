@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- 071_mail_security_rework.sql
 -- Security event telemetry + problem-centric ticket telemetry + mail center folders.
 

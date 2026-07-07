@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 037: Security inbox (inbound email → tickets) + replies.
 --
 -- security@getsweepr.com inbound mail (via MailerSend inbound route) creates a

@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
 export type DayStatus =

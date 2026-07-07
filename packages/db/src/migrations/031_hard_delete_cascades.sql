@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 031: make the database genuinely hard-deletable for GDPR/CCPA.
 --
 -- Recreates the key foreign keys with ON DELETE CASCADE so deleting a user row

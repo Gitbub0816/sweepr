@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 import { Loader2 } from "lucide-react";
 
 export const inputCls =

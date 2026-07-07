@@ -1,3 +1,7 @@
+> Copyright © 2026–Present ClearKey Solutions, LLC.
+> Proprietary & Confidential.
+> Internal Use Only.
+
 # Sweepr — Session Passdown
 
 Last updated: 2026-07-04. Branch: `claude/wonderful-fermi-nmlpre` (all work merged to `main`). Standing instruction: merge current and future work to `main`.

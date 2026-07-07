@@ -1,6 +1,16 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 import type { ReactNode } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { COMPANY_NAME, DOCS, LAST_UPDATED, docsByCategory } from "../docs";
+import { DOCS, LAST_UPDATED, docsByCategory } from "../docs";
 import { LegalLogo } from "./LegalLogo";
 
 const REF_URLS: Record<string, { label: string; url: string }> = {
@@ -122,7 +132,7 @@ export function LegalShell({ children }: { children: ReactNode }) {
             ))}
           </nav>
           <p className="mt-6 text-xs text-slate-500">
-            © {new Date().getFullYear()} {COMPANY_NAME}. All rights reserved.
+            Copyright © 2026–Present Sweepr, operated by ClearKey Solutions, LLC. All Rights Reserved.
             Last updated: {LAST_UPDATED}.
           </p>
         </div>

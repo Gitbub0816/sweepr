@@ -1,3 +1,7 @@
+> Copyright © 2026–Present ClearKey Solutions, LLC.
+> Proprietary & Confidential.
+> Internal Use Only.
+
 # 07 · Trust & Safety
 
 Trust is the product. This chapter consolidates the privacy and anti-fraud

@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 030: IT ticketing system + notification settings.
 
 -- ── IT tickets ───────────────────────────────────────────────────────────────

@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 077: Background Check Adjudication cases.
 --
 -- One case per background-check evaluation of a cleaner applicant. Trust &

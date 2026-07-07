@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 /**
  * Client error ingest — receives errors caught by the frontend apps' React
  * error boundaries and global handlers, and writes them to the shared admin

@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 /**
  * Pricing Change Approval Engine — same state machine as the fee engine, on the
  * pricing_change_* / pricing_rules tables. Kept separate for clarity per spec.

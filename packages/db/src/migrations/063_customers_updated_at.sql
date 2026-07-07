@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 063: customers.updated_at
 -- Six code paths (cron customer-status reset, scope-review refusal flow,
 -- bookings completion reset, dayOfService, auth, adminTrust) do

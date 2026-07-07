@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 import { useMemo, useState } from "react";
 import { calculateQuote, formatCurrency, SERVICE_LABELS } from "@sweepr/utils";
 import type { ServiceType, HomeType } from "@sweepr/types";

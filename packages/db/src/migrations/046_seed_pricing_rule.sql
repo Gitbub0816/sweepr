@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 046: Seed initial active SWEEPR_PRICING rule.
 --
 -- Adds config_json column (if absent) and inserts the canonical SWEEPR_PRICING

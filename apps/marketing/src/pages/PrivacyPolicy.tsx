@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 import { MarketingShell, Button } from "@sweepr/ui";
 import { useSeo } from "../lib/useSeo";
 
@@ -31,7 +41,7 @@ export default function PrivacyPolicy() {
         <p className="mt-2 text-sm text-slate-500">Last updated: {updated}</p>
 
         <P>
-          This Privacy Policy explains how Sweepr, Inc. ("Sweepr", "we", "us")
+          This Privacy Policy explains how ClearKey Solutions, LLC d/b/a Sweepr ("Sweepr", "we", "us")
           collects, uses, discloses, and protects personal information. It is
           designed to meet the California Consumer Privacy Act (CCPA, Cal. Civ.
           Code &sect; 1798.100 et seq.) and the EU General Data Protection

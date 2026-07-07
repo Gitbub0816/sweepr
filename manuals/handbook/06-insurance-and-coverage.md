@@ -1,3 +1,7 @@
+> Copyright © 2026–Present ClearKey Solutions, LLC.
+> Proprietary & Confidential.
+> Internal Use Only.
+
 # 06 · Insurance & Coverage
 
 The Insurance & Coverage module lives in the **Cleaner Dashboard** at:

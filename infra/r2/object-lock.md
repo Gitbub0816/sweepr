@@ -1,3 +1,7 @@
+> Copyright © 2026–Present ClearKey Solutions, LLC.
+> Proprietary & Confidential.
+> Internal Use Only.
+
 # R2 Object Lock — Sweepr
 
 ## Important: Must Be Enabled at Bucket Creation

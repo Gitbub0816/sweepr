@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- 074_cleaner_service_area_and_declines.sql
 -- Cleaners can set their own service area (an address + radius), and the
 -- assignment engine tracks declines so a daily free decline doesn't hurt a

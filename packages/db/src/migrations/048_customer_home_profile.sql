@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 048: Customer home profile defaults + address link
 -- These columns let the API pre-fill the booking flow for returning customers
 -- and track whether first-time onboarding has been completed.

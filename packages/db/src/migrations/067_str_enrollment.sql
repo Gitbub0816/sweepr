@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 067: explicit short-term-rental enrollment.
 --
 -- A property must be explicitly enrolled (disclaimer accepted) before the

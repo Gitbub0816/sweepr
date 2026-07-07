@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- 013_insurance.sql
 -- Cleaner insurance module: Sweepr Coverage Program vs personal policy upload
 

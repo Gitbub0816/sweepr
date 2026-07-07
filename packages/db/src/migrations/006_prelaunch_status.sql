@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Site-wide settings (key/value)
 CREATE TABLE IF NOT EXISTS site_settings (
   key TEXT PRIMARY KEY,

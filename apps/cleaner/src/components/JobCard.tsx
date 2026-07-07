@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 import { useEffect, useState } from "react";
 import { MapPin, Navigation, Home, Clock, CheckCircle2 } from "lucide-react";
 import { useTranslation } from "react-i18next";

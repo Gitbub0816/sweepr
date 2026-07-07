@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 // DRAFT — attorney review required before production use.
 // NOTE: Adjudication matrices interact with federal, state and local fair-
 // hiring law (FCRA, state fair-chance acts, local ordinances). Counsel must

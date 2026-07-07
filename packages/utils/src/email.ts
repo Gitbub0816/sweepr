@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 // Transactional email template builders. These return inline-styled HTML
 // strings (email clients require inline CSS) plus a subject line. Actual
 // delivery happens in the worker via MailerSend.
@@ -33,7 +43,7 @@ function layout(opts: { heading: string; body: string; cta?: { label: string; hr
           ${cta}
         </td></tr>
         <tr><td style="padding:24px 32px;border-top:1px solid #eef2f5;font-size:12px;color:#94a3b8">
-          Sweepr, Inc. &middot; You're receiving this because you have a Sweepr account.
+          Copyright &copy; 2026&ndash;Present Sweepr, operated by ClearKey Solutions, LLC. All Rights Reserved. &middot; You're receiving this because you have a Sweepr account.
         </td></tr>
       </table>
     </td></tr>

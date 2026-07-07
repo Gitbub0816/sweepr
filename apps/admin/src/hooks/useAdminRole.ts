@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 import { useUser } from "@clerk/clerk-react";
 
 export type AdminRole = "super_admin" | "admin" | "ops" | "finance" | "trainer" | "support" | "it";

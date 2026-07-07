@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 062: DB-level guarantees backing the atomic-transaction hardening
 -- pass in apps/api (bookings, payments, addons). Idempotent. No CREATE INDEX
 -- CONCURRENTLY — migrations run inside a transaction.

@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { LifeBuoy, RefreshCw, X, Send, AlertTriangle, Ticket, UserCog, Activity, KeyRound, Link2, Search, Sparkles, Clock, Mail, Languages } from "lucide-react";

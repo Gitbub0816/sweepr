@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- 072_assignment_queue_cleaner_cascade.sql
 -- Several FKs reference cleaners(id) with no ON DELETE action, so a cleaner
 -- hard-delete (GDPR account deletion) failed with a foreign-key violation for

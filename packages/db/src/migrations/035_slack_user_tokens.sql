@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 035: per-user Slack tokens for the embedded workspace.
 --
 -- The embedded Slack tab renders each admin's *own* Slack view, so we store a

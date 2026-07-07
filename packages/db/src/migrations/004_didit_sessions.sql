@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 004: Didit hosted verification + missing Checkr report id
 --
 -- Didit owns all ID document / biometric data. Sweepr stores only the opaque

@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 059: Scope review secure action links.
 --
 -- Single-use, signed email-action tokens for admin approve/deny of a scope

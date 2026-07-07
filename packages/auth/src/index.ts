@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 import { createElement, Fragment, type ReactNode } from "react";
 import { useUser, useAuth } from "@clerk/clerk-react";
 import { Navigate } from "react-router-dom";

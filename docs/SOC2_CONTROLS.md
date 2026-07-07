@@ -1,3 +1,7 @@
+> Copyright © 2026–Present ClearKey Solutions, LLC.
+> Proprietary & Confidential.
+> Internal Use Only.
+
 # SOC 2 Trust Services Criteria — Control Mapping
 
 ## CC6 — Logical and Physical Access Controls

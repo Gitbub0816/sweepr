@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Observability tables (Phase 1)
 
 CREATE TABLE IF NOT EXISTS analytics_events (

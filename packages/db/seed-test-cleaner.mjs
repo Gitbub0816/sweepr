@@ -1,4 +1,14 @@
 #!/usr/bin/env node
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 /**
  * Seed one fully-verified test cleaner so you can walk the whole cleaner flow
  * end-to-end without grinding through onboarding every time.

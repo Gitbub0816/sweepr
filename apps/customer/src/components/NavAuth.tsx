@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 import { useClerk, useUser } from "@clerk/clerk-react";
 import { LogOut } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";

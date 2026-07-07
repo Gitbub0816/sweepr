@@ -1,3 +1,7 @@
+> Copyright © 2026–Present ClearKey Solutions, LLC.
+> Proprietary & Confidential.
+> Internal Use Only.
+
 # 04 · Training System
 
 Sweepr runs a **fully native training platform** built directly into the

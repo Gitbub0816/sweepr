@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- 075_admin_permission_overrides.sql
 -- Per-user, per-permission overrides on top of a user's admin_role default set.
 -- allow = TRUE grants a permission the role wouldn't have; allow = FALSE revokes

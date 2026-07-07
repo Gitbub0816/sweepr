@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 
 -- Deep Cleaning
 INSERT INTO training_lessons (module_id, title, body, sort_order, estimated_minutes) VALUES

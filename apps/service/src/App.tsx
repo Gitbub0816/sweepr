@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 import { Routes, Route, Navigate } from "react-router-dom";
 import { LandingPage } from "./pages/LandingPage";
 import { CleanerView } from "./pages/CleanerView";

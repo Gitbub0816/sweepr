@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 026: Row-Level Security (defense in depth)
 --
 -- Authorization in Sweepr is enforced at the application layer: every API

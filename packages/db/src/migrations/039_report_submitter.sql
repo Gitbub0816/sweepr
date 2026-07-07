@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 039: log the in-app submitter on security tickets + report source.
 ALTER TABLE security_tickets
   ADD COLUMN IF NOT EXISTS reporter_clerk_id TEXT,

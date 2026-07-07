@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 // PostHog client wrapper — consent-gated, only initializes once.
 // Reads from import.meta.env.VITE_POSTHOG_KEY and VITE_POSTHOG_HOST.
 //

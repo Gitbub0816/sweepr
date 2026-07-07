@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Demo sessions table for day-of-service flow testing.
 -- Controlled by SEED_BOOL API env var — never used in production.
 CREATE TABLE IF NOT EXISTS dos_test_sessions (

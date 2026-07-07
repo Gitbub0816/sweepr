@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 076: add cleaners.updated_at.
 --
 -- The cleaners table was created (001) with only created_at, but many write

@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
 -- Migration 058: Scope review engine foundation.
 --
 -- Schema for the cleaning-level / scope-review-request system: cleaners can

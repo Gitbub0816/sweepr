@@ -1,3 +1,7 @@
+> Copyright © 2026–Present ClearKey Solutions, LLC.
+> Proprietary & Confidential.
+> Internal Use Only.
+
 # 08 · Payments & Earnings
 
 > 🟡 This chapter documents the current model and intended behavior. Where

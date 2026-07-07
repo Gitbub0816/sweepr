@@ -1,3 +1,13 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
 export const PLATFORM_FEE_PERCENT = 0.2; // 20% platform fee
 export const CLEANER_PAYOUT_PERCENT = 0.8; // 80% to cleaner
 export const SERVICE_FEE_PERCENT = 0.1; // 10% service fee to customer

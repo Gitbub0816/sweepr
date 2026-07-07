@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+#
+# Copyright © 2026–Present ClearKey Solutions, LLC.
+# All Rights Reserved.
+#
+
 # =============================================================================
 # Sweepr — First-time Cloudflare deployment
 #
