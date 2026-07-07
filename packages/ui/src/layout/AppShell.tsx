@@ -10,7 +10,7 @@
 
 import { useState, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
-import { Menu, X, type LucideIcon } from "lucide-react";
+import { Menu, X, ChevronDown, ChevronRight, type LucideIcon } from "lucide-react";
 import { cn } from "@sweepr/utils";
 import { ThemeToggle } from "./ThemeToggle";
 import { SweeprLogo } from "../assets/SweeprLogo";
@@ -24,21 +24,79 @@ export interface NavItem {
   badge?: number;
 }
 
+export interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
 export interface AppShellProps {
   brand: string;
-  nav: NavItem[];
+  nav?: NavItem[];
+  navGroups?: NavGroup[];
   children: ReactNode;
   headerRight?: ReactNode;
   accent?: string;
 }
 
+function readCollapsed(storageKey: string): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (raw) return JSON.parse(raw) as Record<string, boolean>;
+  } catch {
+    /* localStorage unavailable — start expanded */
+  }
+  return {};
+}
+
 export function AppShell({
   brand,
   nav,
+  navGroups,
   children,
   headerRight,
 }: AppShellProps) {
   const [open, setOpen] = useState(false);
+  const storageKey = `sweepr-nav-collapsed:${brand}`;
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() =>
+    readCollapsed(storageKey),
+  );
+
+  function toggleGroup(label: string) {
+    setCollapsed((prev) => {
+      const next = { ...prev, [label]: !prev[label] };
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(next));
+      } catch {
+        /* persistence is best-effort */
+      }
+      return next;
+    });
+  }
+
+  const renderItem = (item: NavItem) => (
+    <NavLink
+      key={item.to}
+      to={item.to}
+      end={item.end}
+      onClick={() => setOpen(false)}
+      className={({ isActive }) =>
+        cn(
+          "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+          isActive
+            ? "bg-seafoam-50 text-seafoam-700 dark:bg-seafoam-900/30 dark:text-seafoam-300"
+            : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+        )
+      }
+    >
+      <item.icon className="h-4 w-4 flex-shrink-0" />
+      {item.label}
+      {typeof item.badge === "number" && item.badge > 0 && (
+        <span className="ml-auto flex h-5 min-w-[1.25rem] flex-shrink-0 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-semibold leading-none text-white">
+          {item.badge > 9 ? "9+" : item.badge}
+        </span>
+      )}
+    </NavLink>
+  );
 
   const sidebar = (
     <nav className="flex h-full flex-col p-4 overflow-y-auto">
@@ -48,32 +106,37 @@ export function AppShell({
           <p className="mt-0.5 text-[11px] text-slate-600">{brand}</p>
         </div>
       </div>
-      <div className="flex flex-col gap-1">
-        {nav.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            onClick={() => setOpen(false)}
-            className={({ isActive }) =>
-              cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-seafoam-50 text-seafoam-700 dark:bg-seafoam-900/30 dark:text-seafoam-300"
-                  : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-              )
-            }
-          >
-            <item.icon className="h-4 w-4 flex-shrink-0" />
-            {item.label}
-            {typeof item.badge === "number" && item.badge > 0 && (
-              <span className="ml-auto flex h-5 min-w-[1.25rem] flex-shrink-0 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-semibold leading-none text-white">
-                {item.badge > 9 ? "9+" : item.badge}
-              </span>
-            )}
-          </NavLink>
-        ))}
-      </div>
+      {navGroups ? (
+        <div className="flex flex-col gap-1">
+          {navGroups.map((group) => {
+            const isCollapsed = !!collapsed[group.label];
+            return (
+              <div key={group.label} className="mb-1">
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.label)}
+                  aria-expanded={!isCollapsed}
+                  className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-300"
+                >
+                  {group.label}
+                  {isCollapsed ? (
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  ) : (
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  )}
+                </button>
+                {!isCollapsed && (
+                  <div className="flex flex-col gap-0.5">
+                    {group.items.map(renderItem)}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1">{(nav ?? []).map(renderItem)}</div>
+      )}
     </nav>
   );
 

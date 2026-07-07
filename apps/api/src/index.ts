@@ -11,6 +11,7 @@
 import { Hono } from "hono";
 import { buildCorsMiddleware } from "./middleware/cors";
 import { securityHeaders } from "./middleware/securityHeaders";
+import { ipBlocklist } from "./middleware/blocklist";
 import { rateLimit } from "./middleware/rateLimit";
 import { authRouter } from "./routes/auth";
 import { bookingsRouter } from "./routes/bookings";
@@ -156,6 +157,10 @@ async function captureBodySnippet(c: { req: { header: (n: string) => string | un
 
 // Security headers run first so they apply to every response.
 app.use("*", securityHeaders);
+
+// Blocked IPs are rejected before any other work happens (60s cached per
+// isolate, fails open on DB errors).
+app.use("*", ipBlocklist);
 
 // Request logging (non-fatal, never blocks).
 app.use("*", requestLogger());

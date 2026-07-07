@@ -260,12 +260,12 @@ export function DashboardPage() {
                 <table className="w-full text-left text-sm">
                   <thead className="text-xs uppercase text-slate-600">
                     <tr>
-                      <th className="py-2 pr-4">Booking</th>
-                      <th className="py-2 pr-4">Service</th>
-                      <th className="py-2 pr-4">Customer</th>
-                      <th className="py-2 pr-4">Cleaner</th>
-                      <th className="py-2 pr-4">Scheduled</th>
-                      <th className="py-2 pr-4">Status</th>
+                      <th className="whitespace-nowrap py-2 pr-4">Booking</th>
+                      <th className="whitespace-nowrap py-2 pr-4">Service</th>
+                      <th className="whitespace-nowrap py-2 pr-4">Customer</th>
+                      <th className="whitespace-nowrap py-2 pr-4">Cleaner</th>
+                      <th className="whitespace-nowrap py-2 pr-4">Scheduled</th>
+                      <th className="whitespace-nowrap py-2 pr-4">Status</th>
                     </tr>
                   </thead>
                   <tbody>

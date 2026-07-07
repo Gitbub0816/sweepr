@@ -560,30 +560,32 @@ function SettingsTab() {
       <div className="rounded-xl border border-slate-200 p-6 space-y-4">
         <h3 className="font-semibold text-slate-800">Settings Audit Trail</h3>
         {auditData?.rows && auditData.rows.length > 0 ? (
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-slate-100 text-left text-slate-500">
-                <th className="pb-2 pr-4">Actor</th>
-                <th className="pb-2 pr-4">Setting</th>
-                <th className="pb-2 pr-4">Old</th>
-                <th className="pb-2 pr-4">New</th>
-                <th className="pb-2 pr-4">Reason</th>
-                <th className="pb-2">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {auditData.rows.map((r) => (
-                <tr key={r.id} className="border-b border-slate-50">
-                  <td className="py-2 pr-4 font-medium">{r.actor_name}</td>
-                  <td className="py-2 pr-4 font-mono">{r.setting_name}</td>
-                  <td className="py-2 pr-4 text-red-600">{r.old_value ?? "—"}</td>
-                  <td className="py-2 pr-4 text-green-600">{r.new_value ?? "—"}</td>
-                  <td className="py-2 pr-4 text-slate-500">{r.reason ?? "—"}</td>
-                  <td className="py-2 text-slate-600">{new Date(r.created_at).toLocaleDateString()}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-slate-100 text-left text-slate-500">
+                  <th className="whitespace-nowrap pb-2 pr-4">Actor</th>
+                  <th className="whitespace-nowrap pb-2 pr-4">Setting</th>
+                  <th className="whitespace-nowrap pb-2 pr-4">Old</th>
+                  <th className="whitespace-nowrap pb-2 pr-4">New</th>
+                  <th className="whitespace-nowrap pb-2 pr-4">Reason</th>
+                  <th className="whitespace-nowrap pb-2">Date</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {auditData.rows.map((r) => (
+                  <tr key={r.id} className="border-b border-slate-50">
+                    <td className="whitespace-nowrap py-2 pr-4 font-medium">{r.actor_name}</td>
+                    <td className="whitespace-nowrap py-2 pr-4 font-mono">{r.setting_name}</td>
+                    <td className="whitespace-nowrap py-2 pr-4 text-red-600">{r.old_value ?? "—"}</td>
+                    <td className="whitespace-nowrap py-2 pr-4 text-green-600">{r.new_value ?? "—"}</td>
+                    <td className="py-2 pr-4 text-slate-500">{r.reason ?? "—"}</td>
+                    <td className="whitespace-nowrap py-2 text-slate-600">{new Date(r.created_at).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <p className="text-sm text-slate-600">No changes recorded yet.</p>
         )}
