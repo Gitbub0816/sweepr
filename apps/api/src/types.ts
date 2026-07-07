@@ -59,6 +59,11 @@ export interface Env {
   MAILERSEND_UPDATES_INBOUND_SECRET?: string;
   MAILERSEND_HELP_INBOUND_SECRET?: string;
   MAILERSEND_ALERTS_INBOUND_SECRET?: string;
+  // Consolidated mailbox routing: the six shared boxes are served by two
+  // combined MailerSend routes that each forward to the single /mail/inbound
+  // dispatcher; one signing secret per combined route.
+  MAILERSEND_INBOUND_SECRET_1?: string;
+  MAILERSEND_INBOUND_SECRET_2?: string;
   // MailerSend outbound event webhook signing secret.
   MAILERSEND_WEBHOOK_SECRET?: string;
   ANTHROPIC_API_KEY?: string;
