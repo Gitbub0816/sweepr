@@ -41,3 +41,12 @@ body {
   /* iOS momentum scrolling for a native feel in scroll containers. */
   body { -webkit-overflow-scrolling: touch; }
 }
+
+/* Tables never wrap mid-word: 'anywhere' collapses table columns to their
+   letter-width min-content, stacking headers/cells vertically. Wide tables
+   scroll horizontally inside their overflow-x-auto containers instead. */
+table th,
+table td {
+  overflow-wrap: normal;
+}
+

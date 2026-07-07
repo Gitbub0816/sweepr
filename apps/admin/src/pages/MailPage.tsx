@@ -403,30 +403,32 @@ export function MailPage() {
           {grants.length === 0 ? (
             <p className="text-sm text-slate-600">No per-admin grants yet.</p>
           ) : (
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-xs uppercase text-slate-600 dark:border-slate-700">
-                  <th scope="col" className="py-2">Admin</th>
-                  <th scope="col" className="py-2">Mailbox</th>
-                  <th scope="col" className="py-2">Granted by</th>
-                  <th scope="col" className="py-2" />
-                </tr>
-              </thead>
-              <tbody>
-                {grants.map((g) => (
-                  <tr key={g.id} className="border-b border-slate-100 dark:border-slate-800">
-                    <td className="py-2">{g.email}</td>
-                    <td className="py-2">{g.mailbox}@getsweepr.com</td>
-                    <td className="py-2 text-slate-600">{g.granted_by_email ?? "—"}</td>
-                    <td className="py-2 text-right">
-                      <button onClick={() => void removeGrant(g.id)} className="text-red-500 hover:text-red-700" title="Revoke">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-xs uppercase text-slate-600 dark:border-slate-700">
+                    <th scope="col" className="whitespace-nowrap py-2">Admin</th>
+                    <th scope="col" className="whitespace-nowrap py-2">Mailbox</th>
+                    <th scope="col" className="whitespace-nowrap py-2">Granted by</th>
+                    <th scope="col" className="py-2" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {grants.map((g) => (
+                    <tr key={g.id} className="border-b border-slate-100 dark:border-slate-800">
+                      <td className="whitespace-nowrap py-2">{g.email}</td>
+                      <td className="whitespace-nowrap py-2">{g.mailbox}@getsweepr.com</td>
+                      <td className="whitespace-nowrap py-2 text-slate-600">{g.granted_by_email ?? "—"}</td>
+                      <td className="py-2 text-right">
+                        <button onClick={() => void removeGrant(g.id)} className="text-red-500 hover:text-red-700" title="Revoke">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </Card>
       )}

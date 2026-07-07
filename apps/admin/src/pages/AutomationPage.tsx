@@ -187,17 +187,17 @@ export function AutomationPage() {
       {queue.length > 0 && (
         <div>
           <h2 className="text-sm font-semibold text-slate-600 mb-2">Active Assignment Queue ({queue.length})</h2>
-          <div className="rounded-xl border border-slate-200 overflow-hidden">
+          <div className="rounded-xl border border-slate-200 overflow-x-auto">
             <table className="w-full text-xs">
               <thead className="bg-slate-50 text-slate-500 uppercase tracking-wide">
                 <tr>
-                  <th className="px-3 py-2 text-left">Booking</th>
-                  <th className="px-3 py-2 text-left">Service</th>
-                  <th className="px-3 py-2 text-left">Scheduled</th>
-                  <th className="px-3 py-2 text-left">Cleaner</th>
-                  <th className="px-3 py-2 text-right">Score</th>
-                  <th className="px-3 py-2 text-left">Status</th>
-                  <th className="px-3 py-2 text-left">Expires</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-left">Booking</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-left">Service</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-left">Scheduled</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-left">Cleaner</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-right">Score</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-left">Status</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-left">Expires</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -223,18 +223,18 @@ export function AutomationPage() {
       {/* Recent runs */}
       <div>
         <h2 className="text-sm font-semibold text-slate-600 mb-2">Recent Automation Runs</h2>
-        <div className="rounded-xl border border-slate-200 overflow-hidden">
+        <div className="rounded-xl border border-slate-200 overflow-x-auto">
           {(dashboard?.recentRuns?.length ?? 0) === 0 ? (
             <div className="px-4 py-6 text-center text-sm text-slate-600">No runs yet.</div>
           ) : (
             <table className="w-full text-xs">
               <thead className="bg-slate-50 text-slate-500 uppercase tracking-wide">
                 <tr>
-                  <th className="px-3 py-2 text-left">Job</th>
-                  <th className="px-3 py-2 text-left">Triggered by</th>
-                  <th className="px-3 py-2 text-left">Status</th>
-                  <th className="px-3 py-2 text-left">Started</th>
-                  <th className="px-3 py-2 text-right">Duration</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-left">Job</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-left">Triggered by</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-left">Status</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-left">Started</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-right">Duration</th>
                   <th className="px-3 py-2" />
                 </tr>
               </thead>
