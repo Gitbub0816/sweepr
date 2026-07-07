@@ -132,6 +132,14 @@ statusRouter.get("/", async (c) => {
   }
 });
 
+statusRouter.get("/components", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const { getComponentStatus } = await import("../lib/statusChecks");
+  const components = await getComponentStatus(sql);
+  c.header("Cache-Control", "public, max-age=60");
+  return c.json({ components });
+});
+
 statusRouter.post(
   "/subscribe",
   zValidator(

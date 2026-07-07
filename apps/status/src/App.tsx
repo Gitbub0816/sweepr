@@ -58,6 +58,16 @@ interface StatusData {
   maintenance: MaintenanceWindow[];
 }
 
+interface ComponentStatus {
+  key: string;
+  label: string;
+  ok: boolean | null;
+  latencyMs: number | null;
+  checkedAt: string | null;
+  uptime90: number | null;
+  days: Array<{ date: string; pct: number }>;
+}
+
 const STATUS_COLORS: Record<IncidentStatus, string> = {
   investigating: "bg-yellow-100 text-yellow-800 border border-yellow-200",
   identified: "bg-orange-100 text-orange-800 border border-orange-200",
@@ -77,6 +87,46 @@ function StatusBadge({ text, className }: { text: string; className: string }) {
     <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${className}`}>
       {text}
     </span>
+  );
+}
+
+function UptimeBar({ days }: { days: Array<{ date: string; pct: number }> }) {
+  const cells = days.slice(-90);
+  return (
+    <div className="flex h-6 items-end gap-[2px]" aria-hidden="true">
+      {cells.map((d) => (
+        <div
+          key={d.date}
+          title={`${d.date}: ${d.pct.toFixed(1)}% up`}
+          className={`w-[3px] rounded-sm ${d.pct >= 99 ? "h-6 bg-green-400" : d.pct >= 90 ? "h-6 bg-yellow-400" : "h-6 bg-red-400"}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ComponentRow({ c }: { c: ComponentStatus }) {
+  const state = c.ok === null ? "unknown" : c.ok ? "operational" : "down";
+  const chip =
+    state === "operational"
+      ? "bg-green-100 text-green-800 border border-green-200"
+      : state === "down"
+        ? "bg-red-100 text-red-800 border border-red-200"
+        : "bg-slate-100 text-slate-600 border border-slate-200";
+  return (
+    <div className="flex flex-col gap-2 border-b border-slate-100 py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium text-slate-800">{c.label}</p>
+        <p className="text-xs text-slate-500">
+          {c.uptime90 !== null ? `${c.uptime90.toFixed(2)}% uptime (90d)` : "collecting data…"}
+          {c.latencyMs !== null && c.ok ? ` · ${c.latencyMs}ms` : ""}
+        </p>
+      </div>
+      <div className="flex items-center gap-3">
+        <UptimeBar days={c.days} />
+        <StatusBadge text={state} className={chip} />
+      </div>
+    </div>
   );
 }
 
@@ -228,12 +278,15 @@ function NewsletterSection() {
 
 export default function App() {
   const [data, setData] = useState<StatusData | null>(null);
+  const [components, setComponents] = useState<ComponentStatus[]>([]);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function fetchStatus() {
     try {
       const res = await fetch(`${API_URL}/status`);
       if (res.ok) setData(await res.json() as StatusData);
+      const cres = await fetch(`${API_URL}/status/components`);
+      if (cres.ok) setComponents(((await cres.json()) as { components: ComponentStatus[] }).components);
     } catch {
       // network error — keep showing previous data
     }
@@ -302,6 +355,16 @@ export default function App() {
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Maintenance in Progress</h2>
             <div className="space-y-3">
               {activeMaintenance.map((m) => <MaintenanceCard key={m.id} window={m} />)}
+            </div>
+          </section>
+        )}
+
+        {/* Component health */}
+        {components.length > 0 && (
+          <section className="mb-8">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Components</h2>
+            <div className="rounded-xl border border-slate-200 bg-white px-4 py-1 shadow-sm">
+              {components.map((c) => <ComponentRow key={c.key} c={c} />)}
             </div>
           </section>
         )}
