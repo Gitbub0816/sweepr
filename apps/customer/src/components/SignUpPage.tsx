@@ -117,11 +117,16 @@ export function SignUpPage() {
       const result = method === "email"
         ? await signUp.attemptEmailAddressVerification({ code })
         : await signUp.attemptPhoneNumberVerification({ code });
+      console.log("Verification result:", { status: result.status, has_session: !!result.createdSessionId, keys: Object.keys(result) });
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
         navigate(redirectTo);
+      } else {
+        console.warn("Unexpected status after verification:", result.status);
+        setError(`Verification incomplete. Status: ${result.status}`);
       }
     } catch (err: unknown) {
+      console.error("Verification error:", err);
       setError((err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? t("auth.invalidCode"));
     } finally { setLoading(false); }
   }
