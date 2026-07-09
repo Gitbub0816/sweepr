@@ -261,7 +261,10 @@ export function yardstikClient(env: {
   YARDSTIK_ACCOUNT_PACKAGE_ID?: string;
   YARDSTIK_API_URL?: string;
 }) {
-  const packageId = env.YARDSTIK_ACCOUNT_PACKAGE_ID ?? "";
+  // Trim wrapping quotes / stray whitespace a dashboard or `wrangler secret
+  // put` paste can leave on the value — an invisible trailing newline here
+  // otherwise produces a malformed account_package_id and a 422 from Yardstik.
+  const packageId = stripWrappingQuotes(env.YARDSTIK_ACCOUNT_PACKAGE_ID ?? "").trim();
   if (!env.YARDSTIK_API_KEY) return mockClient(packageId);
   return liveClient(env.YARDSTIK_API_KEY, packageId, stripWrappingQuotes(env.YARDSTIK_API_URL ?? "").trim() || undefined);
 }

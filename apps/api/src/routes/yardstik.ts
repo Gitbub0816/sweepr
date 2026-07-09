@@ -111,10 +111,16 @@ yardstikRouter.post("/invite", requireAuth, zValidator("json", inviteSchema), as
       statusCode: 502,
       clerkId: authUser.clerkId,
     });
+    // Surface the underlying Yardstik error to owner accounts only, so the
+    // integration can be debugged from the browser console without exposing
+    // internal API messages to ordinary cleaners.
+    const { isOwnerClerkId } = await import("../lib/owner");
+    const ownerDetail = isOwnerClerkId(authUser.clerkId, c.env) ? { detail } : {};
     return c.json(
       {
         error: "background_check_unavailable",
         message: "Could not start your background check. Please try again in a few minutes.",
+        ...ownerDetail,
       },
       502,
     );
