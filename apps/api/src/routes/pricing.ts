@@ -11,11 +11,16 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { calculatePrice, recurringDisplayPrice } from "@sweepr/utils";
+import { recurringDisplayPrice, getAddOn } from "@sweepr/utils";
+import { getDb } from "../lib/db";
+import { calculateBookingPrice, UnknownAddOnError } from "../lib/pricingEngine";
+import { resolveBookingPricing } from "../lib/resolvePricing";
+import { logger } from "../lib/logger";
 import type { AppBindings } from "../types";
 
 const quoteSchema = z.object({
   serviceType: z.enum([
+    "light",
     "standard",
     "deep",
     "move_in_out",
@@ -27,7 +32,7 @@ const quoteSchema = z.object({
   bathrooms: z.number().int().min(0).max(20),
   sqft: z.number().int().min(0).max(50000),
   homeType: z
-    .enum(["apartment", "house", "condo", "townhouse", "studio"])
+    .enum(["studio", "apartment", "house", "condo", "townhouse", "large_house"])
     .default("house"),
   hasPets: z.boolean().default(false),
   heavyMess: z.boolean().default(false),
@@ -38,31 +43,50 @@ const quoteSchema = z.object({
 
 export const pricingRouter = new Hono<AppBindings>();
 
-pricingRouter.post("/quote", zValidator("json", quoteSchema), (c) => {
+/**
+ * Public quote endpoint. Repointed off the orphaned `calculatePrice` engine
+ * (which always emitted subscription tiers and diverged from what bookings
+ * actually charge) onto the authoritative resolveBookingPricing path, with the
+ * legacy cents calculator as the fallback — the same precedence POST
+ * /bookings/quote uses. `calculatePrice` remains in use by subscriptions.ts and
+ * is intentionally left untouched. The customer only ever sees the display
+ * price (dollars); internal audit fields are never returned.
+ */
+pricingRouter.post("/quote", zValidator("json", quoteSchema), async (c) => {
   const input = c.req.valid("json");
+  const sql = getDb(c.env.DATABASE_URL);
 
-  const result = calculatePrice({
-    serviceType: input.serviceType,
-    homeType: input.homeType,
-    sqft: input.sqft,
-    bedrooms: input.bedrooms,
-    bathrooms: input.bathrooms,
-    addOnKeys: input.addOnKeys,
-    heavyMess: input.heavyMess,
-    hasPets: input.hasPets,
-    suppliesNeeded: input.suppliesNeeded,
-    isEmergency: input.isEmergency,
-  });
+  const unknown = input.addOnKeys.filter((k) => !getAddOn(k));
+  if (unknown.length > 0) {
+    return c.json({ error: "unknown_addon", message: `Unknown add-ons: ${unknown.join(", ")}` }, 400);
+  }
 
-  // The customer only ever sees the display price. Internal price, Stripe cost,
-  // rounding buffer, and the breakdown are intentionally NOT returned.
+  let totalCents: number;
+  try {
+    let resolved = null;
+    try {
+      resolved = await resolveBookingPricing(sql, input);
+    } catch (err) {
+      logger.error("resolveBookingPricing failed", err, {});
+    }
+    totalCents = resolved
+      ? resolved.breakdown.customer_total_cents
+      : calculateBookingPrice(input).totalPrice;
+  } catch (err) {
+    if (err instanceof UnknownAddOnError) {
+      return c.json({ error: "unknown_addon", message: err.message }, 400);
+    }
+    throw err;
+  }
+
+  const displayPrice = Math.round(totalCents) / 100;
   return c.json({
-    displayPrice: result.displayPrice,
+    displayPrice,
     isEmergency: input.isEmergency,
     subscriptionPrice: {
-      weekly: recurringDisplayPrice(result.displayPrice, "weekly"),
-      biweekly: recurringDisplayPrice(result.displayPrice, "biweekly"),
-      monthly: recurringDisplayPrice(result.displayPrice, "monthly"),
+      weekly: recurringDisplayPrice(displayPrice, "weekly"),
+      biweekly: recurringDisplayPrice(displayPrice, "biweekly"),
+      monthly: recurringDisplayPrice(displayPrice, "monthly"),
     },
   });
 });
