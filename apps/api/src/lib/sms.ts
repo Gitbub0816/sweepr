@@ -45,6 +45,80 @@ export type SmsMessageType =
   | "consent_confirmation"
   | "admin_alert";
 
+/**
+ * Message class per type. Every allowlisted type today is transactional and may
+ * be sent at any hour. A future marketing-class SMS type MUST be added here
+ * explicitly with class "marketing" — and marketing sends are then subject to
+ * the quiet-hours guard below (8am–9pm recipient-local). Any type NOT present
+ * in this map is treated as marketing (fail closed).
+ */
+export const SMS_MESSAGE_CLASS: Record<SmsMessageType, "transactional" | "marketing"> = {
+  account_verification: "transactional",
+  otp: "transactional",
+  mfa: "transactional",
+  login_verification: "transactional",
+  password_reset: "transactional",
+  booking_confirmation: "transactional",
+  cleaner_assigned: "transactional",
+  cleaner_arriving: "transactional",
+  cleaner_checked_in: "transactional",
+  cleaning_completed: "transactional",
+  receipt_available: "transactional",
+  cancellation: "transactional",
+  reschedule: "transactional",
+  customer_support: "transactional",
+  consent_confirmation: "transactional",
+  admin_alert: "transactional",
+};
+
+/** TCPA quiet-hours window (recipient-local): marketing only, 8am–9pm. */
+const QUIET_HOURS_START_HOUR = 8;
+const QUIET_HOURS_END_HOUR = 21; // 9pm
+
+/** Recipient-local hour (0–23) for `at` in the given IANA time zone. */
+function localHour(at: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    hour12: false,
+    timeZone,
+  }).formatToParts(at);
+  const h = Number(parts.find((p) => p.type === "hour")?.value ?? "NaN");
+  return h === 24 ? 0 : h; // some ICU builds emit 24 for midnight
+}
+
+/**
+ * Guard: transactional messages send at any hour (current behavior, unchanged).
+ * Marketing-class messages are blocked outside 8am–9pm recipient-local time and
+ * REQUIRE a recipient time zone to evaluate — if a marketing type is introduced
+ * without quiet-hours data, this throws (fail closed) rather than risk a
+ * TCPA-violating send. Throws on an invalid/unknown time zone for the same
+ * reason.
+ */
+export function assertQuietHoursAllowed(
+  type: SmsMessageType,
+  opts: { recipientTimeZone?: string; now?: Date } = {},
+): void {
+  const cls = SMS_MESSAGE_CLASS[type] ?? "marketing"; // unmapped → treat as marketing
+  if (cls === "transactional") return;
+
+  if (!opts.recipientTimeZone) {
+    throw new Error(
+      `sms: marketing-class message "${type}" requires recipientTimeZone for quiet-hours enforcement`,
+    );
+  }
+  let hour: number;
+  try {
+    hour = localHour(opts.now ?? new Date(), opts.recipientTimeZone);
+  } catch {
+    throw new Error(`sms: invalid recipientTimeZone "${opts.recipientTimeZone}" for quiet-hours check`);
+  }
+  if (Number.isNaN(hour) || hour < QUIET_HOURS_START_HOUR || hour >= QUIET_HOURS_END_HOUR) {
+    throw new Error(
+      `sms: marketing message "${type}" blocked outside quiet hours (recipient-local hour ${hour})`,
+    );
+  }
+}
+
 /** Carrier-required canned replies/confirmations. */
 export const SMS_MESSAGES = {
   optInConfirmation:
@@ -98,9 +172,12 @@ async function mailersendSmsSend(env: Env, to: string, body: string): Promise<vo
 export async function sendSms(
   env: Env,
   sql: Sql,
-  opts: { userId: string; to: string; type: SmsMessageType; body: string },
+  opts: { userId: string; to: string; type: SmsMessageType; body: string; recipientTimeZone?: string },
 ): Promise<void> {
   await assertSmsConsent(sql, opts.userId);
+  // Transactional types pass straight through; a future marketing type without
+  // quiet-hours data fails closed here before any send occurs.
+  assertQuietHoursAllowed(opts.type, { recipientTimeZone: opts.recipientTimeZone });
   await mailersendSmsSend(env, opts.to, opts.body);
   logger.info("sms: sent", { type: opts.type, userId: opts.userId });
 }

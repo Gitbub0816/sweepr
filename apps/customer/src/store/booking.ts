@@ -84,6 +84,25 @@ export interface BookingState {
   getQuote: () => ReturnType<typeof calculateQuote> | null;
 }
 
+/**
+ * Emergency = same or next calendar day. Computed from cloned, normalized
+ * local dates so we never mutate the caller's Date and so DST transitions
+ * (where a naive ms-subtraction is off by an hour) don't shift the day count.
+ * Server recomputes this authoritatively from scheduledAt; this is preview-only.
+ */
+function computeIsEmergency(iso: string | null): boolean {
+  if (!iso) return false;
+  const target = new Date(iso);
+  if (Number.isNaN(target.getTime())) return false;
+  const targetMidnight = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+  const now = new Date();
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = Math.round(
+    (targetMidnight.getTime() - todayMidnight.getTime()) / 86_400_000,
+  );
+  return days <= 1;
+}
+
 const defaultHome: HomeDetails = {
   bedrooms: 2,
   bathrooms: 1,

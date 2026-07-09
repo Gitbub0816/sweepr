@@ -68,9 +68,26 @@ describe("verifyYardstikSignature", () => {
 });
 
 describe("adverseActionEarliestDate", () => {
-  it("adds 7 calendar days to the pre-adverse timestamp", () => {
+  it("covers 5 business days plus a 2-day holiday buffer, skipping weekends", () => {
+    // 2026-07-01 is a Wednesday. +5 business days = Wed 2026-07-08
+    // (skips Sat 07-04 and Sun 07-05); +2 calendar buffer = 2026-07-10.
     const preAdverseAt = new Date("2026-07-01T00:00:00Z");
     const earliest = adverseActionEarliestDate(preAdverseAt);
-    expect(earliest.toISOString()).toBe("2026-07-08T00:00:00.000Z");
+    expect(earliest.toISOString()).toBe("2026-07-10T00:00:00.000Z");
+  });
+
+  it("always spans at least 5 business days regardless of start weekday", () => {
+    const isWeekend = (d: Date) => d.getUTCDay() === 0 || d.getUTCDay() === 6;
+    for (let i = 0; i < 7; i++) {
+      const start = new Date(Date.UTC(2026, 6, 1 + i, 0, 0, 0));
+      const earliest = adverseActionEarliestDate(start);
+      let businessDays = 0;
+      const cursor = new Date(start.getTime());
+      while (cursor.getTime() < earliest.getTime()) {
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+        if (!isWeekend(cursor)) businessDays++;
+      }
+      expect(businessDays).toBeGreaterThanOrEqual(5);
+    }
   });
 });

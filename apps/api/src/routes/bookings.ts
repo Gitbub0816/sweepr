@@ -284,6 +284,118 @@ function isDuplicateBookingViolation(err: unknown): boolean {
   return false;
 }
 
+/** Fully-assembled server pricing for a booking input. Shared by POST / and
+ *  POST /quote so the review-step preview and the actual charge are identical
+ *  (same engine, same level + emergency surcharges). */
+interface AssembledPricing {
+  engine: "rooms" | "rule" | "legacy";
+  baseTotalPrice: number;
+  basePrice: number;
+  addonsTotal: number;
+  feeCents: number;
+  taxCents: number;
+  cleanerPayout: number | null;
+  levelSurchargeCents: number;
+  emergencySurchargeCents: number;
+  isEmergency: boolean;
+  totalPrice: number;
+  lineItems: Array<{ label: string; cents: number }>;
+  resolved: ResolvedPricing | null;
+  roomPrice: Awaited<ReturnType<typeof roomConditionPricing>>;
+}
+
+/**
+ * Authoritative server-side pricing. Precedence: room-condition engine (Clean
+ * My Home flow) → active algorithmic rule → legacy calculator. Level surcharge
+ * (scope review) and the emergency/rush surcharge are layered on the resulting
+ * base total; both are computed on the grossed, charm-rounded customer total so
+ * the client preview (calculateQuote) tracks exactly.
+ */
+async function computeBookingPricing(
+  sql: ReturnType<typeof getDb>,
+  input: CreateInput,
+  now: Date = new Date(),
+): Promise<AssembledPricing> {
+  const roomPrice = await roomConditionPricing(sql, input);
+  const legacy = calculateBookingPrice(input);
+  let resolved: ResolvedPricing | null = null;
+  if (!roomPrice) {
+    try {
+      resolved = await resolveBookingPricing(sql, input);
+    } catch (err) {
+      logger.error("resolveBookingPricing failed", err, {});
+    }
+  }
+
+  const baseTotalPrice = roomPrice
+    ? roomPrice.totalCents
+    : resolved
+      ? resolved.breakdown.customer_total_cents
+      : legacy.totalPrice;
+  const basePrice = roomPrice ? roomPrice.baseCents : resolved ? resolved.breakdown.base_fee_cents : legacy.basePrice;
+  const addonsTotal = roomPrice ? roomPrice.addOnsCents : resolved ? resolved.breakdown.add_ons_total_cents : legacy.addonsTotal;
+  const feeCents = roomPrice ? roomPrice.feeCents : resolved ? 0 : legacy.serviceFee;
+  const taxCents = roomPrice ? roomPrice.taxCents : resolved ? 0 : legacy.tax;
+  const cleanerPayout = resolved ? resolved.breakdown.estimated_cleaner_payout_cents : null;
+
+  // Cleaning-level surcharge only applies to the legacy/rule paths — the
+  // room-condition engine prices dirtiness per-room directly.
+  const levelPcts = await loadLevelSurchargePcts(sql);
+  const levelSurchargeCents = roomPrice
+    ? 0
+    : computeLevelSurchargeCents(input.cleaningLevel, baseTotalPrice, levelPcts);
+
+  // Emergency/rush surcharge — computed from the schedule, never a client flag.
+  const isEmergency = isEmergencyBooking(input.scheduledAt, now);
+  const emergencySurchargeCents = isEmergency
+    ? Math.round(baseTotalPrice * EMERGENCY_SURCHARGE_RATE)
+    : 0;
+
+  const totalPrice = baseTotalPrice + levelSurchargeCents + emergencySurchargeCents;
+
+  const baseLineItems: Array<{ label: string; cents: number }> = roomPrice
+    ? roomPrice.lineItems
+    : resolved
+      ? resolved.breakdown.line_items
+      : [];
+  const lineItems = [
+    ...baseLineItems,
+    ...(levelSurchargeCents > 0 ? [{ label: "Cleaning level surcharge", cents: levelSurchargeCents }] : []),
+    ...(emergencySurchargeCents > 0 ? [{ label: "Rush fee", cents: emergencySurchargeCents }] : []),
+  ];
+
+  return {
+    engine: roomPrice ? "rooms" : resolved ? "rule" : "legacy",
+    baseTotalPrice,
+    basePrice,
+    addonsTotal,
+    feeCents,
+    taxCents,
+    cleanerPayout,
+    levelSurchargeCents,
+    emergencySurchargeCents,
+    isEmergency,
+    totalPrice,
+    lineItems,
+    resolved,
+    roomPrice,
+  };
+}
+
+/** JSON persisted to bookings.pricing_line_items_json for a given assembly. */
+function pricingLineItemsJson(p: AssembledPricing, input: CreateInput): string | null {
+  if (p.roomPrice) {
+    return JSON.stringify([...p.lineItems, { label: "rooms", rooms: input.rooms }]);
+  }
+  if (p.resolved) return JSON.stringify(p.lineItems);
+  return p.lineItems.length > 0 ? JSON.stringify(p.lineItems) : null;
+}
+
+/** Reject any add-on key not in the canonical @sweepr/utils catalogue. */
+function unknownAddOnKeys(keys: string[]): string[] {
+  return keys.filter((k) => !getAddOn(k));
+}
+
 // Customers may only cancel via the status endpoint.
 const statusSchema = z.object({
   status: z.enum(["cancelled_by_customer"]),
@@ -371,47 +483,36 @@ bookingsRouter.post(
     );
   }
 
-  // Server-side price calculation — client values are never trusted.
-  // Precedence: room-condition engine (Clean My Home flow, when `rooms` sent)
-  // → active algorithmic pricing rule → legacy calculator.
-  const roomPrice = await roomConditionPricing(sql, input);
-  const price = calculateBookingPrice(input);
-  let resolved = null;
-  if (!roomPrice) {
-    try {
-      resolved = await resolveBookingPricing(sql, input);
-    } catch (err) {
-      logger.error("resolveBookingPricing failed", err, {});
-    }
+  // Reject unknown add-on keys up front (all pricing paths) so a mismatched
+  // key surfaces a 400 rather than being silently priced at $0 downstream.
+  const unknownKeys = unknownAddOnKeys(input.addOnKeys);
+  if (unknownKeys.length > 0) {
+    return c.json(
+      { error: "unknown_addon", message: `Unknown add-ons: ${unknownKeys.join(", ")}` },
+      400,
+    );
   }
-  const baseTotalPrice = roomPrice
-    ? roomPrice.totalCents
-    : resolved
-      ? resolved.breakdown.customer_total_cents
-      : price.totalPrice;
-  const basePrice = roomPrice ? roomPrice.baseCents : resolved ? resolved.breakdown.base_fee_cents : price.basePrice;
-  const addonsTotal = roomPrice ? roomPrice.addOnsCents : resolved ? resolved.breakdown.add_ons_total_cents : price.addonsTotal;
-  const cleanerPayout = resolved ? resolved.breakdown.estimated_cleaner_payout_cents : null;
 
-  // Cleaning-level surcharge (scope review). The room-condition engine prices
-  // per-room conditions directly, so the level surcharge only applies to the
-  // legacy/rule paths — applying both would double-charge for dirtiness.
-  const levelPcts = await loadLevelSurchargePcts(sql);
-  const levelSurchargeCents = roomPrice
-    ? 0
-    : computeLevelSurchargeCents(input.cleaningLevel, baseTotalPrice, levelPcts);
-  const totalPrice = baseTotalPrice + levelSurchargeCents;
+  // Server-side price calculation — client values are never trusted. This is
+  // the SAME assembler POST /quote uses, so the review-step preview and the
+  // charge are identical (engine + level + emergency surcharges).
+  const p = await computeBookingPricing(sql, input);
+  const basePrice = p.basePrice;
+  const addonsTotal = p.addonsTotal;
+  const cleanerPayout = p.cleanerPayout;
+  const levelSurchargeCents = p.levelSurchargeCents;
+  const totalPrice = p.totalPrice;
+  const lineItemsJson = pricingLineItemsJson(p, input);
 
-  // When an arrival window was chosen, the scheduled instant is the booked
-  // date combined with the window's start time (UTC, matching how the rest
-  // of the matching/availability code reads scheduled_at). Falls back to the
-  // client-provided exact scheduledAt when no window is supplied, preserving
-  // full backward compatibility with older clients.
-  let effectiveScheduledAt = input.scheduledAt;
-  if (input.arrivalWindowStart) {
-    const datePart = new Date(input.scheduledAt).toISOString().slice(0, 10);
-    effectiveScheduledAt = `${datePart}T${input.arrivalWindowStart}:00.000Z`;
-  }
+  // When an arrival window was chosen, the scheduled instant is the customer's
+  // LOCAL booking date combined with the window's start time, interpreted at
+  // the customer's UTC offset (never a literal 'Z' on local wall-clock time).
+  // Falls back to the client-provided scheduledAt when no window is supplied.
+  const effectiveScheduledAt = computeArrivalInstant(
+    input.scheduledAt,
+    input.arrivalWindowStart,
+    input.timezoneOffsetMinutes,
+  );
 
   // Duplicate-submit guard: a partial unique index on
   // (customer_id, address_id, scheduled_at) for non-terminal bookings (see
@@ -432,15 +533,11 @@ bookingsRouter.post(
         ${customer.id}, ${input.addressId ?? null}, 'booked', ${input.serviceType},
         ${input.bedrooms}, ${input.bathrooms}, ${input.sqft}, ${input.homeType},
         ${effectiveScheduledAt}, ${basePrice}, ${addonsTotal},
-        ${roomPrice ? roomPrice.feeCents : resolved ? 0 : price.serviceFee},
-        ${roomPrice ? roomPrice.taxCents : resolved ? 0 : price.tax}, ${totalPrice}, ${input.notes ?? null},
+        ${p.feeCents},
+        ${p.taxCents}, ${totalPrice}, ${input.notes ?? null},
         ${input.cleaningLevel}, ${levelSurchargeCents},
-        ${resolved ? resolved.ruleId : null}, ${resolved ? resolved.ruleVersion : null},
-        ${roomPrice
-          ? JSON.stringify([...roomPrice.lineItems, { label: "rooms", rooms: input.rooms }])
-          : resolved
-            ? JSON.stringify(resolved.breakdown.line_items)
-            : null}, ${cleanerPayout},
+        ${p.resolved ? p.resolved.ruleId : null}, ${p.resolved ? p.resolved.ruleVersion : null},
+        ${lineItemsJson}, ${cleanerPayout},
         ${input.arrivalWindowStart ?? null}, ${input.arrivalWindowEnd ?? null}
       ) RETURNING *
     `) as BookingRow[];
@@ -463,7 +560,7 @@ bookingsRouter.post(
           -- concurrent submit, not the duplicate detection.
           AND address_id IS NOT DISTINCT FROM ${input.addressId ?? null}::uuid
           AND scheduled_at = ${effectiveScheduledAt}
-          AND status NOT IN ('cancelled_by_customer', 'cancelled_by_cleaner', 'cancelled', 'refunded')
+          AND status NOT IN ('cancelled_by_customer', 'cancelled_by_cleaner', 'refunded')
         LIMIT 1
       `) as BookingRow[];
       if (existingRows[0]) break;
@@ -482,13 +579,11 @@ bookingsRouter.post(
             bedrooms = ${input.bedrooms}, bathrooms = ${input.bathrooms},
             sqft = ${input.sqft}, home_type = ${input.homeType},
             base_price = ${basePrice}, addons_total = ${addonsTotal},
-            service_fee = ${roomPrice ? roomPrice.feeCents : resolved ? 0 : price.serviceFee},
-            tax = ${roomPrice ? roomPrice.taxCents : resolved ? 0 : price.tax},
+            service_fee = ${p.feeCents},
+            tax = ${p.taxCents},
             total_price = ${totalPrice}, cleaning_level = ${input.cleaningLevel},
             cleaning_level_surcharge_cents = ${levelSurchargeCents},
-            pricing_line_items_json = ${roomPrice
-              ? JSON.stringify([...roomPrice.lineItems, { label: "rooms", rooms: input.rooms }])
-              : resolved ? JSON.stringify(resolved.breakdown.line_items) : null},
+            pricing_line_items_json = ${lineItemsJson},
             notes = ${input.notes ?? null}, updated_at = NOW()
           WHERE id = ${existingRows[0].id}
           RETURNING *
@@ -509,7 +604,7 @@ bookingsRouter.post(
       previousTotalCents: 0,
       adjustmentCents: totalPrice,
       newTotalCents: totalPrice,
-      reason: `Initial quote (${input.cleaningLevel}); base ${baseTotalPrice}¢ + level surcharge ${levelSurchargeCents}¢`,
+      reason: `Initial quote (${input.cleaningLevel}); base ${p.baseTotalPrice}¢ + level surcharge ${levelSurchargeCents}¢ + rush ${p.emergencySurchargeCents}¢`,
       source: "system",
     });
   } catch (err) {
@@ -517,9 +612,9 @@ bookingsRouter.post(
   }
 
   // Persist the immutable quote snapshot and stamp it on the booking.
-  if (resolved) {
+  if (p.resolved) {
     try {
-      const quoteId = await storeQuoteSnapshot(sql, resolved, { customerId: customer.id, bookingId: created.id });
+      const quoteId = await storeQuoteSnapshot(sql, p.resolved, { customerId: customer.id, bookingId: created.id });
       await sql`UPDATE bookings SET pricing_quote_id = ${quoteId} WHERE id = ${created.id}`;
     } catch (err) {
       logger.error("storeQuoteSnapshot failed", err, { bookingId: created.id });
@@ -539,7 +634,7 @@ bookingsRouter.post(
     actorClerkId: c.get("user").clerkId,
     targetType: "booking",
     targetId: created.id,
-    metadata: { serviceType: input.serviceType, totalPrice: price.totalPrice },
+    metadata: { serviceType: input.serviceType, totalPrice },
     ipAddress: c.req.header("CF-Connecting-IP"),
     userAgent: c.req.header("User-Agent"),
     timestamp: new Date().toISOString(),
@@ -548,7 +643,7 @@ bookingsRouter.post(
   await serverTrack(c.env, "booking_confirmed", c.get("user").clerkId, {
     bookingId: created.id,
     serviceType: input.serviceType,
-    totalPrice: price.totalPrice,
+    totalPrice,
   });
 
   // Silent auto-assignment: rank cleaners and offer to the best match.
@@ -576,64 +671,39 @@ bookingsRouter.get("/", async (c) => {
   return c.json({ bookings });
 });
 
-/** Quote endpoint — returns server-calculated price without creating a booking. */
+/**
+ * Quote endpoint — returns the server-calculated price WITHOUT creating a
+ * booking, using the exact same assembler POST /bookings uses. `total`
+ * (dollars) at the top level is what the review step displays; it is guaranteed
+ * to equal the amount POST /bookings will charge for identical input (same
+ * engine, same level + emergency surcharges). Unknown add-on keys 400 here too.
+ */
 bookingsRouter.post("/quote", zValidator("json", createSchema), async (c) => {
   const input = c.req.valid("json");
   const sql = getDb(c.env.DATABASE_URL);
   const catalogue = getAddOnCatalogue();
-  const levelPcts = await loadLevelSurchargePcts(sql);
 
-  // Room-condition engine (Clean My Home flow) — authoritative when rooms sent.
-  // `total` (dollars) at the top level is what the review step displays; it must
-  // match the total POST /bookings will charge for the same input.
-  const roomPrice = await roomConditionPricing(sql, input);
-  if (roomPrice) {
-    return c.json({
-      total: roomPrice.totalCents / 100,
-      price: {
-        totalPrice: roomPrice.totalCents,
-        levelSurchargeCents: 0,
-        lineItems: roomPrice.lineItems,
-      },
-      catalogue,
-      engine: "rooms",
-    });
+  const unknownKeys = unknownAddOnKeys(input.addOnKeys);
+  if (unknownKeys.length > 0) {
+    return c.json(
+      { error: "unknown_addon", message: `Unknown add-ons: ${unknownKeys.join(", ")}` },
+      400,
+    );
   }
 
-  try {
-    const resolved = await resolveBookingPricing(sql, input);
-    if (resolved) {
-      // Algorithmic pricing active: expose only the customer total + line items.
-      const baseTotal = resolved.breakdown.customer_total_cents;
-      const levelSurchargeCents = computeLevelSurchargeCents(input.cleaningLevel, baseTotal, levelPcts);
-      const lineItems = [
-        ...resolved.breakdown.line_items,
-        ...(levelSurchargeCents > 0
-          ? [{ label: "Cleaning level surcharge", cents: levelSurchargeCents }]
-          : []),
-      ];
-      return c.json({
-        total: (baseTotal + levelSurchargeCents) / 100,
-        price: {
-          totalPrice: baseTotal + levelSurchargeCents,
-          levelSurchargeCents,
-          lineItems,
-          requiresCustomQuote: resolved.breakdown.requires_custom_quote,
-        },
-        catalogue,
-        engine: "rule",
-      });
-    }
-  } catch {
-    /* fall through to legacy */
-  }
-  const legacy = calculateBookingPrice(input);
-  const levelSurchargeCents = computeLevelSurchargeCents(input.cleaningLevel, legacy.totalPrice, levelPcts);
+  const p = await computeBookingPricing(sql, input);
   return c.json({
-    total: (legacy.totalPrice + levelSurchargeCents) / 100,
-    price: { ...legacy, levelSurchargeCents, totalPrice: legacy.totalPrice + levelSurchargeCents },
+    total: p.totalPrice / 100,
+    price: {
+      totalPrice: p.totalPrice,
+      levelSurchargeCents: p.levelSurchargeCents,
+      emergencySurchargeCents: p.emergencySurchargeCents,
+      isEmergency: p.isEmergency,
+      lineItems: p.lineItems,
+      requiresCustomQuote: p.resolved?.breakdown.requires_custom_quote ?? false,
+    },
     catalogue,
-    engine: "legacy",
+    engine: p.engine,
   });
 });
 
