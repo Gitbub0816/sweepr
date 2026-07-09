@@ -25,13 +25,13 @@ This monorepo (pnpm workspaces + Turbo) contains:
 | Path | What it is |
 | --- | --- |
 | `apps/marketing` | Public marketing site (getsweepr.com) |
-| `apps/customer` | Customer booking app (clean.getsweepr.com) |
-| `apps/cleaner` | Cleaner app + onboarding (service.getsweepr.com) |
-| `apps/admin` | Internal admin console |
+| `apps/customer` | Customer booking app (app.getsweepr.com) |
+| `apps/cleaner` | Cleaner app + onboarding (clean.getsweepr.com; also dashboard.getsweepr.com) |
+| `apps/admin` | Internal admin console (admin.getsweepr.com) |
 | `apps/api` | Hono API on Cloudflare Workers (api.getsweepr.com) |
 | `apps/legal` | Legal document site (legal.getsweepr.com) |
 | `apps/status` | Public status page (status.getsweepr.com) |
-| `apps/service` | Service worker app surface |
+| `apps/service` | Service demo surface (service.getsweepr.com) |
 | `packages/db` | Neon Postgres migrations + consolidated schema |
 | `packages/ui`, `packages/utils`, `packages/types` | Shared libraries |
 
