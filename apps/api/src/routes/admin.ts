@@ -273,11 +273,7 @@ adminRouter.patch("/applications/:id/approve", async (c) => {
             `You can now sign in to Sweepr to set your availability and start accepting jobs in your area. Welcome to the team!`,
           undefined,
           {
-            cta: {
-              label: "Open",
-              url: "https://clean.getsweepr.com",
-              icon: "https://objects.getsweepr.com/site_assets/public/Sweepr-logo.png",
-            },
+            cta: { label: "Open Sweepr", url: "https://clean.getsweepr.com" },
             preheader: "Your Sweepr application was approved — sign in to start accepting jobs.",
           },
         ),
