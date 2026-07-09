@@ -20,6 +20,7 @@ import {
   verifyYardstikSignature,
   adverseActionEarliestDate,
   mapReportStatus,
+  stripWrappingQuotes,
   type YardstikWebhookBody,
 } from "../lib/yardstik";
 import { adjudicateConsiderReport } from "../lib/adjudication";
@@ -198,15 +199,13 @@ const yardstikWebhookHandler = async (c: Context<AppBindings>) => {
   const rawBody = await c.req.text();
   const sig = c.req.header("x-yardstik-webhook-signature") ?? "";
 
-  const signingKey = c.env.YARDSTIK_WEBHOOK_SIGNATURE;
+  // The signing secret is a Yardstik API key literally named WEBHOOK_SIGNATURE
+  // (separate from the main API key). Trim wrapping quotes / whitespace a
+  // dashboard or wrangler paste can leave on it, or the HMAC never matches.
+  const signingKey = stripWrappingQuotes(c.env.YARDSTIK_WEBHOOK_SIGNATURE ?? "").trim();
   if (!signingKey) {
     logger.warn("Yardstik webhook: YARDSTIK_WEBHOOK_SIGNATURE not configured");
     return c.json({ error: "Webhook not configured" }, 503);
-  }
-  const valid = await verifyYardstikSignature(rawBody, sig, signingKey);
-  if (!valid) {
-    logger.warn("Yardstik webhook: invalid signature");
-    return c.json({ error: "Invalid signature" }, 401);
   }
 
   let payload: YardstikWebhookBody;
@@ -214,6 +213,17 @@ const yardstikWebhookHandler = async (c: Context<AppBindings>) => {
     payload = JSON.parse(rawBody) as YardstikWebhookBody;
   } catch {
     return c.json({ error: "Bad JSON" }, 400);
+  }
+
+  // Yardstik signs an SHA-256 HMAC hex digest of the body. Their own docs
+  // compute it over JSON.stringify(parsedBody); the raw wire bytes normally
+  // match that exactly, but fall back to the re-serialized form so a
+  // whitespace/formatting difference can't cause a false rejection.
+  let valid = await verifyYardstikSignature(rawBody, sig, signingKey);
+  if (!valid) valid = await verifyYardstikSignature(JSON.stringify(payload), sig, signingKey);
+  if (!valid) {
+    logger.warn("Yardstik webhook: invalid signature");
+    return c.json({ error: "Invalid signature" }, 401);
   }
 
   const sql = getDb(c.env.DATABASE_URL);

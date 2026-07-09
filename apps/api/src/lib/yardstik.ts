@@ -107,7 +107,7 @@ export interface YardstikWebhookBody {
   timestamp: string;
 }
 
-function stripWrappingQuotes(value: string): string {
+export function stripWrappingQuotes(value: string): string {
   const trimmed = value.trim();
   if (
     (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
