@@ -256,13 +256,15 @@ export const useBookingStore = create<BookingState>()(
     }),
 
   getQuote: () => {
-    const { serviceType, home, addOnKeys, isEmergency, cleaningLevel } = get();
+    const { serviceType, home, addOnKeys, scheduledFor, cleaningLevel } = get();
     if (!serviceType) return null;
+    // Recompute emergency from the schedule rather than trusting a persisted
+    // flag — a draft rehydrated a day later may no longer be same/next-day.
     const input: QuoteInput = {
       serviceType,
       home,
       addOnKeys,
-      isEmergency,
+      isEmergency: computeIsEmergency(scheduledFor),
       cleaningLevel: cleaningLevel ?? undefined,
     };
     return calculateQuote(input);
