@@ -60,9 +60,9 @@ Stable conventions live in root `/CLAUDE.md` — this file is state + recent wor
   rows). Admin CSP + deploy workflow carry the admin publishable key
   (`pk_live_Y2xlcmsuYWRtaW4uZ2V0c3dlZXByLmNvbSQ`).
 - 5 Clerk CNAMEs for `admin.getsweepr.com` added in Cloudflare (DNS-only).
-- **OPEN**: set Worker secrets `CLERK_ADMIN_SECRET_KEY` +
-  `CLERK_ADMIN_WEBHOOK_SECRET`; register the admin webhook; confirm Clerk
-  domain verification green; user rotates the temp keys shared during setup.
+- **DONE (2026-07-09)**: Worker secrets `CLERK_ADMIN_SECRET_KEY` +
+  `CLERK_ADMIN_WEBHOOK_SECRET` set and verified working; admin webhook
+  registered; admin sign-in (email+code) functional end to end.
 
 ### Email & SMS
 - `wrapBodyInTemplate` rewritten: branded, responsive, email-client-safe
@@ -116,18 +116,15 @@ Stable conventions live in root `/CLAUDE.md` — this file is state + recent wor
 ---
 
 ## Open items (in priority order)
-1. Clerk admin instance: two Worker secrets + webhook registration + domain
-   verify (see Auth above). Until then admin sign-in works but API calls from
-   the admin app will 401.
-2. Yardstik: embed decision (white-label ask vs self-hosted intake vs keep
+1. Yardstik: embed decision (white-label ask vs self-hosted intake vs keep
    fallback); production credential switch when account is credentialed.
-3. WCAG sweep after the dark-theme change.
-4. Sentry MCP setup with real DSNs (task #112, parked).
-5. Rotate anything shared in chat transcripts (temp Clerk keys, CF token —
+2. WCAG sweep after the dark-theme change.
+3. Sentry MCP setup with real DSNs (task #112, parked).
+4. Rotate anything shared in chat transcripts (temp Clerk keys, CF token —
    user said they'd revoke; verify).
-6. Pre-launch: rotate hardcoded prelaunch bypass code "0123"
+5. Pre-launch: rotate hardcoded prelaunch bypass code "0123"
    (PrelaunchGate.tsx); revoke stale test Clerk keys.
-7. Scheduled `broadcast_email` is English-only (no translation pass) — port
+6. Scheduled `broadcast_email` is English-only (no translation pass) — port
    the Broadcasts translation grouping if multilingual scheduled sends matter.
 
 ## Earlier sessions (condensed; details in git history)
