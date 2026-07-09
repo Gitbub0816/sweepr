@@ -80,8 +80,20 @@ export function BackgroundCheckStep({ n, getToken, onComplete, trainingComplete 
             "We couldn't start your background check right now. Please try again in a few minutes.",
         );
       }
-      const data = (await res.json()) as { invitationUrl: string; expiresAt: string };
-      setPhase({ kind: "embedded", invitationUrl: data.invitationUrl, expiresAt: data.expiresAt });
+      const data = (await res.json()) as {
+        invitationUrl?: string;
+        expiresAt?: string;
+        alreadyStarted?: boolean;
+        status?: ReportStatus;
+      };
+      // A cleaner who already ordered a report doesn't get a fresh apply URL
+      // (Yardstik blocks a duplicate within 30 days). The server reconciles the
+      // existing report and returns its status — show that instead of an iframe.
+      if (data.invitationUrl && data.expiresAt) {
+        setPhase({ kind: "embedded", invitationUrl: data.invitationUrl, expiresAt: data.expiresAt });
+      } else {
+        setPhase({ kind: "waiting", status: data.status ?? "pending" });
+      }
     } catch (err) {
       setPhase({
         kind: "error",

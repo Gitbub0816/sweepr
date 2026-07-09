@@ -74,13 +74,13 @@ yardstikRouter.post("/invite", requireAuth, zValidator("json", inviteSchema), as
     }
   }
 
-  const client = yardstikClient(c.env);
-
   const cleanerRows = (await sql`
-    SELECT id, yardstik_candidate_id FROM cleaners WHERE user_id = ${user.id} LIMIT 1
-  `) as { id: string; yardstik_candidate_id: string | null }[];
+    SELECT id, yardstik_candidate_id, yardstik_report_id
+    FROM cleaners WHERE user_id = ${user.id} LIMIT 1
+  `) as { id: string; yardstik_candidate_id: string | null; yardstik_report_id: string | null }[];
   let cleanerId = cleanerRows[0]?.id ?? null;
   const existingCandidateId = cleanerRows[0]?.yardstik_candidate_id ?? null;
+  const existingReportId = cleanerRows[0]?.yardstik_report_id ?? null;
 
   if (!cleanerId) {
     const inserted = (await sql`
@@ -89,6 +89,33 @@ yardstikRouter.post("/invite", requireAuth, zValidator("json", inviteSchema), as
       RETURNING id
     `) as { id: string }[];
     cleanerId = inserted[0].id;
+  }
+
+  const client = yardstikClient(c.env);
+
+  // If this cleaner already has a report, don't order a second one — Yardstik
+  // rejects a duplicate for the same candidate within 30 days. Instead, fetch
+  // the existing report's current status, reconcile our (possibly stale) DB
+  // copy, and either resume the hosted apply page or report the live status.
+  if (existingReportId) {
+    try {
+      const existing = await client.getReport(existingReportId);
+      const normalized = mapReportStatus(existing.status);
+      await sql`UPDATE cleaners SET yardstik_status = ${normalized} WHERE id = ${cleanerId}`;
+      const applyUrl = existing.meta?.apply ?? null;
+      // Only re-offer the apply page when the candidate hasn't submitted yet.
+      if (applyUrl && (existing.status === "created" || existing.status === "expired")) {
+        return c.json({
+          invitationUrl: applyUrl,
+          invitationId: existing.id,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        });
+      }
+      return c.json({ alreadyStarted: true, status: normalized, reportId: existing.id });
+    } catch (err) {
+      // If the lookup fails, fall through to the normal create path below.
+      logger.warn("yardstik/invite: existing-report lookup failed; ordering fresh", { err: String(err) });
+    }
   }
 
   let candidateId: string;
