@@ -250,6 +250,22 @@ paymentsRouter.post(
       return c.json({ error: "Cleaner has no payout account" }, 400);
     }
 
+    // Never pay a cleaner before the customer's funds have actually been
+    // captured. A payout transfer draws from the platform balance, so releasing
+    // it against an uncaptured (or failed) charge pays out money we never
+    // collected. Require a settled `payments` row for this booking first.
+    const capturedRows = (await sql`
+      SELECT 1 FROM payments
+      WHERE booking_id = ${bookingId} AND status IN ('captured', 'succeeded')
+      LIMIT 1
+    `) as Array<unknown>;
+    if (!capturedRows[0]) {
+      return c.json(
+        { error: "payment_not_captured", message: "Customer payment has not been captured for this booking yet." },
+        409,
+      );
+    }
+
     const feeSettings = await loadFeeSettings(sql);
     const cleanerTier = (cleaner as unknown as Record<string, unknown>).tier as string ?? "standard";
     const tierMultiplier = await getTierMultiplier(sql, cleanerTier);
@@ -257,13 +273,16 @@ paymentsRouter.post(
 
     // Atomic lock BEFORE calling Stripe: claim the payout row first so a
     // concurrent/retried request can't also pass this check and double-transfer.
+    // The blocked-status set ('processing','transferred','paid') is unified with
+    // the admin override path (adminPayouts.ts) so neither path can transfer
+    // while the other holds an in-flight or terminal claim.
     const existing = (await sql`
       SELECT id, status FROM payouts WHERE booking_id = ${bookingId} LIMIT 1
     `) as Array<{ id: string; status: string }>;
     if (existing[0]) {
       const claimed = (await sql`
         UPDATE payouts SET status = 'processing'
-        WHERE booking_id = ${bookingId} AND status NOT IN ('paid', 'processing')
+        WHERE booking_id = ${bookingId} AND status NOT IN ('paid', 'processing', 'transferred')
         RETURNING id
       `) as Array<{ id: string }>;
       if (!claimed[0]) {
@@ -282,12 +301,16 @@ paymentsRouter.post(
 
     let transfer;
     try {
-      transfer = await stripe.transfers.create({
-        amount: breakdown.cleanerPayout,
-        currency: "usd",
-        destination: cleaner.stripe_connect_id,
-        transfer_group: `booking_${bookingId}`,
-      });
+      transfer = await stripe.transfers.create(
+        {
+          amount: breakdown.cleanerPayout,
+          currency: "usd",
+          destination: cleaner.stripe_connect_id,
+          transfer_group: `booking_${bookingId}`,
+          metadata: { type: "payout", booking_id: bookingId },
+        },
+        { idempotencyKey: `payout_${bookingId}` },
+      );
     } catch (err) {
       // Release the claim so a legitimate retry isn't permanently blocked.
       await sql`
