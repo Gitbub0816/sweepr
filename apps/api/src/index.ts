@@ -32,6 +32,7 @@ import { yardstikRouter } from "./routes/yardstik";
 import { adjudicationRouter, adminAdjudicationRouter } from "./routes/adjudication";
 import { diditRouter, diditWebhookRouter } from "./routes/didit";
 import { clerkWebhookRouter } from "./routes/webhooks/clerk";
+import { clerkAdminWebhookRouter } from "./routes/webhooks/clerkAdmin";
 import { smsInboundRouter } from "./routes/smsInbound";
 import { localeRouter } from "./routes/locale";
 import { smsOptInRouter } from "./routes/smsOptIn";
@@ -360,6 +361,8 @@ app.route("/payments", paymentsRouter);
 app.route("/tips", tipsRouter);
 app.route("/webhooks/stripe", stripeWebhookRouter);
 app.route("/webhooks/clerk", clerkWebhookRouter);
+// Separate admin Clerk application (admin.getsweepr.com) — its own Svix secret.
+app.route("/webhooks/clerk-admin", clerkAdminWebhookRouter);
 app.route("/cleaners", cleanersRouter);
 // Cleaner self-service dashboard (separate from admin cleaners management).
 // Mounted under /cleaner-dashboard to avoid conflict with /cleaners admin routes.

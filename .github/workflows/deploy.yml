@@ -280,7 +280,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @sweepr/admin build
         env:
-          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+          # Admin console uses its OWN Clerk application (admin.getsweepr.com).
+          # Publishable keys are public; the literal fallback keeps the build
+          # correct without requiring the optional override secret.
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_ADMIN_PUBLISHABLE_KEY || 'pk_live_Y2xlcmsuYWRtaW4uZ2V0c3dlZXByLmNvbSQ' }}
           VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_PUBLIC_TOKEN }}
           VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
           VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}

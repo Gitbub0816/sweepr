@@ -17,6 +17,16 @@ export interface Env {
   SUPER_ADMIN_CLERK_IDS?: string;
   CLERK_SECRET_KEY: string;
   CLERK_PUBLISHABLE_KEY: string;
+  /**
+   * Secret key of the SEPARATE Clerk application serving the admin console
+   * (primary domain admin.getsweepr.com). Bearer tokens issued by
+   * clerk.admin.getsweepr.com are verified against this key instead of
+   * CLERK_SECRET_KEY, and the identity is mapped onto the canonical users row
+   * by verified email.
+   */
+  CLERK_ADMIN_SECRET_KEY?: string;
+  /** Svix signing secret (whsec_…) for the admin Clerk app's webhook endpoint. */
+  CLERK_ADMIN_WEBHOOK_SECRET?: string;
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
   MAILERSEND_API_KEY: string;

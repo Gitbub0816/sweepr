@@ -41,7 +41,7 @@ type VerifyResult =
   | { ok: true }
   | { ok: false; reason: string };
 
-async function verifyClerkWebhook(
+export async function verifyClerkWebhook(
   secret: string,
   body: string,
   svixId: string,

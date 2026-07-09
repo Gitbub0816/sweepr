@@ -49,8 +49,31 @@ async function fetchClerkEmail(
 }
 
 /**
+ * Read the unverified `iss` claim from a JWT so we can pick which Clerk
+ * instance's secret to verify against. This is ONLY used for routing — the
+ * token is still cryptographically verified with the chosen secret, so a
+ * forged issuer just selects a key it can never validate against.
+ */
+function unsafeIssuer(token: string): string {
+  try {
+    const payload = token.split(".")[1];
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    return (JSON.parse(json) as { iss?: string }).iss ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/**
  * Verifies the Clerk session JWT from the Authorization header and attaches
  * the user to the request context. Returns 401 when missing/invalid.
+ *
+ * Two Clerk applications are in play: the primary Sweepr instance
+ * (clerk.getsweepr.com — customers + cleaners) and a separate admin instance
+ * (clerk.admin.getsweepr.com — staff). Tokens are verified against the secret
+ * of whichever instance issued them. Admin-instance identities are then mapped
+ * onto the canonical users row by their Clerk-verified email, so roles, audit
+ * logs, and owner elevation keep working against one user record.
  *
  * Also upserts the user row in Neon on every request so the DB stays in sync
  * with Clerk automatically — no manual step needed when a new user signs up.
@@ -66,13 +89,16 @@ export const requireAuth = createMiddleware<AppBindings>(async (c, next) => {
   let clerkId: string;
   let email: string | undefined;
 
+  const adminKey = c.env.CLERK_ADMIN_SECRET_KEY;
+  const iss = unsafeIssuer(token);
+  const isAdminIssuer = Boolean(adminKey) && iss.includes("admin.getsweepr.com");
+
   try {
     const payload = await verifyToken(token, {
-      secretKey: c.env.CLERK_SECRET_KEY,
+      secretKey: isAdminIssuer ? (adminKey as string) : c.env.CLERK_SECRET_KEY,
     });
     clerkId = payload.sub;
     email = (payload as { email?: string }).email;
-    c.set("user", { clerkId, email });
   } catch {
     // Malformed/invalid/expired Bearer token — a real signal (unlike a
     // merely-missing token, which is just an unauthenticated probe). Record
@@ -81,6 +107,33 @@ export const requireAuth = createMiddleware<AppBindings>(async (c, next) => {
     captureFromContext(c, "auth_failure", "low", { reason: "invalid_or_expired_token" });
     return c.json({ error: "Invalid token" }, 401);
   }
+
+  // Admin-instance identity → canonical users row. The admin Clerk app has its
+  // own user pool with different user ids, so map by the Clerk-verified email:
+  // if a row already owns that email (the same human's primary-instance
+  // account), act as that row's clerk_id — do NOT relink or duplicate it.
+  if (isAdminIssuer) {
+    try {
+      const sql = getDb(c.env.DATABASE_URL);
+      const resolvedEmail =
+        email ?? (await fetchClerkEmail(clerkId, adminKey as string));
+      if (resolvedEmail) {
+        email = resolvedEmail;
+        const rows = (await sql`
+          SELECT clerk_id FROM users WHERE LOWER(email) = LOWER(${resolvedEmail}) LIMIT 1
+        `) as Array<{ clerk_id: string }>;
+        if (rows[0]?.clerk_id) {
+          clerkId = rows[0].clerk_id;
+        }
+        // No row: fall through with the admin-instance clerk_id — the sync
+        // block below (and owner self-heal) will create the row.
+      }
+    } catch {
+      /* mapping is best-effort; downstream role checks still gate access */
+    }
+  }
+
+  c.set("user", { clerkId, email });
 
   // Lazily sync the user row — non-fatal if it fails (e.g. DB temporarily down).
   try {
