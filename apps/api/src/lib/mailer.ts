@@ -71,7 +71,7 @@ export const EMAIL_BRAND = {
   pageBg: "#eef2f5", // page background behind the card
   cardBg: "#ffffff",
   hairline: "#e2e8f0", // slate-200 — dividers
-  logo: "https://getsweepr.com/logo.png",
+  logo: "https://objects.getsweepr.com/site_assets/public/Sweepr-logo.png",
 } as const;
 
 export interface EmailTemplateOptions {
