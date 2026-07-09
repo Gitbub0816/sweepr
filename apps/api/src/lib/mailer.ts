@@ -51,40 +51,128 @@ export const SENDERS = {
   ALERTS:    { email: "alerts@getsweepr.com",     name: "Sweepr Alerts" },
 } as const;
 
+/** Escape a string for safe interpolation into HTML text/attributes. */
+function esc(s: string): string {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/** Sweepr brand palette for emails. Kept in one place so every template matches. */
+export const EMAIL_BRAND = {
+  accent: "#0d9488", // teal-600 — Sweepr primary
+  accentDark: "#0f766e", // teal-700 — button hover/border
+  ink: "#0f172a", // slate-900 — headings
+  body: "#475569", // slate-600 — paragraph text
+  muted: "#94a3b8", // slate-400 — footer text
+  pageBg: "#eef2f5", // page background behind the card
+  cardBg: "#ffffff",
+  hairline: "#e2e8f0", // slate-200 — dividers
+  logo: "https://getsweepr.com/logo.png",
+} as const;
+
+export interface EmailTemplateOptions {
+  /**
+   * Marketing emails must carry a visible unsubscribe mechanism in the body
+   * (CAN-SPAM) — the List-Unsubscribe header alone is not sufficient.
+   */
+  unsubscribe?: boolean;
+  /** Primary call-to-action button rendered under the body. */
+  cta?: { label: string; url: string };
+  /** Inbox preview text (hidden in the body). Falls back to the subject. */
+  preheader?: string;
+  /** Accent color hex for the top bar + button. Defaults to Sweepr teal. */
+  accent?: string;
+  /** Small note rendered under the divider, above the standard footer. */
+  footerNote?: string;
+}
+
 /**
  * Wrap plain-text body paragraphs in the Sweepr branded email template.
- * Double newlines become paragraph breaks; single newlines become <br/>.
+ *
+ * Table-based, inline-CSS, and single-column so it renders consistently across
+ * email clients (Gmail, Outlook, Apple Mail) — no external CSS, flexbox, or
+ * grid, all of which email clients strip or ignore. Double newlines become
+ * paragraph breaks; single newlines become <br/>.
+ *
+ * Backward compatible: existing callers pass (subject, body) and get the
+ * upgraded look for free. Pass `cta`, `preheader`, `accent`, or `footerNote`
+ * via opts for richer transactional emails.
  */
 export function wrapBodyInTemplate(
   subject: string,
   body: string,
   lang?: string,
-  opts?: {
-    /**
-     * Marketing emails must carry a visible unsubscribe mechanism in the body
-     * (CAN-SPAM) — the List-Unsubscribe header alone is not sufficient.
-     */
-    unsubscribe?: boolean;
-  }
+  opts?: EmailTemplateOptions,
 ): string {
   const dir = lang === "ar" ? "rtl" : "ltr";
+  const accent = opts?.accent ?? EMAIL_BRAND.accent;
+  const preheader = (opts?.preheader ?? subject).trim();
+
   const paragraphs = body
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter(Boolean)
-    .map((p) => `<p style="font-size:15px;line-height:1.7;color:#444;margin:0 0 16px">${p.replace(/\n/g, "<br/>")}</p>`)
-    .join("\n  ");
+    .map(
+      (p) =>
+        `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:${EMAIL_BRAND.body}">${esc(p).replace(/\n/g, "<br/>")}</p>`,
+    )
+    .join("");
 
-  return `<div dir="${dir}" style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#111">
-  <img src="https://getsweepr.com/logo.png" alt="Sweepr" style="height:36px;margin-bottom:28px" />
-  <h1 style="font-size:22px;font-weight:700;margin:0 0 20px">${subject.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</h1>
-  ${paragraphs}
-  <a href="https://getsweepr.com" style="display:inline-block;background:#14b8a6;color:#fff;font-weight:600;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:14px;margin-top:8px">Visit Sweepr</a>
-  <hr style="margin:32px 0;border:none;border-top:1px solid #e5e7eb" />
-  <p style="font-size:12px;color:#6b7280;margin:0">You're receiving this from Sweepr.</p>${opts?.unsubscribe ? `
-  <p style="font-size:12px;color:#6b7280;margin:8px 0 0">Don't want these emails? <a href="https://api.getsweepr.com/unsubscribe" style="color:#0f766e;text-decoration:underline">Unsubscribe</a> at any time.</p>
-  <p style="font-size:12px;color:#6b7280;margin:8px 0 0">Sweepr · a ClearKey Solutions product · 832 B St #B, Hayward, CA 94541</p>` : ""}
-</div>`;
+  const ctaBlock = opts?.cta
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 4px">
+              <tr><td style="border-radius:8px;background:${accent}">
+                <a href="${esc(opts.cta.url)}" style="display:inline-block;padding:13px 28px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px">${esc(opts.cta.label)}</a>
+              </td></tr>
+            </table>`
+    : "";
+
+  const footerNoteBlock = opts?.footerNote
+    ? `<p style="margin:0 0 12px;font-size:13px;line-height:1.6;color:${EMAIL_BRAND.muted}">${esc(opts.footerNote)}</p>`
+    : "";
+
+  const unsubBlock = opts?.unsubscribe
+    ? `<p style="margin:10px 0 0;font-size:12px;line-height:1.6;color:${EMAIL_BRAND.muted}">Don't want these emails? <a href="https://api.getsweepr.com/unsubscribe" style="color:${EMAIL_BRAND.accentDark};text-decoration:underline">Unsubscribe</a> at any time.<br/>Sweepr · a ClearKey Solutions product · 832 B St #B, Hayward, CA 94541</p>`
+    : "";
+
+  return `<!DOCTYPE html>
+<html lang="${esc(lang ?? "en")}" dir="${dir}">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="color-scheme" content="light"/>
+<meta name="x-apple-disable-message-reformatting"/>
+<title>${esc(subject)}</title>
+</head>
+<body style="margin:0;padding:0;background:${EMAIL_BRAND.pageBg};-webkit-text-size-adjust:100%">
+<span style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;mso-hide:all">${esc(preheader)}</span>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${EMAIL_BRAND.pageBg}">
+  <tr><td align="center" style="padding:32px 16px">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:${EMAIL_BRAND.cardBg};border-radius:14px;overflow:hidden;border:1px solid ${EMAIL_BRAND.hairline}">
+      <tr><td style="height:4px;background:${accent};font-size:0;line-height:0">&nbsp;</td></tr>
+      <tr><td style="padding:36px 40px 40px" dir="${dir}">
+        <img src="${EMAIL_BRAND.logo}" alt="Sweepr" height="34" style="height:34px;display:block;margin:0 0 26px;border:0"/>
+        <h1 style="margin:0 0 20px;font-size:22px;line-height:1.3;font-weight:700;color:${EMAIL_BRAND.ink};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">${esc(subject)}</h1>
+        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">${paragraphs}</div>
+        ${ctaBlock}
+        <hr style="margin:32px 0 20px;border:0;border-top:1px solid ${EMAIL_BRAND.hairline}"/>
+        ${footerNoteBlock}
+        <p style="margin:0;font-size:12px;line-height:1.6;color:${EMAIL_BRAND.muted};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">You're receiving this because you have a Sweepr account.</p>
+        ${unsubBlock}
+      </td></tr>
+    </table>
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px">
+      <tr><td align="center" style="padding:18px 20px 0;font-size:11px;line-height:1.6;color:${EMAIL_BRAND.muted};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+        © ${new Date().getUTCFullYear()} ClearKey Solutions, LLC · <a href="https://getsweepr.com" style="color:${EMAIL_BRAND.muted};text-decoration:underline">getsweepr.com</a>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
 }
 
 /** Strip HTML tags and collapse whitespace for a plain-text alternative. */

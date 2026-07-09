@@ -13,7 +13,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { createClerkClient } from "@clerk/backend";
 import { getDb } from "../lib/db";
-import { sendEmail } from "../lib/mailer";
+import { sendEmail, wrapBodyInTemplate, SENDERS } from "../lib/mailer";
 import { requireAuth } from "../middleware/auth";
 import { requireAdmin } from "../middleware/adminRoles";
 import { yardstikClient } from "../lib/yardstik";
@@ -262,12 +262,21 @@ adminRouter.patch("/applications/:id/approve", async (c) => {
       // Non-fatal: DB is source of truth; Clerk sync can be retried.
     }
     try {
+      const approveSubject = "You're approved to clean with Sweepr!";
       await sendEmail(c.env.MAILERSEND_API_KEY, {
         to: user.email,
-        subject: "You're approved to clean with Sweepr!",
-        html: `<p>Congratulations${
-          cleaner.first_name ? ` ${cleaner.first_name}` : ""
-        } — your application has been approved. Sign in to start accepting jobs.</p>`,
+        subject: approveSubject,
+        from: SENDERS.DEFAULT,
+        html: wrapBodyInTemplate(
+          approveSubject,
+          `Congratulations${cleaner.first_name ? ` ${cleaner.first_name}` : ""} — your application to clean with Sweepr has been approved.\n\n` +
+            `You can now sign in to Sweepr Pro to set your availability and start accepting jobs in your area. Welcome to the team!`,
+          undefined,
+          {
+            cta: { label: "Open Sweepr Pro", url: "https://clean.getsweepr.com" },
+            preheader: "Your Sweepr Pro application was approved — sign in to start accepting jobs.",
+          },
+        ),
       });
     } catch {
       // Non-fatal.
@@ -320,12 +329,22 @@ adminRouter.patch(
         // Non-fatal.
       }
       try {
+        const rejectSubject = "Update on your Sweepr application";
         await sendEmail(c.env.MAILERSEND_API_KEY, {
           to: user.email,
-          subject: "Update on your Sweepr application",
-          html: `<p>Thank you for applying. Unfortunately we're unable to approve your application at this time.${
-            reason ? ` Reason: ${reason}` : ""
-          }</p>`,
+          subject: rejectSubject,
+          from: SENDERS.DEFAULT,
+          html: wrapBodyInTemplate(
+            rejectSubject,
+            `Thank you for your interest in cleaning with Sweepr and for taking the time to apply.\n\n` +
+              `After reviewing your application, we're unable to approve it at this time.${reason ? `\n\nReason: ${reason}` : ""}\n\n` +
+              `If you believe this was in error or your circumstances change, you're welcome to reach out to our support team.`,
+            undefined,
+            {
+              cta: { label: "Contact Support", url: "https://getsweepr.com/support" },
+              preheader: "An update on your Sweepr cleaner application.",
+            },
+          ),
         });
       } catch {
         // Non-fatal.
