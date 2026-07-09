@@ -16,6 +16,27 @@ import type { AppBindings } from "../types";
 // source of truth across Cloudflare's many isolates.
 const memory = new Map<string, { count: number; resetAt: number }>();
 
+/**
+ * Read the unverified `sub` (Clerk user id) claim from a Bearer token WITHOUT
+ * cryptographic verification. Safe here ONLY because per-user rate-limit keys
+ * combine it with the client IP (`${ip}:${sub}`): an attacker forging arbitrary
+ * subs still burns their own IP's bucket, so this can't be used to evict or
+ * spoof another user's counter. Returns undefined on any malformed input.
+ */
+function unverifiedSub(authHeader: string | undefined): string | undefined {
+  if (!authHeader?.startsWith("Bearer ")) return undefined;
+  const token = authHeader.slice("Bearer ".length);
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return undefined;
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    const sub = (JSON.parse(json) as { sub?: string }).sub;
+    return typeof sub === "string" && sub.length > 0 ? sub : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function rateLimit(opts: {
   limit: number;
   windowMs: number;
@@ -41,7 +62,26 @@ export function rateLimit(opts: {
       c.req.header("CF-Connecting-IP") ??
       c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ??
       "anon";
-    const identity = opts.by === "user" ? (c.get("user")?.clerkId ?? ip) : ip;
+    // Per-user buckets: prefer the authenticated user id set by requireAuth.
+    // But these limiters are registered globally in index.ts and run BEFORE the
+    // routers' requireAuth, so `c.get("user")` is almost always unset at this
+    // point. Rather than silently degrade to a pure-IP bucket (which lets one
+    // user on many IPs escape the per-user cap, and lumps every user behind a
+    // shared IP into one bucket), fall back to the token's unverified `sub`
+    // combined with the IP. Forging a sub only splits an attacker's OWN IP
+    // bucket, so it can't be abused to deny service to a real user.
+    let identity: string;
+    if (opts.by === "user") {
+      const clerkId = c.get("user")?.clerkId;
+      if (clerkId) {
+        identity = `u:${clerkId}`;
+      } else {
+        const sub = unverifiedSub(c.req.header("Authorization"));
+        identity = sub ? `${ip}:${sub}` : ip;
+      }
+    } else {
+      identity = ip;
+    }
     const route = new URL(c.req.url).pathname;
     const key = `rl:${opts.keyPrefix ?? route}:${identity}`;
     const now = Date.now();
