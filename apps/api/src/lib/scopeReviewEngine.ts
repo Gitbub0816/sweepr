@@ -358,17 +358,46 @@ async function approveRefusal(
   const previousTotal = booking.total_price ?? 0;
   const refusalFee = computeRefusalFeeCents(previousTotal, settings);
 
-  // Charge: manual-capture PI. Capture only the refusal fee if capturable.
+  // Charge: manual-capture PI. The amount actually retained by the platform may
+  // differ from the theoretical refusal fee:
+  //  - requires_capture: we can only capture up to the authorized amount, so if
+  //    the fee exceeds the authorization the effective fee is the authorization.
+  //  - succeeded (already captured at full total): we refund the excess above
+  //    the refusal fee, so the effective fee is the refusal fee (or the captured
+  //    amount if that is somehow smaller).
+  // `effectiveFee` is the true collected amount and is what we record on the
+  // ledger, the request row, and the payout ledger gross.
   let captured = false;
+  let effectiveFee = refusalFee;
   if (booking.stripe_payment_intent_id) {
     try {
       const pi = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id);
       if (pi.status === "requires_capture") {
+        const captureAmount = Math.min(refusalFee, pi.amount);
         await stripe.paymentIntents.capture(
           booking.stripe_payment_intent_id,
-          { amount_to_capture: Math.min(refusalFee, pi.amount) },
+          { amount_to_capture: captureAmount },
           { idempotencyKey: `refusal_${req.id}` },
         );
+        captured = true;
+        effectiveFee = captureAmount;
+      } else if (pi.status === "succeeded") {
+        // Full total was already captured (e.g. capture cron ran before the
+        // refusal was approved). Refund the customer the amount over the refusal
+        // fee instead of leaving it for manual follow-up.
+        const capturedAmount = pi.amount_received ?? pi.amount;
+        effectiveFee = Math.min(refusalFee, capturedAmount);
+        const refundAmount = capturedAmount - effectiveFee;
+        if (refundAmount > 0) {
+          await stripe.refunds.create(
+            {
+              payment_intent: booking.stripe_payment_intent_id,
+              amount: refundAmount,
+              reason: "requested_by_customer",
+            },
+            { idempotencyKey: `refusal_refund_${req.id}` },
+          );
+        }
         captured = true;
       }
     } catch (err) {
@@ -376,18 +405,18 @@ async function approveRefusal(
     }
   }
 
-  // Keep booking total, ledger and capture consistent: the refusal fee becomes
-  // the booking's authoritative total.
+  // Keep booking total, ledger and capture consistent: the effective refusal fee
+  // becomes the booking's authoritative total.
   await sql`
-    UPDATE bookings SET total_price = ${refusalFee}, updated_at = NOW() WHERE id = ${booking.id}
+    UPDATE bookings SET total_price = ${effectiveFee}, updated_at = NOW() WHERE id = ${booking.id}
   `;
   await recordLedgerEntry(sql, {
     bookingId: booking.id,
     eventType: "refusal_fee",
     previousTotalCents: previousTotal,
-    adjustmentCents: refusalFee - previousTotal,
-    newTotalCents: refusalFee,
-    reason: `Service refusal fee${input.note ? ` — ${input.note}` : ""}${captured ? "" : " (capture pending — manual follow-up)"}`,
+    adjustmentCents: effectiveFee - previousTotal,
+    newTotalCents: effectiveFee,
+    reason: `Service refusal fee${input.note ? ` — ${input.note}` : ""}${captured ? "" : " (capture pending — manual follow-up)"}${effectiveFee !== refusalFee ? ` (fee ${refusalFee} clamped to captured ${effectiveFee})` : ""}`,
     source: "cleaner_request",
     approvedBy: input.adminId,
     scopeReviewRequestId: req.id,
@@ -410,14 +439,15 @@ async function approveRefusal(
 
   await sql`
     UPDATE scope_review_requests
-    SET fee_code = 'refusal_fee', fee_amount_cents = ${refusalFee}, updated_at = NOW()
+    SET fee_code = 'refusal_fee', fee_amount_cents = ${effectiveFee}, updated_at = NOW()
     WHERE id = ${req.id}
   `;
 
   // Keep the payout ledger row (seeded at payment) in sync so the existing
-  // release-payout flow splits on the refusal fee, not the original total.
+  // release-payout flow splits on the actual collected refusal fee, not the
+  // original total.
   await sql`
-    UPDATE payout_ledger SET gross_amount_cents = ${refusalFee}, updated_at = NOW()
+    UPDATE payout_ledger SET gross_amount_cents = ${effectiveFee}, updated_at = NOW()
     WHERE booking_id = ${booking.id}
   `.catch(() => undefined);
 
@@ -431,10 +461,10 @@ async function approveRefusal(
     cleanerId: req.cleaner_id,
     requestType: "refusal",
     decision: "approved",
-    feeAmountCents: refusalFee,
+    feeAmountCents: effectiveFee,
   }).catch((err) => logger.error("notifyCleanerDecision failed", err, {}));
 
-  return refusalFee;
+  return effectiveFee;
 }
 
 async function escalateCustomer(

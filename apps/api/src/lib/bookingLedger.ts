@@ -145,6 +145,9 @@ export async function applyBookingPriceAdjustment(
 
   // Best-effort: keep the PaymentIntent amount in sync when it's still editable.
   let paymentIntentSynced = false;
+  // Set when an increase could not be collected on the existing authorization —
+  // the ledger entry is annotated and an admin-visible warning is logged.
+  let uncollectedIncrease = false;
   if (paymentIntentId && input.adjustmentCents !== 0) {
     try {
       const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
@@ -154,9 +157,29 @@ export async function applyBookingPriceAdjustment(
       ) {
         await stripe.paymentIntents.update(paymentIntentId, { amount: newTotal });
         paymentIntentSynced = true;
+      } else if (pi.status === "requires_capture" && input.adjustmentCents > 0) {
+        // Manual-capture auth already placed. Stripe won't let a plain update
+        // raise the amount above the authorized amount, but for supported cards
+        // `incrementAuthorization` can raise the held amount so the extra is
+        // actually collectable at capture. Card networks / issuers that don't
+        // support incremental authorizations reject this — in that case we keep
+        // the ledger entry but flag it so the shortfall is followed up manually.
+        try {
+          await stripe.paymentIntents.incrementAuthorization(paymentIntentId, { amount: newTotal });
+          paymentIntentSynced = true;
+        } catch (incErr) {
+          uncollectedIncrease = true;
+          logger.warn("applyBookingPriceAdjustment: incrementAuthorization failed — increase uncollected", {
+            bookingId: input.bookingId,
+            paymentIntentId,
+            newTotal,
+            adjustmentCents: input.adjustmentCents,
+            err: incErr instanceof Error ? incErr.message : String(incErr),
+          });
+        }
       }
-      // requires_capture: intentionally not updated here — see doc comment above.
-      // The capture cron collects min(newTotal, authorizedAmount).
+      // requires_capture DECREASE: intentionally not updated here — the capture
+      // cron collects min(newTotal, authorizedAmount).
     } catch (err) {
       logger.error("applyBookingPriceAdjustment: PI sync failed", err, {
         bookingId: input.bookingId,
@@ -165,13 +188,17 @@ export async function applyBookingPriceAdjustment(
     }
   }
 
+  const ledgerReason = uncollectedIncrease
+    ? `${input.reason ?? ""} [UNCOLLECTED: increase not authorized on existing PI — manual follow-up]`.trim()
+    : input.reason ?? null;
+
   const ledgerId = await recordLedgerEntry(sql, {
     bookingId: input.bookingId,
     eventType: input.eventType,
     previousTotalCents: previousTotal,
     adjustmentCents: input.adjustmentCents,
     newTotalCents: newTotal,
-    reason: input.reason ?? null,
+    reason: ledgerReason,
     source: input.source,
     approvedBy: input.approvedBy ?? null,
     scopeReviewRequestId: input.scopeReviewRequestId ?? null,
@@ -190,6 +217,7 @@ export async function applyBookingPriceAdjustment(
       newTotal,
       reason: input.reason ?? null,
       paymentIntentSynced,
+      uncollectedIncrease,
       scopeReviewRequestId: input.scopeReviewRequestId ?? null,
     },
     timestamp: new Date().toISOString(),

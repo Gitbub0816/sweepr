@@ -152,8 +152,8 @@ export function JobDetailPage() {
     };
   }, [job?.day_status, id]);
 
-  async function action(endpoint: string, body?: Record<string, unknown>) {
-    if (!id) return;
+  async function action(endpoint: string, body?: Record<string, unknown>): Promise<boolean> {
+    if (!id) return false;
     setBusy(true);
     try {
       const res = await authFetch(`/jobs/bookings/${id}/${endpoint}`, {
@@ -163,11 +163,13 @@ export function JobDetailPage() {
       if (!res.ok) {
         const err = (await res.json()) as { error?: string };
         toast.error(err.error ?? "Action failed");
-        return;
+        return false;
       }
       await loadJob();
+      return true;
     } catch {
       toast.error("Network error. Please try again.");
+      return false;
     } finally {
       setBusy(false);
     }
@@ -198,15 +200,22 @@ export function JobDetailPage() {
       };
 
       // Upload to R2
-      await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
+      const putRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!putRes.ok) throw new Error("R2 upload failed");
 
-      if (type === "checkout") {
-        // Complete the job
-        await action("complete", { checkoutPhotoKey: storageKey });
-      } else {
-        // Record photo
-        await action("photos", { photoType: type, storageKey, roomLabel: "" });
-      }
+      const ok =
+        type === "checkout"
+          ? // Complete the job
+            await action("complete", { checkoutPhotoKey: storageKey })
+          : // Record photo
+            await action("photos", { photoType: type, storageKey, roomLabel: "" });
+
+      // action() surfaces its own error toast on failure; only celebrate on success.
+      if (!ok) return;
       toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} photo uploaded`);
     } catch {
       toast.error("Photo upload failed");

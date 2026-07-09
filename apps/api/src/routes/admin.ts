@@ -16,7 +16,7 @@ import { getDb } from "../lib/db";
 import { sendEmail, wrapBodyInTemplate, SENDERS } from "../lib/mailer";
 import { requireAuth } from "../middleware/auth";
 import { requireAdmin } from "../middleware/adminRoles";
-import { yardstikClient } from "../lib/yardstik";
+import { yardstikClient, adverseActionEarliestDate } from "../lib/yardstik";
 import { audit } from "../lib/audit";
 import type { AppBindings } from "../types";
 import type { UserRow } from "@sweepr/db";
@@ -538,10 +538,33 @@ adminRouter.post(
         WHERE id = ${cleanerId}
       `;
     } else {
+      // FCRA: a final adverse action may only be recorded after the pre-adverse
+      // notice was issued AND the statutory waiting period has elapsed. Gate it
+      // server-side — never trust the client to have waited.
+      const timing = (await sql`
+        SELECT yardstik_pre_adverse_at FROM cleaners WHERE id = ${cleanerId} LIMIT 1
+      `) as { yardstik_pre_adverse_at: string | null }[];
+      const preAdverseAt = timing[0]?.yardstik_pre_adverse_at;
+      if (!preAdverseAt) {
+        return c.json(
+          { error: "Pre-adverse notice has not been issued; run pre_adverse_action first." },
+          409
+        );
+      }
+      const earliest = adverseActionEarliestDate(new Date(preAdverseAt));
+      if (Date.now() < earliest.getTime()) {
+        return c.json(
+          {
+            error: "Adverse-action waiting period has not elapsed.",
+            earliestAllowedAt: earliest.toISOString(),
+          },
+          409
+        );
+      }
       // Yardstik auto-finalizes a pre-adverse report to final adverse action
       // once its own waiting-period timer elapses — there is no separate
-      // "finalize" API call. This branch just reflects that decision locally
-      // for an admin closing out the case immediately.
+      // "finalize" API call. This branch reflects that decision locally for an
+      // admin closing out the case once the waiting period is satisfied.
       await sql`
         UPDATE cleaners SET yardstik_status = 'adverse_action', updated_at = NOW() WHERE id = ${cleanerId}
       `;

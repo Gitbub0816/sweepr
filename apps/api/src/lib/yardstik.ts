@@ -299,14 +299,44 @@ export async function verifyYardstikSignature(
 
 // ─── FCRA timing helpers ──────────────────────────────────────────────────────
 
-const BUSINESS_DAY_MS = 24 * 60 * 60 * 1000;
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Earliest date a final adverse action can complete. Federal minimum is 5
- * business days after pre-adverse notice; California, New York, and several
- * other states require more, so we conservatively use 7 calendar days —
- * matching the account-level minimum Yardstik itself enforces.
+ * Minimum business days (Mon–Fri) after the pre-adverse notice before a final
+ * adverse action may complete. Federal FCRA practice treats 5 business days as
+ * the reasonable-waiting-period floor.
+ */
+const MIN_BUSINESS_DAYS = 5;
+
+/**
+ * Extra CALENDAR days added on top of the 5 business days as a conservative
+ * buffer for federal holidays (which are not weekends and would otherwise
+ * shorten the effective business-day window) and for stricter state rules
+ * (CA, NY, etc.). A flat +2 keeps us safely at or beyond every 5-business-day
+ * requirement without a holiday calendar.
+ */
+const HOLIDAY_BUFFER_DAYS = 2;
+
+/** Advance `date` by `n` business days, skipping Saturdays and Sundays. */
+function addBusinessDays(date: Date, n: number): Date {
+  const out = new Date(date.getTime());
+  let remaining = n;
+  while (remaining > 0) {
+    out.setTime(out.getTime() + ONE_DAY_MS);
+    const day = out.getUTCDay(); // 0 = Sun, 6 = Sat
+    if (day !== 0 && day !== 6) remaining--;
+  }
+  return out;
+}
+
+/**
+ * Earliest date a final adverse action can complete: 5 actual business days
+ * after the pre-adverse notice, plus a 2-calendar-day holiday buffer. Computed
+ * from the real weekday calendar so it always covers 5 business days even when
+ * the window straddles a weekend or federal holiday (the previous "7 calendar
+ * days" approximation silently fell short across holidays).
  */
 export function adverseActionEarliestDate(preAdverseAt: Date): Date {
-  return new Date(preAdverseAt.getTime() + 7 * BUSINESS_DAY_MS);
+  const afterBusinessDays = addBusinessDays(preAdverseAt, MIN_BUSINESS_DAYS);
+  return new Date(afterBusinessDays.getTime() + HOLIDAY_BUFFER_DAYS * ONE_DAY_MS);
 }

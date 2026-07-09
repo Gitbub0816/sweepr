@@ -26,6 +26,8 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      - name: Run API test suite
+        run: npx vitest run apps/api/tests
       - run: pnpm security
       - name: Verify schema is up to date
         run: |
@@ -46,10 +48,9 @@ jobs:
           node-version: '22'
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
-      # Fail-soft: a missing DATABASE_URL secret (or a transient DB hiccup)
-      # warns but never blocks the deploy.
+      # Soft-skip ONLY when the DATABASE_URL secret is absent (e.g. forks).
+      # A genuine migration failure must fail this job and block deploy-api.
       - name: Run migrations
-        continue-on-error: true
         run: |
           if [ -z "$DATABASE_URL" ]; then
             echo "::warning::DATABASE_URL secret not set — skipping migrations"
@@ -292,7 +293,7 @@ jobs:
           VITE_CF_ANALYTICS_TOKEN: ${{ secrets.VITE_CF_ANALYTICS_TOKEN }}
           VITE_CF_ZONE_ID: ${{ secrets.VITE_CF_ZONE_ID }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-          VITE_SENTRY_AUTH_TOKEN: ${{ secrets.VITE_SENTRY_AUTH_TOKEN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.VITE_SENTRY_AUTH_TOKEN }}
           VITE_SENTRY_ORG: ${{ secrets.VITE_SENTRY_ORG }}
           VITE_SENTRY_PROJECT: ${{ secrets.VITE_SENTRY_PROJECT }}
       - name: Deploy (with retry/backoff for Cloudflare rate limits)

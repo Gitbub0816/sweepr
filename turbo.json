@@ -5,6 +5,22 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
+    "@sweepr/db#build": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "@sweepr/types#build": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "@sweepr/ui#build": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "@sweepr/utils#build": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
     "dev": {
       "cache": false,
       "persistent": true

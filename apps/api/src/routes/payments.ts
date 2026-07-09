@@ -453,20 +453,94 @@ paymentsRouter.post(
     if (!booking.stripe_payment_intent_id) {
       return c.json({ error: "No payment to refund" }, 400);
     }
-    if (!isValidTransition(booking.status, "refunded")) {
-      return c.json({ error: `Cannot refund a booking in '${booking.status}' status` }, 409);
+
+    // Inspect the PaymentIntent: an uncaptured manual-capture auth cannot be
+    // refunded (no funds were ever collected). It must be CANCELLED instead,
+    // which voids the authorization.
+    const pi = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id);
+    const isUncaptured = pi.status === "requires_capture" ||
+      pi.status === "requires_payment_method" ||
+      pi.status === "requires_confirmation";
+
+    // A full refund (no explicit amount, or amount ≥ authorized/total) drives the
+    // booking to the terminal 'refunded' state. A partial refund leaves money on
+    // the booking, so it must NOT move the booking to a terminal status.
+    const capturedTotal = booking.total_price ?? pi.amount ?? 0;
+    const isFullRefund = amount == null || amount >= capturedTotal;
+
+    if (isUncaptured) {
+      // Void the authorization rather than refund. Claim-then-act: transition to
+      // a cancelled status before the Stripe call so a retry can't double-void.
+      const cancelTarget = isValidTransition(booking.status, "cancelled_by_customer")
+        ? "cancelled_by_customer"
+        : "refunded";
+      const claimedCancel = (await sql`
+        UPDATE bookings SET status = ${cancelTarget}, updated_at = NOW()
+        WHERE id = ${bookingId} AND status = ${booking.status}
+        RETURNING id
+      `) as Array<{ id: string }>;
+      if (!claimedCancel[0]) {
+        return c.json({ error: "Booking has already been cancelled or refunded" }, 409);
+      }
+      try {
+        await stripe.paymentIntents.cancel(booking.stripe_payment_intent_id);
+      } catch (err) {
+        // Revert the claim so a legitimate retry isn't blocked.
+        await sql`
+          UPDATE bookings SET status = ${booking.status}, updated_at = NOW()
+          WHERE id = ${bookingId} AND status = ${cancelTarget}
+        `;
+        logger.error("refund: PI cancel failed", err, { bookingId });
+        return c.json({ error: "cancel_failed", message: "Could not void the authorization." }, 502);
+      }
+      await audit(sql, {
+        action: "payment.refunded",
+        actorClerkId: c.get("user").clerkId,
+        targetType: "booking",
+        targetId: bookingId,
+        metadata: { voided: true, reason: reason ?? null, paymentIntentId: booking.stripe_payment_intent_id, status: cancelTarget },
+        ipAddress: c.req.header("CF-Connecting-IP"),
+        userAgent: c.req.header("User-Agent"),
+        timestamp: new Date().toISOString(),
+      });
+      if (email) {
+        try {
+          const [langRow] = await sql`
+            SELECT preferred_language FROM users WHERE LOWER(email) = LOWER(${email}) LIMIT 1
+          ` as Array<{ preferred_language: string | null }>;
+          const lang = langRow?.preferred_language ?? "en";
+          const subject = et(lang, "refund.subject");
+          await sendEmail(c.env.MAILERSEND_API_KEY, {
+            to: email,
+            subject,
+            html: wrapBodyInTemplate(subject, et(lang, "refund.body", { bookingId }), lang),
+          });
+        } catch {
+          // Non-fatal.
+        }
+      }
+      return c.json({ ok: true, voided: true });
     }
 
-    // Atomic lock before calling Stripe so a concurrent/retried request can't
-    // also pass the check above and issue a second refund.
-    const claimed = (await sql`
-      UPDATE bookings SET status = 'refunded', updated_at = NOW()
-      WHERE id = ${bookingId} AND status = ${booking.status}
-      RETURNING id
-    `) as Array<{ id: string }>;
-    if (!claimed[0]) {
-      return c.json({ error: "Booking has already been refunded" }, 409);
+    // Captured charge → refund path.
+    if (isFullRefund) {
+      if (!isValidTransition(booking.status, "refunded")) {
+        return c.json({ error: `Cannot refund a booking in '${booking.status}' status` }, 409);
+      }
+      // Atomic lock before calling Stripe so a concurrent/retried request can't
+      // also pass the check above and issue a second full refund.
+      const claimed = (await sql`
+        UPDATE bookings SET status = 'refunded', updated_at = NOW()
+        WHERE id = ${bookingId} AND status = ${booking.status}
+        RETURNING id
+      `) as Array<{ id: string }>;
+      if (!claimed[0]) {
+        return c.json({ error: "Booking has already been refunded" }, 409);
+      }
     }
+    // Partial refund: intentionally leave booking status unchanged. Double-refund
+    // protection for the partial path comes from the deterministic idempotency
+    // key below.
 
     const refund = await stripe.refunds.create(
       {
@@ -482,7 +556,7 @@ paymentsRouter.post(
       actorClerkId: c.get("user").clerkId,
       targetType: "booking",
       targetId: bookingId,
-      metadata: { amount: amount ?? "full", reason: reason ?? null, refundId: refund.id },
+      metadata: { amount: amount ?? "full", partial: !isFullRefund, reason: reason ?? null, refundId: refund.id },
       ipAddress: c.req.header("CF-Connecting-IP"),
       userAgent: c.req.header("User-Agent"),
       timestamp: new Date().toISOString(),

@@ -50,18 +50,20 @@ stripeWebhookRouter.post("/", async (c) => {
 
   const sql = getDb(c.env.DATABASE_URL);
 
-  // Idempotency: ignore already-processed events.
-  const existing = await sql`
-    SELECT id FROM stripe_events WHERE stripe_event_id = ${event.id} LIMIT 1
-  ` as Array<{ id: string }>;
-  if (existing[0]) {
-    return c.json({ received: true, duplicate: true });
-  }
-  await sql`
+  // Idempotency: atomically claim the event. A SELECT-then-INSERT leaves a race
+  // window where two concurrent deliveries of the same event both see no row and
+  // both process it. Let the unique constraint arbitrate: only the insert that
+  // actually creates the row proceeds; a conflict (empty RETURNING) is a
+  // duplicate and returns early.
+  const inserted = await sql`
     INSERT INTO stripe_events (stripe_event_id, event_type, payload)
     VALUES (${event.id}, ${event.type}, ${JSON.stringify(event)})
     ON CONFLICT (stripe_event_id) DO NOTHING
-  `;
+    RETURNING id
+  ` as Array<{ id: string }>;
+  if (!inserted[0]) {
+    return c.json({ received: true, duplicate: true });
+  }
 
   await recordPaymentEvent(sql, {
     eventType: "webhook_received",
@@ -273,15 +275,21 @@ stripeWebhookRouter.post("/", async (c) => {
       break;
     }
     case "transfer.failed" as string: {
-      const transfer = (event as unknown as { data: { object: { id: string; transfer_group?: string; destination?: unknown } } }).data.object;
-      const bookingId = transfer.transfer_group?.replace("booking_", "");
+      const transfer = (event as unknown as { data: { object: { id: string; transfer_group?: string; destination?: unknown; metadata?: Record<string, string> } } }).data.object;
+      // Tip transfers share the `booking_<id>` transfer_group with the main
+      // payout but are tracked on booking_tips, NOT payouts/payout_ledger.
+      // Without this guard a failed tip transfer would corrupt the real payout
+      // row. They carry metadata.type === 'tip' (set in payments.ts).
+      const isTipTransfer = transfer.metadata?.type === "tip";
+      const bookingId = isTipTransfer ? undefined : transfer.transfer_group?.replace("booking_", "");
       await recordPaymentEvent(sql, {
         eventType: "transfer_failed",
         bookingId: bookingId ?? null,
         providerEventId: transfer.id,
         success: false,
-        metadata: { destination: transfer.destination },
+        metadata: { destination: transfer.destination, type: transfer.metadata?.type ?? "payout" },
       });
+      if (isTipTransfer) break;
       if (bookingId) {
         await sql`
           UPDATE payout_ledger SET status = 'failed', failed_at = NOW(),
@@ -315,6 +323,10 @@ stripeWebhookRouter.post("/", async (c) => {
     }
     case "transfer.created": {
       const transfer = event.data.object;
+      // Ignore tip transfers: they share the booking_<id> transfer_group but are
+      // settled on booking_tips (see payments.ts). Overwriting the payouts row
+      // with tip data here would mislabel the cleaner's actual payout.
+      if (transfer.metadata?.type === "tip") break;
       const bookingId = transfer.transfer_group?.replace("booking_", "");
       if (bookingId) {
         await sql`

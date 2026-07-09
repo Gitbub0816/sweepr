@@ -53,6 +53,18 @@ const requestSchema = z.object({
   jurisdiction: z.string().max(50).optional(),
 });
 
+/**
+ * Statutory response window (calendar days) for a DSAR, by declared
+ * jurisdiction. CCPA/CPRA (California, US privacy laws) → 45 days; GDPR/UK GDPR
+ * (EU/EEA/UK) → 30 days; anything unrecognized → 30 (the shorter, safer clock).
+ */
+export function responseDueDays(jurisdiction?: string | null): number {
+  const j = (jurisdiction ?? "").toLowerCase();
+  if (/ccpa|cpra|california|\bca\b|united states|\bus\b|usa/.test(j)) return 45;
+  if (/gdpr|eu|eea|europe|uk|united kingdom|britain/.test(j)) return 30;
+  return 30;
+}
+
 privacyPublicRouter.post("/requests", zValidator("json", requestSchema), async (c) => {
   const { email, requestType, details, jurisdiction } = c.req.valid("json");
   const sql = getDb(c.env.DATABASE_URL);
@@ -62,11 +74,14 @@ privacyPublicRouter.post("/requests", zValidator("json", requestSchema), async (
     SELECT id FROM users WHERE LOWER(email) = ${email.toLowerCase()} LIMIT 1
   `) as Array<{ id: string }>;
 
-  // CCPA: 45 calendar days to respond; GDPR: 30 — track the stricter one.
+  // Statutory response deadline is jurisdiction-specific: GDPR grants one month
+  // (30 days), CCPA/CPRA grants 45 days. Default to the shorter 30-day clock
+  // when the jurisdiction is unknown so we never under-respond.
+  const dueDays = responseDueDays(jurisdiction);
   const rows = (await sql`
     INSERT INTO privacy_requests (requester_id, requester_email, request_type, jurisdiction, details, due_at)
     VALUES (${users[0]?.id ?? null}, ${email}, ${requestType}, ${jurisdiction ?? null}, ${details ?? null},
-            NOW() + INTERVAL '30 days')
+            NOW() + (${`${dueDays} days`}::interval))
     RETURNING id
   `) as Array<{ id: string }>;
 

@@ -33,7 +33,7 @@ import { logger } from "../lib/logger";
 import { assertBookingAccess } from "../lib/bookingAccess";
 import { checkInsurance } from "../lib/cleanerRequirements";
 import { calculateBookingPrice, getAddOnCatalogue } from "../lib/pricingEngine";
-import { resolveBookingPricing, storeQuoteSnapshot } from "../lib/resolvePricing";
+import { resolveBookingPricing, storeQuoteSnapshot, type ResolvedPricing } from "../lib/resolvePricing";
 import { recordLedgerEntry, applyBookingPriceAdjustment } from "../lib/bookingLedger";
 import { normalizedGreylistKey } from "../lib/scopeReviewEngine";
 import { getStripe } from "../lib/stripe";
@@ -45,11 +45,31 @@ import type { BookingRow, CleanerRow } from "@sweepr/db";
 export const bookingsRouter = new Hono<AppBindings>();
 
 const createSchema = z.object({
-  serviceType: z.enum(["standard", "deep", "move_in_out", "recurring"]),
+  // Full package catalogue — matches PACKAGE_SCOPES / packages/utils quoting so
+  // the server accepts exactly the set the customer app offers (previously the
+  // server rejected light/post_construction/vacation_rental that the quote UI
+  // could produce).
+  serviceType: z.enum([
+    "light",
+    "standard",
+    "deep",
+    "move_in_out",
+    "recurring",
+    "post_construction",
+    "vacation_rental",
+  ]),
   bedrooms: z.number().int().min(0).max(20),
   bathrooms: z.number().int().min(0).max(20),
   sqft: z.number().int().min(100).max(20000),
-  homeType: z.enum(["apartment", "house", "condo", "townhouse", "other"]),
+  homeType: z.enum([
+    "studio",
+    "apartment",
+    "house",
+    "condo",
+    "townhouse",
+    "large_house",
+    "other",
+  ]),
   hasPets: z.boolean().default(false),
   heavyMess: z.boolean().default(false),
   suppliesNeeded: z.boolean().default(false),
@@ -64,6 +84,13 @@ const createSchema = z.object({
   // entirely for backward compat with clients that book an exact time.
   arrivalWindowStart: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   arrivalWindowEnd: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  // Customer's UTC offset in minutes, ISO sign convention (east of UTC is
+  // positive, e.g. America/Chicago in summer = -300). Client sends
+  // `-new Date().getTimezoneOffset()`. Used to build the arrival instant from
+  // the customer's LOCAL booking date + window time so evening bookings in
+  // negative-offset zones don't roll to the next UTC day. Optional for
+  // backward compat — see computeArrivalInstant.
+  timezoneOffsetMinutes: z.number().int().min(-840).max(840).optional(),
   addressId: z.string().uuid().optional(),
   notes: z.string().max(2000).optional(),
   // Customer-declared cleaning level drives the scope-review level surcharge.
@@ -172,6 +199,73 @@ function computeLevelSurchargeCents(
         ? pcts.significant_attention
         : 0;
   return Math.round((baseTotalCents * pct) / 100);
+}
+
+/** The rush/emergency surcharge applied to same/next-day bookings (15%). */
+export const EMERGENCY_SURCHARGE_RATE = 0.15;
+
+/**
+ * Emergency (rush) bookings are same-or-next-day. Computed SERVER-side from the
+ * scheduled instant vs now — a client `isEmergency` flag is never trusted (it
+ * would let a customer waive the surcharge the preview shows them). Uses a
+ * 48-hour horizon from now, which matches "book today or tomorrow" without
+ * needing the customer's timezone.
+ */
+export function isEmergencyBooking(scheduledAtIso: string, now: Date = new Date()): boolean {
+  const scheduled = new Date(scheduledAtIso).getTime();
+  if (!Number.isFinite(scheduled)) return false;
+  const diffMs = scheduled - now.getTime();
+  return diffMs <= 48 * 60 * 60_000;
+}
+
+/** Format an ISO offset (minutes east of UTC) as "+HH:MM" / "-HH:MM". */
+function formatIsoOffset(offsetMinutes: number): string {
+  const sign = offsetMinutes >= 0 ? "+" : "-";
+  const abs = Math.abs(offsetMinutes);
+  const hh = String(Math.floor(abs / 60)).padStart(2, "0");
+  const mm = String(abs % 60).padStart(2, "0");
+  return `${sign}${hh}:${mm}`;
+}
+
+/** Parse an explicit ISO offset (minutes east of UTC) from a datetime string;
+ *  null when the string carries no usable offset (e.g. ends in 'Z'). */
+function parseIsoOffsetMinutes(iso: string): number | null {
+  const m = /([+-])(\d{2}):(\d{2})$/.exec(iso);
+  if (!m) return null;
+  const mins = Number(m[2]) * 60 + Number(m[3]);
+  return m[1] === "-" ? -mins : mins;
+}
+
+/**
+ * Resolve the authoritative arrival instant (UTC ISO) for a booking.
+ *
+ * When an arrival window is chosen the instant is the customer's LOCAL booking
+ * date combined with the window's start time, interpreted at the customer's UTC
+ * offset. The old code took the UTC date from toISOString() (which rolls to the
+ * next day for evening bookings in negative-offset zones) and concatenated a
+ * literal 'Z' onto the local wall-clock time (persisting local time AS UTC) —
+ * both wrong. We derive the offset from an explicit timezoneOffsetMinutes, else
+ * from an offset embedded in scheduledAt; when neither is available the client
+ * already baked the window-start time into scheduledAt as a UTC instant, so we
+ * trust it as-is rather than corrupting it.
+ */
+export function computeArrivalInstant(
+  scheduledAt: string,
+  arrivalWindowStart: string | undefined,
+  timezoneOffsetMinutes?: number,
+): string {
+  if (!arrivalWindowStart) return scheduledAt;
+  const offset =
+    timezoneOffsetMinutes ?? parseIsoOffsetMinutes(scheduledAt);
+  if (offset == null) {
+    // No timezone info: scheduledAt already encodes the correct instant.
+    return scheduledAt;
+  }
+  // Local date = the calendar date as seen at the customer's offset.
+  const localMs = new Date(scheduledAt).getTime() + offset * 60_000;
+  const localDate = new Date(localMs).toISOString().slice(0, 10);
+  const instant = new Date(`${localDate}T${arrivalWindowStart}:00${formatIsoOffset(offset)}`);
+  return instant.toISOString();
 }
 
 /** True if `err` is the unique-violation from migration 062's dedupe index. */

@@ -174,21 +174,27 @@ adminPayoutsRouter.post(
 
     // Atomic status lock: only proceed if the row is still in a releasable state.
     // This prevents double-spend under concurrent admin requests.
+    // Blocked-status set unified with the release-payout path (payments.ts) so a
+    // 'processing' claim there also blocks this admin override and vice versa.
     const locked = (await sql`
       UPDATE payouts SET status = 'transferred', paid_at = NOW()
-      WHERE id = ${payoutId} AND status NOT IN ('transferred', 'paid')
+      WHERE id = ${payoutId} AND status NOT IN ('transferred', 'paid', 'processing')
       RETURNING id
     `) as Array<{ id: string }>;
     if (!locked[0]) return c.json({ error: "Already paid or transfer in progress" }, 409);
 
     let transfer: { id: string };
     try {
-      transfer = await stripe.transfers.create({
-        amount: payout.amount as number,
-        currency: "usd",
-        destination: payout.stripe_connect_id as string,
-        transfer_group: `booking_${payout.booking_id}`,
-      });
+      transfer = await stripe.transfers.create(
+        {
+          amount: payout.amount as number,
+          currency: "usd",
+          destination: payout.stripe_connect_id as string,
+          transfer_group: `booking_${payout.booking_id}`,
+          metadata: { type: "payout", booking_id: String(payout.booking_id) },
+        },
+        { idempotencyKey: `payout_${payoutId}` },
+      );
     } catch (err) {
       // Revert the lock if Stripe fails.
       await sql`UPDATE payouts SET status = ${payout.status as string}, paid_at = NULL WHERE id = ${payoutId}`;

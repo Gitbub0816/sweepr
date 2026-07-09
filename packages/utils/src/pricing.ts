@@ -410,32 +410,36 @@ export function calculateQuote(input: QuoteInput): Quote {
   if (input.lotsOfClutter) subtotal *= 1.15;
   if (input.smokerHome)    subtotal *= 1.18;
 
-  // Cleaning-level surcharge (scope review) — applied on the pre-surcharge
-  // subtotal so the preview tracks the server's authoritative total.
+  // Stripe gross-up (baked into customer price)
+  const grossed = sweeprGrossUp(subtotal);
+
+  // Charm pricing (round to next X9 dollars). This is the PRE-surcharge base
+  // total — the level and rush surcharges are applied on top of it below.
+  const baseTotal = roundToNextNine(grossed);
+
+  // Cleaning-level and rush surcharges are applied on the charm-rounded,
+  // grossed-up base total so the preview tracks the server's authoritative
+  // math (bookings.ts computes both on customer_total_cents — the grossed,
+  // charm-rounded total — not the pre-gross subtotal).
   const levelPct = levelSurchargePct(
     input.cleaningLevel,
     input.levelSurchargePcts ?? DEFAULT_LEVEL_SURCHARGE_PCTS,
   );
-  if (levelPct > 0) {
-    const levelAdjustment = Math.round(subtotal * (levelPct / 100) * 100) / 100;
-    subtotal += levelAdjustment;
+  const levelAdjustment = levelPct > 0 ? Math.round(baseTotal * levelPct) / 100 : 0;
+  if (levelAdjustment > 0) {
     lineItems.push({ label: "Cleaning level surcharge", amount: levelAdjustment });
   }
 
   // Rush surcharge for same/next-day bookings.
-  let rushFee = 0;
-  if (input.isEmergency) {
-    rushFee = Math.round(subtotal * EMERGENCY_SURCHARGE_RATE * 100) / 100;
-    subtotal += rushFee;
+  const rushFee = input.isEmergency
+    ? Math.round(baseTotal * EMERGENCY_SURCHARGE_RATE * 100) / 100
+    : 0;
+  if (rushFee > 0) {
     lineItems.push({ label: "Rush fee", amount: rushFee });
   }
 
-  // Stripe gross-up (baked into customer price)
-  const grossed = sweeprGrossUp(subtotal);
-
-  // Charm pricing (round to next X9 dollars)
-  const total = roundToNextNine(grossed);
-  const serviceFee = Math.round((total - subtotal) * 100) / 100; // gross-up + rounding delta
+  const total = Math.round((baseTotal + levelAdjustment + rushFee) * 100) / 100;
+  const serviceFee = Math.round((baseTotal - subtotal) * 100) / 100; // gross-up + rounding delta
 
   return {
     serviceType,

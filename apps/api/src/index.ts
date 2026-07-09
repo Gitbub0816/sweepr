@@ -585,36 +585,51 @@ async function runScheduled(event: ScheduledEvent, env: Record<string, unknown>)
         LIMIT 50
       ` as { id: string; stripe_payment_intent_id: string; total_price: number | null }[];
 
+      let capturedCount = 0;
       for (const row of pendingCaptures) {
         try {
           const pi = await stripe.paymentIntents.retrieve(row.stripe_payment_intent_id);
-          if (pi.status === "requires_capture") {
-            // Honor post-authorization total decreases (e.g. ledger adjustments):
-            // never capture more than was authorized, never more than the final
-            // total. Stripe forbids capturing above the authorized amount.
-            const authorized = pi.amount;
-            const target = Math.min(row.total_price ?? authorized, authorized);
-            await stripe.paymentIntents.capture(pi.id, { amount_to_capture: target });
-            // Record/settle the payments row so this booking exits the capture
-            // set. Two cron ticks racing on the same booking (e.g. an overlap
-            // during a slow run) could both reach this point after both
-            // Stripe-capturing successfully is a no-op on Stripe's side, but
-            // without a DB-level guard both could still insert a payments
-            // row. `payments.booking_id` now has a unique constraint
-            // (migration 062); ON CONFLICT DO NOTHING makes this insert
-            // idempotent, and the UPDATE-first path keeps handling the
-            // pre-existing (pre-migration) row-already-exists case.
-            const upd = await sql`
-              UPDATE payments SET status = 'captured' WHERE booking_id = ${row.id} RETURNING id
-            ` as { id: string }[];
-            if (!upd[0]) {
-              await sql`
-                INSERT INTO payments (booking_id, stripe_payment_intent_id, amount, status)
-                VALUES (${row.id}, ${pi.id}, ${target}, 'captured')
-                ON CONFLICT (booking_id) DO UPDATE SET status = 'captured'
-              `;
-            }
+          if (pi.status !== "requires_capture") continue;
+
+          // Honor post-authorization total decreases (e.g. ledger adjustments):
+          // never capture more than was authorized, never more than the final
+          // total. Stripe forbids capturing above the authorized amount.
+          const authorized = pi.amount;
+          const target = Math.min(row.total_price ?? authorized, authorized);
+
+          // Claim-then-act: insert the payments row as a 'capturing' claim BEFORE
+          // the Stripe capture. `payments.booking_id` is unique (migration 062),
+          // so only one cron tick can win the claim; a concurrent/overlapping
+          // tick gets an empty RETURNING and skips, guaranteeing exactly one
+          // capture attempt per booking. The `capture_${bookingId}` idempotency
+          // key makes the Stripe call itself safe even if a claim somehow raced.
+          const claim = await sql`
+            INSERT INTO payments (booking_id, stripe_payment_intent_id, amount, status)
+            VALUES (${row.id}, ${pi.id}, ${target}, 'capturing')
+            ON CONFLICT (booking_id) DO NOTHING
+            RETURNING id
+          ` as { id: string }[];
+          if (!claim[0]) continue;
+
+          try {
+            await stripe.paymentIntents.capture(
+              pi.id,
+              { amount_to_capture: target },
+              { idempotencyKey: `capture_${row.id}` },
+            );
+          } catch (captureErr) {
+            // Release the claim so a later tick can retry the capture.
+            await sql`
+              DELETE FROM payments WHERE booking_id = ${row.id} AND status = 'capturing'
+            `;
+            throw captureErr;
           }
+
+          await sql`
+            UPDATE payments SET status = 'captured'
+            WHERE booking_id = ${row.id} AND status = 'capturing'
+          `;
+          capturedCount++;
         } catch (err) {
           logger.error("cron.capture failed", err, { bookingId: row.id });
         }
@@ -735,7 +750,7 @@ async function runScheduled(event: ScheduledEvent, env: Record<string, unknown>)
         logger.error("cron.autoDetect failed", err, { cron: event.cron });
       }
 
-      logger.info("cron.completed", { cron: event.cron, captures: pendingCaptures.length });
+      logger.info("cron.completed", { cron: event.cron, captures: capturedCount, captureCandidates: pendingCaptures.length });
     } catch (err) {
       logger.error("cron.failed", err, { cron: event.cron });
     }

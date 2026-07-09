@@ -35,6 +35,22 @@ export function AIDisclosure() {
           operations, fraud and safety detection, summaries, document generation,
           dispatch and matching, route optimization, and pricing or recommendations.
         </p>
+        <p className="mt-3">
+          <strong>Photo scope review.</strong> Photos you upload of a cleaning
+          space (for example, to document scope, condition, or completion) may be
+          transmitted to a third-party AI provider (OpenAI) to help assess the
+          scope and quality of work. These images and related booking details are
+          processed under our agreements with that provider and are not used to
+          make a final decision on their own.
+        </p>
+        <p className="mt-3">
+          <strong>Background-check adjudication.</strong> For applicant screening,
+          our deterministic policy engine may be supplemented by AI assistance
+          (Anthropic) to help organize and summarize records. Any adverse or
+          materially significant screening decision is made by a human reviewer
+          following our Background Check Adjudication Policy and the FCRA
+          adverse-action process — the AI is a non-binding aid, never the decision.
+        </p>
       </Section>
 
       <Section id="human" title="2. Human Review">

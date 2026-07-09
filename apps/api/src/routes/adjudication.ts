@@ -44,6 +44,7 @@ import {
   type ConvictionInput,
   type PendingChargeInput,
 } from "../lib/adjudicationPolicy";
+import { yardstikClient, adverseActionEarliestDate } from "../lib/yardstik";
 import type { AppBindings } from "../types";
 
 export const ADJUDICATION_DOC_SLUG = "background-check-adjudication";
@@ -98,6 +99,73 @@ export async function hasAcknowledgedAdjudicationPolicy(
     LIMIT 1
   `) as Array<{ id: string }>;
   return rows.length > 0;
+}
+
+/**
+ * Issue the FCRA pre-adverse notice for a denied adjudication case. Where the
+ * cleaner has a Yardstik report on file, call the CRA so it notifies the
+ * candidate and runs its own waiting-period timer; mirror the pre-adverse
+ * timestamp onto the cleaner row. Best-effort: never let a notice-delivery
+ * failure abort the state transition (the case already records pre_adverse_at,
+ * and the waiting period is enforced from the case row).
+ */
+async function triggerPreAdverseNotice(
+  c: { env: AppBindings["Bindings"] },
+  sql: ReturnType<typeof getDb>,
+  caseRow: Record<string, unknown>,
+  reasons: string[],
+): Promise<void> {
+  const cleanerId = caseRow.cleaner_id as string | null;
+  if (!cleanerId) return;
+  try {
+    const rows = (await sql`
+      SELECT yardstik_report_id, yardstik_candidate_id, yardstik_pre_adverse_at
+      FROM cleaners WHERE id = ${cleanerId} LIMIT 1
+    `) as {
+      yardstik_report_id: string | null;
+      yardstik_candidate_id: string | null;
+      yardstik_pre_adverse_at: string | null;
+    }[];
+    const cleaner = rows[0];
+    if (cleaner?.yardstik_report_id) {
+      const client = yardstikClient(c.env);
+      await client.createAdverseAction(
+        cleaner.yardstik_report_id,
+        reasons[0]?.slice(0, 1000) ?? "Background check record requires adverse action review.",
+      );
+    }
+    if (cleaner && !cleaner.yardstik_pre_adverse_at) {
+      await sql`
+        UPDATE cleaners
+        SET yardstik_status = 'pre_adverse_action', yardstik_pre_adverse_at = NOW(), updated_at = NOW()
+        WHERE id = ${cleanerId}
+      `;
+    }
+  } catch (err) {
+    logger.error("adjudication pre-adverse notice failed", err);
+  }
+}
+
+/** Audit an adjudication decision/state transition (best-effort). */
+async function auditDecision(
+  actorClerkId: string,
+  sql: ReturnType<typeof getDb>,
+  targetId: string,
+  event: string,
+  meta: { outcome: string; note: string },
+): Promise<void> {
+  try {
+    await audit(sql, {
+      action: "admin.action",
+      actorClerkId,
+      targetType: "adjudication_case",
+      targetId,
+      metadata: { event, outcome: meta.outcome, note: meta.note.slice(0, 500) },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    logger.error("adjudication audit failed", err);
+  }
 }
 
 // ── Admin (Trust & Safety → Adjudication) ─────────────────────────────────────
@@ -164,13 +232,21 @@ adminAdjudicationRouter.put("/cases/:id/record", ...gate, zValidator("json", rec
   const sql = getDb(c.env.DATABASE_URL);
 
   const result = adjudicate(convictions as ConvictionInput[], pendingCharges as PendingChargeInput[]);
-  // auto decisions are terminal at the engine level; review/hold wait for a human.
-  const status =
-    result.decision === "auto_approve" || result.decision === "auto_deny"
-      ? "auto_decided"
+
+  // FCRA: a clean auto_approve is terminal, but auto_deny must NOT finalize a
+  // denial. It enters the pre-adverse-action state — the applicant is sent the
+  // pre-adverse notice and the statutory waiting period must elapse before a
+  // final 'denied' outcome is allowed (see /cases/:id/decide). executive_review
+  // and hold continue to wait for a human.
+  const nowISO = new Date().toISOString();
+  const isAutoApprove = result.decision === "auto_approve";
+  const isAutoDeny = result.decision === "auto_deny";
+  const status = isAutoApprove
+    ? "auto_decided"
+    : isAutoDeny
+      ? "pre_adverse_action"
       : result.decision; // executive_review | hold
-  const finalOutcome =
-    result.decision === "auto_approve" ? "approved" : result.decision === "auto_deny" ? "denied" : null;
+  const finalOutcome = isAutoApprove ? "approved" : null;
 
   const rows = (await sql`
     UPDATE adjudication_cases SET
@@ -182,12 +258,19 @@ adminAdjudicationRouter.put("/cases/:id/record", ...gate, zValidator("json", rec
       status = ${status},
       final_outcome = ${finalOutcome},
       decided_by = ${finalOutcome ? "engine" : null},
-      decided_at = ${finalOutcome ? new Date().toISOString() : null},
+      decided_at = ${finalOutcome ? nowISO : null},
+      pre_adverse_at = ${isAutoDeny ? nowISO : null},
       updated_at = NOW()
     WHERE id = ${id}
     RETURNING *
   `) as Array<Record<string, unknown>>;
   if (!rows[0]) return c.json({ error: "Case not found" }, 404);
+
+  // Trigger the CRA (Yardstik) pre-adverse notice where a report is on file so
+  // Yardstik runs its own waiting-period timer and notifies the candidate.
+  if (isAutoDeny) {
+    await triggerPreAdverseNotice(c, sql, rows[0], result.reasons);
+  }
 
   try {
     await audit(sql, {
@@ -195,7 +278,11 @@ adminAdjudicationRouter.put("/cases/:id/record", ...gate, zValidator("json", rec
       actorClerkId: c.get("user").clerkId,
       targetType: "adjudication_case",
       targetId: id,
-      metadata: { event: "adjudication.evaluated", decision: result.decision, rules: result.rules },
+      metadata: {
+        event: isAutoDeny ? "adjudication.pre_adverse_action" : "adjudication.evaluated",
+        decision: result.decision,
+        rules: result.rules,
+      },
       timestamp: new Date().toISOString(),
     });
   } catch (err) {
@@ -214,30 +301,82 @@ adminAdjudicationRouter.post("/cases/:id/decide", ...gate, zValidator("json", de
   const { outcome, note } = c.req.valid("json");
   const sql = getDb(c.env.DATABASE_URL);
 
+  const existing = (await sql`
+    SELECT * FROM adjudication_cases WHERE id = ${id} LIMIT 1
+  `) as Array<Record<string, unknown>>;
+  const current = existing[0];
+  if (!current) return c.json({ error: "Case not found" }, 404);
+
+  // An approval finalizes immediately from any open (undecided) state.
+  if (outcome === "approved") {
+    const rows = (await sql`
+      UPDATE adjudication_cases SET
+        final_outcome = 'approved',
+        final_note = ${note},
+        decided_by = ${c.get("user").clerkId},
+        decided_at = NOW(),
+        status = 'decided',
+        updated_at = NOW()
+      WHERE id = ${id} AND final_outcome IS NULL
+      RETURNING *
+    `) as Array<Record<string, unknown>>;
+    if (!rows[0]) return c.json({ error: "Case not found or already decided" }, 404);
+    await auditDecision(c.get("user").clerkId, sql, id, "adjudication.decided", { outcome, note });
+    return c.json({ case: rows[0] });
+  }
+
+  // FCRA: a denial may NOT be finalized directly. First it must enter the
+  // pre-adverse-action state (issue the pre-adverse notice, start the waiting
+  // period); only after that period elapses can a final 'denied' be recorded.
+  if (current.status !== "pre_adverse_action") {
+    if (current.final_outcome) return c.json({ error: "Case already decided" }, 404);
+    const nowISO = new Date().toISOString();
+    const rows = (await sql`
+      UPDATE adjudication_cases SET
+        final_note = ${note},
+        status = 'pre_adverse_action',
+        pre_adverse_at = COALESCE(pre_adverse_at, ${nowISO}),
+        updated_at = NOW()
+      WHERE id = ${id} AND final_outcome IS NULL
+      RETURNING *
+    `) as Array<Record<string, unknown>>;
+    if (!rows[0]) return c.json({ error: "Case not found or already decided" }, 404);
+    await triggerPreAdverseNotice(c, sql, rows[0], [note]);
+    await auditDecision(c.get("user").clerkId, sql, id, "adjudication.pre_adverse_action", { outcome, note });
+    const earliest = adverseActionEarliestDate(new Date(rows[0].pre_adverse_at as string));
+    return c.json({
+      case: rows[0],
+      status: "pre_adverse_action",
+      finalDenialAllowedAt: earliest.toISOString(),
+    });
+  }
+
+  // Already in pre-adverse — enforce the waiting period before finalizing.
+  const preAdverseAt = current.pre_adverse_at as string | null;
+  if (!preAdverseAt) return c.json({ error: "Pre-adverse timestamp missing" }, 409);
+  const earliest = adverseActionEarliestDate(new Date(preAdverseAt));
+  if (Date.now() < earliest.getTime()) {
+    return c.json(
+      {
+        error: "Adverse-action waiting period has not elapsed.",
+        earliestAllowedAt: earliest.toISOString(),
+      },
+      409,
+    );
+  }
+
   const rows = (await sql`
     UPDATE adjudication_cases SET
-      final_outcome = ${outcome},
+      final_outcome = 'denied',
       final_note = ${note},
       decided_by = ${c.get("user").clerkId},
       decided_at = NOW(),
       status = 'decided',
       updated_at = NOW()
-    WHERE id = ${id} AND status IN ('executive_review', 'hold', 'needs_input')
+    WHERE id = ${id} AND status = 'pre_adverse_action' AND final_outcome IS NULL
     RETURNING *
   `) as Array<Record<string, unknown>>;
   if (!rows[0]) return c.json({ error: "Case not found or already decided" }, 404);
-
-  try {
-    await audit(sql, {
-      action: "admin.action",
-      actorClerkId: c.get("user").clerkId,
-      targetType: "adjudication_case",
-      targetId: id,
-      metadata: { event: "adjudication.decided", outcome, note: note.slice(0, 500) },
-      timestamp: new Date().toISOString(),
-    });
-  } catch (err) {
-    logger.error("adjudication audit failed", err);
-  }
+  await auditDecision(c.get("user").clerkId, sql, id, "adjudication.decided", { outcome, note });
   return c.json({ case: rows[0] });
 });

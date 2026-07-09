@@ -38,8 +38,10 @@ const SUBS: Sub[] = [
   { vendor: "Cloudflare", purpose: "Hosting, CDN, security", data: "Network/usage metadata", region: "Global", role: "Processor", status: "Active" },
   { vendor: "Cloudflare R2", purpose: "File/photo storage", data: "Uploaded photos & files", region: "Global", role: "Processor", status: "Active" },
   { vendor: "Firebase / Google", purpose: "Push notifications & services", data: "Device tokens", region: "US", role: "Processor", status: "Active" },
-  { vendor: "MailerSend", purpose: "Transactional email", data: "Email, message content", region: "US/EU", role: "Processor", status: "Active" },
-  { vendor: "Twilio", purpose: "SMS & masked calling", data: "Phone numbers, message metadata", region: "US", role: "Processor", status: "Active" },
+  { vendor: "MailerSend", purpose: "Transactional email & SMS", data: "Email, phone numbers, message content", region: "US/EU", role: "Processor", status: "Active" },
+  { vendor: "OpenAI", purpose: "AI photo scope review (customer-uploaded cleaning photos analyzed for scope/quality)", data: "Uploaded photos, related booking metadata", region: "US", role: "Processor", status: "Active" },
+  { vendor: "Anthropic", purpose: "AI assistance for background-check adjudication (human-reviewed)", data: "Screening/adjudication data", region: "US", role: "Processor", status: "Active" },
+  { vendor: "Twilio", purpose: "Masked voice calling", data: "Phone numbers, call metadata", region: "US", role: "Processor", status: "Optional" },
   { vendor: "Mapbox", purpose: "Maps, geocoding, routing", data: "Address/location data", region: "US", role: "Processor", status: "Active" },
   { vendor: "PostHog", purpose: "Product analytics", data: "Usage & device data", region: "US/EU", role: "Processor", status: "Active" },
 ];
