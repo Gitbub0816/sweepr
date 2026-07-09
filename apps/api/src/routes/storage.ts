@@ -99,18 +99,23 @@ storageRouter.post(
       ? parseR2LegalConfig(c.env)
       : parseR2Config(c.env as Parameters<typeof parseR2Config>[0]);
 
-    const { uploadUrl, storageKey } = await createPresignedUploadUrl(
+    const { uploadUrl, storageKey, contentType } = await createPresignedUploadUrl(
       cfg,
       objectKey,
       input.contentType,
     );
 
     // Tell the client which public base URL to use for reading the file back.
+    // `requiredHeaders` is the Content-Type bound into the presigned signature —
+    // the client MUST send exactly this on its PUT or R2 rejects the upload,
+    // which prevents swapping in an arbitrary (e.g. text/html) content type.
     return c.json({
       uploadUrl,
       storageKey,
       publicUrl: `${cfg.publicUrlBase}/${storageKey}`,
       bucket: cfg.bucket,
+      contentType,
+      requiredHeaders: { "Content-Type": contentType },
     });
   }
 );

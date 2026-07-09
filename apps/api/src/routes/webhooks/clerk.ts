@@ -27,7 +27,7 @@ import { Hono } from "hono";
 import { getDb } from "../../lib/db";
 import { upsertUser } from "@sweepr/db";
 import { logger } from "../../lib/logger";
-import { recordWebhookSignatureFailure } from "../../lib/webhookAuth";
+import { recordWebhookSignatureFailure, timingSafeEqual } from "../../lib/webhookAuth";
 import type { AppBindings } from "../../types";
 
 export const clerkWebhookRouter = new Hono<AppBindings>();
@@ -90,7 +90,9 @@ export async function verifyClerkWebhook(
   const matched = svixSignatures.split(" ").some((s) => {
     const comma = s.indexOf(",");
     const b64 = comma === -1 ? s : s.slice(comma + 1);
-    return b64 === computed;
+    // Constant-time compare so a byte-by-byte timing side-channel can't be used
+    // to forge a valid signature one character at a time.
+    return timingSafeEqual(b64, computed);
   });
   return matched ? { ok: true } : { ok: false, reason: "signature_mismatch" };
 }

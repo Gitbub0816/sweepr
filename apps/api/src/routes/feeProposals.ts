@@ -221,11 +221,21 @@ function tokenAction(
     const sql = getDb(c.env.DATABASE_URL);
     const link = await resolveToken(sql, c.req.param("token") as string);
     if (!link) return c.json({ error: "Invalid or expired link" }, 404);
+    // Claim-then-act: mark the single-use link consumed BEFORE executing the
+    // action. Previously the link was marked used only after the action ran, so
+    // a double-submit (email client prefetch, impatient double-click) executed
+    // the fee change twice. Claim first — only the request that wins the
+    // conditional UPDATE proceeds; a loser gets 409.
+    const claimed = (await sql`
+      UPDATE fee_change_action_links SET used_at = NOW()
+      WHERE id = ${link.id as string} AND used_at IS NULL
+      RETURNING id
+    `) as Array<{ id: string }>;
+    if (!claimed[0]) return c.json({ error: "This link has already been used" }, 409);
     const body = await readActionBody(c);
     const actor: Actor = { clerkId: link.clerk_id as string, email: (link.email as string) ?? undefined };
     const res = await handle(c, async () => {
       const r = await fn(sql, link.proposal_id as string, actor, body);
-      await sql`UPDATE fee_change_action_links SET used_at = NOW() WHERE id = ${link.id as string}`;
       await updateProposalCard(sql, c.env, link.proposal_id as string);
       return r;
     });

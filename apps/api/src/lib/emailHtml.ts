@@ -52,15 +52,30 @@ export function sanitizeEmailHtml(raw: string): string {
   html = html.replace(/[\s/]on[a-z]+\s*=\s*[^\s>]+/gi, " ");
 
   // Neutralize scriptable / non-image URLs in href/src/etc. Allows http(s),
-  // mailto, tel, and data:image (inline images some clients embed).
+  // mailto, tel, and a strict subset of data:image (inline raster images some
+  // clients embed) — data:image/svg+xml is REJECTED because SVG can carry
+  // scripts. Both quoted AND unquoted attribute values are sanitized, and the
+  // separator may be whitespace or `/`.
+  const urlAttrs = "href|src|action|formaction|xlink:href|background";
+  const urlOk = (rawVal: string): boolean =>
+    // Collapse whitespace/control chars so "java\nscript:" can't sneak through.
+    /^(https?:|mailto:|tel:|data:image\/(?:png|jpe?g|gif|webp)[;,]|#|\/)/i.test(
+      rawVal.replace(/[\s\x00-\x1f]+/g, ""),
+    );
+  // Quoted values.
   html = html.replace(
-    /\s(href|src|action|formaction|xlink:href|background)\s*=\s*(?:"([^"]*)"|'([^']*)')/gi,
+    new RegExp(`[\\s/](${urlAttrs})\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, "gi"),
     (_m, attr: string, dq?: string, sq?: string) => {
-      // Collapse whitespace/control chars so "java\nscript:" can't sneak through.
-      const val = (dq ?? sq ?? "").replace(/[\s\u0000-\u001f]+/g, "");
-      const ok = /^(https?:|mailto:|tel:|data:image\/|#|\/)/i.test(val);
-      return ok ? ` ${attr}="${(dq ?? sq ?? "").replace(/"/g, "&quot;")}"` : "";
+      const val = dq ?? sq ?? "";
+      return urlOk(val) ? ` ${attr}="${val.replace(/"/g, "&quot;")}"` : " ";
     },
+  );
+  // Unquoted values (e.g. src=javascript:alert(1)) — previously untouched, so a
+  // scriptable scheme in an unquoted attribute slipped past the sanitizer.
+  html = html.replace(
+    new RegExp(`[\\s/](${urlAttrs})\\s*=\\s*([^\\s"'>]+)`, "gi"),
+    (_m, attr: string, val: string) =>
+      urlOk(val) ? ` ${attr}="${val.replace(/"/g, "&quot;")}"` : " ",
   );
 
   // Kill CSS-based escapes inside style attributes: expression(), url(javascript:…), @import.

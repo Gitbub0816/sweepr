@@ -30,6 +30,14 @@ import type { AppBindings } from "../types";
 
 export const yardstikRouter = new Hono<AppBindings>();
 
+/** SHA-256 hex digest — used as a fallback dedup key when a webhook carries no id. */
+async function sha256Hex(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 yardstikRouter.get("/config", requireAuth, async (c) => {
   return c.json({ configured: Boolean(c.env.YARDSTIK_API_KEY) });
 });
@@ -254,6 +262,33 @@ const yardstikWebhookHandler = async (c: Context<AppBindings>) => {
   }
 
   const sql = getDb(c.env.DATABASE_URL);
+
+  // Replay / dedup guard. Yardstik carries no timestamp we can use for a
+  // freshness window, so a captured (still-validly-signed) delivery could be
+  // replayed to re-drive a status transition. Claim a dedup row keyed on the
+  // webhook body's `id` (or a hash of body+signature when absent) BEFORE doing
+  // any work — a delivery that can't claim the row is a duplicate we skip.
+  // Mirrors the stripe_events INSERT … ON CONFLICT DO NOTHING RETURNING pattern.
+  const eventKey =
+    (payload.id && String(payload.id)) || (await sha256Hex(`${rawBody}\n${sig}`));
+  try {
+    const claimed = (await sql`
+      INSERT INTO yardstik_webhook_events (event_key, event, resource_id)
+      VALUES (${eventKey}, ${payload.event ?? null}, ${payload.resource_id ?? null})
+      ON CONFLICT (event_key) DO NOTHING
+      RETURNING id
+    `) as { id: string }[];
+    if (!claimed[0]) {
+      logger.info("Yardstik webhook: duplicate delivery ignored", { eventKey });
+      return c.json({ received: true, duplicate: true });
+    }
+  } catch (err) {
+    // If the dedup store is unavailable, fail closed on replay protection but do
+    // not silently drop a real event — log and continue processing (the handler
+    // writes are themselves idempotent status updates).
+    logger.warn("Yardstik webhook: dedup check failed; processing anyway", { err: String(err) });
+  }
+
   logger.info("Yardstik webhook received", { resourceType: payload.resource_type, event: payload.event });
 
   // external_id was set to cleaners.id at candidate/report creation time —

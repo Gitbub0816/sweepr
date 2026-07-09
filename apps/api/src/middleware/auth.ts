@@ -156,9 +156,23 @@ export const requireAuth = createMiddleware<AppBindings>(async (c, next) => {
     // Self-heal owner access FIRST, before the email upsert — otherwise a
     // UNIQUE-violation on email (when a sibling row already owns it) would throw
     // and skip elevation entirely. role='super_admin' satisfies every guard.
-    const isOwner =
-      isOwnerClerkId(clerkId, c.env) ||
-      (resolvedEmail ? isOwnerEmail(resolvedEmail, c.env) : false);
+    //
+    // The strong path is clerk_id match (isOwnerClerkId) — always trusted. The
+    // email path is defense-gated: `resolvedEmail` can originate from an
+    // unverified JWT `email` claim (or a DB row synced from one), so we do NOT
+    // elevate to super_admin on an email match alone. Instead we re-confirm the
+    // account's primary email straight from the Clerk API (authoritative) and
+    // only elevate if THAT is an owner email. This closes an
+    // elevation-by-spoofed-email-claim vector without breaking real owner login
+    // (a genuine owner's Clerk primary email is the owner email).
+    let isOwner = isOwnerClerkId(clerkId, c.env);
+    if (!isOwner && resolvedEmail && isOwnerEmail(resolvedEmail, c.env)) {
+      const confirmedEmail = await fetchClerkEmail(
+        clerkId,
+        isAdminIssuer ? (adminKey as string) : c.env.CLERK_SECRET_KEY,
+      );
+      isOwner = Boolean(confirmedEmail && isOwnerEmail(confirmedEmail, c.env));
+    }
     if (isOwner) {
       // Elevate an existing row first (avoids the email UNIQUE landmine when a
       // sibling account already owns this email).

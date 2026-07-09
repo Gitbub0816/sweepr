@@ -212,11 +212,12 @@ export async function verifyDiditSignature(
   secret: string,
   timestampHeader?: string
 ): Promise<boolean> {
-  // Freshness check — reject replays older/newer than 300s.
-  if (timestampHeader) {
-    const ts = Number(timestampHeader);
-    if (!ts || Math.abs(Date.now() / 1000 - ts) > 300) return false;
-  }
+  // Freshness check — reject replays older/newer than 300s. The timestamp is
+  // REQUIRED: making it optional let an attacker replay a captured (still
+  // validly-signed) webhook indefinitely simply by dropping the X-Timestamp
+  // header. A missing/malformed timestamp is treated as an invalid signature.
+  const ts = Number(timestampHeader);
+  if (!timestampHeader || !ts || Math.abs(Date.now() / 1000 - ts) > 300) return false;
 
   let parsed: unknown;
   try {

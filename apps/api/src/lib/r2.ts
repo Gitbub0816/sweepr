@@ -59,7 +59,7 @@ export async function createPresignedUploadUrl(
   objectKey: string,
   contentType: string,
   expiresInSeconds = 300,
-): Promise<{ uploadUrl: string; storageKey: string }> {
+): Promise<{ uploadUrl: string; storageKey: string; contentType: string }> {
   const now = new Date();
   const datestamp = now.toISOString().slice(0, 10).replace(/-/g, "");
   const amzdate = `${datestamp}T${now.toISOString().slice(11, 19).replace(/:/g, "")}Z`;
@@ -69,20 +69,27 @@ export async function createPresignedUploadUrl(
   const credentialScope = `${datestamp}/${REGION}/${SERVICE}/aws4_request`;
   const credential = `${cfg.accessKeyId}/${credentialScope}`;
 
+  // Bind Content-Type into the signature. SigV4 requires signed headers to be
+  // listed in the SignedHeaders param AND reproduced in the canonical headers
+  // block, both sorted lexicographically (content-type < host). The client's
+  // PUT must send EXACTLY this Content-Type or R2 rejects the signature — this
+  // stops a caller from reusing a presigned URL to upload arbitrary content
+  // types (e.g. text/html served back from our own domain).
+  const signedContentType = contentType.toLowerCase();
   const queryParams = new URLSearchParams({
     "X-Amz-Algorithm": ALGORITHM,
     "X-Amz-Credential": credential,
     "X-Amz-Date": amzdate,
     "X-Amz-Expires": String(expiresInSeconds),
-    "X-Amz-SignedHeaders": "host",
+    "X-Amz-SignedHeaders": "content-type;host",
   });
 
   const canonicalRequest = [
     "PUT",
     `/${cfg.bucket}/${objectKey}`,
     queryParams.toString(),
-    `host:${host}\n`,
-    "host",
+    `content-type:${signedContentType}\nhost:${host}\n`,
+    "content-type;host",
     "UNSIGNED-PAYLOAD",
   ].join("\n");
 
@@ -100,7 +107,9 @@ export async function createPresignedUploadUrl(
 
   const uploadUrl = `${endpoint}/${cfg.bucket}/${objectKey}?${queryParams.toString()}`;
 
-  return { uploadUrl, storageKey: objectKey };
+  // Echo back the Content-Type the client MUST send on its PUT — it is part of
+  // the signature, so any other value fails verification at R2.
+  return { uploadUrl, storageKey: objectKey, contentType: signedContentType };
 }
 
 export function r2PublicUrl(cfg: R2Config, storageKey: string): string {
