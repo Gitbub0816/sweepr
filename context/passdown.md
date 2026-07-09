@@ -4,94 +4,158 @@
 
 # Sweepr — Session Passdown
 
-Last updated: 2026-07-04. Branch: `claude/wonderful-fermi-nmlpre` (all work merged to `main`). Standing instruction: merge current and future work to `main`.
+Last updated: **2026-07-09**. Branch: `claude/wonderful-fermi-nmlpre`
+(everything merged to `main`; branch kept fast-forwarded to main).
+Standing instruction: finished, verified work merges to `main`.
+Stable conventions live in root `/CLAUDE.md` — this file is state + recent work.
 
-## Session — security + performance (IDOR, Neon, Checkr)
-Merged to `main` at `4a4d74a`.
-- **IDOR fixes**: `/admin/status` and `/admin/insurance` routers were missing `requireAdmin` (any authed user could edit status incidents / list+approve insurance) — added. `/storage/sign-upload` accepted an arbitrary `refId` for the R2 key with no ownership check (a user could mint upload URLs under another user's booking/avatar/certificate/insurance path) — now verifies booking access (`getBookingAuthCtx`/`canUploadPhotos`) or that `refId` == caller's own cleaner id. Full audit report: every other route already scopes by owner or stacks `requireAdmin` (see commit body).
-- **Neon**: `getDb` now memoizes the HTTP client per connection string (was rebuilt every call). No dead connections — the HTTP driver is stateless (verified live: 1 active session). Collapsed query waterfalls to `Promise.all` in GET /customer-profile, bookings, didit. Migration 060 (20 FK/status/email indexes) + 061 (partial `assignment_queue(expires_at) WHERE status='pending'` + composite `subscriptions(customer_id,status)`) — **already applied to prod Neon** (project `calm-salad-01545586`) and in schema.sql. Enabled `pg_stat_statements` on prod for future slow-query visibility.
-- **Checkr**: official `checkr-js` is only the browser tokenization widget (not the server Partner API), so `lib/checkr.ts` server code was confirmed correct and left unchanged. Found+fixed a real bug: cleaner `BackgroundCheckStep.tsx` called `checkr.candidate.create({name,email})` but checkr-js validates SSN/DOB/phone client-side before any network call, so it always failed — removed that dead client path; onboarding now always uses the server-side hosted-invitation flow (POST /checkr/invite, no candidateId).
-- **Hard-tested** live API (curl + a saved Postman collection "Sweepr API — Security & Smoke Tests" in workspace 13831d84…): all auth walls (401), IDOR routes blocked, webhook signature rejection (401), client-error ingest (200), owner check-email authorized. 17/17 typecheck, 45/45 tests on the merge.
-- **Follow-ups**: N+1 cron loops flagged but not batched (low-volume): pricingApproval/approvalEngine cron transitions (per-row UPDATE/INSERT → batch with `= ANY`), assignment.ts admin notification fan-out, index.ts audit loop. Cleaner `dob/ssn/phone` are intentionally never collected. **API + frontends must be redeployed** for these fixes to take effect in prod.
+---
 
-## Session — production error-log fixes (earlier)
-- **Stale-Clerk-account 500s** (`users_email_key` on /bookings, /customer-profile, invites): `upsertUser` in `packages/db/src/index.ts` now relinks the stale email-owning row to the new clerk_id (Clerk verifies emails, so a conflict means the account was recreated); owner self-heal in `middleware/auth.ts` does the same instead of forking a synthetic row.
-- **Admin sign-in**: `/admin/check-email` now case-insensitive and always authorizes owner emails (`lib/owner.ts`) so a stale/synthetic users row can't lock the founder out.
-- **Cleaner /sign-in React #300**: SignInPage/SignUpPage returned `<Navigate>` before their hooks; early return moved below all hooks.
-- **Marketing WebGL crash**: HeroScene probes WebGL support and wraps the Canvas in a local boundary → static gradient fallback.
-- **Error reporting gaps**: customer's local ErrorBoundary now reports via `reportClientError`; legal/status/service apps wired with `installGlobalErrorHandlers` (enum extended in `clientErrors.ts` + ui `AppName`); all apps fall back to `https://api.getsweepr.com` for reporting in prod builds missing `VITE_API_URL`.
-- Not code-fixable (external config): Checkr 401/403 (bad/blocked `CHECKR_API_KEY`), Didit "not enough credits" (top up), Slack `token_expired` (reconnect workspace), Clerk script load failures (clerk.getsweepr.com DNS/CDN blips).
+## Session 2026-07-07 → 07-09 (Yardstik, Clerk split, comms, scheduler)
 
-## What this session shipped
+### Background checks: Checkr → Yardstik (merged; STAGING creds)
+- Full provider migration. Normalized status vocabulary unchanged
+  (`not_started|invited|pending|consider|clear|suspended|dispute|pre_adverse_action|adverse_action`);
+  new `yardstik_*` columns (mig. 081), old `checkr_*` kept for history.
+  `lib/yardstik.ts` (mock when no key), `routes/yardstik.ts`, adjudication
+  rewired, legal/marketing pages name "Yardstik, Inc.".
+- **Currently staging**: `YARDSTIK_API_URL=https://api.yardstik-staging.com`,
+  staging key, package `6abeeb85-5023-412b-95df-bcb57300a4d7` ("Federal
+  Premium", system name `federal_premium`). Prod switch = swap 3 secrets +
+  register prod webhooks (CSP already allows `*.yardstik.com`).
+- Webhook signing verified working: dashboard API key named exactly
+  `WEBHOOK_SIGNATURE`; verifier accepts raw-body OR re-serialized JSON HMAC;
+  secret trimmed of paste artifacts.
+- `/yardstik/invite` reconciles an existing report instead of re-ordering
+  (Yardstik rejects duplicates within 30 days) and self-heals stale DB status;
+  owner accounts get the raw Yardstik error `detail` on 502s.
+- **Open decision — embedding the candidate apply form.** `meta.apply`
+  (profile.yardstik-staging.com) is a SPA needing first-party cookies → blank
+  in a cross-site iframe (no X-Frame-Options; it's Chrome third-party-cookie
+  blocking). Researched thoroughly: embeddable SDK (`CandidateReportIframe`,
+  JWT via `POST /web_tokens`) is **account-user/staff only** — tested, returns
+  404 for candidate emails; no API surface for custom domains; Yardstik's own
+  help docs say to send candidates to profile.yardstik.com. Options:
+  (a) ask Yardstik sales for white-label intake domain (no public evidence);
+  (b) self-hosted intake via `account_candidate_consented: true`
+  (feature-gated; FCRA disclosure/consent liability shifts to us);
+  (c) current state: iframe + "open in new tab" fallback. User wants iframe —
+  awaiting decision/Yardstik answer.
 
-A full implementation of the **Booking, Pricing & Payment Engine spec** (plus its amendments: AI vision review, admin-only fee approval, scope/level/add-on separation). Built in 6 waves, all committed, typechecked (17/17 turbo tasks), API-tested (45/45 vitest), and merged to main.
+### Auth
+- **Sign-up hang fixed**: primary Clerk instance requires first/last name (+
+  username/phone as optional identifiers). Forms now collect names; verify
+  handler completes missing fields or routes to `/sign-up/continue`
+  (customer + cleaner apps). Email/phone/username are all optional identifiers.
+- **Separate Clerk application for admin** (`clerk.admin.getsweepr.com`) so
+  staff sessions are independent (Clerk shares one session per root domain —
+  unsplittable in code; two apps can't share a root domain, hence
+  primary/secondary domain arrangement). Email+code sign-in only (password/SSO
+  off). Owner user created in the admin instance
+  (`user_3GHQZpri25n0aD03dHfHsv23wZq`, verified email, super_admin metadata).
+- API: per-issuer token verification; admin-instance identities map to the
+  canonical `users` row **by verified email** (no relinking — the
+  relink-by-email hazard is documented in `middleware/auth.ts`).
+  New webhook `/webhooks/clerk-admin` (mapping-aware, never clobbers primary
+  rows). Admin CSP + deploy workflow carry the admin publishable key
+  (`pk_live_Y2xlcmsuYWRtaW4uZ2V0c3dlZXByLmNvbSQ`).
+- 5 Clerk CNAMEs for `admin.getsweepr.com` added in Cloudflare (DNS-only).
+- **OPEN**: set Worker secrets `CLERK_ADMIN_SECRET_KEY` +
+  `CLERK_ADMIN_WEBHOOK_SECRET`; register the admin webhook; confirm Clerk
+  domain verification green; user rotates the temp keys shared during setup.
 
-### Wave 1 — Foundation (commit `8e7e2d3`)
-- Migration `packages/db/src/migrations/058_scope_review_engine.sql`:
-  - New tables: `scope_review_requests` (AAF + refusal requests; partial unique index blocks duplicate active requests per booking/type), `booking_price_ledger`, `cleaner_privileges`, `address_greylist` (unit-aware `normalized_key` = `lower(street)|lower(unit)|zip`), `booking_tips`.
-  - `customers.account_status` ('normal'|'investigating'|'restricted'|'suspended'|'banned') + `account_status_until` + `account_status_reason`. Customer identity lives on the **`customers`** table (not `users`).
-  - `bookings.cleaning_level` ('refresh'|'extra_attention'|'significant_attention') + `cleaning_level_surcharge_cents`.
-  - `pricing_addons.included_in_packages text[]`.
-  - Seeds 15 `scope_review.*` keys into `site_settings` (plain TEXT values): AAF fee tiers (2500/5000/10000 cents), refusal fee min/max/pct (5000/20000/20), abuse thresholds (70/70/10 jobs), durations (180 days ×3), level surcharge pcts (15/35), `auto_cancel_on_high_confidence_refusal` ('false').
-- Types in `packages/types/src/index.ts`: `CleaningLevel`, `ScopeReviewRequestType/Status`, `CustomerAccountStatus`, `ScopeReviewFeeCode`, `RefusalReason` (9 values), `AiScopeReviewResult` (+safety flags). Row types in `packages/db/src/types.ts`.
-- `packages/utils/src/scope.ts`: `CLEANING_LEVELS` (spec copy), `PACKAGE_SCOPES` (included/excluded/inheritsFrom/banner per ServiceType — all 7 covered), `UNIVERSAL_EXCLUSIONS`, `ADDON_PACKAGE_INCLUSIONS`, `isAddOnIncludedInPackage()`.
-- Migration `059_scope_review_links.sql` (Wave 3): `scope_review_action_links` (sha256 token_hash, single-use, expiring).
+### Email & SMS
+- `wrapBodyInTemplate` rewritten: branded, responsive, email-client-safe
+  (tables + inline CSS, preheader, accent bar, CTA button w/ optional icon,
+  proper footer) — upgraded every code-rendered email at once. Cleaner
+  approval/rejection emails rebuilt ("Open Sweepr" CTA; no logo inside the
+  teal button — the teal logo was invisible on it). Logo asset:
+  `objects.getsweepr.com/site_assets/public/Sweepr-logo.png`.
+- Hosted MailerSend admin templates recreated as API-editable via the
+  MailerSend MCP: `Sweepr Admin Invite` `3z0vklo5j2p47qrx`,
+  `Sweepr Admin Approval Request` `7dnvo4dyep345r86` (code repointed).
+  Old dashboard versions orphaned (safe to delete). Security/IT templates
+  intentionally untouched. Reset Password is Clerk's.
+- **Inbound rich HTML** (mig. 082 `mailbox_messages.body_html`): sanitized
+  server-side at ingest (`lib/emailHtml.ts` — strips scripts/handlers/non-http
+  URLs, forces safe new-tab links); admin Mail reading pane renders HTML on a
+  white surface and auto-linkifies plain text. Only post-deploy mail has HTML.
+- SMS: MailerSend toll-free `+18335367404` (`MAILERSEND_SMS_FROM`). Verified
+  end-to-end; **delivery lags minutes** behind MailerSend's "sent" (toll-free
+  A2P) — not a bug.
 
-### Wave 2 — Payment engine (commit `c33e721`)
-- **Manual capture fix**: `POST /payments/create-intent` now sets `capture_method: "manual"`. Previously PIs auto-captured, making the whole capture-after-service pipeline (cron in `apps/api/src/index.ts`, adminAutomation capture endpoints) dead code. Cached-intent reuse path cancels non-manual PIs. Capture cron captures `amount_to_capture: min(booking.total_price, authorized)` and inserts a `payments` row. Note: Stripe cancels uncaptured manual PIs after 7 days.
-- `apps/api/src/lib/bookingLedger.ts`:
-  - `recordLedgerEntry(sql, {...}) → ledgerId`
-  - `applyBookingPriceAdjustment(sql, stripe, { bookingId, adjustmentCents, eventType, reason?, source, approvedBy?, scopeReviewRequestId? }) → { previousTotal, newTotal, ledgerId, paymentIntentSynced }` — optimistic-lock retry on `bookings.total_price`; syncs Stripe PI amount only pre-confirmation; for `requires_capture` records ledger only (increases past auth aren't collectible on same PI; decreases honored at capture).
-  - Event types: `initial_quote|addon_purchase|level_surcharge|additional_attention_fee|refusal_fee|admin_adjustment|tax_adjustment`. Sources: `customer|cleaner_request|admin|system`.
-- Cleaning level: booking-create payload accepts `cleaningLevel` (zod enum, `.default("refresh")` for backward compat — UI now always sends it). Surcharge = round(pre-surcharge total × pct/100) from settings. Live engine = `resolveBookingPricing` → SweeprPricingEngine (legacy `calculateBookingPrice` fallback). Server rejects add-ons where `isAddOnIncludedInPackage` → 400 `addon_included_in_package`. `calculateQuote` in `packages/utils/src/pricing.ts` extended with optional `cleaningLevel`/`levelSurchargePcts`.
-- Tips (`apps/api/src/routes/tips.ts`, mounted `/tips`, rate-limited): `POST /tips` `{ bookingId, amountCents 100..50000 }` → separate immediate-capture PI (metadata `type:'tip'`), one per booking, only ≤3 days after `bookings.completed_at`. Webhook discriminates on `metadata.type==='tip'`. Payout (`release-payout`) transfers tip 100% (no fee/tier, idempotency `tip_<id>`), sets `paid_out_at` + `visible_to_cleaner=TRUE`. Cleaner earnings (`cleanerDashboard.ts`) expose `tipsThisMonth/tipsAllTime/recentTips` filtered on `visible_to_cleaner`.
-- Reviews: `POST /reviews` 400s `review_window_closed` >3 days after `completed_at`.
+### Admin Schedule calendar + automation engine (new, 2026-07-09)
+- Mig. 082 `scheduled_events`; `lib/scheduledActions.ts` catalog + executor;
+  `/admin/schedule` CRUD + run-now + SSRF-safe ICS import + ICS export;
+  month-grid Schedule page (Comms group). Cron (`*/15`) executes due
+  automations: claim-by-status-transition (race-safe), 6h misfire guard.
+- Actions: `broadcast_email` (audience: newsletter/waitlists/city/all; records
+  to `broadcast_sends`; English-only in v1 — no per-language translation like
+  the interactive Broadcasts page), `status_announcement` (status_incidents),
+  `service_area_launch` (activate by slug), `prelaunch_toggle`
+  (site_settings), `admin_alert` (alert fan-out, category `it`).
+- This is THE mechanism for launch-day: schedule `prelaunch_toggle` off +
+  launch broadcast at the chosen moment.
 
-### Wave 3 — AI scope review engine (commit `7c9252d`)
-- `apps/api/src/lib/aiScopeReview.ts`: `runScopeReview(env, input)` → OpenAI `chat/completions`, model `env.OPENAI_VISION_MODEL ?? 'gpt-4.1-mini'`, temp 0, strict `json_schema` matching `AiScopeReviewResult`. Zod-validated/clamped; on any failure returns `human_review`/confidence-0 fallback (never throws). Photos passed as **public R2 URLs** (`r2PublicUrl` / `R2_PUBLIC_URL`). Backend-only; frontend never calls OpenAI.
-- `apps/api/src/lib/scopeReviewEngine.ts`: settings loader; pure helpers `routeByConfidence`, `aafFeeCents`, `computeRefusalFeeCents` (clamp(total×20%, min, max)), `normalizedGreylistKey`, `isAafFeeCode`; claim-then-act `decideScopeReview`.
-- Confidence routing (ADMIN-ONLY approval per spec amendment — customers never approve fees): ≥95 → `pending_admin` + strong-approve email; 75–94 → `pending_admin` + review email; 50–74 → auto `denied` + admin notice w/ override link; <50 → `hard_denied`, cleaner gets fixed message, admin notified.
-- Routes `apps/api/src/routes/scopeReview.ts` at `/scope-review`:
-  - Cleaner: `POST /requests` (checked-in via `bookings.arrival_verified_at`, not completed, privileges enabled, 2–20 photoKeys, notes ≥10, refusalReason iff refusal; 409 on duplicate), `GET /requests/mine?bookingId=`, `GET /privileges`.
-  - Admin (`requireAdmin`, any admin — intentionally looser than fee proposals' super_admin): `GET /admin/requests?status=&type=`, `GET /admin/requests/:id` (incl. `aiResponse`, `photoUrls`, `ledgerPreview`), `POST /admin/requests/:id/decision` `{ decision, feeCode?, note? }` (approve on denied/hard_denied = override).
-  - Public: `GET /action/:token` — signed single-use email approve/deny links (shared, not per-admin; audits as actor `email_link` + ip/UA).
-- Decisions: AAF approve → `applyBookingPriceAdjustment` (fee from settings by fee_code; admin override wins over AI `recommended_fee_code`). Refusal approve → capture refusal fee off manual-capture PI (idempotency `refusal_<requestId>`), booking → `cancelled_by_cleaner`, customer → investigating (or → suspended + **greylist address** if second approved refusal within window), payout_ledger gross set to refusal fee.
-- Abuse: ≥10 completed jobs AND AAF request rate ≥70% AND denial rate ≥70% → disable `additional_attention_enabled` 180 days.
-- Enforcement in `bookings.ts`: block suspended/banned customers (lazy status expiry) and greylisted addresses (403 generic). Completion (dayOfService finish) resets investigating→normal. Crons in `index.ts` scheduled handler: expire `pending_admin` past `expires_at`, re-enable privileges, reset expired account statuses.
-- Admin email: `scopeReviewNotify.ts`, recipients = `listSuperAdmins(sql)`, subject `Sweepr Review Needed: {type} - Booking {id}`. Slack card intentionally skipped.
+### Fixes & polish this session
+- **Didit status polling 429** → onboarding never advanced: polled GETs
+  (`/didit/status`, `/yardstik/status`) moved off the strict 10/15m mutation
+  bucket to 240/15m per-user poll buckets.
+- Marketing mobile hamburger 404 (ClerkProvider double-mount) fixed.
+- CSP: cleaner app allows `*.yardstik-staging.com` (frame+connect); admin
+  allows `clerk.admin.getsweepr.com`.
+- `PhoneInput` primitive + phone helpers in `@sweepr/ui`; wired into admin SMS
+  alert phone + customer/cleaner contact settings. E.164 in DB everywhere.
+- **Dark theme**: warm graphite replaces blue-gray slate + navy charcoal
+  (shared preset override) + subtle dark-only film grain (opacity 0.04).
+  WCAG re-sweep pending.
+- Clerk primary webhook flood damping + specific invalid-signature reasons
+  (secret must be `whsec_…`, not an API key).
+- Test suite grew to **365 tests** (incl. `apps/api/tests/yardstik.test.ts`).
 
-### Wave 4a — Customer UI (commit `0a37994`)
-- New step order: `Address → Home → Package → Condition → AddOns → Schedule → Review → Payment → Confirmed` (`apps/customer/src/booking/steps.ts`). `ServiceStep.tsx` deleted; `/book/service` redirects to `/book/package`.
-- New: `PackageStep.tsx` (comparison pillars, banners, included/excluded, selected scales ~110%, "View complete inclusions & exclusions" modal → links `${VITE_LEGAL_URL}/service-scope`), `ConditionStep.tsx` (mandatory exactly-one, live surcharge), `AddOnsStep.tsx` (package-aware, included items disabled, "Forgot something?" notice).
-- Store: `cleaningLevel` + `setCleaningLevel` (persisted); `setService` auto-prunes add-ons that become package-included; wired into `getQuote()` and POST /bookings payload.
-- `ReviewStep.tsx`: 3-section itemization (Package / Level / Add-ons) + **required acknowledgement checkbox** (UI-gated only — no consent persistence hook existed; flagged as follow-up) incl. the "Your cleaner cannot change your price…" disclosure.
-- Post-booking add-ons: new `POST /bookings/:id/addons` (owner-only; guards `arrival_verified_at IS NULL` + pre-service status → 409 `booking_already_started`; 400 `unknown_addon`/`addon_included_in_package`; 409 `addon_already_purchased`; prices from `@sweepr/utils` ADD_ONS — intentional, matches customer-facing catalogue keys; calls `applyBookingPriceAdjustment` eventType `addon_purchase`). UI: `AddServicesCard.tsx` with authorization-increase consent copy; `TipCard.tsx` (presets + custom, Stripe Elements confirm, "100% of your tip…" copy). GET /bookings/:id now returns `addon_keys`; client Booking type gained `completedAt`.
+---
 
-### Wave 4b — Cleaner UI (commit `2c06206`)
-- `apps/cleaner/src/components/ScopeReviewSection.tsx`, rendered in `JobDetailPage.tsx` gated on `job.arrival_verified_at && !isCompleted`: AAF button + de-emphasized refusal under "Having an issue?"; 3-step wizard (photos min 2 / details / submit); status chips; exact disabled-privilege copy w/ 180-day message; duplicates the sign-upload→PUT R2 pattern locally (JobDetailPage's helper is coupled to its action flow).
-- `EarningsPage.tsx`: post-payout Tips card. i18n: `cleaner.scopeReview.*` keys added to all 10 locales (9 are English copies — translation follow-up).
+## Open items (in priority order)
+1. Clerk admin instance: two Worker secrets + webhook registration + domain
+   verify (see Auth above). Until then admin sign-in works but API calls from
+   the admin app will 401.
+2. Yardstik: embed decision (white-label ask vs self-hosted intake vs keep
+   fallback); production credential switch when account is credentialed.
+3. WCAG sweep after the dark-theme change.
+4. Sentry MCP setup with real DSNs (task #112, parked).
+5. Rotate anything shared in chat transcripts (temp Clerk keys, CF token —
+   user said they'd revoke; verify).
+6. Pre-launch: rotate hardcoded prelaunch bypass code "0123"
+   (PrelaunchGate.tsx); revoke stale test Clerk keys.
+7. Scheduled `broadcast_email` is English-only (no translation pass) — port
+   the Broadcasts translation grouping if multilingual scheduled sends matter.
 
-### Wave 4c — Admin UI (commit `7263827`)
-- `ScopeReviewPage.tsx` (queue, confidence-colored badges, filters, nav "Scope Review"/ScanEye), `ScopeReviewDetailPage.tsx` (AI panel, safety-flag chips, photo lightbox, financial impact, approve/deny/override + fee-tier select), `TrustSafetyPage.tsx` (nav "Trust & Safety"/ShieldBan: customer statuses, greylist, cleaner privileges). Routes `/scope-review`, `/scope-review/:id`, `/trust-safety`.
-- `SettingsPage.tsx`: `ScopeReviewSettingsPanel` (cents↔dollars at UI boundary) via new `GET/PATCH /admin/settings/scope-review` (flat bag; original 4-key endpoint untouched).
-- New `apps/api/src/routes/adminTrust.ts` at `/admin-trust`: `GET /customers?status=`, `POST /customers/:id/status` `{status, reason?, days?}`, `GET|DELETE /greylist(/:id)`, `GET /cleaner-privileges`, `POST /cleaner-privileges/:cleanerId/restore`. All mutations audited.
+## Earlier sessions (condensed; details in git history)
+- **2026-07-04 — Booking/Pricing/Payment engine** (scope review lifecycle, AI
+  vision routing, booking ledger, manual-capture pipeline, tips, trust/safety
+  consoles, migrations 058–059). Conventions from it are canonized in
+  /CLAUDE.md. Known gaps still true: booking acknowledgement is UI-gated only;
+  9 locales carry English copies of cleaner scope-review strings; three
+  parallel server pricing engines coexist (consolidation debt); no Switch
+  primitive in @sweepr/ui.
+- **Security/perf session**: IDOR fixes (admin status/insurance requireAdmin,
+  storage sign-upload ownership), Neon client memoization + index migrations
+  060–061, Checkr client bug removal (superseded by Yardstik).
+- **Admin platform sessions**: IT/Security consoles, Mail center, alerting
+  (prefs/fan-out/badges), approvals + pricing engines with Slack cards,
+  permissions/access control, service-area + assignment engine, adjudication
+  engine, admin reorg with grouped nav.
 
-## Deploy checklist (NOT yet done — production blockers)
-1. **Apply migrations 058 + 059**: `node packages/db/migrate.mjs` against Neon `DATABASE_URL`. (`neon-ensure.sql` is stale/abandoned since ~migration 036 — deliberately not updated.)
-2. **Set Cloudflare secrets**: `OPENAI_API_KEY` (required), `OPENAI_VISION_MODEL` (optional, default `gpt-4.1-mini`).
-3. Refusal payouts need **manual admin release** — booking ends `cancelled_by_cleaner`, so the completed-bookings auto-release cron skips it (noted in code).
-
-## Known gaps / follow-ups
-- Booking acknowledgement is UI-gated only; no server-side consent record (no metadata field on createSchema). Consider persisting via the legal consent tables.
-- `cleaningLevel` server default `'refresh'` (backward compat); could be made hard-required now that UI always sends it.
-- 9 non-English locales carry English copies of new cleaner-app strings.
-- Three parallel server pricing engines still coexist (`sweeprPricingEngine` [live], `pricingEngine`, `pricingRuleEngine` + legacy `calculatePrice` in utils) — consolidation debt.
-- Admin queue booking column is plain text (no admin booking-detail page exists).
-- No `Switch` primitive in @sweepr/ui (settings toggle is a styled checkbox).
-- Carried over from earlier sessions: revoke test Clerk live key when testing done; rotate hardcoded prelaunch bypass code "0123" in PrelaunchGate.tsx before launch.
-
-## Git / process state
-- Everything merged to `main` (`01ff05d`); `git cherry origin/main origin/claude/wonderful-fermi-nmlpre` → 0 missing.
-- Two merge commits to main were done in a temp worktree (since removed): `a5e74b1` (waves 1–3 + skeleton loaders + Checkr fixes; resolved 4 conflicts — 3 skeleton-loader pages kept branch side, `schema.sql` regenerated) and `01ff05d` (waves 4a–4c, clean).
-- Repo git identity set to `Claude <noreply@anthropic.com>`; some pre-existing merged commits show Unverified on GitHub (left alone — rewriting merged history not worth it).
-- Verification commands: `npx turbo run typecheck --force` (17 tasks; beware `pnpm -w typecheck -- --force` forwards `--force` into tsc and fails), `npx vitest run apps/api/tests` (45 tests; vitest via npx, not a dep). Schema regen: `node packages/db/build-schema.mjs && node packages/db/verify-schema.mjs`.
+## Gotchas (do not relearn)
+- Strict rate buckets on polled GETs break onboarding — give polls their own bucket.
+- `wrangler secret put` via `echo` adds a newline; use `printf`. Wrapping
+  quotes/whitespace in secrets broke Yardstik twice (code now trims — set clean anyway).
+- MailerSend dashboard-created templates 404 on API update — create via API.
+- Rotating a Clerk publishable key requires rebuilding every Pages app (baked
+  at build); stale Clerk cookies after rotation cause 401/400 storms — clear
+  site data / incognito.
+- Clerk DNS records must be DNS-only (Cloudflare proxy breaks verification).
+- One browser = one session per Clerk instance — test personas via separate
+  browser profiles.
+- Yardstik REST auth is `Authorization: Account <key>` — Bearer/Token fail.
+- `npx turbo run typecheck --force`, never `pnpm -w typecheck -- --force`.

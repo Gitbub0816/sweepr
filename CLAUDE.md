@@ -1,147 +1,169 @@
-# CLAUDE.md — Agent guide for the Sweepr monorepo
+> Copyright © 2026–Present ClearKey Solutions, LLC.
+> Proprietary & Confidential. Internal Use Only.
 
-Sweepr is a residential-cleaning marketplace by ClearKey Solutions, LLC.
-pnpm workspaces + Turbo. Backend is a single Hono app on Cloudflare Workers;
-frontends are Vite/React on Cloudflare Pages; DB is Neon Postgres.
+# CLAUDE.md — Sweepr working guide (canonical)
 
-## Layout & live domains (deploy.yml is the source of truth)
+Read `context/passdown.md` for what recent sessions shipped and what's open.
+This file is the stable orientation doc.
+
+## What Sweepr is
+Home-cleaning marketplace: customers book cleanings, cleaners fulfill, admins run
+the platform. Stripe (manual-capture PIs + Connect transfers), Clerk auth (TWO
+applications — see Auth), MailerSend email/SMS, Cloudflare R2 photos, OpenAI
+vision for scope review (backend-only), Yardstik background checks (staging),
+Didit identity verification, Neon Postgres, Hono on Cloudflare Workers.
+
+## Monorepo (pnpm workspaces + Turbo) — deploy.yml is domain truth
 
 | Path | Deploys to |
 | --- | --- |
-| `apps/api` | Worker `sweepr-api` → api.getsweepr.com (+ cron `*/15 * * * *`) |
+| `apps/api` | Worker `sweepr-api` → api.getsweepr.com (cron `*/15 * * * *`) |
 | `apps/marketing` | getsweepr.com |
-| `apps/customer` | app.getsweepr.com |
-| `apps/cleaner` | clean.getsweepr.com (same build also → dashboard.getsweepr.com) |
-| `apps/admin` | admin.getsweepr.com |
+| `apps/customer` | app.getsweepr.com (booking wizard `src/booking/`, Zustand store `src/store/booking.ts`) |
+| `apps/cleaner` | clean.getsweepr.com + dashboard.getsweepr.com (day-of-service `src/pages/JobDetailPage.tsx`; 10 locales) |
+| `apps/admin` | admin.getsweepr.com (nav/routes in `src/App.tsx`) |
 | `apps/legal` | legal.getsweepr.com |
 | `apps/status` | status.getsweepr.com |
 | `apps/service` | service.getsweepr.com (demo) |
-| `packages/db` | migrations + generated `schema.sql` |
-| `packages/ui` / `utils` / `types` / `config` | shared libs (`config/tailwind.ts` = shared theme preset) |
+| `packages/db` | raw SQL migrations `src/migrations/0NN_*.sql`; `schema.sql` is GENERATED |
+| `packages/ui` | design system (Card/Button/Modal/toast/PhoneInput/SweeprCalendar…) |
+| `packages/utils` | pricing (`pricing.ts`) + scope data (`scope.ts`) |
+| `packages/config` | `tailwind.ts` shared theme preset (see Theme) |
 
-## Commands
+## Verify before committing
 
 ```bash
-pnpm install
-npx turbo run typecheck                          # all workspaces (run before every commit)
-npx turbo run typecheck --filter=@sweepr/api     # one workspace
-npx vitest run apps/api/tests                    # API test suite (the only test suite)
-npx turbo run build --filter=@sweepr/<app>       # vite build (also validates tailwind plugins)
-node packages/db/build-schema.mjs && node packages/db/verify-schema.mjs   # REQUIRED after adding a migration — CI fails otherwise
+npx turbo run typecheck --force        # all tasks must pass
+                                       # (NOT `pnpm -w typecheck -- --force` — forwards --force into tsc)
+npx vitest run apps/api/tests          # API suite (currently 365 tests) — vitest via npx, not a dep
+npx turbo run build --filter=@sweepr/<app>   # for touched frontends
+# if migrations changed (CI hard-fails otherwise):
+node packages/db/build-schema.mjs && node packages/db/verify-schema.mjs
 ```
 
 ## Deploy model
+Push to `main` → GitHub Actions: typecheck → apply migrations (`migrate.mjs`) →
+`wrangler deploy` the API → deploy every Pages app. **Everything auto-deploys.**
+Frontend env (e.g. Clerk publishable keys) is baked at build time in the workflow.
+Worker secrets: `printf 'value' | wrangler secret put NAME` in `apps/api`
+(`echo` adds a trailing newline — this has broken integrations). Secret catalog =
+comments in `apps/api/wrangler.toml`.
 
-- Push to `main` → GitHub Actions (`.github/workflows/deploy.yml`) runs typecheck,
-  applies DB migrations (`packages/db/migrate.mjs`), deploys the API worker via
-  `wrangler deploy`, then deploys every Pages app. **Everything auto-deploys on main.**
-- Frontend env (e.g. `VITE_CLERK_PUBLISHABLE_KEY`) is baked at build time in the
-  workflow — changing a GitHub secret requires a re-run/redeploy to take effect.
-- Worker secrets: `wrangler secret put NAME` in `apps/api` (redeploys immediately).
-  Use `printf 'value' | wrangler secret put NAME` — trailing newlines from `echo`
-  have broken integrations before. The full secret catalog lives as comments in
-  `apps/api/wrangler.toml`.
+## Git / process
+- Develop on `claude/wonderful-fermi-nmlpre`; standing instruction: finished,
+  verified work merges to `main` (keep the branch fast-forwarded to main after).
+- Commit as `Claude <noreply@anthropic.com>` (repo config set). Never put AI
+  model identifiers in commits/code. No PRs unless explicitly requested.
 
-## Conventions
-
-- Every source file starts with the ClearKey copyright header (copy from a sibling).
-- Migrations: `packages/db/src/migrations/NNN_name.sql`, then regenerate schema (above).
-- Outbound email goes through `apps/api/src/lib/mailer.ts` only. Body emails use
-  `wrapBodyInTemplate(subject, body, lang?, opts?)` — the branded, email-client-safe
-  template (preheader, CTA button w/ optional icon, unsubscribe for marketing).
-  Logo asset: `https://objects.getsweepr.com/site_assets/public/Sweepr-logo.png`.
-  Say "Sweepr", never "Sweepr Pro".
-- Outbound SMS goes through `apps/api/src/lib/sms.ts` only (consent re-verified per
-  send; transactional allowlist). Sender = MailerSend toll-free `MAILERSEND_SMS_FROM`.
-- Phones: store E.164 (`+1XXXXXXXXXX`). UI uses `PhoneInput` from `@sweepr/ui`
-  (displays `(XXX) XXX-XXXX`, emits E.164); helpers `toE164US`/`isCompleteUsPhone`.
-- Rate limiting (`apps/api/src/index.ts`): strict low buckets are for *mutations*.
-  Read-only endpoints the UI polls (e.g. `/didit/status`, `/yardstik/status`,
-  `/auth/me`) must get their own generous bucket — polls against a strict bucket
-  have caused "stuck" onboarding twice.
-- Errors: `logger.error/warn` anywhere in a request is auto-flushed to the admin
-  error feed (`error_logs`) with full context. Return friendly messages to users;
-  owner accounts may receive a `detail` field (see `/yardstik/invite`).
-- Each Pages app has its own CSP in `apps/<app>/public/_headers` — adding a new
-  external script/XHR/iframe origin requires editing that file (browser caches it;
-  hard refresh after deploy).
-- Theme: shared Tailwind preset `packages/config/tailwind.ts`. Dark mode is
-  **warm graphite** (slate scale is overridden — warm neutrals, deliberately no
-  blue; `charcoal` = `#1c1a17`) plus a subtle dark-only film-grain overlay
-  (opacity 0.04 in the preset plugin). Don't reintroduce blue-gray slate.
-- Admin routers: `adminRouter.use("*", requireAuth, requireAdmin)` pattern
-  (`middleware/adminRoles`). Roles live on `users.role` in Neon.
+## Hard conventions (violating these breaks things)
+1. **Money is integer cents in the DB**; `packages/utils` client quote math is in
+   dollars — be explicit at every boundary.
+2. **Never trust frontend pricing/amounts** — totals computed server-side from DB.
+3. **Claim-then-act for money movement**: conditional
+   `UPDATE … WHERE status=<old> RETURNING` before any Stripe call
+   (`payments.ts`, `bookingLedger.ts`). Same pattern for scheduled-event
+   execution (`lib/scheduledActions.ts`).
+4. Booking PIs are **manual capture** (one PI per booking; capture after service
+   via cron, `min(total, authorized)`; Stripe cancels uncaptured PIs after 7
+   days). Tips are separate immediate-capture PIs, 100% to cleaner, no platform
+   fee, invisible until `booking_tips.visible_to_cleaner` flips at payout.
+5. Every price change goes through `lib/bookingLedger.ts`
+   (`applyBookingPriceAdjustment` / `recordLedgerEntry`) → `booking_price_ledger`.
+6. Auth middleware: `requireAuth` (+ `requireAdmin`/roles from
+   `middleware/adminRoles.ts` on admin routers). Validation: `zValidator` + zod.
+   Audit meaningful changes via `lib/audit.ts`.
+7. Env vars typed on `AppBindings` (`apps/api/src/types.ts`), accessed `c.env.X`
+   (Workers — never `process.env`).
+8. Email-actionable approvals use the signed single-use link pattern (sha256
+   `token_hash` + `expires_at` + `used_at IS NULL`).
+9. Booking status changes must pass `lib/statusMachine.ts` `isValidTransition`.
+10. OpenAI is called ONLY from the backend (`lib/aiScopeReview.ts`); raw AI output
+    never reaches customers; only admin decisions move money.
+11. Outbound email ONLY via `lib/mailer.ts`; body emails use
+    `wrapBodyInTemplate(subject, body, lang?, opts?)` — branded, email-client-safe
+    (preheader, CTA w/ optional icon, unsubscribe for marketing). Logo:
+    `https://objects.getsweepr.com/site_assets/public/Sweepr-logo.png`.
+    Brand is "Sweepr" — never "Sweepr Pro".
+12. Outbound SMS ONLY via `lib/sms.ts` (consent re-verified per send;
+    transactional allowlist). Toll-free sender; "sent" ≠ delivered (A2P lag).
+13. Phones stored as E.164 (`+1XXXXXXXXXX`). UI: `PhoneInput` from `@sweepr/ui`
+    (masks `(XXX) XXX-XXXX`, emits E.164); helpers `toE164US`/`isCompleteUsPhone`.
+14. Rate limiting (`index.ts`): strict low buckets are for *mutations*. Polled
+    read endpoints (`/didit/status`, `/yardstik/status`, `/auth/me`) get their
+    own generous bucket — strict buckets on polls have broken onboarding twice.
+15. Each Pages app has its own CSP in `apps/<app>/public/_headers`; new external
+    script/XHR/iframe origins must be added there (browsers cache it).
+16. Every source file starts with the ClearKey copyright header.
 
 ## Auth — TWO Clerk applications
+1. **Primary** (`clerk.getsweepr.com`): customers + cleaners; one account can be
+   both. Session is shared across all getsweepr.com subdomains by Clerk design —
+   cannot be split in code; use separate browser profiles to test personas.
+2. **Admin** (`clerk.admin.getsweepr.com`): separate Clerk application → staff
+   sessions independent of user sessions. Email + code sign-in only.
 
-1. **Primary** (`clerk.getsweepr.com`): customers + cleaners. One account can be
-   both customer and cleaner. Session is shared across all getsweepr.com
-   subdomains (Clerk design — cannot be split in code; use browser profiles to
-   test multiple personas).
-2. **Admin** (`clerk.admin.getsweepr.com`): separate Clerk application for the
-   admin console, so staff sessions are independent of user sessions.
-   Email + code sign-in only (no password/SSO).
+`middleware/auth.ts` verifies tokens against whichever instance issued them
+(unverified `iss` routes key choice; verification stays cryptographic).
+**Admin-instance identities map onto the canonical `users` row by verified
+email** — never relink/duplicate rows. Webhooks: `/webhooks/clerk`
+(`CLERK_WEBHOOK_SECRET`) and `/webhooks/clerk-admin`
+(`CLERK_ADMIN_WEBHOOK_SECRET`); Svix, secrets are `whsec_…`.
+Primary sign-up requires first/last name; forms collect them and
+`/sign-up/continue` collects any remaining required fields — a verified but
+non-`complete` sign-up must route there, never hang.
+Owners (`1morecruise@gmail.com`, `caleb.owen2019@outlook.com`) self-heal to
+`super_admin`; never seed owners as test cleaners (seed script guards it).
 
-`apps/api/src/middleware/auth.ts` verifies bearer tokens against whichever
-instance issued them (unverified `iss` picks the key; verification is still
-cryptographic). **Admin-instance identities are mapped onto the canonical
-`users` row by Clerk-verified email** — never relink/duplicate rows. Webhooks:
-`/webhooks/clerk` (primary, `CLERK_WEBHOOK_SECRET`) and `/webhooks/clerk-admin`
-(admin, `CLERK_ADMIN_WEBHOOK_SECRET`); both Svix-verified, secret must be `whsec_…`.
-Clerk requires first/last name at sign-up — the sign-up forms collect them, and
-`/sign-up/continue` (ContinueSignUp) collects anything still missing; a
-verification that succeeds but isn't `status === "complete"` must route there,
-never hang.
+## Domain model (three independent axes)
+- **Package** (`serviceType`) = WHAT gets cleaned (`PACKAGE_SCOPES`)
+- **Cleaning Level** (refresh / extra_attention / significant_attention) = HOW
+  much labor (surcharge %, never scope)
+- **Add-ons** = extra scope; blocked if package-included
+  (`isAddOnIncludedInPackage`, server-enforced); purchasable until check-in.
 
-## Integrations (key facts that have bitten us)
-
-- **Yardstik** (background checks, currently STAGING `api.yardstik-staging.com`):
-  auth header is `Authorization: Account <key>` (not Bearer). Reports need
-  `account_package_id` (staging "Federal Premium" = `6abeeb85-5023-412b-95df-bcb57300a4d7`).
-  Webhooks are signed with a dashboard API key literally named `WEBHOOK_SIGNATURE`
-  (HMAC-SHA256 hex of body → `x-yardstik-webhook-signature`); register every event
-  type against `https://api.getsweepr.com/webhooks/yardstik`. `/yardstik/invite`
-  reconciles an existing report instead of re-ordering (Yardstik blocks duplicates
-  within 30 days). The candidate `meta.apply` page (profile.yardstik-staging.com)
-  renders BLANK in a cross-site iframe (third-party cookies) — current UI shows the
-  iframe + "open in new tab" fallback; true embedding needs a Yardstik white-label
-  domain (unconfirmed they offer one) or self-hosted intake
-  (`account_candidate_consented: true`, feature-gated, FCRA liability shifts to us).
-  The `@yardstik/embeddable-sdk` is staff-only (report viewer) — NOT for candidates.
-- **Didit** (identity): webhook-driven; UI polls `GET /didit/status` every 5s.
-- **MailerSend**: templates created in the dashboard are NOT API-editable; only
-  API-created templates are. Hosted template IDs live in `TEMPLATES` in
-  `lib/mailer.ts` (Admin Invite `3z0vklo5j2p47qrx`, Approval Request
-  `7dnvo4dyep345r86`; Security/IT templates are hands-off). Most emails are
-  code-rendered, not hosted templates. Inbound mail → `/mail/inbound` →
-  `mailbox_messages` with sanitized `body_html` (`lib/emailHtml.ts`).
-  SMS "sent" ≠ delivered — toll-free A2P can lag minutes.
-- **Stripe**: manual-capture booking payments; webhook `/webhooks/stripe`.
-- **Slack**: admin console integration; interactive approval cards.
+## Scope review lifecycle (cleaner AAF/refusal requests)
+Checked-in cleaner submits w/ ≥2 photos → OpenAI vision confidence → routing
+(≥95 pending_admin strong-approve email / 75–94 pending_admin / 50–74
+auto-denied / <50 hard_denied) → admin decides (`/scope-review` UI or signed
+email links). AAF approve → ledger fee (tiers in `site_settings scope_review.*`);
+refusal approve → capture clamp(20%, min, max), booking `cancelled_by_cleaner`,
+customer investigating (2nd in 180d → suspended + address greylisted).
+Abuse throttle: ≥70% request + ≥70% denial rate after 10 jobs → privilege off 180d.
 
 ## Admin schedule calendar (automation engine)
+`scheduled_events` (mig. 082) + `lib/scheduledActions.ts` +
+`routes/adminSchedule.ts` + admin Comms → Schedule. Cron executes due
+automations (claim-by-status-transition, 6h misfire guard): `broadcast_email`,
+`status_announcement`, `service_area_launch`, `prelaunch_toggle`
+(site_settings `prelaunch_customer|cleaner|pricing`), `admin_alert`. Add an
+action = one `SCHEDULED_ACTION_CATALOG` entry + one executor case. ICS import
+is SSRF-safe (`lib/calendarSecurity.ts`); export `/admin/schedule/export.ics`.
 
-`scheduled_events` (migration 082) + `lib/scheduledActions.ts` +
-`routes/adminSchedule.ts` + admin **Schedule** page (Comms group). Automations
-execute via the `*/15` cron: claim-by-status-transition (race-safe), 6h misfire
-guard. Action catalog: `broadcast_email`, `status_announcement`,
-`service_area_launch`, `prelaunch_toggle` (site_settings keys
-`prelaunch_customer|cleaner|pricing`), `admin_alert`. To add an action: one
-entry in `SCHEDULED_ACTION_CATALOG` + one executor case. ICS import is
-SSRF-safe via `lib/calendarSecurity.ts` (`fetchCalendar`/`parseIcs`); export at
-`/admin/schedule/export.ics`.
+## Integration facts that have bitten us
+- **Yardstik** (staging `api.yardstik-staging.com`): auth header
+  `Authorization: Account <key>`. Reports need `account_package_id` (staging
+  "Federal Premium" = `6abeeb85-5023-412b-95df-bcb57300a4d7`). Webhooks signed
+  by a dashboard API key literally named `WEBHOOK_SIGNATURE` (HMAC-SHA256 hex →
+  `x-yardstik-webhook-signature`); register every event type against
+  `https://api.getsweepr.com/webhooks/yardstik`. `/yardstik/invite` reconciles
+  existing reports (30-day dedup). Candidate `meta.apply` page renders BLANK in
+  a cross-site iframe (third-party cookies) — iframe + new-tab fallback is
+  current; `@yardstik/embeddable-sdk` is staff-only, NOT for candidates.
+- **MailerSend**: dashboard-created templates are NOT API-editable; hosted
+  template IDs live in `TEMPLATES` (`lib/mailer.ts`). Security/IT templates are
+  hands-off. Inbound mail → `mailbox_messages` with sanitized `body_html`
+  (`lib/emailHtml.ts`); admin Mail renders HTML + linkifies plain text.
+- **Errors**: any `logger.error/warn` during a request auto-flushes to the admin
+  error feed with full context; owner accounts may get a `detail` field in
+  error responses.
 
-## Owner / test accounts
-
-- Owner: `1morecruise@gmail.com` (self-heals to `super_admin` via
-  `SUPER_ADMIN_EMAILS`/owner logic in `middleware/auth.ts`; also
-  `caleb.owen2019@outlook.com`). Never seed owner accounts as test cleaners
-  (`packages/db/seed-test-cleaner.mjs` guards this).
-- To test multiple roles simultaneously, use separate browser profiles
-  (cookie jars) — the primary Clerk instance shares one session per browser.
+## Theme
+Shared preset `packages/config/tailwind.ts`. Dark mode = **warm graphite**
+(slate scale overridden to warm neutrals — deliberately no blue; `charcoal` =
+`#1c1a17`) + subtle dark-only film grain (opacity 0.04, preset plugin). Don't
+reintroduce blue-gray.
 
 ## Secrets hygiene
-
-Never commit or echo secret values. Publishable keys (`pk_…`) are safe in code;
-secret keys (`sk_…`, `whsec_…`, API tokens) go only through `wrangler secret put`
-or GitHub secrets. If a secret is ever pasted into a chat/transcript, rotate it.
+Publishable keys (`pk_…`) may live in code; secret keys (`sk_…`, `whsec_…`,
+tokens) only via `wrangler secret put` / GitHub secrets. Anything pasted into a
+chat transcript gets rotated.
