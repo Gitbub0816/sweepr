@@ -324,8 +324,21 @@ app.use("/privacy/*", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "
 // External/expensive identity-verification calls (Yardstik, Didit) — stricter
 // than general to blunt cost-abuse. Does NOT cover /webhooks/yardstik or
 // /webhooks/didit, which are mounted separately and are HMAC-verified.
-app.use("/yardstik/*", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "yardstik", by: "user" , strict: true }));
-app.use("/didit/*", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "didit", by: "user" , strict: true }));
+// The read-only GET .../status endpoints are POLLED by the onboarding UI every
+// few seconds while the candidate finishes verification, so they must NOT share
+// the strict mutation bucket (10/15m) — that 429'd polling within a minute and
+// the UI never saw completion. They get a generous poll allowance instead; only
+// the expensive session/report *mutations* keep the strict limit.
+const yardstikStrict = rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "yardstik", by: "user", strict: true });
+const yardstikPoll = rateLimit({ limit: 240, windowMs: 15 * 60_000, keyPrefix: "yardstik-poll", by: "user" });
+app.use("/yardstik/*", (c, next) =>
+  c.req.method === "GET" && c.req.path === "/yardstik/status" ? yardstikPoll(c, next) : yardstikStrict(c, next),
+);
+const diditStrict = rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "didit", by: "user", strict: true });
+const diditPoll = rateLimit({ limit: 240, windowMs: 15 * 60_000, keyPrefix: "didit-poll", by: "user" });
+app.use("/didit/*", (c, next) =>
+  c.req.method === "GET" && c.req.path === "/didit/status" ? diditPoll(c, next) : diditStrict(c, next),
+);
 // Review submission — authenticated, keyed per-user so a single account can't
 // spam reviews from many IPs.
 app.use("/reviews", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "reviews", by: "user" , strict: true }));
