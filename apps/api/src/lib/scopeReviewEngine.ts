@@ -29,6 +29,7 @@ import { isValidTransition } from "./statusMachine";
 import { audit } from "./audit";
 import { logger } from "./logger";
 import { notifyCleanerDecision } from "./scopeReviewNotify";
+import { sendEmail, wrapBodyInTemplate, SENDERS } from "./mailer";
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 export interface ScopeReviewSettings {
@@ -233,7 +234,7 @@ export async function decideScopeReview(
       requestType: req.request_type,
       decision: "denied",
     }).catch((err) => logger.error("notifyCleanerDecision failed", err, {}));
-    await runAbuseCheck(sql, req.cleaner_id, settings, input.adminId).catch((err) =>
+    await runAbuseCheck(sql, env, req.cleaner_id, settings, input.adminId).catch((err) =>
       logger.error("runAbuseCheck failed", err, {}),
     );
     return { status: "denied", requestType: req.request_type };
@@ -276,7 +277,7 @@ export async function decideScopeReview(
     timestamp: new Date().toISOString(),
   });
 
-  await runAbuseCheck(sql, req.cleaner_id, settings, input.adminId).catch((err) =>
+  await runAbuseCheck(sql, env, req.cleaner_id, settings, input.adminId).catch((err) =>
     logger.error("runAbuseCheck failed", err, {}),
   );
 
@@ -453,7 +454,7 @@ async function approveRefusal(
 
   // ── Customer account status escalation ────────────────────────────────────
   if (req.customer_id) {
-    await escalateCustomer(sql, req, booking, settings, input.adminId);
+    await escalateCustomer(sql, env, req, booking, settings, input.adminId);
   }
 
   await notifyCleanerDecision(sql, env, {
@@ -469,6 +470,7 @@ async function approveRefusal(
 
 async function escalateCustomer(
   sql: Sql,
+  env: Env,
   req: RequestRow,
   booking: { id: string; street: string | null; unit: string | null; city: string | null; state: string | null; zip: string | null; lat: number | null; lng: number | null },
   settings: ScopeReviewSettings,
@@ -510,6 +512,12 @@ async function escalateCustomer(
         ON CONFLICT (normalized_key) DO NOTHING
       `;
     }
+    // Fairness: notify the suspended customer of the action, reason, duration,
+    // and appeal path. Fire-and-forget so a mail failure can't roll back the
+    // enforcement transaction.
+    await notifyCustomerSuspended(sql, env, req.customer_id, booking.id, settings, adminId).catch(
+      (err) => logger.error("notifyCustomerSuspended failed", err, { customerId: req.customer_id }),
+    );
   } else {
     await sql`
       UPDATE customers
