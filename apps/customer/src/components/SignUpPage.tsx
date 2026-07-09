@@ -36,6 +36,8 @@ export function SignUpPage() {
 
   const [method, setMethod] = useState<Method>("email");
   const [stage, setStage] = useState<Stage>("form");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState(prefillEmail);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -86,7 +88,7 @@ export function SignUpPage() {
     if (!isLoaded) return;
     setError(""); setLoading(true);
     try {
-      await signUp.create({ emailAddress: email, password });
+      await signUp.create({ emailAddress: email, password, firstName, lastName });
       await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
       setStage("code");
     } catch (err: unknown) {
@@ -101,7 +103,7 @@ export function SignUpPage() {
     if (!isLoaded) return;
     setError(""); setLoading(true);
     try {
-      await signUp.create({ phoneNumber: phone });
+      await signUp.create({ phoneNumber: phone, firstName, lastName });
       await signUp.preparePhoneNumberVerification({ strategy: "phone_code" });
       setStage("code");
     } catch (err: unknown) {
@@ -114,24 +116,61 @@ export function SignUpPage() {
     if (!isLoaded) return;
     setError(""); setLoading(true);
     try {
-      const result = method === "email"
+      let result = method === "email"
         ? await signUp.attemptEmailAddressVerification({ code })
         : await signUp.attemptPhoneNumberVerification({ code });
-      console.log("Verification result:", { status: result.status, has_session: !!result.createdSessionId, keys: Object.keys(result) });
+
+      // The code may verify successfully yet leave the sign-up "incomplete"
+      // when the Clerk instance still requires profile fields (first/last
+      // name). Fill whatever is outstanding, then re-check — otherwise the
+      // screen would silently hang on the code step forever.
+      if (result.status !== "complete") {
+        const missing = result.missingFields ?? [];
+        const patch: Record<string, string> = {};
+        if (missing.includes("first_name") && firstName) patch.firstName = firstName;
+        if (missing.includes("last_name") && lastName) patch.lastName = lastName;
+        if (Object.keys(patch).length > 0) {
+          result = await signUp.update(patch);
+        }
+      }
+
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
         navigate(redirectTo);
       } else {
-        console.warn("Unexpected status after verification:", result.status);
-        setError(`Verification incomplete. Status: ${result.status}`);
+        // Verification succeeded but the Clerk instance still wants more
+        // (e.g. username / phone). Hand off to the dedicated continue-sign-up
+        // step that collects those, instead of silently hanging here.
+        navigate("/sign-up/continue");
       }
     } catch (err: unknown) {
-      console.error("Verification error:", err);
       setError((err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? t("auth.invalidCode"));
     } finally { setLoading(false); }
   }
 
   const identifier = method === "email" ? email : phone;
+
+  // First/last name are required by the Clerk instance, so both the email and
+  // phone sign-up paths collect them up front. Only one form renders at a time
+  // (email XOR phone), so reusing this element in both branches is safe.
+  const nameFields = (
+    <div className="grid grid-cols-2 gap-3">
+      <Field label={t("auth.firstName", "First name")}>
+        <input
+          type="text" autoComplete="given-name" required value={firstName}
+          onChange={(e) => { setFirstName(e.target.value); setError(""); }}
+          className={inputCls} placeholder="Jane"
+        />
+      </Field>
+      <Field label={t("auth.lastName", "Last name")}>
+        <input
+          type="text" autoComplete="family-name" required value={lastName}
+          onChange={(e) => { setLastName(e.target.value); setError(""); }}
+          className={inputCls} placeholder="Doe"
+        />
+      </Field>
+    </div>
+  );
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-seafoam-50 via-offwhite to-seafoam-100 px-4 py-12 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
@@ -157,6 +196,7 @@ export function SignUpPage() {
 
             {method === "email" ? (
               <form onSubmit={(e) => void handleEmailSubmit(e)} className="space-y-4">
+                {nameFields}
                 <Field label={t("auth.email")}>
                   <input
                     type="email" autoComplete="email" required value={email}
@@ -201,6 +241,7 @@ export function SignUpPage() {
               </form>
             ) : (
               <form onSubmit={(e) => void handlePhoneSubmit(e)} className="space-y-4">
+                {nameFields}
                 <Field label={t("auth.phone")}>
                   <input type="tel" autoComplete="tel" required value={phone} onChange={(e) => setPhone(e.target.value)}
                     className={inputCls} placeholder="+1 (555) 000-0000" />

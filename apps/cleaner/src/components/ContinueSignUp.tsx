@@ -21,6 +21,8 @@ export function ContinueSignUp() {
   const navigate = useNavigate();
 
   const [stage, setStage] = useState<Stage>("fields");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
@@ -38,6 +40,8 @@ export function ContinueSignUp() {
   if (!isLoaded || !signUp) return null;
 
   const missing = signUp.missingFields ?? [];
+  const needsFirstName = missing.includes("first_name");
+  const needsLastName = missing.includes("last_name");
   const needsUsername = missing.includes("username");
   const needsPhone = missing.includes("phone_number");
 
@@ -47,6 +51,8 @@ export function ContinueSignUp() {
     setError(""); setLoading(true);
     try {
       await signUp.update({
+        ...(needsFirstName ? { firstName } : {}),
+        ...(needsLastName ? { lastName } : {}),
         ...(needsUsername ? { username } : {}),
         ...(needsPhone ? { phoneNumber: phone } : {}),
       });
@@ -96,6 +102,28 @@ export function ContinueSignUp() {
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-xl dark:border-slate-700 dark:bg-slate-900">
         {stage === "fields" ? (
           <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+            {(needsFirstName || needsLastName) && (
+              <div className="grid grid-cols-2 gap-3">
+                {needsFirstName && (
+                  <Field label="First name">
+                    <input
+                      type="text" autoComplete="given-name" required
+                      value={firstName} onChange={(e) => setFirstName(e.target.value)}
+                      className={inputCls} placeholder="Jane"
+                    />
+                  </Field>
+                )}
+                {needsLastName && (
+                  <Field label="Last name">
+                    <input
+                      type="text" autoComplete="family-name" required
+                      value={lastName} onChange={(e) => setLastName(e.target.value)}
+                      className={inputCls} placeholder="Doe"
+                    />
+                  </Field>
+                )}
+              </div>
+            )}
             {needsUsername && (
               <Field label="Username">
                 <input
