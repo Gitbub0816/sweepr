@@ -141,15 +141,35 @@ export function BackgroundCheckStep({ n, getToken, onComplete, trainingComplete 
   if (phase.kind === "loading") return <div className="flex flex-col items-center gap-4 py-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-seafoam-400 border-t-transparent" /><p className="text-sm text-slate-500">Preparing your secure check…</p></div>;
 
   if (phase.kind === "embedded") {
+    // Yardstik's hosted apply page can't be embedded in an iframe — it's a SPA
+    // that relies on its own first-party cookies, which browsers block inside a
+    // cross-site frame (the frame just renders blank). So we open it in a new
+    // tab and poll for completion instead.
     return (
-      <div className="space-y-3">
+      <div className="space-y-5">
         <StepHeader n={n} />
-        <p className="text-sm text-slate-500">Complete the Yardstik form below.</p>
-        <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-          <iframe src={phase.invitationUrl} title="Background check — powered by Yardstik" className="h-[640px] w-full" allow="camera; microphone" sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-top-navigation-by-user-activation" onLoad={pollStatus} />
+        <Card className="space-y-4 p-6 text-center">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Your secure background-check form is ready. It opens in a new tab, hosted by Yardstik —
+            enter your details there, then come back and continue.
+          </p>
+          <a
+            href={phase.invitationUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setTimeout(pollStatus, 1500)}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-seafoam-700 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-seafoam-500/30 transition hover:bg-seafoam-800"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Open background check form
+          </a>
+          <p className="text-xs text-slate-600">
+            Secured by <a href="https://yardstik.com" target="_blank" rel="noopener noreferrer" className="underline">Yardstik</a>. Results are typically available within 1–3 business days.
+          </p>
+        </Card>
+        <div className="flex">
+          <Button variant="secondary" onClick={pollStatus} className="ml-auto">I've completed the form</Button>
         </div>
-        <p className="text-center text-xs text-slate-600">Secured by <a href="https://yardstik.com" target="_blank" rel="noopener noreferrer" className="underline">Yardstik</a>. Results are typically available within 1–3 business days.</p>
-        <div className="flex gap-3"><a href={phase.invitationUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-seafoam-700 underline underline-offset-2 hover:text-seafoam-700"><ExternalLink className="h-4 w-4" />Open in new tab</a><Button variant="secondary" onClick={pollStatus} className="ml-auto">I've completed the form</Button></div>
       </div>
     );
   }
