@@ -26,7 +26,7 @@ import type { ServiceType } from "@sweepr/types";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
-const checkrVariant: Record<string, "success" | "warning" | "info" | "error"> = {
+const yardstikVariant: Record<string, "success" | "warning" | "info" | "error"> = {
   clear: "success",
   consider: "error",
   submitted: "info",
@@ -59,7 +59,7 @@ interface Application {
   state: string | null;
   max_distance_miles: number | null;
   preferred_service_types: string[] | null;
-  checkr_status: string | null;
+  yardstik_status: string | null;
   didit_status: string | null;
   created_at: string;
   account_type: string | null;
@@ -238,10 +238,10 @@ export function ApplicationDetailPage() {
             <div className="space-y-3 text-sm">
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2 text-slate-500">
-                  <ShieldCheck className="h-4 w-4" /> Checkr
+                  <ShieldCheck className="h-4 w-4" /> Yardstik
                 </span>
-                <Badge variant={checkrVariant[app.checkr_status ?? "not_started"] ?? "warning"}>
-                  {app.checkr_status ?? "not_started"}
+                <Badge variant={yardstikVariant[app.yardstik_status ?? "not_started"] ?? "warning"}>
+                  {app.yardstik_status ?? "not_started"}
                 </Badge>
               </div>
               <div className="flex items-center justify-between">

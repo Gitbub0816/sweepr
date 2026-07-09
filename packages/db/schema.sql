@@ -15,7 +15,7 @@
 -- This file is GENERATED. Do not edit by hand — edit the migrations in
 -- src/migrations/ and re-run: node packages/db/build-schema.mjs
 --
--- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql, 034_fee_approval_engine.sql, 035_slack_user_tokens.sql, 036_pricing_engine.sql, 037_security_tickets.sql, 038_compact_ticket_ids.sql, 039_report_submitter.sql, 040_classification_and_templates.sql, 041_fix_security_templates.sql, 042_email_deliverability.sql, 043_slack_purpose_security.sql, 044_senior_admin_roles.sql, 045_status_autodetect.sql, 046_seed_pricing_rule.sql, 047_seed_super_admin_invite.sql, 048_customer_home_profile.sql, 049_reset_bootstrap_invite.sql, 050_customers_user_id_unique.sql, 051_preferred_language.sql, 052_payouts_booking_id_unique.sql, 053_sms_consent.sql, 054_strict_rls.sql, 055_mailbox_messages.sql, 056_admin_mail_center.sql, 057_public_privacy_intake.sql, 058_scope_review_engine.sql, 059_scope_review_links.sql, 060_performance_indexes.sql, 061_composite_query_indexes.sql, 062_atomicity_constraints.sql, 063_customers_updated_at.sql, 064_booking_arrival_window.sql, 065_str_calendar_sync.sql, 066_address_property_type.sql, 067_str_enrollment.sql, 068_availability_backfill.sql, 069_review_tags.sql, 070_error_telemetry_v2.sql, 071_mail_security_rework.sql, 072_assignment_queue_cleaner_cascade.sql, 073_customer_fk_cascade.sql, 074_cleaner_service_area_and_declines.sql, 075_admin_permission_overrides.sql, 076_cleaners_updated_at.sql, 077_adjudication_cases.sql, 078_ip_blocklist.sql, 079_admin_alerting.sql, 080_status_health_checks.sql
+-- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql, 034_fee_approval_engine.sql, 035_slack_user_tokens.sql, 036_pricing_engine.sql, 037_security_tickets.sql, 038_compact_ticket_ids.sql, 039_report_submitter.sql, 040_classification_and_templates.sql, 041_fix_security_templates.sql, 042_email_deliverability.sql, 043_slack_purpose_security.sql, 044_senior_admin_roles.sql, 045_status_autodetect.sql, 046_seed_pricing_rule.sql, 047_seed_super_admin_invite.sql, 048_customer_home_profile.sql, 049_reset_bootstrap_invite.sql, 050_customers_user_id_unique.sql, 051_preferred_language.sql, 052_payouts_booking_id_unique.sql, 053_sms_consent.sql, 054_strict_rls.sql, 055_mailbox_messages.sql, 056_admin_mail_center.sql, 057_public_privacy_intake.sql, 058_scope_review_engine.sql, 059_scope_review_links.sql, 060_performance_indexes.sql, 061_composite_query_indexes.sql, 062_atomicity_constraints.sql, 063_customers_updated_at.sql, 064_booking_arrival_window.sql, 065_str_calendar_sync.sql, 066_address_property_type.sql, 067_str_enrollment.sql, 068_availability_backfill.sql, 069_review_tags.sql, 070_error_telemetry_v2.sql, 071_mail_security_rework.sql, 072_assignment_queue_cleaner_cascade.sql, 073_customer_fk_cascade.sql, 074_cleaner_service_area_and_declines.sql, 075_admin_permission_overrides.sql, 076_cleaners_updated_at.sql, 077_adjudication_cases.sql, 078_ip_blocklist.sql, 079_admin_alerting.sql, 080_status_health_checks.sql, 081_yardstik.sql
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -4664,3 +4664,55 @@ CREATE INDEX IF NOT EXISTS idx_status_checks_component_time
   ON status_checks (component, checked_at DESC);
 
 ALTER TABLE status_checks ENABLE ROW LEVEL SECURITY;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 081_yardstik.sql
+-- ─────────────────────────────────────────────────────────────────────────
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
+-- 081_yardstik.sql
+-- Background check provider migration: Checkr → Yardstik.
+--
+-- Adds a parallel set of yardstik_* columns rather than renaming the
+-- checkr_* ones, so existing Checkr history on already-screened cleaners is
+-- never touched or lost. New checks are written to the yardstik_* columns;
+-- application code now reads only those. yardstik_status stores our
+-- normalized status vocabulary (same values Checkr used: not_started,
+-- invited, pending, consider, clear, dispute, pre_adverse_action,
+-- adverse_action, suspended) — Yardstik's own report-status strings are
+-- mapped onto this set in lib/yardstik.ts so no downstream comparison code
+-- had to change.
+
+ALTER TABLE cleaners
+  ADD COLUMN IF NOT EXISTS yardstik_candidate_id  TEXT,
+  ADD COLUMN IF NOT EXISTS yardstik_report_id      TEXT,
+  ADD COLUMN IF NOT EXISTS yardstik_status         TEXT NOT NULL DEFAULT 'not_started'
+    CHECK (yardstik_status IN (
+      'not_started', 'invited', 'pending', 'consider', 'clear',
+      'suspended', 'dispute', 'pre_adverse_action', 'adverse_action'
+    )),
+  ADD COLUMN IF NOT EXISTS yardstik_invited_at     TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS yardstik_completed_at   TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS yardstik_pre_adverse_at TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_cleaners_yardstik_candidate
+  ON cleaners (yardstik_candidate_id)
+  WHERE yardstik_candidate_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_cleaners_yardstik_report
+  ON cleaners (yardstik_report_id)
+  WHERE yardstik_report_id IS NOT NULL;
+
+COMMENT ON COLUMN cleaners.yardstik_candidate_id IS
+  'Yardstik candidate resource ID.';
+COMMENT ON COLUMN cleaners.yardstik_report_id IS
+  'Yardstik report resource ID (also passed back as resource_id on report.* webhooks).';
+COMMENT ON COLUMN cleaners.yardstik_status IS
+  'Normalized status (see lib/yardstik.ts mapReportStatus) — not a raw Yardstik status string.';
+COMMENT ON COLUMN cleaners.yardstik_pre_adverse_at IS
+  'When the FCRA pre-adverse-action notice was sent; final adverse action follows Yardstik''s own waiting-period timer.';

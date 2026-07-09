@@ -57,7 +57,7 @@ cleanersRouter.get("/onboarding-progress", async (c) => {
     | {
         first_name?: string | null;
         bio?: string | null;
-        checkr_status?: string | null;
+        yardstik_status?: string | null;
         didit_status?: string | null;
         required_training_completed?: boolean | null;
         status?: string | null;
@@ -66,7 +66,7 @@ cleanersRouter.get("/onboarding-progress", async (c) => {
 
   const profile = Boolean(ch?.first_name && ch?.bio);
   const training = Boolean(ch?.required_training_completed);
-  const background = ch?.checkr_status === "clear";
+  const background = ch?.yardstik_status === "clear";
   const identity = ch?.didit_status === "approved";
   const submitted = ch?.status === "pending" || ch?.status === "approved";
   const approved = ch?.status === "approved";
@@ -205,8 +205,8 @@ cleanersRouter.get("/stripe-connect/status", async (c) => {
 // Onboarding: background check, identity verification, application submit
 // ---------------------------------------------------------------------------
 
-// Background check is handled via the Checkr invitation flow at /checkr/invite.
-// Candidates enter all PII directly on Checkr's hosted form — no PII reaches
+// Background check is handled via the Yardstik report flow at /yardstik/invite.
+// Candidates enter all PII directly on Yardstik's hosted form — no PII reaches
 // Sweepr servers.  This stub is intentionally removed.
 
 const identitySchema = z.object({
@@ -338,7 +338,7 @@ const businessApplySchema = z.object({
     name: z.string().min(2).max(200),
     title: z.string().max(80),
     email: z.string().email(),
-    // DOB and address are collected directly by Checkr — never by Sweepr.
+    // DOB and address are collected directly by Yardstik — never by Sweepr.
   }),
   serviceTypes: z.array(z.string()).optional(),
   addOnKeys: z.array(z.string()).optional(),
@@ -417,25 +417,28 @@ cleanersRouter.post(
       });
     }
 
-    // Trigger a Checkr invitation for the authorized rep.
-    // DOB, SSN, and address are collected directly by Checkr's hosted form.
-    const { checkrClient } = await import("../lib/checkr");
-    const client = checkrClient(c.env);
+    // Trigger a Yardstik background check report for the authorized rep.
+    // DOB, SSN, and address are collected directly by Yardstik's hosted form.
+    const { yardstikClient } = await import("../lib/yardstik");
+    const client = yardstikClient(c.env);
     const repParts = input.authorizedRep.name.split(" ");
     const repFirst = repParts[0];
     const repLast = repParts.slice(1).join(" ") || repFirst;
+    const repRows = (await sql`SELECT id FROM cleaners WHERE user_id = ${user.id} LIMIT 1`) as { id: string }[];
+    const repCleanerId = repRows[0]?.id;
     const candidate = await client.createCandidate(
       input.authorizedRep.email,
       repFirst,
-      repLast
+      repLast,
+      repCleanerId
     );
-    const invitation = await client.createInvitation(candidate.id, input.stateOfIncorporation.slice(0, 2).toUpperCase());
+    const report = await client.createReport(candidate.id, repCleanerId);
     await sql`
       UPDATE cleaners
-      SET checkr_candidate_id  = ${candidate.id},
-          checkr_invitation_id = ${invitation.id},
-          checkr_status        = 'invited',
-          checkr_invited_at    = NOW()
+      SET yardstik_candidate_id = ${candidate.id},
+          yardstik_report_id    = ${report.id},
+          yardstik_status       = 'invited',
+          yardstik_invited_at   = NOW()
       WHERE user_id = ${user.id}
     `;
 
@@ -444,9 +447,9 @@ cleanersRouter.post(
       status: "pending_review",
       kyb_status: "pending",
       account_type: "business",
-      checkr: {
-        invitationUrl: invitation.invitation_url,
-        expiresAt: invitation.expires_at,
+      backgroundCheck: {
+        invitationUrl: report.applyUrl,
+        expiresAt: report.expiresAt,
       },
     });
   }

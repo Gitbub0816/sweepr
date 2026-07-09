@@ -9,15 +9,14 @@
  */
 
 /**
- * Claude Haiku adjudication for Checkr background check `consider` reports.
+ * Claude Haiku adjudication for background-check `consider` reports.
  *
  * FCRA compliance note: Haiku can ONLY recommend `engage` (clear the candidate)
  * or `flag` (route to human admin). It CANNOT initiate adverse action — that
- * requires human review + pre-adverse notice delivered by Checkr. We never
- * auto-adverse.
+ * requires human review + a pre-adverse notice delivered by the background
+ * check provider. We never auto-adverse.
  */
 
-import type { CheckrReport } from "./checkr";
 import type { Env } from "../types";
 import { logger } from "./logger";
 
@@ -25,18 +24,26 @@ export type AdjudicationResult =
   | { recommendation: "engage"; reasoning: string }
   | { recommendation: "flag"; reasoning: string };
 
+/** The handful of report fields the prompt needs — provider-agnostic. */
+export interface ReportSummary {
+  id: string;
+  status: string;
+  packageName?: string | null;
+}
+
 const HAIKU_MODEL = "claude-haiku-4-5-20251001";
 
 export async function adjudicateConsiderReport(
-  report: CheckrReport,
+  report: ReportSummary,
   env: Env
 ): Promise<AdjudicationResult | null> {
   if (!env.ANTHROPIC_API_KEY) return null;
 
   // Instructions live ONLY in the system prompt; the user message carries just
-  // the report data, fenced in delimiters. Report fields originate from Checkr
-  // but can embed candidate-supplied strings, so they are treated as untrusted:
-  // nothing inside the fence may be interpreted as an instruction.
+  // the report data, fenced in delimiters. Report fields originate from the
+  // background check provider but can embed candidate-supplied strings, so
+  // they are treated as untrusted: nothing inside the fence may be
+  // interpreted as an instruction.
   const systemPrompt = `You are an FCRA-compliant background check adjudicator for Sweepr, a home cleaning platform.
 A background check returned a "consider" status (not automatically clear). Evaluate whether the candidate should be engaged (cleared) or flagged for human admin review.
 
@@ -54,9 +61,7 @@ Respond with ONLY valid JSON: {"recommendation":"engage","reasoning":"<one sente
 <<<UNTRUSTED_DATA_START>>>
 - Report ID: ${fence(report.id)}
 - Status: ${fence(report.status)}
-- Adjudication: ${fence(report.adjudication ?? "none")}
-- Package: ${fence(report.package ?? "unknown")}
-- Turnaround time: ${report.turnaround_time ?? "unknown"} hours
+- Package: ${fence(report.packageName ?? "unknown")}
 <<<UNTRUSTED_DATA_END>>>`;
 
   try {

@@ -55,7 +55,7 @@ export function PrivacyPolicy() {
           <li><strong>"Personal Information"</strong> means any information that identifies or could reasonably be used to identify a natural person, directly or indirectly.</li>
           <li><strong>"Platform"</strong> means Sweepr's websites, web apps, and APIs as defined in our Terms of Service.</li>
           <li><strong>"Processing"</strong> means any operation performed on Personal Information, including collection, storage, use, disclosure, or deletion.</li>
-          <li><strong>"Sensitive Personal Information"</strong> includes Social Security Numbers, government-issued identification, financial account numbers, and biometric data. <strong>Sweepr does not collect Sensitive Personal Information directly.</strong> Such data is collected by our verified third-party service providers (Checkr, Didit, Stripe) on their own secured systems.</li>
+          <li><strong>"Sensitive Personal Information"</strong> includes Social Security Numbers, government-issued identification, financial account numbers, and biometric data. <strong>Sweepr does not collect Sensitive Personal Information directly.</strong> Such data is collected by our verified third-party service providers (Yardstik, Didit, Stripe) on their own secured systems.</li>
         </ul>
       </Section>
 
@@ -77,7 +77,7 @@ export function PrivacyPolicy() {
         </ul>
         <p><strong>3.3 Information from Third Parties:</strong></p>
         <ul className="list-disc space-y-1 pl-6">
-          <li>Background check status (pass/fail/pending) from Checkr — PII is collected and retained by Checkr, not Sweepr;</li>
+          <li>Background check status (pass/fail/pending) from Yardstik — PII is collected and retained by Yardstik, not Sweepr;</li>
           <li>Identity verification status from Didit — ID images and biometric data are collected by Didit on their secure systems; Sweepr receives only a verification result;</li>
           <li>Payment tokenization data from Stripe — we receive a token reference, not full card numbers;</li>
           <li>Authentication data from Clerk.</li>
@@ -112,7 +112,7 @@ export function PrivacyPolicy() {
         <ul className="list-disc space-y-1 pl-6">
           <li><strong>Clerk</strong> — authentication and identity management;</li>
           <li><strong>Stripe</strong> — payment processing (PCI-DSS Level 1 certified);</li>
-          <li><strong>Checkr</strong> — background screening (FCRA-compliant);</li>
+          <li><strong>Yardstik</strong> — background screening (FCRA-compliant);</li>
           <li><strong>Didit</strong> — identity document verification;</li>
           <li><strong>Neon</strong> — PostgreSQL database hosting;</li>
           <li><strong>Firebase / Google</strong> — real-time notifications;</li>

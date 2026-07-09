@@ -690,7 +690,7 @@ cleanerDashboardRouter.post("/stripe-connect/onboard", async (c) => {
     // "Set up payouts" is reachable during onboarding, before any other step
     // has created the cleaners row. Starting Stripe Connect is a legitimate
     // first action for a signed-in cleaner, so create the row lazily instead
-    // of 404ing. ON CONFLICT keeps a concurrent create (e.g. the Checkr step)
+    // of 404ing. ON CONFLICT keeps a concurrent create (e.g. the Yardstik step)
     // from racing to a duplicate.
     await sql`
       INSERT INTO cleaners (user_id)

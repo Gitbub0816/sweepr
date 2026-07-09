@@ -15,7 +15,7 @@
  *   GET  /acknowledgment   has the signed-in applicant acknowledged the policy?
  *   POST /acknowledge      record acknowledgment (legal_acceptances, slug
  *                          background-check-adjudication) — required before the
- *                          background check can start (checkr/invite enforces).
+ *                          background check can start (yardstik/invite enforces).
  *
  * Admin-facing (mounted at /admin/adjudication, Trust & Safety → Adjudication):
  *   GET  /cases?status=    list cases
@@ -85,7 +85,7 @@ adjudicationRouter.post("/acknowledge", requireAuth, async (c) => {
 
 /**
  * True when the user has acknowledged the adjudication policy. Used by
- * checkr/invite (and any future provider) to hard-gate the background check.
+ * yardstik/invite (and any future provider) to hard-gate the background check.
  */
 export async function hasAcknowledgedAdjudicationPolicy(
   sql: ReturnType<typeof getDb>,

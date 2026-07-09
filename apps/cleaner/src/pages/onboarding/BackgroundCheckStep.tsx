@@ -14,13 +14,12 @@ import { ShieldCheck, ExternalLink, Clock, CheckCircle2, AlertCircle } from "luc
 import { Input, Button, Card } from "@sweepr/ui";
 import { TrainingGate } from "../TrainingPage";
 import { AdjudicationAckModal } from "./AdjudicationAckModal";
-import type { CheckrStatus } from "../../types/checkr";
+import type { ReportStatus } from "../../types/yardstik";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 interface Props {
   n: number;
-  workState?: string;
   getToken: () => Promise<string | null>;
   onComplete: () => void;
   trainingComplete?: boolean;
@@ -31,10 +30,10 @@ type Phase =
   | { kind: "intro" }
   | { kind: "loading" }
   | { kind: "embedded"; invitationUrl: string; expiresAt: string }
-  | { kind: "waiting"; status: CheckrStatus }
+  | { kind: "waiting"; status: ReportStatus }
   | { kind: "error"; message: string };
 
-export function BackgroundCheckStep({ n, workState = "CA", getToken, onComplete, trainingComplete = false, isPrelaunch = false }: Props) {
+export function BackgroundCheckStep({ n, getToken, onComplete, trainingComplete = false, isPrelaunch = false }: Props) {
   const { user } = useUser();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -64,13 +63,13 @@ export function BackgroundCheckStep({ n, workState = "CA", getToken, onComplete,
     setPhase({ kind: "loading" });
     try {
       const token = await getToken();
-      const res = await fetch(`${API_URL}/checkr/invite`, {
+      const res = await fetch(`${API_URL}/yardstik/invite`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), workState }),
+        body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim() }),
       });
       if (!res.ok) {
         // Surface the server's friendly `message` (e.g. "Background checks are
@@ -94,9 +93,9 @@ export function BackgroundCheckStep({ n, workState = "CA", getToken, onComplete,
   async function pollStatus() {
     try {
       const token = await getToken();
-      const res = await fetch(`${API_URL}/checkr/status`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch(`${API_URL}/yardstik/status`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) return;
-      const data = (await res.json()) as { status: CheckrStatus };
+      const data = (await res.json()) as { status: ReportStatus };
       if (data.status !== "not_started" && data.status !== "invited") setPhase({ kind: "waiting", status: data.status });
     } catch { /* no-op */ }
   }
@@ -113,7 +112,7 @@ export function BackgroundCheckStep({ n, workState = "CA", getToken, onComplete,
           <Input label="Legal first name" value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" />
           <Input label="Legal last name" value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" />
         </div>
-        <p className="text-xs text-slate-500">Sweepr creates your Checkr candidate record and sends you to a secure, Checkr-hosted page to complete your background check.</p>
+        <p className="text-xs text-slate-500">Sweepr creates your Yardstik candidate record and sends you to a secure, Yardstik-hosted page to complete your background check.</p>
         {!email && <Card className="border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">We could not read your account email yet. Refresh or sign in again before starting the check.</Card>}
         <Button onClick={startInvitation} disabled={!firstName.trim() || !lastName.trim() || !email} className="w-full">Continue to background check</Button>
         <AdjudicationAckModal
@@ -133,11 +132,11 @@ export function BackgroundCheckStep({ n, workState = "CA", getToken, onComplete,
     return (
       <div className="space-y-3">
         <StepHeader n={n} />
-        <p className="text-sm text-slate-500">Complete the Checkr form below.</p>
+        <p className="text-sm text-slate-500">Complete the Yardstik form below.</p>
         <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-          <iframe src={phase.invitationUrl} title="Background check — powered by Checkr" className="h-[640px] w-full" allow="camera; microphone" sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-top-navigation-by-user-activation" onLoad={pollStatus} />
+          <iframe src={phase.invitationUrl} title="Background check — powered by Yardstik" className="h-[640px] w-full" allow="camera; microphone" sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-top-navigation-by-user-activation" onLoad={pollStatus} />
         </div>
-        <p className="text-center text-xs text-slate-600">Secured by <a href="https://checkr.com" target="_blank" rel="noopener noreferrer" className="underline">Checkr</a>. Results are typically available within 1–3 business days.</p>
+        <p className="text-center text-xs text-slate-600">Secured by <a href="https://yardstik.com" target="_blank" rel="noopener noreferrer" className="underline">Yardstik</a>. Results are typically available within 1–3 business days.</p>
         <div className="flex gap-3"><a href={phase.invitationUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-seafoam-700 underline underline-offset-2 hover:text-seafoam-700"><ExternalLink className="h-4 w-4" />Open in new tab</a><Button variant="secondary" onClick={pollStatus} className="ml-auto">I've completed the form</Button></div>
       </div>
     );
@@ -159,8 +158,8 @@ function FcraDisclosure() {
     <Card className="space-y-2 border-seafoam-200 bg-seafoam-50 p-4 dark:border-seafoam-800 dark:bg-seafoam-900/20">
       <div className="flex items-center gap-2 font-semibold text-seafoam-800 dark:text-seafoam-200"><ShieldCheck className="h-5 w-5" /><span>Background check disclosure</span></div>
       <p className="text-sm text-seafoam-700 dark:text-seafoam-300">Sweepr will obtain a consumer report for screening purposes. You have the right to request a free copy of the report and to dispute inaccurate information.</p>
-      <p className="text-sm text-seafoam-700 dark:text-seafoam-300">The background check is conducted by <a href="https://checkr.com" target="_blank" rel="noopener noreferrer" className="font-medium underline">Checkr, Inc.</a> (a consumer reporting agency).</p>
-      <p className="text-xs text-seafoam-700 dark:text-seafoam-400">By clicking "Continue" you acknowledge receipt of this disclosure. Your authorization will be collected by Checkr.</p>
+      <p className="text-sm text-seafoam-700 dark:text-seafoam-300">The background check is conducted by <a href="https://yardstik.com" target="_blank" rel="noopener noreferrer" className="font-medium underline">Yardstik, Inc.</a> (a consumer reporting agency).</p>
+      <p className="text-xs text-seafoam-700 dark:text-seafoam-400">By clicking "Continue" you acknowledge receipt of this disclosure. Your authorization will be collected by Yardstik.</p>
     </Card>
   );
 }
@@ -173,7 +172,7 @@ const STATUS_COPY: Record<string, { icon: React.ReactNode; title: string; body: 
   adverse_action: { icon: <AlertCircle className="h-10 w-10 text-red-500" />, title: "Application not approved", body: "After review, we are unable to approve your application at this time. You received an email with a copy of the report, your rights under the FCRA, and information on how to dispute inaccuracies." },
 };
 
-function StatusScreen({ status, onContinue }: { status: CheckrStatus; onContinue: () => void }) {
+function StatusScreen({ status, onContinue }: { status: ReportStatus; onContinue: () => void }) {
   const copy = STATUS_COPY[status] ?? STATUS_COPY.pending;
   return <div className="flex flex-col items-center gap-5 py-8 text-center">{copy.icon}<h3 className="text-xl font-bold text-charcoal dark:text-white">{copy.title}</h3><p className="max-w-sm text-sm text-slate-500">{copy.body}</p>{copy.cta && <Button onClick={onContinue} className="mt-2">{copy.cta}</Button>}</div>;
 }

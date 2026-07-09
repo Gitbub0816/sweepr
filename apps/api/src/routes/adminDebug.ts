@@ -116,23 +116,23 @@ adminDebugRouter.get("/", async (c) => {
 });
 
 /**
- * Probe Checkr connectivity from the Worker's own egress. Answers, for each
- * host: does the configured key authenticate, and does Checkr's edge accept
+ * Probe Yardstik connectivity from the Worker's own egress. Answers, for each
+ * host: does the configured key authenticate, and does Yardstik's edge accept
  * traffic from Cloudflare Workers at all? Uses a read-only GET (no candidate
- * or invitation is created). Never echoes the key beyond a short prefix.
+ * or report is created). Never echoes the key beyond a short prefix.
  */
-adminDebugRouter.get("/checkr", async (c) => {
-  const key = c.env.CHECKR_API_KEY ?? "";
+adminDebugRouter.get("/yardstik", async (c) => {
+  const key = c.env.YARDSTIK_API_KEY ?? "";
   const hosts = [
-    "https://api.checkr.com/v1",
-    "https://api.checkr-staging.com/v1",
+    "https://api.yardstik.com",
+    "https://api.yardstik-staging.com",
   ];
   const results = [];
   for (const host of hosts) {
     try {
-      const res = await fetch(`${host}/packages`, {
+      const res = await fetch(`${host}/webhook_types`, {
         headers: {
-          Authorization: `Basic ${btoa(key + ":")}`,
+          Authorization: `Account ${key}`,
           Accept: "application/json",
           "User-Agent": "Sweepr-API/1.0 (+https://getsweepr.com)",
         },
@@ -146,8 +146,8 @@ adminDebugRouter.get("/checkr", async (c) => {
   return c.json({
     keyPresent: Boolean(key),
     keyPrefix: key ? key.slice(0, 8) : null,
-    configuredCheckrUrl: c.env.CHECKR_API_URL ?? "(unset — auto-detect)",
-    packageSlug: c.env.CHECKR_PACKAGE ?? "tasker_standard (default)",
+    configuredYardstikUrl: c.env.YARDSTIK_API_URL ?? "(unset — defaults to https://api.yardstik.com)",
+    accountPackageId: c.env.YARDSTIK_ACCOUNT_PACKAGE_ID ?? "(unset)",
     results,
   });
 });

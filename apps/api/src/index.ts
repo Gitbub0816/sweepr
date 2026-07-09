@@ -28,7 +28,7 @@ import { storageRouter } from "./routes/storage";
 import { notificationsRouter } from "./routes/notifications";
 import { scheduleRouter } from "./routes/schedule";
 import { subscriptionsRouter } from "./routes/subscriptions";
-import { checkrRouter } from "./routes/checkr";
+import { yardstikRouter } from "./routes/yardstik";
 import { adjudicationRouter, adminAdjudicationRouter } from "./routes/adjudication";
 import { diditRouter, diditWebhookRouter } from "./routes/didit";
 import { clerkWebhookRouter } from "./routes/webhooks/clerk";
@@ -321,10 +321,10 @@ app.use("/client-errors/*", rateLimit({ limit: 20, windowMs: 60_000, keyPrefix: 
 app.use("/slack/*", rateLimit({ limit: 300, windowMs: 60_000, keyPrefix: "slack" }));
 app.use("/unsubscribe/*", rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix: "unsub" , strict: true }));
 app.use("/privacy/*", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "privacy" , strict: true }));
-// External/expensive identity-verification calls (Checkr, Didit) — stricter
-// than general to blunt cost-abuse. Does NOT cover /webhooks/checkr or
+// External/expensive identity-verification calls (Yardstik, Didit) — stricter
+// than general to blunt cost-abuse. Does NOT cover /webhooks/yardstik or
 // /webhooks/didit, which are mounted separately and are HMAC-verified.
-app.use("/checkr/*", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "checkr", by: "user" , strict: true }));
+app.use("/yardstik/*", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "yardstik", by: "user" , strict: true }));
 app.use("/didit/*", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "didit", by: "user" , strict: true }));
 // Review submission — authenticated, keyed per-user so a single account can't
 // spam reviews from many IPs.
@@ -366,12 +366,12 @@ app.route("/storage", storageRouter);
 app.route("/notifications", notificationsRouter);
 app.route("/schedule", scheduleRouter);
 app.route("/subscriptions", subscriptionsRouter);
-app.route("/checkr", checkrRouter);
+app.route("/yardstik", yardstikRouter);
 // Background Check Adjudication: cleaner acknowledgment + admin T&S queue.
 app.route("/adjudication", adjudicationRouter);
 app.route("/admin/adjudication", adminAdjudicationRouter);
-// Checkr webhooks use a separate, unauthenticated path verified by HMAC signature.
-app.route("/webhooks/checkr", checkrRouter);
+// Yardstik webhooks use a separate, unauthenticated path verified by HMAC signature.
+app.route("/webhooks/yardstik", yardstikRouter);
 app.route("/didit", diditRouter);
 // Didit webhooks use a separate, unauthenticated path verified by HMAC signature.
 app.route("/webhooks/didit", diditWebhookRouter);

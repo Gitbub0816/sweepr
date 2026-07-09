@@ -26,7 +26,7 @@ interface Props {
 /**
  * Required review-and-acknowledge modal for the Background Check Adjudication
  * Policy, shown immediately before the background check starts. The server
- * also enforces this (checkr/invite returns 403 policy_ack_required until the
+ * also enforces this (yardstik/invite returns 403 policy_ack_required until the
  * acknowledgment is recorded), so skipping the modal client-side cannot skip
  * the requirement.
  */
