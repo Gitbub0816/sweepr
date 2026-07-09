@@ -42,9 +42,14 @@ export function sanitizeEmailHtml(raw: string): string {
   }
 
   // Remove inline event handlers (onclick=…, onerror=…, with any quoting).
-  html = html.replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, "");
-  html = html.replace(/\son[a-z]+\s*=\s*'[^']*'/gi, "");
-  html = html.replace(/\son[a-z]+\s*=\s*[^\s>]+/gi, "");
+  // The separator before the handler may be whitespace OR a `/` — browsers treat
+  // `<img/onerror=…>` identically to `<img onerror=…>`, so a leading-`\s`-only
+  // match let the slash-separated vector survive. Match `[\s/]` and replace with
+  // a single space so adjacent tokens don't fuse. The third pass also catches
+  // unquoted handler values.
+  html = html.replace(/[\s/]on[a-z]+\s*=\s*"[^"]*"/gi, " ");
+  html = html.replace(/[\s/]on[a-z]+\s*=\s*'[^']*'/gi, " ");
+  html = html.replace(/[\s/]on[a-z]+\s*=\s*[^\s>]+/gi, " ");
 
   // Neutralize scriptable / non-image URLs in href/src/etc. Allows http(s),
   // mailto, tel, and data:image (inline images some clients embed).

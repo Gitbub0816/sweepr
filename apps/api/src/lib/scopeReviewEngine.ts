@@ -533,6 +533,7 @@ async function escalateCustomer(
 // ── Abuse check ───────────────────────────────────────────────────────────────
 export async function runAbuseCheck(
   sql: Sql,
+  env: Env,
   cleanerId: string | null,
   settings: ScopeReviewSettings,
   adminId: string,
@@ -587,5 +588,151 @@ export async function runAbuseCheck(
       },
       timestamp: new Date().toISOString(),
     });
+    // Fairness: notify the affected cleaner of the action, reason, duration, and
+    // appeal path. Fire-and-forget so a mail failure can't roll back enforcement.
+    await notifyCleanerPrivilegeDisabled(sql, env, cleanerId, settings, adminId).catch((err) =>
+      logger.error("notifyCleanerPrivilegeDisabled failed", err, { cleanerId }),
+    );
   }
+}
+
+// ── Fairness notices ───────────────────────────────────────────────────────────
+// Each enforcement action tells the affected party what happened, why, for how
+// long, and how to appeal, and records that the notice was sent. Best-effort:
+// mail/audit failures here never affect the enforcement transaction.
+
+function supportContactCopy(): string {
+  return (
+    "If you believe this was applied in error, you can appeal by replying to this " +
+    "email or contacting our team at support@getsweepr.com. We'll review your case."
+  );
+}
+
+async function notifyCleanerPrivilegeDisabled(
+  sql: Sql,
+  env: Env,
+  cleanerId: string,
+  settings: ScopeReviewSettings,
+  adminId: string,
+): Promise<void> {
+  const rows = (await sql`
+    SELECT u.email AS email, u.first_name AS first_name
+    FROM cleaners cl JOIN users u ON u.id = cl.user_id
+    WHERE cl.id = ${cleanerId} LIMIT 1
+  `) as Array<{ email: string | null; first_name: string | null }>;
+  const email = rows[0]?.email;
+  if (!email) return;
+
+  const days = settings.privilegeDisableDays;
+  const greeting = rows[0]?.first_name ? `Hi ${rows[0].first_name},` : "Hi,";
+  const subject = "Your additional-attention requests are temporarily paused";
+  const body = [
+    greeting,
+    `We've temporarily paused your ability to submit additional-attention fee and ` +
+      `service-refusal requests. This happens automatically when a high share of a ` +
+      `cleaner's requests are submitted and then denied on review.`,
+    `Duration: this pause lasts ${days} days, after which your request privilege ` +
+      `is automatically restored. You can continue to accept and complete jobs as ` +
+      `normal in the meantime.`,
+    supportContactCopy(),
+  ].join("\n\n");
+
+  const html = wrapBodyInTemplate(subject, body, "en", {
+    footerNote: "This is an account notice regarding your Sweepr cleaner privileges.",
+  });
+
+  if (env.MAILERSEND_API_KEY) {
+    await sendEmail(
+      env.MAILERSEND_API_KEY,
+      {
+        to: email,
+        subject,
+        html,
+        from: SENDERS.SUPPORT,
+        replyTo: SENDERS.SUPPORT,
+        relatedType: "cleaner",
+        relatedId: cleanerId,
+        templateName: "scope_review_privilege_disabled",
+      },
+      sql,
+    );
+  }
+
+  await audit(sql, {
+    action: "cleaner.suspended",
+    actorClerkId: adminId,
+    targetType: "cleaner",
+    targetId: cleanerId,
+    metadata: {
+      event: "additional_attention_privilege_disabled_notice_sent",
+      channel: "email",
+      disableDays: days,
+    },
+    timestamp: new Date().toISOString(),
+  });
+}
+
+async function notifyCustomerSuspended(
+  sql: Sql,
+  env: Env,
+  customerId: string,
+  bookingId: string,
+  settings: ScopeReviewSettings,
+  adminId: string,
+): Promise<void> {
+  const rows = (await sql`
+    SELECT u.email AS email, u.first_name AS first_name
+    FROM customers cu JOIN users u ON u.id = cu.user_id
+    WHERE cu.id = ${customerId} LIMIT 1
+  `) as Array<{ email: string | null; first_name: string | null }>;
+  const email = rows[0]?.email;
+  if (!email) return;
+
+  const days = settings.suspensionDays;
+  const greeting = rows[0]?.first_name ? `Hi ${rows[0].first_name},` : "Hi,";
+  const subject = "Your Sweepr account has been suspended";
+  const body = [
+    greeting,
+    `Following a second approved service refusal, your Sweepr account has been ` +
+      `suspended and the associated service address has been placed on hold. This ` +
+      `means new bookings can't be placed for now.`,
+    `Duration: this suspension lasts ${days} days from today. After that period the ` +
+      `account status is reviewed automatically.`,
+    supportContactCopy(),
+  ].join("\n\n");
+
+  const html = wrapBodyInTemplate(subject, body, "en", {
+    footerNote: "This is an account notice regarding your Sweepr customer account.",
+  });
+
+  if (env.MAILERSEND_API_KEY) {
+    await sendEmail(
+      env.MAILERSEND_API_KEY,
+      {
+        to: email,
+        subject,
+        html,
+        from: SENDERS.SUPPORT,
+        replyTo: SENDERS.SUPPORT,
+        relatedType: "customer",
+        relatedId: customerId,
+        templateName: "scope_review_customer_suspended",
+      },
+      sql,
+    );
+  }
+
+  await audit(sql, {
+    action: "admin.action",
+    actorClerkId: adminId,
+    targetType: "customer",
+    targetId: customerId,
+    metadata: {
+      event: "customer_suspended_notice_sent",
+      channel: "email",
+      suspensionDays: days,
+      bookingId,
+    },
+    timestamp: new Date().toISOString(),
+  });
 }

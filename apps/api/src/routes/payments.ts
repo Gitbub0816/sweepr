@@ -101,7 +101,7 @@ paymentsRouter.post(
 
     // Block payment only when the booking is already in a terminal or paid state.
     // "booked" is the initial state and IS the correct state for first payment.
-    if (["completed", "cancelled", "refunded"].includes(booking.status)) {
+    if (["completed", "cancelled_by_customer", "cancelled_by_cleaner", "refunded"].includes(booking.status)) {
       return c.json({ error: `Booking is already in '${booking.status}' state` }, 400);
     }
 

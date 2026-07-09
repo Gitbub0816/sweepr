@@ -75,7 +75,7 @@ describe("POST /payments/create-intent", () => {
   });
 
   it("rejects already-paid bookings", async () => {
-    const paidStatuses = ["booked", "confirmed", "completed", "cancelled", "refunded"];
+    const paidStatuses = ["completed", "cancelled_by_customer", "cancelled_by_cleaner", "refunded"];
     for (const status of paidStatuses) {
       expect(paidStatuses.includes(status)).toBe(true);
     }
