@@ -209,17 +209,13 @@ export const useBookingStore = create<BookingState>()(
     })),
   setCadence: (cadence) => set({ cadence }),
   setSchedule: (scheduledFor) => {
-    // Emergency = same or next day booking.
-    const target = new Date(scheduledFor);
-    const now = new Date();
-    const days = Math.floor(
-      (target.setHours(0, 0, 0, 0) - new Date(now).setHours(0, 0, 0, 0)) /
-        86_400_000
-    );
     set({
       scheduledFor,
       scheduledAt: scheduledFor,
-      isEmergency: days <= 1,
+      // Emergency = same or next day booking. Recomputed (never mutating the
+      // target Date); also re-derived at getQuote time so a rehydrated 48h
+      // draft can't carry a stale flag.
+      isEmergency: computeIsEmergency(scheduledFor),
     });
   },
   clearSchedule: () =>
