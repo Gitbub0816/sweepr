@@ -43,6 +43,7 @@ import { adminPermissionsRouter } from "./routes/adminPermissions";
 import { adminNewsletterRouter } from "./routes/adminNewsletter";
 import { adminServiceAreasRouter } from "./routes/adminServiceAreas";
 import { adminBroadcastsRouter } from "./routes/adminBroadcasts";
+import { adminScheduleRouter } from "./routes/adminSchedule";
 import { trainingRouter } from "./routes/training";
 import { trainingAdminRouter } from "./routes/admin/trainingAdmin";
 import { coursesRouter } from "./routes/courses";
@@ -404,6 +405,7 @@ app.route("/admin/permissions", adminPermissionsRouter);
 app.route("/admin/newsletter", adminNewsletterRouter);
 app.route("/admin/service-areas", adminServiceAreasRouter);
 app.route("/admin/broadcasts", adminBroadcastsRouter);
+app.route("/admin/schedule", adminScheduleRouter);
 app.use("/training/*", (c, next) => {
   // requireAuth is applied per-route inside trainingRouter
   return next();
@@ -673,6 +675,17 @@ async function runScheduled(event: ScheduledEvent, env: Record<string, unknown>)
         }
       } catch (err) {
         logger.error("cron.approval_engine failed", err, { cron: event.cron });
+      }
+
+      // Admin schedule calendar: run due automations (broadcasts, launches,
+      // status announcements, gate toggles, admin alerts). Idempotent — each
+      // event is claimed via a status transition before executing.
+      try {
+        const { executeDueScheduledEvents } = await import("./lib/scheduledActions");
+        const ran = await executeDueScheduledEvents(sql, typedEnv);
+        if (ran > 0) logger.info("cron.schedule", { ran });
+      } catch (err) {
+        logger.error("cron.schedule failed", err, { cron: event.cron });
       }
 
       // Scope review engine time-driven transitions (idempotent).

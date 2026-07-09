@@ -13,6 +13,25 @@ import { Button } from "@sweepr/ui";
 import type { Message } from "./types";
 import { fullDate } from "./utils";
 
+/**
+ * Render plain-text bodies with clickable links: URLs and email addresses
+ * become anchors (new tab, no opener). Built as React nodes — never HTML —
+ * so no injection surface exists.
+ */
+function linkifyText(text: string): React.ReactNode[] {
+  const pattern = /(https?:\/\/[^\s<>"')\]]+|www\.[^\s<>"')\]]+|[\w.+-]+@[\w-]+\.[\w.-]+)/g;
+  const parts = text.split(pattern);
+  return parts.map((part, i) => {
+    if (i % 2 === 0) return part;
+    const href = part.startsWith("http") ? part : part.includes("@") ? `mailto:${part}` : `https://${part}`;
+    return (
+      <a key={i} href={href} target="_blank" rel="noopener noreferrer nofollow" className="text-seafoam-700 underline underline-offset-2 hover:text-seafoam-800 dark:text-seafoam-400">
+        {part}
+      </a>
+    );
+  });
+}
+
 interface Props {
   message: Message | null;
   parent: Message | null;
@@ -95,9 +114,20 @@ export function ReadingPane({ message, parent, onReply, onReplyAll, onForward, o
             <p className="line-clamp-3 whitespace-pre-wrap">{parent.body_text}</p>
           </div>
         )}
-        <div className="whitespace-pre-wrap break-words text-sm leading-relaxed text-charcoal dark:text-slate-100">
-          {message.body_text || "(empty body)"}
-        </div>
+        {message.body_html ? (
+          // Sanitized server-side at ingest (lib/emailHtml.ts) — scripts, event
+          // handlers, and non-http(s) URLs are already stripped; the admin CSP
+          // is the second layer. Rendered in a white surface so email designs
+          // built for light backgrounds stay readable in dark mode.
+          <div
+            className="min-w-0 overflow-x-auto rounded-lg bg-white p-3 text-sm leading-relaxed text-slate-900 [&_a]:text-seafoam-700 [&_a]:underline [&_img]:h-auto [&_img]:max-w-full [&_table]:max-w-full"
+            dangerouslySetInnerHTML={{ __html: message.body_html }}
+          />
+        ) : (
+          <div className="whitespace-pre-wrap break-words text-sm leading-relaxed text-charcoal dark:text-slate-100">
+            {message.body_text ? linkifyText(message.body_text) : "(empty body)"}
+          </div>
+        )}
       </div>
     </div>
   );

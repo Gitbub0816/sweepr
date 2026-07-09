@@ -161,7 +161,7 @@ adminMailRouter.get("/:box/messages", async (c) => {
 
   const messages = await sql(
     `SELECT m.id, m.direction, m.sender_email, m.sender_name, m.to_email, m.cc_email,
-            m.subject, m.body_text, m.in_reply_to, m.read_at, m.archived_at, m.created_at,
+            m.subject, m.body_text, m.body_html, m.in_reply_to, m.read_at, m.archived_at, m.created_at,
             u.email AS sent_by_email
      FROM mailbox_messages m
      LEFT JOIN users u ON u.id = m.sent_by

@@ -33,6 +33,7 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { getDb } from "../lib/db";
+import { sanitizeEmailHtml, looksLikeRichHtml } from "../lib/emailHtml";
 import { alertAdminsFromContext } from "../lib/adminAlerts";
 import type { AppBindings, Env } from "../types";
 
@@ -117,11 +118,11 @@ export function extractRecipientEmails(data: Record<string, unknown>): string[] 
 async function storeToBox(
   sql: ReturnType<typeof getDb>,
   box: Box,
-  msg: { senderEmail: string; senderName: string | null; subject: string; bodyText: string; messageId: string | null },
+  msg: { senderEmail: string; senderName: string | null; subject: string; bodyText: string; bodyHtml: string | null; messageId: string | null },
 ): Promise<void> {
   await sql`
-    INSERT INTO mailbox_messages (mailbox, sender_email, sender_name, subject, body_text, message_id)
-    VALUES (${box}, ${msg.senderEmail}, ${msg.senderName}, ${msg.subject}, ${msg.bodyText}, ${msg.messageId})
+    INSERT INTO mailbox_messages (mailbox, sender_email, sender_name, subject, body_text, body_html, message_id)
+    VALUES (${box}, ${msg.senderEmail}, ${msg.senderName}, ${msg.subject}, ${msg.bodyText}, ${msg.bodyHtml}, ${msg.messageId})
   `;
 }
 
@@ -178,6 +179,11 @@ async function handleInbound(
     senderName: from.name ?? null,
     subject: `${unverified ? "[unverified] " : ""}${(data.subject as string) ?? "(no subject)"}`,
     bodyText: (data.text as string) ?? (data.html ? stripHtml(data.html as string) : ""),
+    // Sanitized server-side once at ingest; the reader renders it verbatim.
+    bodyHtml: (() => {
+      const sanitized = data.html ? sanitizeEmailHtml(data.html as string) : "";
+      return looksLikeRichHtml(sanitized) ? sanitized : null;
+    })(),
     messageId: (data.id as string) ?? (data.message_id as string) ?? null,
   };
 

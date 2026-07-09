@@ -30,6 +30,7 @@ export interface Message {
   cc_email?: string | null;
   subject: string;
   body_text: string;
+  body_html?: string | null;
   read_at: string | null;
   archived_at?: string | null;
   in_reply_to: string | null;

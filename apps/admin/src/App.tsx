@@ -44,6 +44,7 @@ import {
   Inbox,
   ScanEye,
   ShieldBan,
+  CalendarDays,
 } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -83,6 +84,7 @@ import { PricingRulePage } from "./pages/PricingRulePage";
 import { PricingApprovalDetailPage } from "./pages/PricingApprovalDetailPage";
 import { SecurityPage } from "./pages/SecurityPage";
 import { BroadcastsPage } from "./pages/BroadcastsPage";
+import { SchedulePage } from "./pages/SchedulePage";
 import { NewsletterPage } from "./pages/NewsletterPage";
 import { MailPage } from "./pages/MailPage";
 import { ScopeReviewPage } from "./pages/ScopeReviewPage";
@@ -130,6 +132,7 @@ const navGroups = [
   {
     label: "Comms",
     items: [
+      { to: "/schedule", label: "Schedule", icon: CalendarDays },
       { to: "/mail", label: "Mail", icon: Inbox },
       { to: "/email", label: "Email", icon: Mail },
       { to: "/broadcasts", label: "Broadcasts", icon: Radio },
@@ -266,6 +269,7 @@ export default function App() {
       />
       <Route path="/email" element={<Guarded><EmailPage /></Guarded>} />
       <Route path="/broadcasts" element={<Guarded><BroadcastsPage /></Guarded>} />
+      <Route path="/schedule" element={<Guarded><SchedulePage /></Guarded>} />
       <Route path="/newsletter" element={<Guarded><NewsletterPage /></Guarded>} />
       <Route path="/mail" element={<Guarded><MailPage /></Guarded>} />
       <Route path="/observability" element={<Guarded><ObservabilityPage /></Guarded>} />
