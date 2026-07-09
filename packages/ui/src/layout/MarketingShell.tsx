@@ -8,7 +8,7 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Menu, X } from "lucide-react";
 import { cn } from "@sweepr/utils";
 import { ThemeToggle } from "./ThemeToggle";
@@ -17,6 +17,26 @@ import { SweeprLogo } from "../assets/SweeprLogo";
 export interface MarketingNavLink {
   label: string;
   href: string;
+}
+
+/**
+ * True at md-and-up. The header CTA can contain components that must only be
+ * mounted ONCE in the tree (e.g. the marketing auth controls own a
+ * ClerkProvider) — CSS-hiding the desktop copy still mounts it, so rendering
+ * the second copy in the mobile panel crashed React with "multiple
+ * ClerkProvider components". Mount the CTA only in the active breakpoint.
+ */
+function useIsDesktop(): boolean {
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const onChange = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return isDesktop;
 }
 
 export function MarketingShell({
@@ -29,6 +49,7 @@ export function MarketingShell({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const isDesktop = useIsDesktop();
   return (
     <div className="min-h-screen bg-offwhite text-charcoal dark:bg-slate-950 dark:text-white">
       <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/70 backdrop-blur dark:border-slate-800 dark:bg-slate-950/70">
@@ -49,7 +70,7 @@ export function MarketingShell({
           </nav>
           <div className="hidden items-center gap-2 md:flex">
             <ThemeToggle />
-            {cta}
+            {isDesktop && cta}
           </div>
           <div className="flex items-center gap-1 md:hidden">
             <ThemeToggle />
@@ -78,7 +99,7 @@ export function MarketingShell({
                   {l.label}
                 </a>
               ))}
-              <div className="pt-2">{cta}</div>
+              {!isDesktop && <div className="pt-2">{cta}</div>}
             </nav>
           </div>
         )}
