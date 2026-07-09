@@ -1,3 +1,12 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
 /**
  * Translation helper using Claude claude-haiku-4-5-20251001 via the Anthropic Messages API.
  * Used for:
