@@ -15,7 +15,7 @@
  */
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Card, Input, Button, toast } from "@sweepr/ui";
+import { Card, Button, toast, PhoneInput, toE164US, isCompleteUsPhone } from "@sweepr/ui";
 import {
   ALERT_CATEGORIES,
   ALERT_CHANNELS,
@@ -33,7 +33,6 @@ const CHANNEL_LABELS: Record<AlertChannel, string> = {
   sms: "SMS",
 };
 
-const E164_HINT = /^\+?[0-9()\-.\s]{7,20}$/;
 
 interface PrefRow {
   category: string;
@@ -93,8 +92,8 @@ export function AlertPrefsPanel() {
 
   async function save() {
     const phone = smsPhone.trim();
-    if (phone && !E164_HINT.test(phone)) {
-      toast.error("SMS phone must be a valid number, e.g. +1 555 123 4567.");
+    if (phone && !isCompleteUsPhone(phone)) {
+      toast.error("Enter a complete 10-digit US phone number.");
       return;
     }
     setSaving(true);
@@ -104,7 +103,7 @@ export function AlertPrefsPanel() {
       );
       const res = await authed("/admin/alerts/prefs", {
         method: "PUT",
-        body: JSON.stringify({ prefs, smsPhone: phone === "" ? null : phone }),
+        body: JSON.stringify({ prefs, smsPhone: phone === "" ? null : toE164US(phone) }),
       });
       const data = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok || !data.ok) throw new Error(data.error ?? "Save failed");
@@ -191,12 +190,11 @@ export function AlertPrefsPanel() {
       </div>
 
       <div className="max-w-xs">
-        <Input
-          label="SMS phone (E.164, e.g. +15551234567)"
-          type="tel"
-          placeholder="+15551234567"
+        <PhoneInput
+          label="SMS phone"
+          placeholder="(555) 123-4567"
           value={smsPhone}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSmsPhone(e.target.value)}
+          onChange={setSmsPhone}
         />
         <p className="mt-1 text-xs text-slate-500">
           Required for SMS alerts. Saving a number opts you in to alert texts.

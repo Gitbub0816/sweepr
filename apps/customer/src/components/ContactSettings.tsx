@@ -10,7 +10,7 @@
 
 import { useState } from "react";
 import { useUser } from "@clerk/clerk-react";
-import { Card, Input, Button, toast } from "@sweepr/ui";
+import { Card, Input, Button, toast, PhoneInput } from "@sweepr/ui";
 import { Mail, Phone } from "lucide-react";
 
 type Kind = "email" | "phone";
@@ -93,11 +93,15 @@ function ChangeField({ kind, current }: { kind: Kind; current: string }) {
       <p className="mb-2 text-sm text-slate-500">Current: {current}</p>
       {stage === "idle" ? (
         <div className="flex gap-2">
-          <Input
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder={kind === "email" ? "new@email.com" : "+1 555 123 4567"}
-          />
+          {kind === "phone" ? (
+            <PhoneInput value={value} onChange={setValue} placeholder="(555) 123-4567" />
+          ) : (
+            <Input
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder="new@email.com"
+            />
+          )}
           <Button className="shrink-0 whitespace-nowrap" onClick={sendCode} loading={busy} disabled={!value.trim()}>Change</Button>
         </div>
       ) : (

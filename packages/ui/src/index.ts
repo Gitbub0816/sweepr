@@ -11,6 +11,8 @@
 // Primitives
 export * from "./primitives/Button";
 export * from "./primitives/Input";
+export * from "./primitives/PhoneInput";
+export * from "./lib/phone";
 export * from "./primitives/Textarea";
 export * from "./primitives/Select";
 export * from "./primitives/Badge";
