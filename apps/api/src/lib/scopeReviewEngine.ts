@@ -515,7 +515,7 @@ async function escalateCustomer(
     // Fairness: notify the suspended customer of the action, reason, duration,
     // and appeal path. Fire-and-forget so a mail failure can't roll back the
     // enforcement transaction.
-    await notifyCustomerSuspended(sql, env, req.customer_id, booking.id, settings, adminId).catch(
+    await notifyCustomerSuspended(sql, env, req.customer_id!, booking.id, settings, adminId).catch(
       (err) => logger.error("notifyCustomerSuspended failed", err, { customerId: req.customer_id }),
     );
   } else {
