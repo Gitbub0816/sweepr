@@ -81,7 +81,7 @@ export interface EmailTemplateOptions {
    */
   unsubscribe?: boolean;
   /** Primary call-to-action button rendered under the body. */
-  cta?: { label: string; url: string };
+  cta?: { label: string; url: string; /** Optional icon/logo URL shown left of the label inside the button. */ icon?: string };
   /** Inbox preview text (hidden in the body). Falls back to the subject. */
   preheader?: string;
   /** Accent color hex for the top bar + button. Defaults to Sweepr teal. */
@@ -122,10 +122,13 @@ export function wrapBodyInTemplate(
     )
     .join("");
 
+  const ctaIcon = opts?.cta?.icon
+    ? `<img src="${esc(opts.cta.icon)}" alt="" width="18" height="18" style="width:18px;height:18px;vertical-align:middle;margin:0 8px 2px 0;border:0"/>`
+    : "";
   const ctaBlock = opts?.cta
     ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 4px">
               <tr><td style="border-radius:8px;background:${accent}">
-                <a href="${esc(opts.cta.url)}" style="display:inline-block;padding:13px 28px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px">${esc(opts.cta.label)}</a>
+                <a href="${esc(opts.cta.url)}" style="display:inline-block;padding:13px 28px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px">${ctaIcon}<span style="vertical-align:middle">${esc(opts.cta.label)}</span></a>
               </td></tr>
             </table>`
     : "";
