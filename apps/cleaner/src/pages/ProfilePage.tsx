@@ -27,7 +27,7 @@ interface Cleaner {
   rating: number | null;
   total_jobs: number | null;
   status: string | null;
-  checkr_status: string | null;
+  yardstik_status: string | null;
   didit_status: string | null;
 }
 
@@ -113,7 +113,7 @@ export function ProfilePage() {
           </div>
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-2 text-sm text-slate-500"><ShieldCheck className="h-4 w-4 text-emerald-500" /> {t("profile.backgroundCheck")}</span>
-            {statusBadge(cleaner?.checkr_status === "clear", cleaner?.checkr_status === "pending" || cleaner?.checkr_status === "consider", t)}
+            {statusBadge(cleaner?.yardstik_status === "clear", cleaner?.yardstik_status === "pending" || cleaner?.yardstik_status === "consider", t)}
           </div>
         </Card>
       </div>

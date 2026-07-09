@@ -38,7 +38,7 @@ import { HomePage } from "./pages/HomePage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { PendingReviewPage } from "./pages/PendingReviewPage";
-import { CheckrSimulatePage } from "./pages/CheckrSimulatePage";
+import { YardstikSimulatePage } from "./pages/YardstikSimulatePage";
 import { JobsPage } from "./pages/JobsPage";
 import { JobDetailPage } from "./pages/JobDetailPage";
 import { SchedulePage } from "./pages/SchedulePage";
@@ -166,10 +166,10 @@ export default function App() {
     <ReportProblemMount />
     <CookieConsent />
     <Routes>
-      {/* OAuth SSO callback and mock Checkr form bypass the prelaunch gate */}
+      {/* OAuth SSO callback and mock Yardstik form bypass the prelaunch gate */}
       <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback continueSignUpUrl="/sign-up/continue" />} />
       <Route path="/sign-up/continue" element={<ContinueSignUp />} />
-      <Route path="/checkr-simulate" element={<CheckrSimulatePage />} />
+      <Route path="/yardstik-simulate" element={<YardstikSimulatePage />} />
 
       {/* Didit QR callback — phone lands here after completing verification */}
       <Route path="/verify-done" element={<VerifyDonePage />} />

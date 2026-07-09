@@ -130,7 +130,7 @@ export function IndependentContractorAgreement() {
       <Section id="background" title="6. Background Check Consent">
         <p>
           The Service Provider consents to a background check conducted by a
-          third-party consumer reporting agency (e.g., Checkr) as a condition of
+          third-party consumer reporting agency (Yardstik, Inc.) as a condition of
           providing services through the Platform, and to identity verification
           where required. The Service Provider authorizes Sweepr to obtain and
           review such reports in accordance with the Fair Credit Reporting Act

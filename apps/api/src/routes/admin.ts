@@ -16,7 +16,7 @@ import { getDb } from "../lib/db";
 import { sendEmail } from "../lib/mailer";
 import { requireAuth } from "../middleware/auth";
 import { requireAdmin } from "../middleware/adminRoles";
-import { checkrClient } from "../lib/checkr";
+import { yardstikClient } from "../lib/yardstik";
 import { audit } from "../lib/audit";
 import type { AppBindings } from "../types";
 import type { UserRow } from "@sweepr/db";
@@ -475,7 +475,7 @@ adminRouter.get("/applications/:id", async (c) => {
   return c.json({ application: rows[0] });
 });
 
-// ─── Checkr Adjudication ──────────────────────────────────────────────────────
+// ─── Yardstik Adjudication ────────────────────────────────────────────────────
 
 adminRouter.post(
   "/applications/:id/adjudicate",
@@ -483,28 +483,50 @@ adminRouter.post(
     "json",
     z.object({
       adjudication: z.enum(["engaged", "pre_adverse_action", "adverse_action"]),
+      violationDescription: z.string().max(1000).optional(),
     })
   ),
   async (c) => {
     const cleanerId = c.req.param("id");
-    const { adjudication } = c.req.valid("json");
+    const { adjudication, violationDescription } = c.req.valid("json");
     const sql = getDb(c.env.DATABASE_URL);
 
     const rows = (await sql`
-      SELECT checkr_report_id, checkr_candidate_id FROM cleaners WHERE id = ${cleanerId} LIMIT 1
-    `) as { checkr_report_id: string | null; checkr_candidate_id: string | null }[];
+      SELECT yardstik_report_id, yardstik_candidate_id FROM cleaners WHERE id = ${cleanerId} LIMIT 1
+    `) as { yardstik_report_id: string | null; yardstik_candidate_id: string | null }[];
 
     const cleaner = rows[0];
     if (!cleaner) return c.json({ error: "Not found" }, 404);
-    if (!cleaner.checkr_report_id) return c.json({ error: "No report on file" }, 400);
+    if (!cleaner.yardstik_report_id || !cleaner.yardstik_candidate_id) {
+      return c.json({ error: "No report on file" }, 400);
+    }
 
-    const client = checkrClient(c.env);
-    await client.adjudicate(cleaner.checkr_report_id, adjudication);
+    const client = yardstikClient(c.env);
 
-    const newStatus = adjudication === "engaged" ? "clear" : adjudication;
-    await sql`
-      UPDATE cleaners SET checkr_status = ${newStatus}, updated_at = NOW() WHERE id = ${cleanerId}
-    `;
+    if (adjudication === "engaged") {
+      await client.proceedReport(cleaner.yardstik_candidate_id, cleaner.yardstik_report_id);
+      await sql`
+        UPDATE cleaners SET yardstik_status = 'clear', updated_at = NOW() WHERE id = ${cleanerId}
+      `;
+    } else if (adjudication === "pre_adverse_action") {
+      await client.createAdverseAction(
+        cleaner.yardstik_report_id,
+        violationDescription ?? "Background check record requires adverse action review."
+      );
+      await sql`
+        UPDATE cleaners
+        SET yardstik_status = 'pre_adverse_action', yardstik_pre_adverse_at = NOW(), updated_at = NOW()
+        WHERE id = ${cleanerId}
+      `;
+    } else {
+      // Yardstik auto-finalizes a pre-adverse report to final adverse action
+      // once its own waiting-period timer elapses — there is no separate
+      // "finalize" API call. This branch just reflects that decision locally
+      // for an admin closing out the case immediately.
+      await sql`
+        UPDATE cleaners SET yardstik_status = 'adverse_action', updated_at = NOW() WHERE id = ${cleanerId}
+      `;
+    }
 
     return c.json({ ok: true });
   }

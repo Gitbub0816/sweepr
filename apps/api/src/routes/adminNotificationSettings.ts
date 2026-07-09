@@ -84,7 +84,7 @@ export const NOTIFICATION_CATALOG: { category: string; items: CatalogItem[] }[] 
       { key: "cleaner.application_received", label: "Application received", description: "Cleaner application submitted.", audience: "cleaner" },
       { key: "cleaner.approved", label: "Application approved", description: "Cleaner approved to work.", audience: "cleaner" },
       { key: "cleaner.rejected", label: "Application rejected", description: "Cleaner application rejected.", audience: "cleaner" },
-      { key: "checkr.status", label: "Background check update", description: "Checkr status changed.", audience: "cleaner" },
+      { key: "yardstik.status", label: "Background check update", description: "Yardstik status changed.", audience: "cleaner" },
       { key: "didit.status", label: "Identity verification update", description: "Didit decision received.", audience: "cleaner" },
       { key: "insurance.status", label: "Insurance status", description: "Coverage approved/expiring.", audience: "cleaner" },
     ],

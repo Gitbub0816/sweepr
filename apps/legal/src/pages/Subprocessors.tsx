@@ -32,7 +32,7 @@ interface Sub {
 const SUBS: Sub[] = [
   { vendor: "Clerk", purpose: "Authentication & accounts", data: "Identifiers, auth metadata", region: "US", role: "Processor", status: "Active" },
   { vendor: "Stripe", purpose: "Payments & payouts (Connect)", data: "Billing, payment tokens, payout/KYC", region: "US", role: "Controller", status: "Active" },
-  { vendor: "Checkr", purpose: "Background checks", data: "Identity, screening results", region: "US", role: "Controller", status: "Active" },
+  { vendor: "Yardstik", purpose: "Background checks", data: "Identity, screening results", region: "US", role: "Controller", status: "Active" },
   { vendor: "Didit", purpose: "Identity verification", data: "Identity/verification data", region: "US/EU", role: "Processor", status: "Active" },
   { vendor: "Neon", purpose: "Application database", data: "Application data", region: "US", role: "Processor", status: "Active" },
   { vendor: "Cloudflare", purpose: "Hosting, CDN, security", data: "Network/usage metadata", region: "Global", role: "Processor", status: "Active" },

@@ -49,7 +49,7 @@ export function BackgroundCheckAuthorization() {
         <p>
           Your authorization covers verification of identity and review of
           background information relevant to platform eligibility, obtained from a
-          consumer reporting agency such as Checkr.
+          consumer reporting agency, Yardstik, Inc.
         </p>
       </Section>
 

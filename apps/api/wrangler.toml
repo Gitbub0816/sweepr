@@ -12,19 +12,13 @@ invocation_logs = true
 
 [vars]
 ENVIRONMENT = "production"
-# The Checkr account's API keys are STAGING keys — they only authenticate
-# against the staging host. Remove this (or set to https://api.checkr.com)
-# when Checkr grants production credentials. When unset, lib/checkr.ts
-# auto-detects the right host, so this is an optimization + explicit
-# documentation of intent.
-CHECKR_API_URL = "https://api.checkr-staging.com"
 
 # 5th "site": the API + webhooks live on their own subdomain (api.getsweepr.com),
 # NOT under a path on another site. This binds the Worker to the custom domain
 # on deploy, exposing:
 #   https://api.getsweepr.com/webhooks/stripe
 #   https://api.getsweepr.com/webhooks/didit
-#   https://api.getsweepr.com/webhooks/checkr/webhook
+#   https://api.getsweepr.com/webhooks/yardstik
 # Requires the getsweepr.com zone to be in this Cloudflare account.
 routes = [
   { pattern = "api.getsweepr.com", custom_domain = true }
@@ -57,9 +51,17 @@ preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
 # R2_PUBLIC_URL             (value: https://objects.getsweepr.com)
 # R2_LEGAL_ACCESS_KEY_ID    (R2 API token for sweepr-legal bucket — PUT only)
 # R2_LEGAL_SECRET_ACCESS_KEY
-# CHECKR_API_KEY            (omit for mock mode — account under review)
-# CHECKR_PACKAGE
-# CHECKR_WEBHOOK_SECRET
+# YARDSTIK_API_KEY          (omit for mock mode)
+# YARDSTIK_ACCOUNT_PACKAGE_ID
+# YARDSTIK_API_URL          (optional — defaults to https://api.yardstik.com; set to
+#                            https://api.yardstik-staging.com for a staging account)
+# YARDSTIK_WEBHOOK_SIGNATURE (value of a Yardstik dashboard API key literally named
+#                            "WEBHOOK_SIGNATURE" — a separate key from YARDSTIK_API_KEY,
+#                            shown only once when created. Yardstik has no multi-event
+#                            webhook subscription UI: register EVERY event type you want
+#                            (report.created, report.updated, ...) against the SAME url
+#                            https://api.getsweepr.com/webhooks/yardstik — one signing key
+#                            covers all of them since the handler dispatches on the body.)
 # ALLOWED_ORIGINS
 # CF_STREAM_ACCOUNT_ID      (Cloudflare account ID — same value as R2_ACCOUNT_ID)
 # CF_STREAM_API_TOKEN       (API token with Cloudflare Stream:Edit permission)

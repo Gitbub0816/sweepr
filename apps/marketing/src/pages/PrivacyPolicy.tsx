@@ -57,7 +57,7 @@ export default function PrivacyPolicy() {
         </P>
         <P>
           For cleaners, we additionally process identity verification data via
-          Didit and background-check results via Checkr. We retain only the
+          Didit and background-check results via Yardstik. We retain only the
           verification/candidate identifiers and pass/fail status — we do not
           store the underlying background-check report contents beyond what is
           legally required.
@@ -74,7 +74,7 @@ export default function PrivacyPolicy() {
         <P>
           With cleaners assigned to your booking (limited to what's needed to
           perform the job), with service providers (Stripe, Clerk, Mapbox,
-          MailerSend, Checkr, Didit, Firebase, Neon), and where required by law.
+          MailerSend, Yardstik, Didit, Firebase, Neon), and where required by law.
           We do not sell personal information for monetary value.
         </P>
 

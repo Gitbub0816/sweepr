@@ -251,7 +251,7 @@ export function OnboardingPage() {
     track(Events.CLEANER_ONBOARDING_STARTED, { mode: next });
   }
   const isPrelaunch = usePrelaunch();
-  const [checkrStatus, setCheckrStatus] = useState<StatusFlow>("idle");
+  const [backgroundCheckStatus, setBackgroundCheckStatus] = useState<StatusFlow>("idle");
   const [diditStatus, setDiditStatus] = useState<StatusFlow>("idle");
   const [diditUrl, setDiditUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -349,8 +349,8 @@ export function OnboardingPage() {
         // can complete their background check without finishing training first.
         // Once prelaunch ends this condition automatically re-engages.
         if (!isPrelaunch && !trainingComplete) return false;
-        // Allow continuing once Checkr invitation was sent (pending = check in progress)
-        return checkrStatus === "submitted" || checkrStatus === "pending";
+        // Allow continuing once the Yardstik report was ordered (pending = check in progress)
+        return backgroundCheckStatus === "submitted" || backgroundCheckStatus === "pending";
       case "Identity":
         // Only a confirmed Didit approval (webhook → "approved" → "submitted") unlocks Next.
         // "pending" = applicant redirected to Didit but hasn't finished — must not pass.
@@ -363,7 +363,7 @@ export function OnboardingPage() {
   };
 
   // Background check is now handled entirely within BackgroundCheckStep via
-  // the Checkr invitation flow — no PII passes through OnboardingPage.
+  // the Yardstik report flow — no PII passes through OnboardingPage.
 
   // Reflect any existing Didit decision when the applicant reaches/returns to
   // the Identity step (e.g. after completing the hosted flow and coming back).
@@ -647,12 +647,11 @@ export function OnboardingPage() {
                 {stepName === "Background Check" && (
                   <BackgroundCheckStep
                     n={step + 1}
-                    workState="CA"
                     getToken={getToken}
                     trainingComplete={trainingComplete}
                     isPrelaunch={isPrelaunch}
                     onComplete={() => {
-                      setCheckrStatus("pending");
+                      setBackgroundCheckStatus("pending");
                       goNext();
                     }}
                   />
@@ -1092,7 +1091,7 @@ function StepServices({
 }
 
 // StepBackground removed — background check is now handled by BackgroundCheckStep
-// (Checkr native invitation flow). No PII is collected by Sweepr.
+// (Yardstik report-without-invitation flow). No PII is collected by Sweepr.
 
 function DiditQrCode({ url }: { url: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);

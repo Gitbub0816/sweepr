@@ -65,7 +65,7 @@ export function BackgroundCheckDisclosure() {
       <Section id="vendor" title="4. Screening Vendor">
         <p>
           Background checks are performed by a third-party consumer reporting
-          agency such as Checkr. Their handling of your data is governed by their
+          agency, Yardstik, Inc. Their handling of your data is governed by their
           own terms and privacy notices, and by Sweepr's{" "}
           <Link className="text-seafoam-700 underline" to="/privacy">
             Privacy Policy

@@ -26,16 +26,12 @@ export interface Env {
   R2_BUCKET: string;
   R2_PUBLIC_URL: string;
   CUSTOMER_URL?: string;
-  CHECKR_API_KEY?: string;
-  /** Optional public Checkr.js key. Safe to expose to the cleaner app. */
-  VITE_CHECKR_PUBLISHABLE_KEY?: string;
-  /** Optional public Checkr.js key alias for Worker-side runtime config. */
-  CHECKR_PUBLISHABLE_KEY?: string;
-  /** Optional override for staging/sandbox Checkr hosts. Defaults to https://api.checkr.com/v1. */
-  CHECKR_API_URL?: string;
-  CHECKR_PACKAGE?: string;
-  CHECKR_CLIENT_SECRET?: string;
-  CHECKR_WEBHOOK_SECRET?: string;
+  YARDSTIK_API_KEY?: string;
+  YARDSTIK_ACCOUNT_PACKAGE_ID?: string;
+  /** Optional override for staging/sandbox Yardstik hosts. Defaults to https://api.yardstik.com. */
+  YARDSTIK_API_URL?: string;
+  /** Value of the Yardstik dashboard API key literally named WEBHOOK_SIGNATURE. */
+  YARDSTIK_WEBHOOK_SIGNATURE?: string;
   DIDIT_API_KEY?: string;
   DIDIT_WEBHOOK_SECRET?: string;
   ALLOWED_ORIGINS?: string;

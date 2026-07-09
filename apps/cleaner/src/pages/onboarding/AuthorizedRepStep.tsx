@@ -12,7 +12,7 @@
  * Authorized representative step — business onboarding.
  *
  * We collect only name, title, email, and phone here.
- * DOB, SSN, and address are collected directly by Checkr's hosted form
+ * DOB, SSN, and address are collected directly by Yardstik's hosted form
  * in the subsequent Background Check step — they never pass through Sweepr.
  */
 import { Info } from "lucide-react";
@@ -59,7 +59,7 @@ export function AuthorizedRepStep({
         <p>
           This person will undergo a background check in the next step. Their
           date of birth, SSN, and address will be collected securely by our
-          background-check partner Checkr — they never pass through Sweepr.
+          background-check partner Yardstik — they never pass through Sweepr.
         </p>
       </div>
 
@@ -81,7 +81,7 @@ export function AuthorizedRepStep({
         type="email"
         value={value.email}
         onChange={(e) => onChange({ email: e.target.value })}
-        hint="Checkr will send the background check invitation to this address."
+        hint="Yardstik will send the background check invitation to this address."
         autoComplete="email"
       />
       <Input

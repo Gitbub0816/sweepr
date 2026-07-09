@@ -8,7 +8,7 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-export type CheckrStatus =
+export type ReportStatus =
   | "not_started"
   | "invited"
   | "pending"

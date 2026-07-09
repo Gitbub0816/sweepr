@@ -84,7 +84,7 @@ async function main() {
   const { rows: cleanerRows } = await client.query(
     `INSERT INTO cleaners
        (user_id, first_name, last_name, phone, bio, status,
-        checkr_status, didit_status, required_training_completed,
+        yardstik_status, didit_status, required_training_completed,
         training_completed_at, tier, rating, total_jobs)
      VALUES
        ($1, 'Test', 'Sweepr', '+15555550123',
@@ -92,7 +92,7 @@ async function main() {
         'approved', 'clear', 'approved', true, NOW(), 'preferred', 4.90, 12)
      ON CONFLICT (user_id) DO UPDATE SET
         status                      = 'approved',
-        checkr_status               = 'clear',
+        yardstik_status             = 'clear',
         didit_status                = 'approved',
         required_training_completed = true,
         training_completed_at       = COALESCE(cleaners.training_completed_at, NOW())

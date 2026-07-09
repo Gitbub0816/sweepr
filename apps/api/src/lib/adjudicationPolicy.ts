@@ -28,7 +28,7 @@
  * sealed/expunged records are never evaluated (enforced upstream and
  * re-checked here via `isConviction`). This engine is pure and unit-tested;
  * provider integrations map raw report records into `ConvictionInput` before
- * calling it. It is provider-agnostic (Checkr today, replaceable later).
+ * calling it. It is provider-agnostic (Yardstik today, replaceable later).
  *
  * FCRA note: an `auto_deny` decision starts the adverse-action process (pre-
  * adverse notice, waiting period, final notice) — it must never silently

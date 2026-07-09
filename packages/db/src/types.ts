@@ -47,6 +47,9 @@ export interface CleanerRow {
   checkr_candidate_id: string | null;
   checkr_report_id: string | null;
   checkr_status: string | null;
+  yardstik_candidate_id: string | null;
+  yardstik_report_id: string | null;
+  yardstik_status: string | null;
   didit_verification_id: string | null;
   didit_status: string | null;
   tier: string;
