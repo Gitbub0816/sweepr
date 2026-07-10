@@ -28,11 +28,15 @@
          visible with the fallback font until Inter loads. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- media=print keeps this off the render path; main.tsx flips it to
+         media=all once the app boots. (An inline onload handler here would
+         violate the CSP — script-src has no 'unsafe-inline'/'unsafe-hashes',
+         so the handler was blocked and the fonts never activated.) -->
     <link
+      id="inter-font-css"
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap"
       media="print"
-      onload="this.media='all'"
     />
     <noscript>
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" />

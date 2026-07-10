@@ -64,6 +64,11 @@ i18n
     resources: {
       en: { common: en },
     },
+    // REQUIRED with bundled `resources` + a backend: without this flag,
+    // i18next treats the bundled resources as the complete set and never
+    // calls the lazy backend — so every non-English language silently fell
+    // back to English (?lang=hi rendered the English site).
+    partialBundledLanguages: true,
     defaultNS: "common",
     fallbackLng: "en",
     supportedLngs: SUPPORTED_CODES,

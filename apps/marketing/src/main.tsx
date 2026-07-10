@@ -49,6 +49,12 @@ const API_URL =
 
 installGlobalErrorHandlers({ app: "marketing", apiUrl: API_URL });
 
+// Activate the Inter stylesheet (loaded with media=print in index.html so it
+// never blocks first paint). Done here instead of an inline onload attribute,
+// which the CSP blocks (script-src has no 'unsafe-inline'/'unsafe-hashes').
+const interCss = document.getElementById("inter-font-css") as HTMLLinkElement | null;
+if (interCss) interCss.media = "all";
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ErrorBoundary app="marketing" apiUrl={API_URL} variant="playful">
