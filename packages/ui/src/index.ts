@@ -55,6 +55,9 @@ export * from "./components/NewsletterSubscribe";
 export * from "./components/ReportProblem";
 export * from "./components/AccountPrivacy";
 export * from "./components/CookieConsent";
+export * from "./components/FoundingMemberBadge";
+export * from "./components/PromoWidget";
+export * from "./components/PromoHost";
 
 // Calendar
 export { SweeprCalendar } from "./calendar/SweeprCalendar";

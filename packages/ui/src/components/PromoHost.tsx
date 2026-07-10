@@ -1,0 +1,134 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
+import { useEffect, useState, useCallback } from "react";
+import { PromoWidget, type PromoView } from "./PromoWidget";
+
+interface PromoDisplay {
+  placement?: "modal" | "banner" | "inline";
+  pages?: string[];
+  delaySeconds?: number;
+  persist?: boolean;
+  frequency?: "once" | "every_visit" | "daily";
+  showOnFirstVisit?: boolean;
+}
+interface LivePromo extends PromoView {
+  display?: PromoDisplay;
+  audience?: string;
+}
+
+const SEEN_PREFIX = "sweepr.promo.seen.";
+
+/** Whether a promo may be shown now, per its frequency + last-seen record. */
+function eligibleByFrequency(slug: string, display: PromoDisplay): boolean {
+  if (typeof window === "undefined") return false;
+  const raw = window.localStorage.getItem(SEEN_PREFIX + slug);
+  if (!raw) return true;
+  const freq = display.frequency ?? "once";
+  if (freq === "every_visit") return true;
+  if (freq === "once") return display.persist === true ? true : false;
+  // daily: show again if last-seen was on an earlier calendar day
+  const last = new Date(Number(raw));
+  const now = new Date();
+  return last.toDateString() !== now.toDateString();
+}
+
+function markSeen(slug: string) {
+  try {
+    window.localStorage.setItem(SEEN_PREFIX + slug, String(Date.now()));
+  } catch {
+    /* private mode — ignore */
+  }
+}
+
+function pathMatches(pages: string[] | undefined): boolean {
+  if (!pages || pages.length === 0) return true;
+  const path = window.location.pathname;
+  return pages.some((p) => path.startsWith(p));
+}
+
+/**
+ * Site-wide promotion host. Drop one instance at app root. It fetches the live
+ * promos for the given persona, picks the first eligible for the current page,
+ * waits the configured delay, and shows it as a modal — honoring per-promo
+ * frequency (once / daily / every visit) via localStorage. Claims are posted
+ * with the caller's bearer token (via `getToken`) so Founding Member grants
+ * attach to the signed-in account.
+ */
+export function PromoHost({
+  apiBase,
+  persona = "visitor",
+  getToken,
+}: {
+  apiBase: string;
+  persona?: "visitor" | "customer" | "cleaner";
+  getToken?: () => Promise<string | null | undefined> | string | null | undefined;
+}) {
+  const [promo, setPromo] = useState<LivePromo | null>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    (async () => {
+      try {
+        const res = await fetch(`${apiBase}/promotions/live?persona=${persona}`);
+        if (!res.ok) return;
+        const data = (await res.json()) as { promotions: LivePromo[] };
+        const candidate = data.promotions.find(
+          (p) => pathMatches(p.display?.pages) && eligibleByFrequency(p.slug, p.display ?? {}),
+        );
+        if (!candidate || cancelled) return;
+        const delayMs = Math.max(0, (candidate.display?.delaySeconds ?? 0) * 1000);
+        timer = setTimeout(() => {
+          if (cancelled) return;
+          setPromo(candidate);
+          setVisible(true);
+          markSeen(candidate.slug);
+          fetch(`${apiBase}/promotions/${candidate.slug}/impression`, { method: "POST" }).catch(
+            () => {},
+          );
+        }, delayMs);
+      } catch {
+        /* offline / blocked — silently skip */
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [apiBase, persona]);
+
+  const handleClaim = useCallback(
+    async (fields: { email?: string; phone?: string }) => {
+      if (!promo) return { ok: false };
+      const token = getToken ? await getToken() : null;
+      const res = await fetch(`${apiBase}/promotions/${promo.slug}/claim`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(fields),
+      });
+      const data = (await res.json().catch(() => ({}))) as { message?: string };
+      return { ok: res.ok, message: data.message };
+    },
+    [apiBase, promo, getToken],
+  );
+
+  if (!promo || !visible) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+      <PromoWidget promo={promo} onClaim={handleClaim} onDismiss={() => setVisible(false)} />
+    </div>
+  );
+}
