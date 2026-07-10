@@ -45,6 +45,8 @@ import {
   ScanEye,
   ShieldBan,
   CalendarDays,
+  Megaphone,
+  Award,
 } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -85,6 +87,8 @@ import { PricingApprovalDetailPage } from "./pages/PricingApprovalDetailPage";
 import { SecurityPage } from "./pages/SecurityPage";
 import { BroadcastsPage } from "./pages/BroadcastsPage";
 import { SchedulePage } from "./pages/SchedulePage";
+import { PromotionsPage } from "./pages/PromotionsPage";
+import { FoundingMembersPage } from "./pages/FoundingMembersPage";
 import { NewsletterPage } from "./pages/NewsletterPage";
 import { MailPage } from "./pages/MailPage";
 import { ScopeReviewPage } from "./pages/ScopeReviewPage";
@@ -111,6 +115,7 @@ const navGroups = [
       { to: "/approvals", label: "Approvals", icon: GitPullRequest },
       { to: "/scope-review", label: "Scope Review", icon: ScanEye },
       { to: "/service-areas", label: "Service Areas", icon: Map },
+      { to: "/founding-members", label: "Founding Members", icon: Award },
       { to: "/disputes", label: "Disputes", icon: AlertTriangle },
     ],
   },
@@ -133,6 +138,7 @@ const navGroups = [
     label: "Comms",
     items: [
       { to: "/schedule", label: "Schedule", icon: CalendarDays },
+      { to: "/promotions", label: "Promotions", icon: Megaphone },
       { to: "/mail", label: "Mail", icon: Inbox },
       { to: "/email", label: "Email", icon: Mail },
       { to: "/broadcasts", label: "Broadcasts", icon: Radio },
@@ -270,6 +276,8 @@ export default function App() {
       <Route path="/email" element={<Guarded><EmailPage /></Guarded>} />
       <Route path="/broadcasts" element={<Guarded><BroadcastsPage /></Guarded>} />
       <Route path="/schedule" element={<Guarded><SchedulePage /></Guarded>} />
+      <Route path="/promotions" element={<Guarded><PromotionsPage /></Guarded>} />
+      <Route path="/founding-members" element={<Guarded><FoundingMembersPage /></Guarded>} />
       <Route path="/newsletter" element={<Guarded><NewsletterPage /></Guarded>} />
       <Route path="/mail" element={<Guarded><MailPage /></Guarded>} />
       <Route path="/observability" element={<Guarded><ObservabilityPage /></Guarded>} />
