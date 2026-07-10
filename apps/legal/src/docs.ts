@@ -183,6 +183,13 @@ export const DOCS: DocMeta[] = [
     version: "1.0.0",
   },
   {
+    slug: "promotions-coupons-terms",
+    title: "Promotions & Coupons Terms",
+    description: "Rules for promotional offers and coupons: sign-up requirement, 180-day validity, automatic application, limits.",
+    category: "Platform Policies",
+    version: "1.0.0",
+  },
+  {
     slug: "community-guidelines",
     title: "Community Guidelines",
     description: "Behavior standards for everyone on Sweepr.",

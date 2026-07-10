@@ -25,6 +25,7 @@ import { useAuthedFetch } from "../lib/alerts";
 type Audience = "all" | "visitors" | "customers" | "cleaners";
 type Status = "draft" | "active" | "paused" | "expired" | "archived";
 
+interface PromoHotspot { x: number; y: number; w: number; h: number; cta: PromoCta }
 interface PromoBlock {
   type: "badge" | "heading" | "subheading" | "text" | "image" | "divider" | "spacer" | "bullets";
   text?: string;
@@ -33,6 +34,25 @@ interface PromoBlock {
   align?: "left" | "center" | "right";
   size?: "sm" | "md" | "lg" | "xl";
 }
+interface PromoCta {
+  label: string;
+  action: "claim" | "newsletter" | "waitlist" | "book_now" | "link" | "dismiss";
+  url?: string;
+  requireField?: "none" | "email" | "phone";
+  claimants?: "anonymous" | "signed_in" | "both";
+  secondary?: { label: string; url: string };
+  successMessage?: string;
+}
+interface RewardCoupon {
+  kind: "percent_off" | "amount_off" | "free_addon";
+  value?: number;
+  addonKey?: string;
+  title?: string;
+  validDays?: number;
+  offerMinutes?: number;
+  maxRedemptions?: number;
+  minBookingTotalCents?: number;
+}
 interface Promo {
   id: string;
   slug: string;
@@ -40,16 +60,9 @@ interface Promo {
   template_key: string | null;
   audience: Audience;
   status: Status;
-  design: { theme?: string; accent?: string; background?: string; blocks: PromoBlock[] };
-  cta: {
-    label: string;
-    action: "claim" | "link" | "dismiss";
-    url?: string;
-    requireField?: "none" | "email" | "phone";
-    claimants?: "anonymous" | "signed_in" | "both";
-    secondary?: { label: string; url: string };
-    successMessage?: string;
-  };
+  design: { theme?: string; accent?: string; background?: string; blocks: PromoBlock[]; poster?: { src: string; hotspots?: PromoHotspot[] } };
+  reward?: { coupon?: RewardCoupon };
+  cta: PromoCta;
   display: { placement?: string; pages?: string[]; delaySeconds?: number; persist?: boolean; frequency?: "once" | "every_visit" | "daily"; showOnFirstVisit?: boolean };
   starts_at: string | null;
   expires_at: string | null;
@@ -140,6 +153,7 @@ export function PromotionsPage() {
           design: draft.design,
           cta: draft.cta,
           display: draft.display,
+          reward: draft.reward ?? {},
           startsAt: draft.starts_at,
           expiresAt: draft.expires_at,
           maxClaims: draft.max_claims,
@@ -171,8 +185,10 @@ export function PromotionsPage() {
   const previewPromo: PromoView | null = useMemo(
     () => draft ? {
       id: draft.id, slug: draft.slug, name: draft.name,
+      audience: draft.audience,
       design: draft.design as PromoView["design"], cta: draft.cta as PromoView["cta"],
       grantsFoundingMember: draft.grants_founding_member,
+      reward: draft.reward as PromoView["reward"],
     } : null,
     [draft],
   );
@@ -340,10 +356,15 @@ export function PromotionsPage() {
                   <label className="text-xs">Action
                     <select value={draft.cta.action} onChange={(e) => setDraft({ ...draft, cta: { ...draft.cta, action: e.target.value as Promo["cta"]["action"] } })}
                       className="mt-1 w-full rounded-md border border-slate-200 bg-transparent px-2 py-1.5 text-sm dark:border-slate-700">
-                      <option value="claim">Claim</option><option value="link">Open link</option><option value="dismiss">Dismiss</option>
+                      <option value="claim">Claim (record + grant reward)</option>
+                      <option value="newsletter">Newsletter sign-up (+ reward)</option>
+                      <option value="waitlist">Join waitlist (+ reward)</option>
+                      <option value="book_now">Book now (flash offer + reward)</option>
+                      <option value="link">Open link</option>
+                      <option value="dismiss">Dismiss</option>
                     </select>
                   </label>
-                  {draft.cta.action === "claim" ? (
+                  {["claim","newsletter","waitlist","book_now"].includes(draft.cta.action) ? (
                     <label className="text-xs">Required field
                       <select value={draft.cta.requireField ?? "none"} onChange={(e) => setDraft({ ...draft, cta: { ...draft.cta, requireField: e.target.value as Promo["cta"]["requireField"] } })}
                         className="mt-1 w-full rounded-md border border-slate-200 bg-transparent px-2 py-1.5 text-sm dark:border-slate-700">
@@ -351,18 +372,18 @@ export function PromotionsPage() {
                       </select>
                     </label>
                   ) : null}
-                  {draft.cta.action === "link" ? (
-                    <label className="text-xs">Link URL
+                  {draft.cta.action === "link" || draft.cta.action === "book_now" ? (
+                    <label className="text-xs">{draft.cta.action === "book_now" ? "Booking URL (redirect after claim)" : "Link URL"}
                       <Input value={draft.cta.url ?? ""} onChange={(e) => setDraft({ ...draft, cta: { ...draft.cta, url: e.target.value } })} className="mt-1" />
                     </label>
                   ) : null}
                 </div>
-                {draft.cta.action === "claim" ? (
+                {["claim","newsletter","waitlist","book_now"].includes(draft.cta.action) ? (
                   <label className="block text-xs">Success message
                     <Input value={draft.cta.successMessage ?? ""} onChange={(e) => setDraft({ ...draft, cta: { ...draft.cta, successMessage: e.target.value } })} className="mt-1" />
                   </label>
                 ) : null}
-                {draft.cta.action === "claim" ? (
+                {["claim","newsletter","waitlist","book_now"].includes(draft.cta.action) ? (
                   <label className="block text-xs">Who can claim
                     <select
                       value={draft.cta.claimants ?? "both"}
@@ -399,6 +420,90 @@ export function PromotionsPage() {
                 ) : null}
               </Card>
 
+              {/* Reward — the coupon this promo grants (coupons are silent: they
+                  sit on the account and apply automatically at booking) */}
+              <Card className="space-y-3 p-4">
+                <h3 className="font-semibold">Reward (coupon)</h3>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={Boolean(draft.reward?.coupon)}
+                    onChange={(e) => setDraft({ ...draft, reward: e.target.checked ? { coupon: { kind: "percent_off", value: 15, validDays: 180, maxRedemptions: 1 } } : {} })} />
+                  Claiming grants a coupon
+                </label>
+                {draft.reward?.coupon ? (() => {
+                  const rc = draft.reward!.coupon!;
+                  const patch = (pp: Partial<RewardCoupon>) => setDraft({ ...draft, reward: { coupon: { ...rc, ...pp } } });
+                  return (
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="text-xs">Type
+                        <select value={rc.kind} onChange={(e) => patch({ kind: e.target.value as RewardCoupon["kind"] })}
+                          className="mt-1 w-full rounded-md border border-slate-200 bg-transparent px-2 py-1.5 text-sm dark:border-slate-700">
+                          <option value="percent_off">% off next booking</option>
+                          <option value="amount_off">$ off next booking</option>
+                          <option value="free_addon">Free add-on</option>
+                        </select>
+                      </label>
+                      {rc.kind === "free_addon" ? (
+                        <label className="text-xs">Add-on key
+                          <Input value={rc.addonKey ?? ""} placeholder="inside_fridge" onChange={(e) => patch({ addonKey: e.target.value })} className="mt-1" />
+                        </label>
+                      ) : (
+                        <label className="text-xs">{rc.kind === "percent_off" ? "Percent (1–100)" : "Amount (cents)"}
+                          <Input type="number" min={1} value={rc.value ?? 0} onChange={(e) => patch({ value: Number(e.target.value) })} className="mt-1" />
+                        </label>
+                      )}
+                      <label className="text-xs">Coupon title (shown on the account)
+                        <Input value={rc.title ?? ""} placeholder="15% off your next booking" onChange={(e) => patch({ title: e.target.value })} className="mt-1" />
+                      </label>
+                      <label className="text-xs">Uses per person
+                        <Input type="number" min={1} value={rc.maxRedemptions ?? 1} onChange={(e) => patch({ maxRedemptions: Number(e.target.value) })} className="mt-1" />
+                      </label>
+                      <label className="text-xs">Valid days (max 180 — legal cap)
+                        <Input type="number" min={1} max={180} value={rc.validDays ?? 180} onChange={(e) => patch({ validDays: Math.min(Number(e.target.value), 180) })} className="mt-1" />
+                      </label>
+                      <label className="text-xs">Flash offer window (minutes, optional)
+                        <Input type="number" min={0} value={rc.offerMinutes ?? ""} placeholder="15 = expires 15 min after claiming"
+                          onChange={(e) => patch({ offerMinutes: e.target.value ? Number(e.target.value) : undefined })} className="mt-1" />
+                      </label>
+                      <label className="text-xs">Min booking total (cents, optional)
+                        <Input type="number" min={0} value={rc.minBookingTotalCents ?? ""} onChange={(e) => patch({ minBookingTotalCents: e.target.value ? Number(e.target.value) : undefined })} className="mt-1" />
+                      </label>
+                      <p className="col-span-2 text-xs text-slate-500">
+                        Coupons are silent — no widget. They appear in the person's account and apply
+                        automatically to the next qualifying booking. Anonymous claims capture an email;
+                        the coupon activates when that person signs up (required to claim, per the
+                        Promotions &amp; Coupons Terms).
+                      </p>
+                    </div>
+                  );
+                })() : null}
+              </Card>
+
+              {/* Poster — the whole widget is one uploaded image; drag on it to
+                  draw interactive hotspots and assign each a CTA */}
+              <Card className="space-y-3 p-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold">Poster mode (full-image)</h3>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={Boolean(draft.design.poster?.src)}
+                      onChange={(e) => setDraft({ ...draft, design: { ...draft.design, poster: e.target.checked ? { src: draft.design.poster?.src ?? "", hotspots: draft.design.poster?.hotspots ?? [] } : undefined } })} />
+                    Enabled
+                  </label>
+                </div>
+                {draft.design.poster !== undefined ? (
+                  <PosterEditor
+                    promoId={draft.id}
+                    poster={draft.design.poster}
+                    onChange={(poster) => setDraft({ ...draft, design: { ...draft.design, poster } })}
+                    authed={authed}
+                  />
+                ) : (
+                  <p className="text-xs text-slate-500">
+                    Replaces the block design with a single uploaded image (like a one-slide poster).
+                    Drag on the image to draw hotspots and assign each a CTA.
+                  </p>
+                )}
+              </Card>
+
               {/* Display + expiry */}
               <Card className="space-y-3 p-4">
                 <h3 className="font-semibold">Display &amp; expiry</h3>
@@ -412,7 +517,9 @@ export function PromotionsPage() {
                   <label className="text-xs">Placement
                     <select value={draft.display.placement ?? "modal"} onChange={(e) => setDraft({ ...draft, display: { ...draft.display, placement: e.target.value } })}
                       className="mt-1 w-full rounded-md border border-slate-200 bg-transparent px-2 py-1.5 text-sm dark:border-slate-700">
-                      <option value="modal">Modal</option><option value="banner">Banner</option><option value="inline">Inline</option>
+                      <option value="modal">Popup — overlays the page after the delay</option>
+                      <option value="banner">Banner — slim top strip; “View offer” expands the popup</option>
+                      <option value="inline">Embedded — in-page / direct /promo link only</option>
                     </select>
                   </label>
                   <label className="text-xs">Show after (seconds)
@@ -479,4 +586,157 @@ function toLocal(iso: string | null): string {
 function fromLocal(local: string): string | null {
   if (!local) return null;
   return new Date(local).toISOString();
+}
+
+/**
+ * Poster editor: upload the poster image (admin 'promo' storage scope → R2),
+ * then drag on the preview to draw interactive hotspots. Each hotspot gets an
+ * assigned CTA (the "assign CTA" flow) — label + action + optional URL. All
+ * geometry is stored as % of the image so it scales with the widget.
+ */
+function PosterEditor({
+  promoId,
+  poster,
+  onChange,
+  authed,
+}: {
+  promoId: string;
+  poster: { src: string; hotspots?: PromoHotspot[] };
+  onChange: (p: { src: string; hotspots?: PromoHotspot[] }) => void;
+  authed: (path: string, init?: RequestInit) => Promise<Response>;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
+  const [drawRect, setDrawRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+
+  async function upload(file: File) {
+    setUploading(true);
+    try {
+      const sign = await authed("/storage/sign-upload", {
+        method: "POST",
+        body: JSON.stringify({
+          fileName: file.name,
+          contentType: file.type,
+          sizeBytes: file.size,
+          purpose: "promo_asset",
+          scope: "promo",
+          refId: promoId,
+        }),
+      });
+      if (!sign.ok) { toast.error("Upload authorization failed"); return; }
+      const { uploadUrl, publicUrl, requiredHeaders } = (await sign.json()) as {
+        uploadUrl: string; publicUrl: string; requiredHeaders: Record<string, string>;
+      };
+      const put = await fetch(uploadUrl, { method: "PUT", headers: requiredHeaders, body: file });
+      if (!put.ok) { toast.error("Upload failed"); return; }
+      onChange({ ...poster, src: publicUrl });
+      toast.success("Poster uploaded");
+    } finally { setUploading(false); }
+  }
+
+  function pct(e: React.MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100)),
+      y: Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100)),
+    };
+  }
+
+  function finishDraw() {
+    if (drawRect && drawRect.w > 2 && drawRect.h > 2) {
+      const label = window.prompt("Hotspot CTA label (what does clicking here do?)", "Claim offer");
+      if (label) {
+        onChange({
+          ...poster,
+          hotspots: [
+            ...(poster.hotspots ?? []),
+            { ...drawRect, cta: { label, action: "claim", requireField: "none" } },
+          ],
+        });
+      }
+    }
+    setDrawStart(null);
+    setDrawRect(null);
+  }
+
+  const hotspots = poster.hotspots ?? [];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Input value={poster.src} placeholder="https://objects.getsweepr.com/promos/…"
+          onChange={(e) => onChange({ ...poster, src: e.target.value })} className="flex-1" />
+        <label className="cursor-pointer rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium hover:border-seafoam-400 dark:border-slate-700">
+          {uploading ? "Uploading…" : "Upload image"}
+          <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ""; }} />
+        </label>
+      </div>
+
+      {poster.src ? (
+        <>
+          <p className="text-xs text-slate-500">Drag on the image to draw a hotspot, then assign its CTA below.</p>
+          <div
+            className="relative select-none overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700"
+            onMouseDown={(e) => { const p0 = pct(e); setDrawStart(p0); setDrawRect({ ...p0, w: 0, h: 0 }); }}
+            onMouseMove={(e) => {
+              if (!drawStart) return;
+              const p1 = pct(e);
+              setDrawRect({
+                x: Math.min(drawStart.x, p1.x), y: Math.min(drawStart.y, p1.y),
+                w: Math.abs(p1.x - drawStart.x), h: Math.abs(p1.y - drawStart.y),
+              });
+            }}
+            onMouseUp={finishDraw}
+            onMouseLeave={() => { if (drawStart) finishDraw(); }}
+          >
+            <img src={poster.src} alt="Poster" className="block w-full" draggable={false} />
+            {hotspots.map((h, i) => (
+              <div key={i}
+                className="absolute flex items-center justify-center rounded border-2 border-seafoam-500 bg-seafoam-500/15 text-[10px] font-bold text-seafoam-700"
+                style={{ left: `${h.x}%`, top: `${h.y}%`, width: `${h.w}%`, height: `${h.h}%` }}>
+                {i + 1}
+              </div>
+            ))}
+            {drawRect ? (
+              <div className="absolute rounded border-2 border-dashed border-amber-500 bg-amber-400/15"
+                style={{ left: `${drawRect.x}%`, top: `${drawRect.y}%`, width: `${drawRect.w}%`, height: `${drawRect.h}%` }} />
+            ) : null}
+          </div>
+
+          {hotspots.map((h, i) => (
+            <div key={i} className="grid grid-cols-[auto_1fr_1fr_1fr_auto] items-end gap-2 rounded-lg border border-slate-200 p-2 dark:border-slate-700">
+              <span className="pb-1.5 text-xs font-bold text-seafoam-700">#{i + 1}</span>
+              <label className="text-xs">CTA label
+                <Input value={h.cta.label} onChange={(e) => {
+                  const hs = hotspots.map((x, j) => j === i ? { ...x, cta: { ...x.cta, label: e.target.value } } : x);
+                  onChange({ ...poster, hotspots: hs });
+                }} className="mt-1" />
+              </label>
+              <label className="text-xs">Action
+                <select value={h.cta.action} onChange={(e) => {
+                  const hs = hotspots.map((x, j) => j === i ? { ...x, cta: { ...x.cta, action: e.target.value as PromoCta["action"] } } : x);
+                  onChange({ ...poster, hotspots: hs });
+                }} className="mt-1 w-full rounded-md border border-slate-200 bg-transparent px-2 py-1.5 text-sm dark:border-slate-700">
+                  <option value="claim">Claim (+ reward)</option>
+                  <option value="newsletter">Newsletter (+ reward)</option>
+                  <option value="waitlist">Waitlist (+ reward)</option>
+                  <option value="book_now">Book now</option>
+                  <option value="link">Open link</option>
+                  <option value="dismiss">Dismiss</option>
+                </select>
+              </label>
+              <label className="text-xs">URL (link / book now)
+                <Input value={h.cta.url ?? ""} onChange={(e) => {
+                  const hs = hotspots.map((x, j) => j === i ? { ...x, cta: { ...x.cta, url: e.target.value } } : x);
+                  onChange({ ...poster, hotspots: hs });
+                }} className="mt-1" />
+              </label>
+              <Button size="sm" variant="ghost" onClick={() => onChange({ ...poster, hotspots: hotspots.filter((_, j) => j !== i) })}>✕</Button>
+            </div>
+          ))}
+        </>
+      ) : null}
+    </div>
+  );
 }

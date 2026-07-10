@@ -32,6 +32,7 @@ import { BackgroundCheckDisclosure } from "./pages/BackgroundCheckDisclosure";
 import { BackgroundCheckAuthorization } from "./pages/BackgroundCheckAuthorization";
 import { BackgroundCheckAdverseAction } from "./pages/BackgroundCheckAdverseAction";
 import { BackgroundCheckAdjudicationPolicy } from "./pages/BackgroundCheckAdjudicationPolicy";
+import { PromotionsCouponsTerms } from "./pages/PromotionsCouponsTerms";
 import { PaymentServicesTerms } from "./pages/PaymentServicesTerms";
 import { PlatformFeePolicy } from "./pages/PlatformFeePolicy";
 import { TaxReportingPolicy } from "./pages/TaxReportingPolicy";
@@ -99,6 +100,7 @@ export default function App() {
           path="/background-check-adjudication"
           element={<BackgroundCheckAdjudicationPolicy />}
         />
+        <Route path="/promotions-coupons-terms" element={<PromotionsCouponsTerms />} />
 
         {/* Payments & Tax */}
         <Route path="/payment-terms" element={<PaymentServicesTerms />} />

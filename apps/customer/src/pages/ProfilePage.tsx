@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { useAuth, useUser, useClerk } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
 import { DashboardShell, Card, AccountPrivacy, SMSOptIn, toast } from "@sweepr/ui";
+import { CouponsCard } from "../components/CouponsCard";
 import { ContactSettings } from "../components/ContactSettings";
 import { AddressBook } from "../components/AddressBook";
 import { LanguageSelector } from "../i18n/LanguageSelector";
@@ -110,6 +111,7 @@ export function ProfilePage() {
           <LanguageSelector />
         </Card>
 
+        <CouponsCard />
         <AccountPrivacy
           apiUrl={API_URL}
           getToken={getToken}

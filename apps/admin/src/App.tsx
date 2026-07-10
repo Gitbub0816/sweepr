@@ -47,6 +47,7 @@ import {
   CalendarDays,
   Megaphone,
   Award,
+  TicketPercent,
 } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -89,6 +90,7 @@ import { BroadcastsPage } from "./pages/BroadcastsPage";
 import { SchedulePage } from "./pages/SchedulePage";
 import { PromotionsPage } from "./pages/PromotionsPage";
 import { FoundingMembersPage } from "./pages/FoundingMembersPage";
+import { CouponsPage } from "./pages/CouponsPage";
 import { NewsletterPage } from "./pages/NewsletterPage";
 import { MailPage } from "./pages/MailPage";
 import { ScopeReviewPage } from "./pages/ScopeReviewPage";
@@ -139,6 +141,7 @@ const navGroups = [
     items: [
       { to: "/schedule", label: "Schedule", icon: CalendarDays },
       { to: "/promotions", label: "Promotions", icon: Megaphone },
+      { to: "/coupons", label: "Coupons", icon: TicketPercent },
       { to: "/mail", label: "Mail", icon: Inbox },
       { to: "/email", label: "Email", icon: Mail },
       { to: "/broadcasts", label: "Broadcasts", icon: Radio },
@@ -277,6 +280,7 @@ export default function App() {
       <Route path="/broadcasts" element={<Guarded><BroadcastsPage /></Guarded>} />
       <Route path="/schedule" element={<Guarded><SchedulePage /></Guarded>} />
       <Route path="/promotions" element={<Guarded><PromotionsPage /></Guarded>} />
+      <Route path="/coupons" element={<Guarded><CouponsPage /></Guarded>} />
       <Route path="/founding-members" element={<Guarded><FoundingMembersPage /></Guarded>} />
       <Route path="/newsletter" element={<Guarded><NewsletterPage /></Guarded>} />
       <Route path="/mail" element={<Guarded><MailPage /></Guarded>} />

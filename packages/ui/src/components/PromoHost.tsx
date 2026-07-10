@@ -81,6 +81,7 @@ export function PromoHost({
 }) {
   const [promo, setPromo] = useState<LivePromo | null>(null);
   const [visible, setVisible] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -141,13 +142,39 @@ export function PromoHost({
 
   if (!promo || !visible) return null;
 
+  const viewerSignedIn2 = signedIn ?? persona !== "visitor";
+  const placement = promo.display?.placement ?? "modal";
+
+  // Banner: a slim strip pinned to the top; "View offer" expands the full
+  // widget as a popup. Embedded ('inline') promos are placed in-page by a
+  // <PromoEmbed> — the host never floats them, so skip here.
+  if (placement === "inline" && !expanded) return null;
+  if (placement === "banner" && !expanded) {
+    const headline =
+      promo.design?.blocks?.find((b) => b.type === "heading" || b.type === "text")?.text ?? promo.name;
+    return (
+      <div className="fixed inset-x-0 top-0 z-[100] flex items-center justify-center gap-3 bg-seafoam-700 px-4 py-2.5 text-white shadow-md">
+        <p className="truncate text-sm font-medium">{headline}</p>
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="shrink-0 rounded-full bg-white/20 px-3 py-1 text-xs font-semibold hover:bg-white/30"
+        >
+          View offer
+        </button>
+        <button type="button" aria-label="Dismiss" onClick={() => setVisible(false)}
+          className="shrink-0 text-white/70 hover:text-white">✕</button>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
       <PromoWidget
         promo={promo}
         onClaim={handleClaim}
-        onDismiss={() => setVisible(false)}
-        signedIn={signedIn ?? persona !== "visitor"}
+        onDismiss={() => { setVisible(false); setExpanded(false); }}
+        signedIn={viewerSignedIn2}
         signInUrl={signInUrl}
       />
     </div>
