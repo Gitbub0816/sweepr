@@ -164,6 +164,27 @@ for (const col of REQUIRED_COLUMNS) {
   }
 }
 
+// ── Dollar-quoting sanity ─────────────────────────────────────────────────────
+// A nested DO $$ inside another DO $$ (same delimiter) terminates the outer
+// quote early and the whole file stops parsing — this broke the deploy heal
+// step once. Pair up $$ delimiters and reject any "body" that itself opens a
+// DO block or any file with an odd number of delimiters.
+{
+  const bodies = [...schema.matchAll(/\$\$([\s\S]*?)\$\$/g)].map((m) => m[1]);
+  const total = (schema.match(/\$\$/g) ?? []).length;
+  if (total % 2 !== 0) {
+    console.error("BROKEN DOLLAR QUOTING: odd number of $$ delimiters");
+    errors++;
+  }
+  for (const body of bodies) {
+    if (/\bDO\s*$/.test(body.trimEnd()) || (/\bBEGIN\b/i.test(body) && !/\bEND\b/i.test(body))) {
+      console.error("NESTED/BROKEN DO $$ BLOCK detected (would fail to parse in Postgres)");
+      errors++;
+      break;
+    }
+  }
+}
+
 // ── Migration sections ───────────────────────────────────────────────────────
 for (const mig of REQUIRED_MIGRATIONS) {
   if (!schema.includes(mig)) {

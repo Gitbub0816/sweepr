@@ -38,6 +38,18 @@ const files = readdirSync(MIG_DIR)
   .sort();
 
 function idempotent(sql) {
+  // Mask dollar-quoted bodies (DO blocks, function bodies) BEFORE any rewrite.
+  // Statements inside them were already written re-runnable by their author,
+  // and wrapping an ALTER that's already inside a DO $$ block in ANOTHER
+  // DO $$ block nests identical $$ delimiters — the inner $$ terminates the
+  // outer quote and the file stops parsing ("syntax error at or near BEGIN",
+  // which broke the deploy heal step).
+  const masked = [];
+  sql = sql.replace(/\$\$[\s\S]*?\$\$/g, (m) => {
+    masked.push(m);
+    return `__DOLLAR_BLOCK_${masked.length - 1}__`;
+  });
+
   // CREATE TABLE foo  ->  CREATE TABLE IF NOT EXISTS foo
   sql = sql.replace(/CREATE TABLE (?!IF NOT EXISTS)/gi, "CREATE TABLE IF NOT EXISTS ");
   // CREATE [UNIQUE] INDEX foo -> ... IF NOT EXISTS foo
@@ -62,6 +74,8 @@ function idempotent(sql) {
       `DO $$ BEGIN\n  ALTER TABLE ${table} ADD CONSTRAINT ${cons} ${def.trim()};\nEXCEPTION WHEN duplicate_object THEN NULL; WHEN duplicate_table THEN NULL;\nEND $$;`
   );
 
+  // Restore the dollar-quoted bodies untouched.
+  sql = sql.replace(/__DOLLAR_BLOCK_(\d+)__/g, (_m, i) => masked[Number(i)]);
   return sql;
 }
 

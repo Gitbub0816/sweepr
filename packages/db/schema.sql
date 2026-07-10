@@ -3923,10 +3923,7 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_customer_status
 -- constraint two concurrent cron ticks racing on the same booking could both
 -- pass the check and insert two rows (double-recording the same capture).
 DO $$ BEGIN
-  DO $$ BEGIN
   ALTER TABLE payments ADD CONSTRAINT payments_booking_id_unique UNIQUE (booking_id);
-EXCEPTION WHEN duplicate_object THEN NULL; WHEN duplicate_table THEN NULL;
-END $$;
 EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
 END $$;
 
@@ -3937,10 +3934,7 @@ END $$;
 -- committed. The route now does a guarded INSERT ... ON CONFLICT DO NOTHING,
 -- which needs this unique constraint as its conflict target.
 DO $$ BEGIN
-  DO $$ BEGIN
   ALTER TABLE booking_addons ADD CONSTRAINT booking_addons_booking_key_unique UNIQUE (booking_id, addon_key);
-EXCEPTION WHEN duplicate_object THEN NULL; WHEN duplicate_table THEN NULL;
-END $$;
 EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
 END $$;
 
