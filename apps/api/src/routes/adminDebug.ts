@@ -23,8 +23,18 @@ export const adminDebugRouter = new Hono<AppBindings>();
 
 adminDebugRouter.use("*", requireAuth);
 adminDebugRouter.use("*", async (c, next) => {
+  // Owner gate. The clerk_id allowlist alone breaks for owners signed in via
+  // the SEPARATE admin Clerk instance (different user pool → different id),
+  // so also accept a DB-verified super_admin role — server-controlled state
+  // that only the owner self-heal path sets.
   if (!isOwnerClerkId(c.get("user").clerkId, c.env)) {
-    return c.json({ error: "Forbidden" }, 403);
+    const sql = getDb(c.env.DATABASE_URL);
+    const rows = (await sql`
+      SELECT role FROM users WHERE clerk_id = ${c.get("user").clerkId} LIMIT 1
+    `) as Array<{ role: string }>;
+    if (rows[0]?.role !== "super_admin") {
+      return c.json({ error: "Forbidden" }, 403);
+    }
   }
   await next();
 });
