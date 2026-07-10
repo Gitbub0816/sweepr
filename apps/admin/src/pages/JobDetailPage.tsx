@@ -19,6 +19,7 @@ import {
   Button,
   ErrorState,
   toast,
+  FoundingMemberBadge,
 } from "@sweepr/ui";
 import {
   SERVICE_LABELS,
@@ -59,6 +60,8 @@ interface CleanerOption {
   first_name: string | null;
   last_name: string | null;
   avg_rating: number | null;
+  founding_member?: boolean;
+  founding_member_id?: number | null;
 }
 
 export function JobDetailPage() {
@@ -175,11 +178,20 @@ export function JobDetailPage() {
               value={status}
               onChange={(e) => setStatus(e.target.value as JobStatus)}
             />
+            {(() => {
+              const assigned = cleaners.find((c) => c.id === cleaner);
+              return assigned?.founding_member ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500">Assigned:</span>
+                  <FoundingMemberBadge founderId={assigned.founding_member_id} showTooltip={false} />
+                </div>
+              ) : null;
+            })()}
             <Select
               label="Reassign cleaner"
               placeholder="Unassigned"
               options={cleaners.map((c) => ({
-                label: `${[c.first_name, c.last_name].filter(Boolean).join(" ") || c.id.slice(0, 8)}${c.avg_rating ? ` (${c.avg_rating}★)` : ""}`,
+                label: `${c.founding_member ? "🏅 " : ""}${[c.first_name, c.last_name].filter(Boolean).join(" ") || c.id.slice(0, 8)}${c.avg_rating ? ` (${c.avg_rating}★)` : ""}`,
                 value: c.id,
               }))}
               value={cleaner}

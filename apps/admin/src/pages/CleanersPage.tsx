@@ -12,7 +12,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 import { Star, RefreshCw } from "lucide-react";
-import { DashboardShell, Badge, Button, toast, TableSkeleton } from "@sweepr/ui";
+import { DashboardShell, Badge, Button, toast, TableSkeleton, FoundingMemberBadge } from "@sweepr/ui";
 import { DataTable, type Column } from "../components/DataTable";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -29,6 +29,8 @@ interface Cleaner {
   completed_jobs: number;
   avg_rating: number | null;
   created_at: string;
+  founding_member?: boolean;
+  founding_member_id?: number | null;
 }
 
 const statusVariant: Record<string, "success" | "warning" | "error" | "default"> = {
@@ -81,8 +83,9 @@ export function CleanersPage() {
     {
       header: "Name",
       cell: (r) => (
-        <span className="font-medium text-charcoal dark:text-white">
+        <span className="flex items-center gap-2 font-medium text-charcoal dark:text-white">
           {[r.first_name, r.last_name].filter(Boolean).join(" ") || "—"}
+          {r.founding_member ? <FoundingMemberBadge founderId={r.founding_member_id} showTooltip={false} /> : null}
         </span>
       ),
     },

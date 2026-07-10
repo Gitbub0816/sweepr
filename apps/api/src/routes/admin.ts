@@ -95,6 +95,7 @@ adminRouter.get("/cleaners", async (c) => {
   const status = c.req.query("status");
   const cleaners = (await sql(
     `SELECT c.id, c.first_name, c.last_name, c.status,
+           c.founding_member, c.founding_member_id, c.founding_member_revoked,
            u.email, c.city, c.state, c.created_at,
            c.stripe_connect_status,
            u.id AS user_id, u.sms_consent, u.sms_consent_at, u.sms_consent_source,
