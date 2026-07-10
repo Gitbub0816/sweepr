@@ -51,6 +51,13 @@ export interface PromoCTA {
   action: "claim" | "link" | "dismiss";
   url?: string; // for action=link
   requireField?: "none" | "email" | "phone";
+  /**
+   * Who may claim: "anonymous" (marketing visitors, signed-out), "signed_in"
+   * (signed-out viewers get a "Sign in to claim" button), or "both" (default).
+   */
+  claimants?: "anonymous" | "signed_in" | "both";
+  /** Optional secondary link-button (e.g. "I want to be a cleaner instead"). */
+  secondary?: { label: string; url: string };
   successMessage?: string;
 }
 
@@ -112,11 +119,15 @@ export const PROMO_TEMPLATES: PromoTemplate[] = [
       label: "Claim Founding Member status",
       action: "claim",
       requireField: "none",
+      claimants: "both",
+      secondary: { label: "I want cleanings instead", url: "https://getsweepr.com/" },
       successMessage:
         "You're officially a Sweepr Founding Member. Your badge and benefits are now active.",
     },
+    // Marketing: shows on /clean-with-us (the cleaner recruiting page).
     display: {
       placement: "modal",
+      pages: ["/clean-with-us"],
       delaySeconds: 2,
       persist: true,
       frequency: "daily",
@@ -153,11 +164,19 @@ export const PROMO_TEMPLATES: PromoTemplate[] = [
       label: "Claim Founding Member status",
       action: "claim",
       requireField: "none",
+      claimants: "both",
+      secondary: {
+        label: "I want to be a cleaner instead",
+        url: "https://getsweepr.com/clean-with-us",
+      },
       successMessage:
         "Welcome, Founding Member! Your status and benefits are now on your account.",
     },
+    // Marketing: shows on the landing page only ("/" matches exactly — it is
+    // NOT a catch-all prefix), so it never overlaps the cleaner promo.
     display: {
       placement: "modal",
+      pages: ["/"],
       delaySeconds: 3,
       persist: true,
       frequency: "daily",
@@ -213,6 +232,20 @@ export async function seedTemplatePromotions(sql: Sql): Promise<void> {
       )
       ON CONFLICT (slug) DO NOTHING
     `;
+    // Untouched template drafts track the catalog, so template improvements
+    // (page targeting, CTAs, copy) reach the DB without a manual step. The
+    // updated_at = created_at guard means the moment an admin saves ANY edit
+    // (or changes status), the row diverges and is never overwritten again.
+    await sql`
+      UPDATE promotions SET
+        audience = ${t.audience},
+        design   = ${JSON.stringify(t.design)}::jsonb,
+        cta      = ${JSON.stringify(t.cta)}::jsonb,
+        display  = ${JSON.stringify(t.display)}::jsonb,
+        grants_founding_member = ${t.grantsFoundingMember}
+      WHERE slug = ${slug} AND template_key = ${t.templateKey}
+        AND status = 'draft' AND updated_at = created_at
+    `;
   }
 }
 
@@ -255,12 +288,16 @@ export async function listLivePromotions(
   sql: Sql,
   persona: "visitor" | "customer" | "cleaner",
 ): Promise<PromotionRow[]> {
+  // Visitors (the marketing site) may be shown ANY audience's promos — the
+  // founding funnels live there (/clean-with-us for cleaners, landing for
+  // customers) and per-promo `display.pages` scopes where each one appears.
+  // Signed-in apps stay audience-scoped.
   const audiences: PromoAudience[] =
     persona === "cleaner"
       ? ["all", "cleaners"]
       : persona === "customer"
         ? ["all", "customers"]
-        : ["all", "visitors"];
+        : ["all", "visitors", "customers", "cleaners"];
   const rows = (await sql`
     SELECT * FROM promotions
     WHERE status = 'active' AND audience = ANY(${audiences})
@@ -306,6 +343,15 @@ export async function claimPromotion(
   const phone = input.phone?.trim() || null;
   if (require === "email" && !email) return { status: "invalid_field", message: "Email required" };
   if (require === "phone" && !phone) return { status: "invalid_field", message: "Phone required" };
+  // A signed-out founding claim can only be honored later if we know who to
+  // honor it FOR — insist on an email so redeemPendingFoundingClaims can match
+  // the account when they sign in.
+  if (promo.grants_founding_member && !input.userId && !email) {
+    return {
+      status: "invalid_field",
+      message: "Enter your email so we can attach Founding Member status when you sign up.",
+    };
+  }
 
   const fieldValue = require === "email" ? email : require === "phone" ? phone : null;
 
@@ -356,11 +402,86 @@ export async function claimPromotion(
             founderId: res.founderId,
           };
         }
+        if (res.status === "already_other_audience") {
+          return {
+            status: "claimed",
+            message: `You already hold Founding Member status as a ${
+              audience === "cleaner" ? "customer" : "cleaner"
+            } — it can only be claimed once, on one account type.`,
+          };
+        }
       }
     }
   }
 
+  // Anonymous claim on a founding promo: the spot is recorded against the
+  // email; status activates when they sign in with it (see redeem below).
+  if (promo.grants_founding_member && !input.userId) {
+    return {
+      status: "claimed",
+      message:
+        promo.cta.successMessage ??
+        "Claim recorded! Sign up with this email and your Founding Member status will be waiting.",
+    };
+  }
+
   return { status: "claimed", message: promo.cta.successMessage };
+}
+
+/**
+ * Deferred founding grants: a visitor who claimed a founding promo while
+ * signed out left an email behind. When any authenticated request later
+ * resolves that same email, honor the claim — enroll them (normal window
+ * rules) and stamp the claim. Idempotent and best-effort.
+ */
+export async function redeemPendingFoundingClaims(
+  sql: Sql,
+  userId: string,
+  email: string | null | undefined,
+): Promise<number> {
+  if (!email) return 0;
+  const rows = (await sql`
+    SELECT pc.id, p.audience
+    FROM promotion_claims pc
+    JOIN promotions p ON p.id = pc.promotion_id
+    WHERE pc.granted_founding = FALSE
+      AND pc.user_id IS NULL
+      AND p.grants_founding_member = TRUE
+      AND LOWER(pc.email) = LOWER(${email})
+  `) as Array<{ id: string; audience: PromoAudience }>;
+  if (rows.length === 0) return 0;
+
+  let granted = 0;
+  for (const r of rows) {
+    // 'all'/'visitors' founding promos default to the customer program;
+    // cleaner status additionally requires an onboarded cleaners row (the
+    // approval flow auto-enrolls cleaners anyway).
+    const audience: FoundingAudience = r.audience === "cleaners" ? "cleaner" : "customer";
+    let targetId: string | undefined;
+    if (audience === "cleaner") {
+      const c = (await sql`SELECT id FROM cleaners WHERE user_id = ${userId} LIMIT 1`) as Array<{ id: string }>;
+      targetId = c[0]?.id;
+      if (!targetId) continue; // not onboarded yet — approval will enroll them
+    } else {
+      await sql`INSERT INTO customers (user_id) SELECT ${userId}
+                WHERE NOT EXISTS (SELECT 1 FROM customers WHERE user_id = ${userId})`;
+      const c = (await sql`SELECT id FROM customers WHERE user_id = ${userId} LIMIT 1`) as Array<{ id: string }>;
+      targetId = c[0]?.id;
+    }
+    if (!targetId) continue;
+
+    const res = await enrollFounding(sql, audience, targetId, { force: false });
+    if (res.status === "granted" || res.status === "already_member") {
+      await sql`UPDATE promotion_claims SET granted_founding = TRUE, user_id = ${userId}
+                WHERE id = ${r.id}`;
+      granted++;
+    } else if (res.status === "already_other_audience") {
+      // One founding status per person — close the pending claim out (attach
+      // the user without granting) so it isn't retried on every load.
+      await sql`UPDATE promotion_claims SET user_id = ${userId} WHERE id = ${r.id}`;
+    }
+  }
+  return granted;
 }
 
 /** Cron sweep: flip time-expired active promos to 'expired'. */

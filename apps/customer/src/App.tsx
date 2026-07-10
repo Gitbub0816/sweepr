@@ -39,8 +39,16 @@ function ReportProblemMount() {
 
 /** Site-wide promotion widget host (customer audience — e.g. Founding Member). */
 function PromoHostMount() {
-  const { getToken } = useAuth();
-  return <PromoHost apiBase={API_URL} persona="customer" getToken={getToken} />;
+  const { isSignedIn, getToken } = useAuth();
+  return (
+    <PromoHost
+      apiBase={API_URL}
+      persona="customer"
+      getToken={getToken}
+      signedIn={Boolean(isSignedIn)}
+      signInUrl="/sign-in"
+    />
+  );
 }
 
 import { BookingLayout } from "./booking/BookingLayout";

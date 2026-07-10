@@ -41,7 +41,15 @@ interface Promo {
   audience: Audience;
   status: Status;
   design: { theme?: string; accent?: string; background?: string; blocks: PromoBlock[] };
-  cta: { label: string; action: "claim" | "link" | "dismiss"; url?: string; requireField?: "none" | "email" | "phone"; successMessage?: string };
+  cta: {
+    label: string;
+    action: "claim" | "link" | "dismiss";
+    url?: string;
+    requireField?: "none" | "email" | "phone";
+    claimants?: "anonymous" | "signed_in" | "both";
+    secondary?: { label: string; url: string };
+    successMessage?: string;
+  };
   display: { placement?: string; pages?: string[]; delaySeconds?: number; persist?: boolean; frequency?: "once" | "every_visit" | "daily"; showOnFirstVisit?: boolean };
   starts_at: string | null;
   expires_at: string | null;
@@ -354,11 +362,41 @@ export function PromotionsPage() {
                     <Input value={draft.cta.successMessage ?? ""} onChange={(e) => setDraft({ ...draft, cta: { ...draft.cta, successMessage: e.target.value } })} className="mt-1" />
                   </label>
                 ) : null}
+                {draft.cta.action === "claim" ? (
+                  <label className="block text-xs">Who can claim
+                    <select
+                      value={draft.cta.claimants ?? "both"}
+                      onChange={(e) => setDraft({ ...draft, cta: { ...draft.cta, claimants: e.target.value as "anonymous" | "signed_in" | "both" } })}
+                      className="mt-1 w-full rounded-md border border-slate-200 bg-transparent px-2 py-1.5 text-sm dark:border-slate-700"
+                    >
+                      <option value="both">Anyone — signed in or not</option>
+                      <option value="anonymous">Marketing visitors only (signed-out)</option>
+                      <option value="signed_in">Signed-in only ("Sign in to claim" for visitors)</option>
+                    </select>
+                  </label>
+                ) : null}
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="text-xs">Secondary button label (optional)
+                    <Input value={draft.cta.secondary?.label ?? ""} placeholder="I want to be a cleaner instead"
+                      onChange={(e) => setDraft({ ...draft, cta: { ...draft.cta, secondary: { label: e.target.value, url: draft.cta.secondary?.url ?? "" } } })} className="mt-1" />
+                  </label>
+                  <label className="text-xs">Secondary button URL
+                    <Input value={draft.cta.secondary?.url ?? ""} placeholder="https://getsweepr.com/clean-with-us"
+                      onChange={(e) => setDraft({ ...draft, cta: { ...draft.cta, secondary: { label: draft.cta.secondary?.label ?? "", url: e.target.value } } })} className="mt-1" />
+                  </label>
+                </div>
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={draft.grants_founding_member}
                     onChange={(e) => setDraft({ ...draft, grants_founding_member: e.target.checked })} />
-                  Claiming grants Founding Member status (requires signed-in customer/cleaner audience)
+                  Claiming grants Founding Member status
                 </label>
+                {draft.grants_founding_member ? (
+                  <p className="text-xs text-slate-500">
+                    Signed-out claims capture an email; status attaches automatically when that person
+                    signs up with the same email. One founding status per person — a cleaner-founder
+                    can never also claim customer-founder (and vice versa).
+                  </p>
+                ) : null}
               </Card>
 
               {/* Display + expiry */}

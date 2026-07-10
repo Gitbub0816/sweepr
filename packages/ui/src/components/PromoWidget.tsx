@@ -32,12 +32,17 @@ export interface PromoCTA {
   action: "claim" | "link" | "dismiss";
   url?: string;
   requireField?: "none" | "email" | "phone";
+  /** Who may claim: anonymous visitors, signed-in users, or both (default). */
+  claimants?: "anonymous" | "signed_in" | "both";
+  /** Optional secondary link-button (e.g. "I want to be a cleaner instead"). */
+  secondary?: { label: string; url: string };
   successMessage?: string;
 }
 export interface PromoView {
   id: string;
   slug: string;
   name: string;
+  audience?: string;
   design: PromoDesign;
   cta: PromoCTA;
   grantsFoundingMember?: boolean;
@@ -113,11 +118,17 @@ export function PromoWidget({
   promo,
   onClaim,
   onDismiss,
+  signedIn,
+  signInUrl,
   className,
 }: {
   promo: PromoView;
   onClaim?: (fields: { email?: string; phone?: string }) => Promise<{ ok: boolean; message?: string }>;
   onDismiss?: () => void;
+  /** Whether the viewer is authenticated (drives requireSignIn + anon founding email capture). */
+  signedIn?: boolean;
+  /** Where to send an anonymous viewer when the promo requires sign-in. */
+  signInUrl?: string;
   className?: string;
 }) {
   const { design, cta } = promo;
@@ -126,11 +137,29 @@ export function PromoWidget({
   const [done, setDone] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const requireField = cta.requireField ?? "none";
+  const anonymous = signedIn === false;
+  // Sign-in gate: claimants="signed_in" means an anonymous viewer is routed
+  // to sign-in instead of claiming. "anonymous" and "both" claim directly.
+  const mustSignIn = (cta.claimants ?? "both") === "signed_in" && anonymous && cta.action === "claim";
+  // Anonymous founding claims always capture an email so the grant can be
+  // attached to the account when they sign up with it.
+  const requireField: "none" | "email" | "phone" =
+    !mustSignIn && anonymous && promo.grantsFoundingMember && (cta.requireField ?? "none") === "none"
+      ? "email"
+      : (cta.requireField ?? "none");
   const theme = design.theme ?? "light";
   const accent = design.accent;
 
+  const defaultSignInUrl =
+    promo.audience === "cleaners"
+      ? "https://clean.getsweepr.com/sign-in"
+      : "https://app.getsweepr.com/sign-in";
+
   async function handleCta() {
+    if (mustSignIn) {
+      window.location.href = signInUrl ?? defaultSignInUrl;
+      return;
+    }
     if (cta.action === "dismiss") return onDismiss?.();
     if (cta.action === "link" && cta.url) {
       window.open(cta.url, "_blank", "noopener,noreferrer");
@@ -197,7 +226,7 @@ export function PromoWidget({
           </p>
         ) : (
           <>
-            {cta.action === "claim" && requireField !== "none" ? (
+            {cta.action === "claim" && !mustSignIn && requireField !== "none" ? (
               <input
                 type={requireField === "email" ? "email" : "tel"}
                 value={value}
@@ -214,8 +243,16 @@ export function PromoWidget({
               className="w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition disabled:opacity-60"
               style={{ background: accent ?? "#0f766e" }}
             >
-              {busy ? "Working…" : cta.label}
+              {busy ? "Working…" : mustSignIn ? "Sign in to claim" : cta.label}
             </button>
+            {cta.secondary?.label && cta.secondary.url ? (
+              <a
+                href={cta.secondary.url}
+                className="mt-2 block w-full rounded-lg border border-black/15 px-4 py-2 text-center text-sm font-medium opacity-80 transition hover:opacity-100 dark:border-white/20"
+              >
+                {cta.secondary.label}
+              </a>
+            ) : null}
           </>
         )}
       </div>

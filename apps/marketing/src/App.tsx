@@ -9,7 +9,7 @@
  */
 
 import { lazy, Suspense } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Landing from "./pages/Landing";
 import { CookieConsent } from "./components/CookieConsent";
 import { PromoHost } from "@sweepr/ui";
@@ -48,8 +48,15 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
-      <PromoHost apiBase={API_URL} persona="visitor" />
+      <PromoHostMount />
       <CookieConsent />
     </>
   );
+}
+
+/** Remount the promo host on route changes so per-page targeting
+ * (e.g. cleaner promo on /clean-with-us, customer promo on /) re-evaluates. */
+function PromoHostMount() {
+  const location = useLocation();
+  return <PromoHost key={location.pathname} apiBase={API_URL} persona="visitor" />;
 }

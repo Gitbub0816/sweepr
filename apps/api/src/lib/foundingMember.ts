@@ -111,7 +111,14 @@ export async function isEnrollmentOpen(
 }
 
 export interface EnrollResult {
-  status: "granted" | "already_member" | "window_closed" | "not_found";
+  status:
+    | "granted"
+    | "already_member"
+    | "window_closed"
+    | "not_found"
+    /** The same person already holds founding status on the OTHER account
+     * type (cleaner vs customer). Status can only ever be claimed once. */
+    | "already_other_audience";
   founderId?: number;
   since?: string;
 }
@@ -151,6 +158,20 @@ export async function enroll(
       since: existing[0].founding_member_since ?? undefined,
     };
   }
+
+  // One founding status per PERSON, ever — a cleaner-founder can't also claim
+  // customer-founder (and vice versa). Checked via the shared users row, and
+  // enforced even for admin force-grants (revoke the other side first).
+  const conflict = (
+    isCleaner
+      ? await sql`SELECT 1 FROM customers cu
+                  WHERE cu.user_id = (SELECT user_id FROM cleaners WHERE id = ${id})
+                    AND cu.founding_member = TRUE LIMIT 1`
+      : await sql`SELECT 1 FROM cleaners cl
+                  WHERE cl.user_id = (SELECT user_id FROM customers WHERE id = ${id})
+                    AND cl.founding_member = TRUE LIMIT 1`
+  ) as unknown[];
+  if (conflict.length > 0) return { status: "already_other_audience" };
 
   if (!opts.force) {
     if (!(await isEnrollmentOpen(sql, audience))) return { status: "window_closed" };

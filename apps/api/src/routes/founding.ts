@@ -58,7 +58,23 @@ async function resolveIds(sql: ReturnType<typeof getDb>, clerkId: string) {
 
 foundingRouter.get("/me", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
-  const { cleanerId, customerId } = await resolveIds(sql, c.get("user").clerkId);
+  const user = c.get("user");
+
+  // Honor any founding claim made while signed out (email captured on the
+  // marketing site) — grants status on first authenticated load. Best-effort.
+  try {
+    const rows = (await sql`
+      SELECT id, email FROM users WHERE clerk_id = ${user.clerkId} LIMIT 1
+    `) as Array<{ id: string; email: string | null }>;
+    if (rows[0]) {
+      const { redeemPendingFoundingClaims } = await import("../lib/promotions");
+      await redeemPendingFoundingClaims(sql, rows[0].id, user.email ?? rows[0].email);
+    }
+  } catch {
+    /* non-fatal */
+  }
+
+  const { cleanerId, customerId } = await resolveIds(sql, user.clerkId);
   const cfg = await loadFoundingConfig(sql);
   const [cleaner, customer] = await Promise.all([
     cleanerId ? getFoundingStatus(sql, "cleaner", cleanerId, cfg) : Promise.resolve(null),

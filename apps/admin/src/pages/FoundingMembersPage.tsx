@@ -81,8 +81,16 @@ export function FoundingMembersPage() {
   async function grant() {
     if (!grantId.trim()) return;
     const res = await authed("/admin/founding/grant", { method: "POST", body: JSON.stringify({ audience, id: grantId.trim() }) });
-    if (res.ok) { toast.success("Granted"); setGrantId(""); await loadMembers(); await loadConfig(); }
-    else toast.error("Grant failed — check the ID");
+    if (!res.ok) { toast.error("Grant failed — check the ID"); return; }
+    const result = (await res.json()) as { status: string };
+    if (result.status === "already_other_audience") {
+      toast.error(`This person already holds founding status as a ${audience === "cleaner" ? "customer" : "cleaner"} — it can only be held on one account type. Revoke that one first.`);
+      return;
+    }
+    toast.success(result.status === "already_member" ? "Already a member" : "Granted");
+    setGrantId("");
+    await loadMembers();
+    await loadConfig();
   }
   async function revoke(id: string) {
     const reason = window.prompt("Reason for revoking Founding Member status?");

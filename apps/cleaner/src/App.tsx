@@ -37,8 +37,16 @@ function ReportProblemMount() {
 
 /** Site-wide promotion widget host (cleaner audience — e.g. Founding Member). */
 function PromoHostMount() {
-  const { getToken } = useAuth();
-  return <PromoHost apiBase={API_URL} persona="cleaner" getToken={getToken} />;
+  const { isSignedIn, getToken } = useAuth();
+  return (
+    <PromoHost
+      apiBase={API_URL}
+      persona="cleaner"
+      getToken={getToken}
+      signedIn={Boolean(isSignedIn)}
+      signInUrl="/sign-in"
+    />
+  );
 }
 import { HomePage } from "./pages/HomePage";
 import { DashboardPage } from "./pages/DashboardPage";

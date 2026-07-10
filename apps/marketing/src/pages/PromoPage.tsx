@@ -71,7 +71,7 @@ export default function PromoPage() {
           <p className="mt-4 text-sm font-medium text-slate-500">This promotion has ended.</p>
         </div>
       ) : promo ? (
-        <PromoWidget promo={promo} onClaim={handleClaim} />
+        <PromoWidget promo={promo} onClaim={handleClaim} signedIn={false} />
       ) : null}
     </div>
   );

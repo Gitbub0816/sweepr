@@ -51,7 +51,9 @@ function markSeen(slug: string) {
 function pathMatches(pages: string[] | undefined): boolean {
   if (!pages || pages.length === 0) return true;
   const path = window.location.pathname;
-  return pages.some((p) => path.startsWith(p));
+  // "/" targets the landing page EXACTLY (a catch-all prefix would make it
+  // impossible to run different promos on "/" vs "/clean-with-us").
+  return pages.some((p) => (p === "/" ? path === "/" : path.startsWith(p)));
 }
 
 /**
@@ -66,10 +68,16 @@ export function PromoHost({
   apiBase,
   persona = "visitor",
   getToken,
+  signedIn,
+  signInUrl,
 }: {
   apiBase: string;
   persona?: "visitor" | "customer" | "cleaner";
   getToken?: () => Promise<string | null | undefined> | string | null | undefined;
+  /** Whether the viewer is authenticated. Defaults to false for persona=visitor. */
+  signedIn?: boolean;
+  /** Sign-in destination for promos that require an authenticated claim. */
+  signInUrl?: string;
 }) {
   const [promo, setPromo] = useState<LivePromo | null>(null);
   const [visible, setVisible] = useState(false);
@@ -82,8 +90,15 @@ export function PromoHost({
         const res = await fetch(`${apiBase}/promotions/live?persona=${persona}`);
         if (!res.ok) return;
         const data = (await res.json()) as { promotions: LivePromo[] };
+        const viewerSignedIn = signedIn ?? persona !== "visitor";
         const candidate = data.promotions.find(
-          (p) => pathMatches(p.display?.pages) && eligibleByFrequency(p.slug, p.display ?? {}),
+          (p) =>
+            pathMatches(p.display?.pages) &&
+            eligibleByFrequency(p.slug, p.display ?? {}) &&
+            // claimants="anonymous" promos are marketing-only — skip for
+            // signed-in viewers ("signed_in" still shows to anonymous viewers,
+            // whose CTA becomes "Sign in to claim").
+            !(p.cta?.claimants === "anonymous" && viewerSignedIn),
         );
         if (!candidate || cancelled) return;
         const delayMs = Math.max(0, (candidate.display?.delaySeconds ?? 0) * 1000);
@@ -104,7 +119,7 @@ export function PromoHost({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [apiBase, persona]);
+  }, [apiBase, persona, signedIn]);
 
   const handleClaim = useCallback(
     async (fields: { email?: string; phone?: string }) => {
@@ -128,7 +143,13 @@ export function PromoHost({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <PromoWidget promo={promo} onClaim={handleClaim} onDismiss={() => setVisible(false)} />
+      <PromoWidget
+        promo={promo}
+        onClaim={handleClaim}
+        onDismiss={() => setVisible(false)}
+        signedIn={signedIn ?? persona !== "visitor"}
+        signInUrl={signInUrl}
+      />
     </div>
   );
 }
