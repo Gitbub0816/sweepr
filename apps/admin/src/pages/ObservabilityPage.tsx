@@ -951,6 +951,55 @@ function ExternalIntegrationsPanel() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {tiles.map(t => <IntegrationCard key={t.id} tile={t} />)}
       </div>
+      <SentryTestButton />
+    </div>
+  );
+}
+
+/** Fires a synthetic error through the real recordError → Sentry pipeline so
+ * the integration can be verified in one click (needs an authed admin token —
+ * hitting the debug URL directly in a browser 401s with "missing bearer token"). */
+function SentryTestButton() {
+  const { getToken } = useAuth();
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
+  const [note, setNote] = useState<string | null>(null);
+
+  async function send() {
+    setState("sending");
+    setNote(null);
+    try {
+      const token = await getToken();
+      const apiBase = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
+      const res = await fetch(`${apiBase}/admin/debug/sentry-test`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const d = (await res.json()) as { ok: boolean; note?: string; hint?: string };
+      if (res.ok && d.ok) {
+        setState("sent");
+        setNote(d.note ?? "Test event sent — check Sentry Issues.");
+      } else {
+        setState("failed");
+        setNote(d.hint ?? "Failed — is SENTRY_DSN set on the Worker?");
+      }
+    } catch {
+      setState("failed");
+      setNote("Request failed.");
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <button
+        type="button"
+        onClick={send}
+        disabled={state === "sending"}
+        className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-seafoam-400 hover:text-seafoam-700 disabled:opacity-60 dark:border-slate-700 dark:text-slate-300"
+      >
+        {state === "sending" ? "Sending…" : "Send Sentry test event"}
+      </button>
+      {note ? (
+        <span className={`text-xs ${state === "sent" ? "text-emerald-600" : "text-red-600"}`}>{note}</span>
+      ) : null}
     </div>
   );
 }
