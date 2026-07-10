@@ -48,6 +48,8 @@ import { adminFoundingRouter } from "./routes/adminFounding";
 import { adminPromotionsRouter } from "./routes/adminPromotions";
 import { foundingRouter } from "./routes/founding";
 import { promotionsRouter } from "./routes/promotions";
+import { couponsRouter } from "./routes/coupons";
+import { adminCouponsRouter } from "./routes/adminCoupons";
 import { trainingRouter } from "./routes/training";
 import { trainingAdminRouter } from "./routes/admin/trainingAdmin";
 import { coursesRouter } from "./routes/courses";
@@ -414,6 +416,8 @@ app.route("/admin/founding", adminFoundingRouter);
 app.route("/admin/promotions", adminPromotionsRouter);
 app.route("/founding", foundingRouter);
 app.route("/promotions", promotionsRouter);
+app.route("/coupons", couponsRouter);
+app.route("/admin/coupons", adminCouponsRouter);
 app.use("/training/*", (c, next) => {
   // requireAuth is applied per-route inside trainingRouter
   return next();
@@ -718,6 +722,17 @@ async function runScheduled(event: ScheduledEvent, env: Record<string, unknown>)
         if (expired > 0) logger.info("cron.promotions_expired", { expired });
       } catch (err) {
         logger.error("cron.promotions failed", err, { cron: event.cron });
+      }
+
+      // Coupons: expire past-deadline coupons + evaluate milestone rules
+      // (100th customer, cleaner anniversaries, ...). Both idempotent.
+      try {
+        const { expireDueCoupons, evaluateMilestones } = await import("./lib/coupons");
+        const expired = await expireDueCoupons(sql);
+        const granted = await evaluateMilestones(sql);
+        if (expired > 0 || granted > 0) logger.info("cron.coupons", { expired, granted });
+      } catch (err) {
+        logger.error("cron.coupons failed", err, { cron: event.cron });
       }
 
       // Scope review engine time-driven transitions (idempotent).

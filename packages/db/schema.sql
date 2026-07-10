@@ -15,7 +15,7 @@
 -- This file is GENERATED. Do not edit by hand — edit the migrations in
 -- src/migrations/ and re-run: node packages/db/build-schema.mjs
 --
--- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql, 034_fee_approval_engine.sql, 035_slack_user_tokens.sql, 036_pricing_engine.sql, 037_security_tickets.sql, 038_compact_ticket_ids.sql, 039_report_submitter.sql, 040_classification_and_templates.sql, 041_fix_security_templates.sql, 042_email_deliverability.sql, 043_slack_purpose_security.sql, 044_senior_admin_roles.sql, 045_status_autodetect.sql, 046_seed_pricing_rule.sql, 047_seed_super_admin_invite.sql, 048_customer_home_profile.sql, 049_reset_bootstrap_invite.sql, 050_customers_user_id_unique.sql, 051_preferred_language.sql, 052_payouts_booking_id_unique.sql, 053_sms_consent.sql, 054_strict_rls.sql, 055_mailbox_messages.sql, 056_admin_mail_center.sql, 057_public_privacy_intake.sql, 058_scope_review_engine.sql, 059_scope_review_links.sql, 060_performance_indexes.sql, 061_composite_query_indexes.sql, 062_atomicity_constraints.sql, 063_customers_updated_at.sql, 064_booking_arrival_window.sql, 065_str_calendar_sync.sql, 066_address_property_type.sql, 067_str_enrollment.sql, 068_availability_backfill.sql, 069_review_tags.sql, 070_error_telemetry_v2.sql, 071_mail_security_rework.sql, 072_assignment_queue_cleaner_cascade.sql, 073_customer_fk_cascade.sql, 074_cleaner_service_area_and_declines.sql, 075_admin_permission_overrides.sql, 076_cleaners_updated_at.sql, 077_adjudication_cases.sql, 078_ip_blocklist.sql, 079_admin_alerting.sql, 080_status_health_checks.sql, 081_yardstik.sql, 082_admin_schedule.sql, 083_adjudication_pre_adverse.sql, 084_yardstik_webhook_dedup.sql, 085_founding_and_promotions.sql, 086_founder_badge_color.sql
+-- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql, 034_fee_approval_engine.sql, 035_slack_user_tokens.sql, 036_pricing_engine.sql, 037_security_tickets.sql, 038_compact_ticket_ids.sql, 039_report_submitter.sql, 040_classification_and_templates.sql, 041_fix_security_templates.sql, 042_email_deliverability.sql, 043_slack_purpose_security.sql, 044_senior_admin_roles.sql, 045_status_autodetect.sql, 046_seed_pricing_rule.sql, 047_seed_super_admin_invite.sql, 048_customer_home_profile.sql, 049_reset_bootstrap_invite.sql, 050_customers_user_id_unique.sql, 051_preferred_language.sql, 052_payouts_booking_id_unique.sql, 053_sms_consent.sql, 054_strict_rls.sql, 055_mailbox_messages.sql, 056_admin_mail_center.sql, 057_public_privacy_intake.sql, 058_scope_review_engine.sql, 059_scope_review_links.sql, 060_performance_indexes.sql, 061_composite_query_indexes.sql, 062_atomicity_constraints.sql, 063_customers_updated_at.sql, 064_booking_arrival_window.sql, 065_str_calendar_sync.sql, 066_address_property_type.sql, 067_str_enrollment.sql, 068_availability_backfill.sql, 069_review_tags.sql, 070_error_telemetry_v2.sql, 071_mail_security_rework.sql, 072_assignment_queue_cleaner_cascade.sql, 073_customer_fk_cascade.sql, 074_cleaner_service_area_and_declines.sql, 075_admin_permission_overrides.sql, 076_cleaners_updated_at.sql, 077_adjudication_cases.sql, 078_ip_blocklist.sql, 079_admin_alerting.sql, 080_status_health_checks.sql, 081_yardstik.sql, 082_admin_schedule.sql, 083_adjudication_pre_adverse.sql, 084_yardstik_webhook_dedup.sql, 085_founding_and_promotions.sql, 086_founder_badge_color.sql, 087_coupons_engine.sql
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -4972,3 +4972,106 @@ ALTER TABLE cleaners
 ALTER TABLE customers
   ADD COLUMN IF NOT EXISTS founding_badge_color     TEXT,
   ADD COLUMN IF NOT EXISTS founding_badge_locked_at TIMESTAMPTZ;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 087_coupons_engine.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Copyright © 2026–Present ClearKey Solutions, LLC. All Rights Reserved.
+-- Proprietary and Confidential.
+
+-- ============================================================================
+-- Coupons engine + promo rewards + milestones
+-- ============================================================================
+-- Coupons are the actual perks (promos are the customer-facing vehicles).
+-- They are SILENT: no widget — they sit on the person's account and apply
+-- automatically to the next qualifying booking. Sign-up is required to hold
+-- one (pre-signup claims bind to an email and attach at first sign-in), and
+-- they default to 180-day validity (see legal Promotions & Coupons Terms).
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS coupons (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code          TEXT UNIQUE NOT NULL,          -- display code, e.g. SWPR-7K4QXH
+  title         TEXT NOT NULL,                 -- "15% off your next booking"
+  description   TEXT,
+  theme         TEXT,                          -- valentines | christmas | … (display only)
+  kind          TEXT NOT NULL CHECK (kind IN ('percent_off', 'amount_off', 'free_addon')),
+  value         INTEGER NOT NULL DEFAULT 0,    -- percent (1-100) or cents; 0 for free_addon
+  addon_key     TEXT,                          -- for kind=free_addon
+  -- Ownership: user_id once signed up; email-only until then (attached on sign-in).
+  user_id       UUID REFERENCES users(id) ON DELETE CASCADE,
+  email         TEXT,
+  source        TEXT NOT NULL DEFAULT 'admin', -- promo | milestone | theme | admin
+  source_ref    TEXT,                          -- promo slug / milestone rule_key
+  max_redemptions  INTEGER NOT NULL DEFAULT 1, -- one-time by default; >1 = multi-use
+  redemption_count INTEGER NOT NULL DEFAULT 0,
+  min_booking_total_cents INTEGER,             -- optional qualifying floor
+  starts_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at    TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '180 days',
+  status        TEXT NOT NULL DEFAULT 'active'
+                CHECK (status IN ('active', 'exhausted', 'expired', 'revoked')),
+  created_by    TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_coupons_user_active
+  ON coupons (user_id) WHERE status = 'active';
+CREATE INDEX IF NOT EXISTS idx_coupons_email_pending
+  ON coupons (LOWER(email)) WHERE user_id IS NULL AND status = 'active';
+
+-- One coupon per booking; a redemption is the audit record of the application.
+CREATE TABLE IF NOT EXISTS coupon_redemptions (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  coupon_id     UUID NOT NULL REFERENCES coupons(id) ON DELETE CASCADE,
+  booking_id    UUID UNIQUE NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+  user_id       UUID REFERENCES users(id) ON DELETE SET NULL,
+  amount_applied_cents INTEGER NOT NULL DEFAULT 0,
+  addon_key     TEXT,
+  redeemed_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Milestones: "100th customer", "150th completed clean", "2 years as a cleaner"…
+-- Each rule carries a coupon template (JSONB) minted for the subject when hit.
+CREATE TABLE IF NOT EXISTS milestone_rules (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  rule_key    TEXT UNIQUE NOT NULL,
+  label       TEXT NOT NULL,
+  kind        TEXT NOT NULL CHECK (kind IN (
+                'nth_customer', 'nth_cleaner', 'nth_completed_booking',
+                'cleaner_anniversary_years', 'customer_anniversary_years')),
+  threshold   INTEGER NOT NULL,                -- N (count) or years
+  coupon      JSONB NOT NULL DEFAULT '{}'::jsonb, -- template: kind/value/addonKey/title/theme/validDays/maxRedemptions
+  active      BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Dedup ledger: a rule fires at most once per subject.
+CREATE TABLE IF NOT EXISTS milestone_awards (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  rule_key     TEXT NOT NULL,
+  subject_type TEXT NOT NULL,                  -- customer | cleaner | booking
+  subject_id   UUID NOT NULL,
+  coupon_id    UUID REFERENCES coupons(id) ON DELETE SET NULL,
+  awarded_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (rule_key, subject_id)
+);
+
+-- Promotions gain a reward payload: what claiming actually GRANTS
+-- (e.g. { coupon: { kind, value, addonKey, title, validDays, maxRedemptions,
+--   minBookingTotalCents, offerMinutes } }). Founding grants stay on their own column.
+ALTER TABLE promotions ADD COLUMN IF NOT EXISTS reward JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+-- The price ledger's event_type CHECK (mig. 058) must admit coupon discounts.
+ALTER TABLE booking_price_ledger DROP CONSTRAINT IF EXISTS booking_price_ledger_event_type_check;
+DO $$ BEGIN
+  ALTER TABLE booking_price_ledger ADD CONSTRAINT booking_price_ledger_event_type_check CHECK (event_type IN (
+    'initial_quote', 'addon_purchase', 'level_surcharge', 'additional_attention_fee',
+    'refusal_fee', 'admin_adjustment', 'tax_adjustment', 'coupon_discount'
+  ));
+EXCEPTION WHEN duplicate_object THEN NULL; WHEN duplicate_table THEN NULL;
+END $$;
+
+ALTER TABLE coupons            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE coupon_redemptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE milestone_rules    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE milestone_awards   ENABLE ROW LEVEL SECURITY;

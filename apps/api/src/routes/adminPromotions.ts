@@ -128,6 +128,7 @@ const updateSchema = z.object({
   design: z.record(z.string(), z.unknown()).optional(),
   cta: z.record(z.string(), z.unknown()).optional(),
   display: z.record(z.string(), z.unknown()).optional(),
+  reward: z.record(z.string(), z.unknown()).optional(),
   startsAt: z.string().nullable().optional(),
   expiresAt: z.string().nullable().optional(),
   maxClaims: z.number().int().positive().nullable().optional(),
@@ -154,6 +155,7 @@ adminPromotionsRouter.put("/:id", zValidator("json", updateSchema), async (c) =>
   const design = b.design ? JSON.stringify(b.design) : JSON.stringify(p.design);
   const cta = b.cta ? JSON.stringify(b.cta) : JSON.stringify(p.cta);
   const display = b.display ? JSON.stringify(b.display) : JSON.stringify(p.display);
+  const reward = b.reward ? JSON.stringify(b.reward) : JSON.stringify(p.reward ?? {});
   const startsAt = b.startsAt === undefined ? (p.starts_at as string | null) : b.startsAt;
   const expiresAt = b.expiresAt === undefined ? (p.expires_at as string | null) : b.expiresAt;
   const maxClaims = b.maxClaims === undefined ? (p.max_claims as number | null) : b.maxClaims;
@@ -164,6 +166,7 @@ adminPromotionsRouter.put("/:id", zValidator("json", updateSchema), async (c) =>
     UPDATE promotions SET
       name = ${name}, audience = ${audience}, status = ${status},
       design = ${design}::jsonb, cta = ${cta}::jsonb, display = ${display}::jsonb,
+      reward = ${reward}::jsonb,
       starts_at = ${startsAt}, expires_at = ${expiresAt}, max_claims = ${maxClaims},
       grants_founding_member = ${grants}, updated_at = NOW()
     WHERE id = ${id}

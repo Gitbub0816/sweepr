@@ -38,8 +38,9 @@ const signSchema = z.object({
     "training_asset",
     "certificate",
     "insurance_doc",
+    "promo_asset",
   ]),
-  scope: z.enum(["booking", "avatar", "training", "certificate", "insurance"]),
+  scope: z.enum(["booking", "avatar", "training", "certificate", "insurance", "promo"]),
   refId: z.string().uuid(),
 });
 
@@ -70,8 +71,8 @@ storageRouter.post(
           return c.json({ error: "Forbidden" }, 403);
         }
       }
-    } else if (input.scope === "training") {
-      // Training assets are admin-authored content.
+    } else if (input.scope === "training" || input.scope === "promo") {
+      // Training + promo assets are admin-authored content.
       const isOwner = isOwnerClerkId(clerkId, c.env);
       if (!isOwner) {
         const user = await getUserByClerkId(sql, clerkId);
@@ -87,6 +88,7 @@ storageRouter.post(
       training: "training",
       certificate: "certificates",
       insurance: "insurance",
+      promo: "promos",
     }[input.scope];
 
     const rawExt = input.fileName.split(".").pop()?.toLowerCase() ?? "";

@@ -35,6 +35,7 @@ import { checkInsurance } from "../lib/cleanerRequirements";
 import { calculateBookingPrice, getAddOnCatalogue } from "../lib/pricingEngine";
 import { resolveBookingPricing, storeQuoteSnapshot, type ResolvedPricing } from "../lib/resolvePricing";
 import { recordLedgerEntry, applyBookingPriceAdjustment } from "../lib/bookingLedger";
+import { autoApplyBestCoupon } from "../lib/coupons";
 import { normalizedGreylistKey } from "../lib/scopeReviewEngine";
 import { getStripe } from "../lib/stripe";
 import { isAddOnIncludedInPackage, getAddOn } from "@sweepr/utils";
@@ -619,6 +620,32 @@ bookingsRouter.post(
     } catch (err) {
       logger.error("storeQuoteSnapshot failed", err, { bookingId: created.id });
     }
+  }
+
+  // Coupons apply automatically and silently: the customer's best active
+  // coupon (validity + uses + minimum met) discounts this booking through the
+  // price ledger, or attaches its free add-on. Runs BEFORE the PaymentIntent
+  // exists, so the eventual charge is the discounted total. Best-effort.
+  let appliedCoupon: Awaited<ReturnType<typeof autoApplyBestCoupon>> = null;
+  try {
+    appliedCoupon = await autoApplyBestCoupon(sql, getStripe(c.env.STRIPE_SECRET_KEY), {
+      bookingId: created.id,
+      userId: user.id,
+      totalCents: totalPrice,
+    });
+    if (appliedCoupon) {
+      await sendNotification(sql, user.id, {
+        type: "booking_confirmed",
+        title: "Coupon applied",
+        body:
+          appliedCoupon.kind === "free_addon"
+            ? `Your coupon ${appliedCoupon.code} added a free ${appliedCoupon.addonKey} to this booking.`
+            : `Your coupon ${appliedCoupon.code} saved you $${(appliedCoupon.amountAppliedCents / 100).toFixed(2)} on this booking.`,
+        data: { href: `/bookings/${created.id}` },
+      });
+    }
+  } catch (err) {
+    logger.error("coupon auto-apply failed", err, { bookingId: created.id });
   }
 
   // Booking confirmed -> notify customer.

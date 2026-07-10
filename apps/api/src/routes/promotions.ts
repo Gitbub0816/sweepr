@@ -75,6 +75,8 @@ function publicView(p: Awaited<ReturnType<typeof getPromotionBySlug>>) {
     cta: p.cta,
     display: p.display,
     grantsFoundingMember: p.grants_founding_member,
+    // Safe to expose: what the claimant will get (drives reward text + countdown).
+    reward: p.reward ?? {},
   };
 }
 

@@ -24,6 +24,7 @@
 
 import type { Sql } from "./db";
 import { enroll as enrollFounding, type FoundingAudience } from "./foundingMember";
+import { grantCoupon, type CouponTemplate } from "./coupons";
 
 export type PromoAudience = "all" | "visitors" | "customers" | "cleaners";
 export type PromoStatus = "draft" | "active" | "paused" | "expired" | "archived";
@@ -48,7 +49,16 @@ export interface PromoDesign {
 
 export interface PromoCTA {
   label: string;
-  action: "claim" | "link" | "dismiss";
+  /**
+   * claim      — record the claim (and grant the promo's reward, if any)
+   * newsletter — subscribe the email to the newsletter, then claim + reward
+   * waitlist   — join the waitlist, then claim + reward
+   * book_now   — claim + reward (pair with reward.coupon.offerMinutes for
+   *              flash offers like "book in the next 15 minutes")
+   * link       — open a URL
+   * dismiss    — close the widget
+   */
+  action: "claim" | "newsletter" | "waitlist" | "book_now" | "link" | "dismiss";
   url?: string; // for action=link
   requireField?: "none" | "email" | "phone";
   /**
@@ -265,6 +275,7 @@ export interface PromotionRow {
   claim_count: number;
   view_count: number;
   grants_founding_member: boolean;
+  reward: PromoReward;
 }
 
 /** True when a promo is live right now (status + time window + claim cap). */
@@ -322,6 +333,13 @@ export interface ClaimResult {
   message?: string;
   grantedFounding?: boolean;
   founderId?: number;
+  /** Set when the promo minted a coupon for the claimant. */
+  coupon?: { code: string; title: string; expiresAt: string };
+}
+
+/** The reward payload configured on a promotion (promotions.reward JSONB). */
+export interface PromoReward {
+  coupon?: CouponTemplate;
 }
 
 /**
@@ -352,6 +370,18 @@ export async function claimPromotion(
       message: "Enter your email so we can attach Founding Member status when you sign up.",
     };
   }
+  // Coupons require an identity too (sign-up is required to hold one — the
+  // email-bound coupon attaches at first sign-in). Newsletter/waitlist actions
+  // are meaningless without an email.
+  const action = promo.cta.action ?? "claim";
+  const needsEmail =
+    (promo.reward?.coupon && !input.userId) || action === "newsletter" || action === "waitlist";
+  if (needsEmail && !email && !input.userId) {
+    return {
+      status: "invalid_field",
+      message: "Enter your email so we can attach your reward when you sign up.",
+    };
+  }
 
   const fieldValue = require === "email" ? email : require === "phone" ? phone : null;
 
@@ -379,6 +409,43 @@ export async function claimPromotion(
     WHERE id = ${promo.id}
   `;
 
+  // CTA side-effects: newsletter subscription / waitlist join (best-effort).
+  if (action === "newsletter" && email) {
+    await sql`
+      INSERT INTO newsletter_subscribers (email) VALUES (${email})
+      ON CONFLICT DO NOTHING
+    `.catch(() => {});
+  } else if (action === "waitlist" && email) {
+    const wlType = promo.audience === "cleaners" ? "cleaner" : "customer";
+    await sql`
+      INSERT INTO waitlist (email, type) VALUES (${email}, ${wlType})
+      ON CONFLICT DO NOTHING
+    `.catch(() => {});
+  }
+
+  // Reward: mint the coupon. Signed-in claimants get it on their account
+  // immediately; anonymous claimants get it bound to their email (it attaches
+  // and becomes spendable when they sign up — per the Promotions & Coupons
+  // Terms). offerMinutes (flash offers) makes it expire fast instead of 180d.
+  let mintedCoupon: ClaimResult["coupon"];
+  if (promo.reward?.coupon) {
+    const coupon = await grantCoupon(sql, {
+      userId: input.userId ?? null,
+      email: input.userId ? null : email,
+      template: promo.reward.coupon,
+      source: "promo",
+      sourceRef: promo.slug,
+    });
+    if (coupon) {
+      mintedCoupon = { code: coupon.code, title: coupon.title, expiresAt: coupon.expires_at };
+    }
+  }
+  const couponSuffix = mintedCoupon
+    ? input.userId
+      ? ` Your coupon ${mintedCoupon.code} (${mintedCoupon.title}) is on your account and will apply automatically.`
+      : ` Sign up with this email and your coupon (${mintedCoupon.title}) will be waiting — it applies automatically at booking.`
+    : "";
+
   // Founding Member grant (authenticated claim only).
   if (promo.grants_founding_member && input.userId) {
     const audience: FoundingAudience | null =
@@ -397,9 +464,10 @@ export async function claimPromotion(
                     WHERE promotion_id = ${promo.id} AND user_id = ${input.userId}`;
           return {
             status: "founding_granted",
-            message: promo.cta.successMessage,
+            message: (promo.cta.successMessage ?? "") + couponSuffix,
             grantedFounding: true,
             founderId: res.founderId,
+            coupon: mintedCoupon,
           };
         }
         if (res.status === "already_other_audience") {
@@ -420,12 +488,18 @@ export async function claimPromotion(
     return {
       status: "claimed",
       message:
-        promo.cta.successMessage ??
-        "Claim recorded! Sign up with this email and your Founding Member status will be waiting.",
+        (promo.cta.successMessage ??
+          "Claim recorded! Sign up with this email and your Founding Member status will be waiting.") +
+        couponSuffix,
+      coupon: mintedCoupon,
     };
   }
 
-  return { status: "claimed", message: promo.cta.successMessage };
+  return {
+    status: "claimed",
+    message: (promo.cta.successMessage ?? "You're all set!") + couponSuffix,
+    coupon: mintedCoupon,
+  };
 }
 
 /**
