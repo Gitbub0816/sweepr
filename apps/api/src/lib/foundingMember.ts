@@ -258,6 +258,75 @@ export interface FoundingStatus {
   sinceLabel: string;
   welcomeSeen: boolean;
   revoked: boolean;
+  /** Chosen badge colorway (null until the one-time pick is made). */
+  badgeColor: string | null;
+  /** Full URL of the founder's badge SVG (color + first-name initial), once chosen. */
+  badgeUrl: string | null;
+}
+
+// ─── Founder badge artwork ───────────────────────────────────────────────────
+// Five colorways live in R2; each folder holds one SVG per first-name initial
+// (a–z). The founder picks a color EXACTLY ONCE — it can never be changed —
+// and the initial is always inferred from their first name, never chosen.
+export const FOUNDER_BADGE_COLORS = [
+  "carbon-gold",
+  "rose-gold",
+  "classic-gold",
+  "seafoam-gold",
+  "minimal-gold",
+] as const;
+export type FounderBadgeColor = (typeof FOUNDER_BADGE_COLORS)[number];
+
+const BADGE_BASE = "https://objects.getsweepr.com/site_assets/Founder_Badges";
+
+/** First-name initial for the badge artwork (a–z; non-letters fall back to 'a'). */
+export function badgeInitial(firstName: string | null | undefined): string {
+  const ch = (firstName ?? "").trim().charAt(0).toLowerCase();
+  return /[a-z]/.test(ch) ? ch : "a";
+}
+
+export function founderBadgeUrl(color: string, firstName: string | null | undefined): string {
+  const initial = badgeInitial(firstName);
+  return `${BADGE_BASE}/${color}/sweepr-founding-member-${color}-${initial}.svg`;
+}
+
+export type ChooseBadgeResult = "chosen" | "already_locked" | "invalid_color" | "not_a_member";
+
+/**
+ * Lock in the founder's badge color. One-time and irreversible by design: the
+ * conditional UPDATE only fires while founding_badge_locked_at IS NULL, so a
+ * second attempt (or a concurrent double-submit) can never overwrite the pick.
+ */
+export async function chooseBadgeColor(
+  sql: Sql,
+  audience: FoundingAudience,
+  id: string,
+  color: string,
+): Promise<ChooseBadgeResult> {
+  if (!(FOUNDER_BADGE_COLORS as readonly string[]).includes(color)) return "invalid_color";
+  const rows = (
+    audience === "cleaner"
+      ? await sql`
+          UPDATE cleaners
+          SET founding_badge_color = ${color}, founding_badge_locked_at = NOW()
+          WHERE id = ${id} AND founding_member = TRUE AND founding_badge_locked_at IS NULL
+          RETURNING id`
+      : await sql`
+          UPDATE customers
+          SET founding_badge_color = ${color}, founding_badge_locked_at = NOW()
+          WHERE id = ${id} AND founding_member = TRUE AND founding_badge_locked_at IS NULL
+          RETURNING id`
+  ) as Array<{ id: string }>;
+  if (rows[0]) return "chosen";
+
+  // Distinguish "already locked" from "not a member" for a useful error.
+  const check = (
+    audience === "cleaner"
+      ? await sql`SELECT founding_member, founding_badge_locked_at FROM cleaners WHERE id = ${id} LIMIT 1`
+      : await sql`SELECT founding_member, founding_badge_locked_at FROM customers WHERE id = ${id} LIMIT 1`
+  ) as Array<{ founding_member: boolean; founding_badge_locked_at: string | null }>;
+  if (!check[0]?.founding_member) return "not_a_member";
+  return "already_locked";
 }
 
 /** Read a cleaner/customer's founding status for API responses + UI badges. */
@@ -270,10 +339,12 @@ export async function getFoundingStatus(
   const rows = (
     audience === "cleaner"
       ? await sql`SELECT founding_member, founding_member_id, founding_member_since,
-                         founding_member_revoked, founding_welcome_seen
+                         founding_member_revoked, founding_welcome_seen,
+                         founding_badge_color, first_name
                   FROM cleaners WHERE id = ${id} LIMIT 1`
       : await sql`SELECT founding_member, founding_member_id, founding_member_since,
-                         founding_member_revoked, founding_welcome_seen
+                         founding_member_revoked, founding_welcome_seen,
+                         founding_badge_color, first_name
                   FROM customers WHERE id = ${id} LIMIT 1`
   ) as Array<{
     founding_member: boolean;
@@ -281,6 +352,8 @@ export async function getFoundingStatus(
     founding_member_since: string | null;
     founding_member_revoked: boolean;
     founding_welcome_seen: boolean;
+    founding_badge_color: string | null;
+    first_name: string | null;
   }>;
   if (!rows[0]) return null;
   const r = rows[0];
@@ -292,6 +365,10 @@ export async function getFoundingStatus(
     sinceLabel: c.sinceLabel,
     welcomeSeen: r.founding_welcome_seen,
     revoked: r.founding_member_revoked,
+    badgeColor: r.founding_badge_color,
+    badgeUrl: r.founding_badge_color
+      ? founderBadgeUrl(r.founding_badge_color, r.first_name)
+      : null,
   };
 }
 
