@@ -22,7 +22,7 @@ import {
   Repeat,
   KeyRound,
 } from "lucide-react";
-import { AppShell, PrelaunchGate, ReportProblem, CookieConsent } from "@sweepr/ui";
+import { AppShell, PrelaunchGate, ReportProblem, CookieConsent, PromoHost } from "@sweepr/ui";
 import { useAuth } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
 import { OnboardingPage } from "./pages/OnboardingPage";
@@ -35,6 +35,12 @@ function ReportProblemMount() {
   const { isSignedIn, getToken } = useAuth();
   if (!isSignedIn) return null;
   return <ReportProblem app="customer" apiUrl={API_URL} getToken={getToken} />;
+}
+
+/** Site-wide promotion widget host (customer audience — e.g. Founding Member). */
+function PromoHostMount() {
+  const { getToken } = useAuth();
+  return <PromoHost apiBase={API_URL} persona="customer" getToken={getToken} />;
 }
 
 import { BookingLayout } from "./booking/BookingLayout";
@@ -202,6 +208,7 @@ export default function App() {
       <LanguagePersistence />
       <OfflineIndicator />
       <ReportProblemMount />
+      <PromoHostMount />
       <CookieConsent />
       <div id="main" tabIndex={-1} className="contents">
       <Routes>

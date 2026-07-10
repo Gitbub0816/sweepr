@@ -24,7 +24,7 @@ import {
   BookOpen,
   ShieldCheck,
 } from "lucide-react";
-import { AppShell, PrelaunchGate, ReportProblem, CookieConsent } from "@sweepr/ui";
+import { AppShell, PrelaunchGate, ReportProblem, CookieConsent, PromoHost } from "@sweepr/ui";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -33,6 +33,12 @@ function ReportProblemMount() {
   const { isSignedIn, getToken } = useAuth();
   if (!isSignedIn) return null;
   return <ReportProblem app="cleaner" apiUrl={API_URL} getToken={getToken} />;
+}
+
+/** Site-wide promotion widget host (cleaner audience — e.g. Founding Member). */
+function PromoHostMount() {
+  const { getToken } = useAuth();
+  return <PromoHost apiBase={API_URL} persona="cleaner" getToken={getToken} />;
 }
 import { HomePage } from "./pages/HomePage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -164,6 +170,7 @@ export default function App() {
     <>
     <LanguagePersistence />
     <ReportProblemMount />
+    <PromoHostMount />
     <CookieConsent />
     <Routes>
       {/* OAuth SSO callback and mock Yardstik form bypass the prelaunch gate */}

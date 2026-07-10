@@ -15,6 +15,7 @@ import { StatusBadge } from "@sweepr/ui";
 import { formatCurrency, formatDateTime } from "@sweepr/utils";
 import { useBookings } from "../data/bookings";
 import { useBookingStore } from "../store/booking";
+import { FounderBanner } from "../components/FounderBanner";
 
 const DRAFT_TTL_MS = 48 * 60 * 60 * 1000;
 
@@ -56,6 +57,8 @@ export function Home() {
         {t(greetingKey)}! 👋
       </h1>
       <p className="mt-1 text-slate-500">{t("home.readyForSpotless")}</p>
+
+      <div className="mt-6"><FounderBanner /></div>
 
       {/* Resume in-progress booking draft */}
       {hasDraft && (

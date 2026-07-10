@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@sweepr/utils";
 import { useAuth, useUser } from "@clerk/clerk-react";
+import { FounderBanner } from "../components/FounderBanner";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 
@@ -232,6 +233,7 @@ function OverviewTab() {
 
   return (
     <div className="space-y-6">
+      <FounderBanner />
       <OnboardingChecklist status={status} />
 
       {/* Welcome */}
