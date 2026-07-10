@@ -8,7 +8,7 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@sweepr/utils";
 
 // ─── Shared promo shape (mirrors the API's public promo view) ────────────────
@@ -29,6 +29,33 @@ export interface PromoHotspot {
   h: number;
   cta: PromoCTA;
 }
+/**
+ * A free-form canvas element (PowerPoint-style, one slide). Geometry is % of
+ * the canvas; font sizes are px at the 480px design width and scale with the
+ * rendered width. Array order = z-order (later paints on top).
+ */
+export interface CanvasElement {
+  id: string;
+  type: "text" | "image" | "shape" | "button";
+  x: number; y: number; w: number; h: number;   // %
+  rotation?: number;                            // degrees
+  // text
+  text?: string; fontSize?: number; bold?: boolean; italic?: boolean;
+  color?: string; align?: "left" | "center" | "right"; bg?: string;
+  // image
+  src?: string; fit?: "cover" | "contain"; radius?: number;
+  // shape
+  shape?: "rect" | "ellipse"; fill?: string; stroke?: string; strokeWidth?: number;
+  // button
+  cta?: PromoCTA; btnBg?: string; btnColor?: string;
+}
+export interface PromoCanvas {
+  aspect?: "4:5" | "1:1" | "16:9" | "3:4";
+  background?: string;        // css color/gradient
+  backgroundImage?: string;   // uploaded image url
+  elements: CanvasElement[];
+}
+
 export interface PromoDesign {
   theme?: "light" | "dark" | "brand";
   background?: string;
@@ -36,6 +63,8 @@ export interface PromoDesign {
   blocks: PromoBlock[];
   /** Poster mode: the whole widget is one uploaded image + hotspots. */
   poster?: { src: string; hotspots?: PromoHotspot[] };
+  /** Canvas mode: free-form single-slide design (takes precedence). */
+  canvas?: PromoCanvas;
 }
 export interface PromoCTA {
   label: string;
@@ -159,6 +188,107 @@ function Countdown({ deadline, onDone }: { deadline: number; onDone?: () => void
   );
 }
 
+export const CANVAS_ASPECTS: Record<NonNullable<PromoCanvas["aspect"]>, number> = {
+  "4:5": 125, "1:1": 100, "16:9": 56.25, "3:4": 133.33,
+};
+const CANVAS_DESIGN_WIDTH = 480;
+
+/** Shared renderer for the free-form canvas — used by the live widget AND the
+ * admin editor preview so what you design is exactly what ships. */
+export function CanvasRender({
+  canvas,
+  onCta,
+  className,
+}: {
+  canvas: PromoCanvas;
+  onCta?: (cta: PromoCTA) => void;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setScale(el.clientWidth / CANVAS_DESIGN_WIDTH));
+    ro.observe(el);
+    setScale(el.clientWidth / CANVAS_DESIGN_WIDTH);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className={cn("relative w-full overflow-hidden", className)}
+      style={{
+        paddingTop: `${CANVAS_ASPECTS[canvas.aspect ?? "4:5"]}%`,
+        background: canvas.background ?? "#ffffff",
+      }}
+    >
+      {canvas.backgroundImage ? (
+        <img src={canvas.backgroundImage} alt="" className="absolute inset-0 h-full w-full object-cover" />
+      ) : null}
+      {canvas.elements.map((el) => {
+        const base: React.CSSProperties = {
+          left: `${el.x}%`, top: `${el.y}%`, width: `${el.w}%`, height: `${el.h}%`,
+          transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
+        };
+        if (el.type === "text") {
+          return (
+            <div key={el.id} className="absolute flex flex-col justify-center" style={{
+              ...base,
+              fontSize: (el.fontSize ?? 18) * scale,
+              fontWeight: el.bold ? 700 : 400,
+              fontStyle: el.italic ? "italic" : undefined,
+              color: el.color ?? "#111827",
+              textAlign: el.align ?? "left",
+              background: el.bg || undefined,
+              borderRadius: el.radius ? el.radius * scale : undefined,
+              lineHeight: 1.25,
+              whiteSpace: "pre-wrap",
+              overflow: "hidden",
+              padding: 2 * scale,
+            }}>
+              {el.text}
+            </div>
+          );
+        }
+        if (el.type === "image" && el.src) {
+          return (
+            <img key={el.id} src={el.src} alt="" className="absolute" style={{
+              ...base, objectFit: el.fit ?? "cover",
+              borderRadius: (el.radius ?? 0) * scale,
+            }} />
+          );
+        }
+        if (el.type === "shape") {
+          return (
+            <div key={el.id} className="absolute" style={{
+              ...base,
+              background: el.fill ?? "#0f766e",
+              border: el.stroke ? `${(el.strokeWidth ?? 2) * scale}px solid ${el.stroke}` : undefined,
+              borderRadius: el.shape === "ellipse" ? "50%" : (el.radius ?? 0) * scale,
+            }} />
+          );
+        }
+        if (el.type === "button" && el.cta) {
+          return (
+            <button key={el.id} type="button" onClick={() => onCta?.(el.cta!)} className="absolute font-semibold shadow-sm transition hover:brightness-110" style={{
+              ...base,
+              background: el.btnBg ?? "#0f766e",
+              color: el.btnColor ?? "#ffffff",
+              fontSize: (el.fontSize ?? 16) * scale,
+              borderRadius: (el.radius ?? 8) * scale,
+            }}>
+              {el.cta.label}
+            </button>
+          );
+        }
+        return null;
+      })}
+    </div>
+  );
+}
+
 /**
  * Renders one designed promotion — either stacked blocks or a full-image
  * POSTER with interactive hotspots — plus its templated CTA. Purely
@@ -266,13 +396,14 @@ export function PromoWidget({
     if (!willNeedInput) void execute(h.cta);
   }
 
-  const poster = design.poster?.src ? design.poster : null;
+  const canvas = design.canvas?.elements?.length ? design.canvas : null;
+  const poster = !canvas && design.poster?.src ? design.poster : null;
 
   return (
     <div
       className={cn(
         "relative w-full overflow-hidden rounded-2xl shadow-xl",
-        poster ? "max-w-lg" : "max-w-md p-6",
+        canvas || poster ? "max-w-lg" : "max-w-md p-6",
         theme === "dark"
           ? "bg-slate-900 text-white"
           : theme === "brand"
@@ -291,14 +422,27 @@ export function PromoWidget({
           aria-label="Close"
           className={cn(
             "absolute right-3 top-3 z-10 rounded-full p-1 text-lg leading-none",
-            poster ? "bg-black/40 text-white hover:bg-black/60" : "opacity-50 hover:opacity-100",
+            canvas || poster ? "bg-black/40 text-white hover:bg-black/60" : "opacity-50 hover:opacity-100",
           )}
         >
           ✕
         </button>
       ) : null}
 
-      {poster ? (
+      {canvas ? (
+        // ── Canvas mode: free-form single slide with interactive buttons ────
+        <CanvasRender
+          canvas={canvas}
+          onCta={(target) => {
+            setActiveCta(target);
+            const claimy = CLAIMY.has(target.action);
+            const willNeedInput =
+              claimy && !((target.claimants ?? "both") === "signed_in" && anonymous) &&
+              ((target.requireField ?? "none") !== "none" || needsEmailAnon);
+            if (!willNeedInput) void execute(target);
+          }}
+        />
+      ) : poster ? (
         // ── Poster mode: one image, interactive hotspots ────────────────────
         <div className="relative">
           <img src={poster.src} alt={promo.name} className="block w-full" />
@@ -320,7 +464,7 @@ export function PromoWidget({
         </div>
       )}
 
-      <div className={cn("mt-4", poster && "px-5 pb-5")}>
+      <div className={cn("mt-4", (poster || canvas) && "px-5 pb-5")}>
         {reward && !done ? (
           <p className="mb-2 text-center text-sm font-semibold" style={{ color: accent ?? "#0f766e" }}>
             🎁 {reward}

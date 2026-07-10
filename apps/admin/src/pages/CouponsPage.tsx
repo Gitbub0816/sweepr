@@ -75,6 +75,8 @@ export function CouponsPage() {
   const [gTheme, setGTheme] = useState("");
   const [gDays, setGDays] = useState("180");
   const [gUses, setGUses] = useState("1");
+  const [gStackable, setGStackable] = useState(false);
+  const [gMaxStack, setGMaxStack] = useState("");
 
   // Milestone form
   const [mKey, setMKey] = useState("");
@@ -108,6 +110,8 @@ export function CouponsPage() {
           theme: gTheme || undefined,
           validDays: Math.min(Number(gDays) || 180, 180),
           maxRedemptions: Number(gUses) || 1,
+          stackable: gStackable,
+          maxStack: gStackable && gMaxStack ? Number(gMaxStack) : undefined,
         },
       }),
     });
@@ -197,6 +201,15 @@ export function CouponsPage() {
           <label className="text-xs">Uses
             <Input type="number" min={1} value={gUses} onChange={(e) => setGUses(e.target.value)} className="mt-1" />
           </label>
+          <label className="flex items-end gap-2 pb-2 text-xs">
+            <input type="checkbox" checked={gStackable} onChange={(e) => setGStackable(e.target.checked)} />
+            Stackable
+          </label>
+          {gStackable ? (
+            <label className="text-xs">Max stack
+              <Input type="number" min={2} max={20} value={gMaxStack} placeholder="no cap" onChange={(e) => setGMaxStack(e.target.value)} className="mt-1" />
+            </label>
+          ) : null}
           <div className="flex items-end"><Button onClick={grant}><Plus className="mr-1 h-4 w-4" />Grant</Button></div>
         </div>
       </Card>

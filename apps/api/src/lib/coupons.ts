@@ -53,6 +53,10 @@ export interface CouponTemplate {
   offerMinutes?: number;
   maxRedemptions?: number;
   minBookingTotalCents?: number;
+  /** May this coupon combine with other stackable coupons on one booking? */
+  stackable?: boolean;
+  /** Cap on total coupons in any stack this one joins (null = no cap). */
+  maxStack?: number;
 }
 
 export interface GrantCouponInput {
@@ -78,6 +82,8 @@ export interface CouponRow {
   max_redemptions: number;
   redemption_count: number;
   min_booking_total_cents: number | null;
+  stackable: boolean;
+  max_stack: number | null;
   starts_at: string;
   expires_at: string;
   status: string;
@@ -102,23 +108,31 @@ export async function grantCoupon(sql: Sql, input: GrantCouponInput): Promise<Co
     ? new Date(Date.now() + Math.min(Math.max(t.offerMinutes, 1), 24 * 60) * 60_000)
     : new Date(Date.now() + validDays * 86_400_000);
 
-  const rows = (await sql`
-    INSERT INTO coupons (
-      code, title, description, theme, kind, value, addon_key,
-      user_id, email, source, source_ref, max_redemptions,
-      min_booking_total_cents, expires_at, created_by
-    ) VALUES (
-      ${couponCode()}, ${t.title ?? defaultTitle(t)}, ${t.description ?? null},
-      ${t.theme ?? null}, ${t.kind}, ${t.value ?? 0}, ${t.addonKey ?? null},
-      ${input.userId ?? null}, ${input.email?.toLowerCase() ?? null},
-      ${input.source}, ${input.sourceRef ?? null},
-      ${Math.max(t.maxRedemptions ?? 1, 1)},
-      ${t.minBookingTotalCents ?? null}, ${expiresAt.toISOString()},
-      ${input.createdBy ?? null}
-    )
-    RETURNING *
-  `) as CouponRow[];
-  return rows[0] ?? null;
+  try {
+    const rows = (await sql`
+      INSERT INTO coupons (
+        code, title, description, theme, kind, value, addon_key,
+        user_id, email, source, source_ref, max_redemptions,
+        min_booking_total_cents, stackable, max_stack, expires_at, created_by
+      ) VALUES (
+        ${couponCode()}, ${t.title ?? defaultTitle(t)}, ${t.description ?? null},
+        ${t.theme ?? null}, ${t.kind}, ${t.value ?? 0}, ${t.addonKey ?? null},
+        ${input.userId ?? null}, ${input.email?.toLowerCase() ?? null},
+        ${input.source}, ${input.sourceRef ?? null},
+        ${Math.max(t.maxRedemptions ?? 1, 1)},
+        ${t.minBookingTotalCents ?? null},
+        ${t.stackable ?? false}, ${t.maxStack ?? null},
+        ${expiresAt.toISOString()},
+        ${input.createdBy ?? null}
+      )
+      RETURNING *
+    `) as CouponRow[];
+    return rows[0] ?? null;
+  } catch {
+    // STRICT lock: the DB unique index (source, source_ref, identity) rejects
+    // a second coupon from the same promo/milestone for the same person.
+    return null;
+  }
 }
 
 /**
@@ -131,12 +145,25 @@ export async function attachPendingCouponsByEmail(
   email: string | null | undefined,
 ): Promise<number> {
   if (!email) return 0;
-  const rows = (await sql`
-    UPDATE coupons SET user_id = ${userId}
+  const pending = (await sql`
+    SELECT id FROM coupons
     WHERE user_id IS NULL AND status = 'active' AND LOWER(email) = LOWER(${email})
-    RETURNING id
   `) as Array<{ id: string }>;
-  return rows.length;
+  let attached = 0;
+  for (const row of pending) {
+    try {
+      await sql`UPDATE coupons SET user_id = ${userId} WHERE id = ${row.id} AND user_id IS NULL`;
+      attached++;
+    } catch {
+      // The strict one-per-identity index rejected the attach: this account
+      // already holds a coupon from the same promo/milestone. The email-bound
+      // duplicate is dead weight — revoke it so it stops matching.
+      await sql`UPDATE coupons SET status = 'revoked' WHERE id = ${row.id} AND user_id IS NULL`.catch(
+        () => {},
+      );
+    }
+  }
+  return attached;
 }
 
 /** All currently-usable coupons on an account (for the account UI). */
@@ -160,14 +187,19 @@ export interface AppliedCoupon {
 }
 
 /**
- * Auto-apply the customer's best active coupon to a freshly created booking.
- * Conditions are checked here (validity window, uses left, minimum total);
- * discounts flow through the booking price ledger so the Stripe PI stays in
- * sync; free add-ons attach as a 0¢ booking_addons row. The redemption is
- * claimed FIRST via a conditional UPDATE on redemption_count, so a concurrent
- * double-submit can never spend the same use twice. One coupon per booking
- * (coupon_redemptions.booking_id is UNIQUE). Best-effort by design: a coupon
- * failure must never break booking creation.
+ * Auto-apply the customer's best coupon SET to a freshly created booking.
+ *
+ * Stacking rules (per-coupon permissions):
+ *   - non-stackable coupons apply ALONE;
+ *   - stackable coupons may combine with other stackables, capped by every
+ *     participant's max_stack (the tightest cap in the set wins);
+ *   - the engine compares the best single non-stackable against the best legal
+ *     stack and applies whichever saves the customer more.
+ *
+ * Each application: use-spend is claimed FIRST via a conditional UPDATE (no
+ * concurrent double-spend), discounts flow through the price ledger, free
+ * add-ons attach as 0¢ booking_addons rows, and every coupon×booking pair is
+ * recorded once (UNIQUE coupon_id+booking_id). Best-effort by design.
  */
 export async function autoApplyBestCoupon(
   sql: Sql,
@@ -176,7 +208,6 @@ export async function autoApplyBestCoupon(
 ): Promise<AppliedCoupon | null> {
   try {
     const candidates = await activeCouponsForUser(sql, args.userId);
-    // Best = largest concrete discount; free add-ons rank below cash discounts.
     const scored = candidates
       .filter((c) => (c.min_booking_total_cents ?? 0) <= args.totalCents)
       .map((c) => ({
@@ -189,72 +220,104 @@ export async function autoApplyBestCoupon(
               : 0,
       }))
       .sort((a, b) => b.cents - a.cents);
-    const pick = scored[0];
-    if (!pick) return null;
-    const coupon = pick.c;
+    if (scored.length === 0) return null;
 
-    // Claim a use (atomic — blocks concurrent double-spend across bookings).
-    const claimed = (await sql`
-      UPDATE coupons
-      SET redemption_count = redemption_count + 1,
-          status = CASE WHEN redemption_count + 1 >= max_redemptions THEN 'exhausted' ELSE status END
-      WHERE id = ${coupon.id} AND status = 'active'
-        AND redemption_count < max_redemptions AND expires_at > NOW()
-      RETURNING id
-    `) as Array<{ id: string }>;
-    if (!claimed[0]) return null;
+    // Best single (any coupon may apply alone).
+    const bestSingle = scored[0];
 
-    let amountApplied = 0;
-    try {
-      if (coupon.kind === "free_addon" && coupon.addon_key) {
-        await sql`
-          INSERT INTO booking_addons (booking_id, addon_key, addon_name, price)
-          VALUES (${args.bookingId}, ${coupon.addon_key}, ${`${coupon.addon_key} (coupon)`}, 0)
-          ON CONFLICT DO NOTHING
-        `;
-        await recordLedgerEntry(sql, {
-          bookingId: args.bookingId,
-          eventType: "coupon_discount",
-          previousTotalCents: args.totalCents,
-          adjustmentCents: 0,
-          newTotalCents: args.totalCents,
-          reason: `Coupon ${coupon.code}: free add-on ${coupon.addon_key}`,
-          source: "system",
-        });
-      } else {
-        amountApplied = pick.cents;
-        if (amountApplied > 0) {
-          await applyBookingPriceAdjustment(sql, stripe, {
+    // Best legal stack: greedy by value over stackable coupons, honoring the
+    // tightest max_stack among the chosen set at every step.
+    const stackables = scored.filter((s) => s.c.stackable);
+    const stack: typeof scored = [];
+    for (const s of stackables) {
+      const capOfSet = Math.min(
+        ...stack.map((x) => x.c.max_stack ?? Infinity),
+        s.c.max_stack ?? Infinity,
+      );
+      if (stack.length + 1 > capOfSet) continue;
+      stack.push(s);
+    }
+    const stackValue = stack.reduce((a, s) => a + s.cents, 0);
+
+    const chosen = stack.length >= 2 && stackValue > bestSingle.cents ? stack : [bestSingle];
+
+    let remaining = args.totalCents;
+    const applied: AppliedCoupon[] = [];
+
+    for (const pick of chosen) {
+      const coupon = pick.c;
+      // Claim a use (atomic — blocks concurrent double-spend across bookings).
+      const claimed = (await sql`
+        UPDATE coupons
+        SET redemption_count = redemption_count + 1,
+            status = CASE WHEN redemption_count + 1 >= max_redemptions THEN 'exhausted' ELSE status END
+        WHERE id = ${coupon.id} AND status = 'active'
+          AND redemption_count < max_redemptions AND expires_at > NOW()
+        RETURNING id
+      `) as Array<{ id: string }>;
+      if (!claimed[0]) continue;
+
+      let amountApplied = 0;
+      try {
+        if (coupon.kind === "free_addon" && coupon.addon_key) {
+          await sql`
+            INSERT INTO booking_addons (booking_id, addon_key, addon_name, price)
+            VALUES (${args.bookingId}, ${coupon.addon_key}, ${`${coupon.addon_key} (coupon)`}, 0)
+            ON CONFLICT DO NOTHING
+          `;
+          await recordLedgerEntry(sql, {
             bookingId: args.bookingId,
-            adjustmentCents: -amountApplied,
             eventType: "coupon_discount",
-            reason: `Coupon ${coupon.code}: ${coupon.title}`,
+            previousTotalCents: remaining,
+            adjustmentCents: 0,
+            newTotalCents: remaining,
+            reason: `Coupon ${coupon.code}: free add-on ${coupon.addon_key}`,
             source: "system",
           });
+        } else {
+          // Clamp so a stack can never push the booking below zero.
+          amountApplied = Math.min(pick.cents, remaining);
+          if (amountApplied > 0) {
+            await applyBookingPriceAdjustment(sql, stripe, {
+              bookingId: args.bookingId,
+              adjustmentCents: -amountApplied,
+              eventType: "coupon_discount",
+              reason: `Coupon ${coupon.code}: ${coupon.title}`,
+              source: "system",
+            });
+            remaining -= amountApplied;
+          }
         }
-      }
 
-      await sql`
-        INSERT INTO coupon_redemptions (coupon_id, booking_id, user_id, amount_applied_cents, addon_key)
-        VALUES (${coupon.id}, ${args.bookingId}, ${args.userId}, ${amountApplied}, ${coupon.addon_key})
-      `;
-    } catch (err) {
-      // Roll the claimed use back so the coupon isn't burned by a failure.
-      await sql`
-        UPDATE coupons SET redemption_count = GREATEST(redemption_count - 1, 0),
-                           status = 'active'
-        WHERE id = ${coupon.id} AND status IN ('active', 'exhausted')
-      `.catch(() => {});
-      throw err;
+        await sql`
+          INSERT INTO coupon_redemptions (coupon_id, booking_id, user_id, amount_applied_cents, addon_key)
+          VALUES (${coupon.id}, ${args.bookingId}, ${args.userId}, ${amountApplied}, ${coupon.addon_key})
+        `;
+        applied.push({
+          couponId: coupon.id,
+          code: coupon.code,
+          title: coupon.title,
+          kind: coupon.kind,
+          amountAppliedCents: amountApplied,
+          addonKey: coupon.addon_key,
+        });
+      } catch (err) {
+        // Roll the claimed use back so the coupon isn't burned by a failure.
+        await sql`
+          UPDATE coupons SET redemption_count = GREATEST(redemption_count - 1, 0),
+                             status = 'active'
+          WHERE id = ${coupon.id} AND status IN ('active', 'exhausted')
+        `.catch(() => {});
+        logger.error("coupon.apply_one failed", err, { bookingId: args.bookingId, coupon: coupon.code });
+      }
     }
 
+    if (applied.length === 0) return null;
+    // Summary result (first = most valuable): totals include the whole stack.
     return {
-      couponId: coupon.id,
-      code: coupon.code,
-      title: coupon.title,
-      kind: coupon.kind,
-      amountAppliedCents: amountApplied,
-      addonKey: coupon.addon_key,
+      ...applied[0],
+      amountAppliedCents: applied.reduce((a, x) => a + x.amountAppliedCents, 0),
+      code: applied.map((x) => x.code).join(" + "),
     };
   } catch (err) {
     logger.error("coupon.auto_apply failed", err, { bookingId: args.bookingId });

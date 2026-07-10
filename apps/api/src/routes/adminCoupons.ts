@@ -43,6 +43,8 @@ const templateSchema = z.object({
   validDays: z.number().int().min(1).max(180).optional(),
   maxRedemptions: z.number().int().min(1).max(100).optional(),
   minBookingTotalCents: z.number().int().min(0).optional(),
+  stackable: z.boolean().optional(),
+  maxStack: z.number().int().min(2).max(20).optional(),
 });
 
 adminCouponsRouter.get("/", async (c) => {

@@ -18,7 +18,8 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Card, Button, Input, Textarea, toast, PromoWidget, type PromoView } from "@sweepr/ui";
+import { Card, Button, Input, Textarea, toast, PromoWidget, type PromoView, type PromoCanvas } from "@sweepr/ui";
+import { PromoCanvasEditor } from "../components/PromoCanvasEditor";
 import { Megaphone, Plus, Copy, Trash2, Play, Pause, Archive, GripVertical } from "lucide-react";
 import { useAuthedFetch } from "../lib/alerts";
 
@@ -52,6 +53,8 @@ interface RewardCoupon {
   offerMinutes?: number;
   maxRedemptions?: number;
   minBookingTotalCents?: number;
+  stackable?: boolean;
+  maxStack?: number;
 }
 interface Promo {
   id: string;
@@ -60,7 +63,7 @@ interface Promo {
   template_key: string | null;
   audience: Audience;
   status: Status;
-  design: { theme?: string; accent?: string; background?: string; blocks: PromoBlock[]; poster?: { src: string; hotspots?: PromoHotspot[] } };
+  design: { theme?: string; accent?: string; background?: string; blocks: PromoBlock[]; poster?: { src: string; hotspots?: PromoHotspot[] }; canvas?: PromoCanvas };
   reward?: { coupon?: RewardCoupon };
   cta: PromoCta;
   display: { placement?: string; pages?: string[]; delaySeconds?: number; persist?: boolean; frequency?: "once" | "every_visit" | "daily"; showOnFirstVisit?: boolean };
@@ -467,8 +470,19 @@ export function PromotionsPage() {
                       <label className="text-xs">Min booking total (cents, optional)
                         <Input type="number" min={0} value={rc.minBookingTotalCents ?? ""} onChange={(e) => patch({ minBookingTotalCents: e.target.value ? Number(e.target.value) : undefined })} className="mt-1" />
                       </label>
+                      <label className="flex items-center gap-2 text-xs">
+                        <input type="checkbox" checked={rc.stackable ?? false} onChange={(e) => patch({ stackable: e.target.checked })} />
+                        Stackable (may combine with other stackable coupons)
+                      </label>
+                      {rc.stackable ? (
+                        <label className="text-xs">Max coupons in a stack (blank = no cap)
+                          <Input type="number" min={2} max={20} value={rc.maxStack ?? ""}
+                            onChange={(e) => patch({ maxStack: e.target.value ? Number(e.target.value) : undefined })} className="mt-1" />
+                        </label>
+                      ) : null}
                       <p className="col-span-2 text-xs text-slate-500">
-                        Coupons are silent — no widget. They appear in the person's account and apply
+                        Each person can claim this promo's coupon ONCE — enforced per account and per
+                        email at the database. Coupons are silent — no widget. They appear in the person's account and apply
                         automatically to the next qualifying booking. Anonymous claims capture an email;
                         the coupon activates when that person signs up (required to claim, per the
                         Promotions &amp; Coupons Terms).
@@ -476,6 +490,31 @@ export function PromotionsPage() {
                     </div>
                   );
                 })() : null}
+              </Card>
+
+              {/* Slide designer — free-form PowerPoint-grade canvas */}
+              <Card className="space-y-3 p-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold">Slide designer (free-form)</h3>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={Boolean(draft.design.canvas)}
+                      onChange={(e) => setDraft({ ...draft, design: { ...draft.design, canvas: e.target.checked ? (draft.design.canvas ?? { aspect: "4:5", background: "#ffffff", elements: [] }) : undefined } })} />
+                    Enabled
+                  </label>
+                </div>
+                {draft.design.canvas ? (
+                  <PromoCanvasEditor
+                    promoId={draft.id}
+                    canvas={draft.design.canvas}
+                    onChange={(cv) => setDraft({ ...draft, design: { ...draft.design, canvas: cv } })}
+                    authed={authed}
+                  />
+                ) : (
+                  <p className="text-xs text-slate-500">
+                    One-slide PowerPoint-style editor: text boxes, photos, shapes, and CTA buttons —
+                    positioned freely, layered, rotated. Takes precedence over blocks and poster mode.
+                  </p>
+                )}
               </Card>
 
               {/* Poster — the whole widget is one uploaded image; drag on it to
