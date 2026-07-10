@@ -21,6 +21,7 @@ import { sendNotification } from "../lib/notifications";
 import { requireAuth } from "../middleware/auth";
 import { requireAdmin } from "../middleware/adminRoles";
 import { loadFeeSettings, calculatePayout, getTierMultiplier } from "../lib/payoutEngine";
+import { foundingPayoutMultiplier } from "../lib/foundingMember";
 import { audit } from "../lib/audit";
 import { serverTrack } from "../lib/posthog";
 import { isValidTransition } from "../lib/statusMachine";
@@ -269,7 +270,14 @@ paymentsRouter.post(
     const feeSettings = await loadFeeSettings(sql);
     const cleanerTier = (cleaner as unknown as Record<string, unknown>).tier as string ?? "standard";
     const tierMultiplier = await getTierMultiplier(sql, cleanerTier);
-    const breakdown = calculatePayout(booking.total_price, feeSettings, tierMultiplier);
+    // Founding Members earn a permanent bonus (default 5%) on every payout while
+    // in good standing. Compounds onto the tier multiplier so both apply.
+    const foundingMult = await foundingPayoutMultiplier(sql, booking.cleaner_id);
+    const breakdown = calculatePayout(
+      booking.total_price,
+      feeSettings,
+      tierMultiplier * foundingMult,
+    );
 
     // Atomic lock BEFORE calling Stripe: claim the payout row first so a
     // concurrent/retried request can't also pass this check and double-transfer.

@@ -18,6 +18,7 @@ import { requireAuth } from "../middleware/auth";
 import { requireAdmin } from "../middleware/adminRoles";
 import { yardstikClient, adverseActionEarliestDate } from "../lib/yardstik";
 import { audit } from "../lib/audit";
+import { enroll as enrollFounding } from "../lib/foundingMember";
 import type { AppBindings } from "../types";
 import type { UserRow } from "@sweepr/db";
 
@@ -245,6 +246,15 @@ adminRouter.patch("/applications/:id/approve", async (c) => {
   `) as Array<{ user_id: string; first_name: string | null }>;
   const cleaner = rows[0];
   if (!cleaner) return c.json({ error: "Application not found" }, 404);
+
+  // Founding Member auto-enrollment: approval is the moment a cleaner has
+  // completed onboarding + passed background screening. If the founding window
+  // is still open, grant status (no-op when closed or already a member).
+  try {
+    await enrollFounding(sql, "cleaner", id);
+  } catch {
+    /* non-fatal — approval must not fail on a perk grant */
+  }
 
   const users = (await sql`
     SELECT * FROM users WHERE id = ${cleaner.user_id} LIMIT 1
