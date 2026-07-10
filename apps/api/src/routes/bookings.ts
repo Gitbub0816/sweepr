@@ -730,8 +730,76 @@ bookingsRouter.get("/:id", async (c) => {
   `) as Array<{ addon_key: string }>;
   const addon_keys = addonRows.map((r) => r.addon_key);
 
-  return c.json({ booking: { ...booking, ...addr, addon_keys } });
+  // Assigned-cleaner identity is privacy-gated: the customer only sees who is
+  // coming within 24h of the scheduled cleaning (and thereafter), and only as
+  // "First L." — never the cleaner's full last name. Before that window, or
+  // before a cleaner has actually accepted, no identity is disclosed. Mirrors
+  // the address-reveal timing pattern in the opposite direction.
+  const cleaner = await revealCleanerIdentity(sql, booking);
+
+  return c.json({ booking: { ...booking, ...addr, addon_keys }, cleaner });
 });
+
+/** Statuses at which a specific cleaner is committed to the job. */
+const CLEANER_REVEALABLE_STATUSES = new Set([
+  "cleaner_accepted",
+  "confirmed",
+  "cleaner_on_the_way",
+  "arrived",
+  "in_progress",
+  "completed_pending_review",
+  "completed",
+]);
+
+interface RevealedCleaner {
+  displayName: string;
+  foundingMember: boolean;
+  foundingMemberId: number | null;
+}
+
+/**
+ * Returns the assigned cleaner's customer-facing identity ("First L." + founding
+ * status) only when the cleaning is within 24 hours (or already underway/past)
+ * AND a cleaner has committed to the job. Returns null otherwise so the customer
+ * app shows a generic label and the cleaner's full name is never exposed early.
+ */
+async function revealCleanerIdentity(
+  sql: ReturnType<typeof getDb>,
+  booking: { cleaner_id?: string | null; scheduled_at?: string | Date | null; status: string },
+): Promise<RevealedCleaner | null> {
+  if (!booking.cleaner_id || !booking.scheduled_at) return null;
+  if (!CLEANER_REVEALABLE_STATUSES.has(booking.status)) return null;
+
+  const REVEAL_WINDOW_MS = 24 * 60 * 60 * 1000;
+  const startsMs = new Date(booking.scheduled_at).getTime();
+  if (!Number.isFinite(startsMs)) return null;
+  // Reveal from 24h before the start onward (covers day-of + completed jobs).
+  if (startsMs - Date.now() > REVEAL_WINDOW_MS) return null;
+
+  const rows = (await sql`
+    SELECT first_name, last_name, founding_member, founding_member_id, founding_member_revoked
+    FROM cleaners WHERE id = ${booking.cleaner_id} LIMIT 1
+  `) as Array<{
+    first_name: string | null;
+    last_name: string | null;
+    founding_member: boolean;
+    founding_member_id: number | null;
+    founding_member_revoked: boolean;
+  }>;
+  const cl = rows[0];
+  if (!cl) return null;
+
+  const first = (cl.first_name ?? "").trim();
+  const lastInitial = (cl.last_name ?? "").trim().charAt(0).toUpperCase();
+  const displayName =
+    [first, lastInitial ? `${lastInitial}.` : ""].filter(Boolean).join(" ") || "Your cleaner";
+
+  return {
+    displayName,
+    foundingMember: Boolean(cl.founding_member) && !cl.founding_member_revoked,
+    foundingMemberId: cl.founding_member_id,
+  };
+}
 
 bookingsRouter.patch(
   "/:id/status",

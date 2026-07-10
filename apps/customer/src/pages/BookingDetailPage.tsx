@@ -23,6 +23,7 @@ import {
   Modal,
   Textarea,
   toast,
+  FoundingMemberBadge,
 } from "@sweepr/ui";
 import {
   formatDateTime,
@@ -31,8 +32,7 @@ import {
   JOB_STATUS_LABELS,
 } from "@sweepr/utils";
 import { useAuth } from "@clerk/clerk-react";
-import { fetchBooking } from "../data/bookings";
-import type { Booking } from "@sweepr/types";
+import { fetchBooking, type BookingWithCleaner } from "../data/bookings";
 import { CleanerTracker } from "../components/CleanerTracker";
 import { TipCard } from "../components/TipCard";
 import { AddServicesCard } from "../components/AddServicesCard";
@@ -220,7 +220,7 @@ export function BookingDetailPage() {
   const { t } = useTranslation();
   const { id } = useParams();
   const { getToken } = useAuth();
-  const [booking, setBooking] = useState<Booking | null>(null);
+  const [booking, setBooking] = useState<BookingWithCleaner | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
@@ -311,6 +311,28 @@ export function BookingDetailPage() {
     >
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-6">
+          {booking.revealedCleaner && (
+            <Card>
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-seafoam-100 text-lg font-semibold text-seafoam-700 dark:bg-seafoam-900/40 dark:text-seafoam-300">
+                  {booking.revealedCleaner.displayName.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Your cleaner</p>
+                  <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-charcoal dark:text-white">
+                    {booking.revealedCleaner.displayName}
+                    {booking.revealedCleaner.foundingMember && (
+                      <FoundingMemberBadge
+                        founderId={booking.revealedCleaner.foundingMemberId}
+                        showTooltip={false}
+                      />
+                    )}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          )}
+
           {authToken && id && (booking.status === "cleaner_on_the_way" || booking.status === "arrived" || booking.status === "in_progress") && (
             <CleanerTracker
               bookingId={id}
@@ -472,7 +494,7 @@ export function BookingDetailPage() {
       <ReviewModal
         open={reviewOpen}
         onOpenChange={setReviewOpen}
-        cleanerName="your cleaner"
+        cleanerName={booking.revealedCleaner?.displayName ?? "your cleaner"}
         bookingId={booking.id}
         cleanerId={booking.cleanerId}
         getToken={getToken}

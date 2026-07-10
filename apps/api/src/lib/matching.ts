@@ -314,7 +314,8 @@ export async function rankCleanersForBooking(
         GROUP BY cleaner_id
       `,
       db`
-        SELECT id AS cleaner_id, preferred_service_types
+        SELECT id AS cleaner_id, preferred_service_types,
+               founding_member, founding_member_revoked
         FROM cleaners
         WHERE id = ANY(${cleanerIds})
       `,
@@ -352,7 +353,15 @@ export async function rankCleanersForBooking(
   const serviceRows = serviceRaw as unknown as Array<{
     cleaner_id: string;
     preferred_service_types: string[] | null;
+    founding_member: boolean;
+    founding_member_revoked: boolean;
   }>;
+  // Active Founding Members — used ONLY as a tiebreaker between otherwise
+  // equal-scoring cleaners (never adds to the score, so it can never override
+  // distance, availability, qualifications, or eligibility).
+  const foundingSet = new Set(
+    serviceRows.filter((r) => r.founding_member && !r.founding_member_revoked).map((r) => r.cleaner_id),
+  );
   const recentRows = recentRaw as unknown as Array<{ cleaner_id: string; recent_offers: number }>;
   const interactionRows = interactionRaw as unknown as Array<{
     cleaner_id: string;
@@ -457,5 +466,12 @@ export async function rankCleanersForBooking(
     scores.push({ cleanerId: cleaner.id, score, breakdown });
   }
 
-  return scores.sort((a, b) => b.score - a.score);
+  // Sort by score; break EXACT ties in favor of Founding Members (recognition
+  // tiebreaker only — see foundingSet above). Stable for non-founders.
+  return scores.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    const af = foundingSet.has(a.cleanerId) ? 1 : 0;
+    const bf = foundingSet.has(b.cleanerId) ? 1 : 0;
+    return bf - af;
+  });
 }

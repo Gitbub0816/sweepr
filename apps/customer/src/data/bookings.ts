@@ -115,15 +115,34 @@ export function useBookings() {
   return { bookings, loading, reload: load };
 }
 
+/**
+ * Assigned-cleaner identity as disclosed to the customer. Only present within
+ * 24h of the cleaning (server-gated); "First L." only — never a full last name.
+ */
+export interface RevealedCleaner {
+  displayName: string;
+  foundingMember: boolean;
+  foundingMemberId: number | null;
+}
+
+/** A booking with the (optionally) revealed cleaner identity attached. */
+export type BookingWithCleaner = Booking & { revealedCleaner?: RevealedCleaner | null };
+
 /** Fetch a single booking by id. */
-export async function fetchBooking(getToken: () => Promise<string | null>, id: string): Promise<Booking | null> {
+export async function fetchBooking(
+  getToken: () => Promise<string | null>,
+  id: string,
+): Promise<BookingWithCleaner | null> {
   if (!API_URL) return null;
   try {
     const token = await getToken();
     const res = await fetch(`${API_URL}/bookings/${id}`, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) return null;
-    const data = (await res.json()) as { booking: BookingRow };
-    return data.booking ? toBooking(data.booking) : null;
+    const data = (await res.json()) as { booking: BookingRow; cleaner?: RevealedCleaner | null };
+    if (!data.booking) return null;
+    const booking = toBooking(data.booking) as BookingWithCleaner;
+    booking.revealedCleaner = data.cleaner ?? null;
+    return booking;
   } catch {
     return null;
   }

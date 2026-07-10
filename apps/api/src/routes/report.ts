@@ -69,6 +69,32 @@ async function resolveSubmitter(c: { req: { header: (k: string) => string | unde
   }
 }
 
+/**
+ * Priority support: an active Founding Member's report enters the queue at
+ * elevated priority. Recognition perk only — it bumps queue position, it does
+ * not assign a dedicated rep. Best-effort; falls back to normal on any error.
+ */
+async function isFoundingMemberByClerkId(
+  sql: ReturnType<typeof getDb>,
+  clerkId: string,
+): Promise<boolean> {
+  try {
+    const rows = (await sql`
+      SELECT 1
+      FROM users u
+      WHERE u.clerk_id = ${clerkId}
+        AND (
+          EXISTS (SELECT 1 FROM cleaners  cl WHERE cl.user_id = u.id AND cl.founding_member = TRUE AND cl.founding_member_revoked = FALSE)
+          OR EXISTS (SELECT 1 FROM customers cu WHERE cu.user_id = u.id AND cu.founding_member = TRUE AND cu.founding_member_revoked = FALSE)
+        )
+      LIMIT 1
+    `) as unknown[];
+    return rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 reportRouter.post("/", zValidator("json", schema), async (c) => {
   const body = c.req.valid("json");
   const sql = getDb(c.env.DATABASE_URL);
@@ -136,13 +162,18 @@ reportRouter.post("/", zValidator("json", schema), async (c) => {
   // IT report.
   const it = itTypeFromLabel(body.category);
   const gen = generateTicketId("IT", it.code);
+  // Founding Members get priority support: their tickets enter the queue at
+  // 'high' rather than 'normal' (queue position only — no dedicated rep).
+  const priority = submitter?.clerkId && (await isFoundingMemberByClerkId(sql, submitter.clerkId))
+    ? "high"
+    : "normal";
   await sql`
     INSERT INTO it_tickets (
       title, description, category, priority, source, app, reporter_clerk_id, reporter_email, context,
       ticket_id, case_code, ticket_prefix, encoded_date, encoded_time, issue_type, hex_suffix,
       reporter_ip, reporter_user_agent, reporter_geo, reporter_device, telemetry_consent
     ) VALUES (
-      ${title}, ${description ?? null}, ${it.dbCategory}, 'normal', 'user_report', ${body.app ?? null},
+      ${title}, ${description ?? null}, ${it.dbCategory}, ${priority}, 'user_report', ${body.app ?? null},
       ${submitter?.clerkId ?? null}, ${email}, ${JSON.stringify({ ...(body.context ?? {}), classification: body.category })},
       ${gen.ticketId}, ${gen.caseCode}, 'IT', ${gen.encodedDate}, ${gen.encodedTime}, ${gen.issueType}, ${gen.hex},
       ${telemetry.ip}, ${telemetry.userAgent}, ${telemetry.geo ? JSON.stringify(telemetry.geo) : null},
