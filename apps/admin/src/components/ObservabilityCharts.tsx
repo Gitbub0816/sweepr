@@ -9,121 +9,53 @@
  */
 
 /**
- * React Three Fiber visualizations for the Observability dashboard.
- * Each export is a self-contained canvas component.
+ * Observability dashboard visualizations — pure SVG.
+ *
+ * These were originally react-three-fiber scenes, but five separate WebGL
+ * canvases on one page caused constant "WebGLRenderer: Context Lost" +
+ * THREE.Clock deprecation spam in the console and burned GPU for what are
+ * fundamentally 2D charts. Same exported names/props, zero WebGL.
  */
-import { useRef, useMemo, useState, useEffect } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { Text, RoundedBox, Float, OrbitControls } from "@react-three/drei";
-import * as THREE from "three";
 
-// Guard: only mount a Canvas once the container has non-zero dimensions.
-// Prevents WebGL context loss from canvases rendered at 0x0.
-function useMounted(delay = 50): boolean {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setMounted(true), delay);
-    return () => clearTimeout(t);
-  }, [delay]);
-  return mounted;
+const STATUS_COLORS = {
+  ok: "#10b981",
+  warn: "#f59e0b",
+  bad: "#ef4444",
+} as const;
+
+function latencyColor(ms: number): string {
+  return ms < 300 ? STATUS_COLORS.ok : ms < 1000 ? STATUS_COLORS.warn : STATUS_COLORS.bad;
+}
+
+function fmtMs(ms: number): string {
+  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
 }
 
 // ─── Health Orb ──────────────────────────────────────────────────────────────
 
-function OrbInner({ errorRate }: { errorRate: number }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const glowRef = useRef<THREE.Mesh>(null);
-
-  const color = errorRate > 5 ? "#ef4444" : errorRate > 1 ? "#f59e0b" : "#10b981";
-  const glowColor = errorRate > 5 ? "#fca5a5" : errorRate > 1 ? "#fde68a" : "#6ee7b7";
-
-  useFrame(({ clock }) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.y = clock.getElapsedTime() * 0.3;
-      meshRef.current.rotation.x = Math.sin(clock.getElapsedTime() * 0.2) * 0.1;
-    }
-    if (glowRef.current) {
-      const s = 1 + Math.sin(clock.getElapsedTime() * 1.5) * 0.05;
-      glowRef.current.scale.setScalar(s);
-      (glowRef.current.material as THREE.MeshBasicMaterial).opacity =
-        0.15 + Math.sin(clock.getElapsedTime() * 1.5) * 0.05;
-    }
-  });
-
-  return (
-    <>
-      {/* Glow sphere */}
-      <mesh ref={glowRef}>
-        <sphereGeometry args={[1.3, 32, 32]} />
-        <meshBasicMaterial color={glowColor} transparent opacity={0.15} side={THREE.BackSide} />
-      </mesh>
-      {/* Main sphere */}
-      <mesh ref={meshRef}>
-        <sphereGeometry args={[1, 64, 64]} />
-        <meshStandardMaterial color={color} roughness={0.2} metalness={0.5} />
-      </mesh>
-      {/* Wireframe overlay */}
-      <mesh ref={meshRef}>
-        <sphereGeometry args={[1.01, 16, 16]} />
-        <meshBasicMaterial color={color} wireframe transparent opacity={0.15} />
-      </mesh>
-    </>
-  );
-}
-
 export function HealthOrb({ errorRate, label }: { errorRate: number; label: string }) {
+  const color = errorRate > 5 ? STATUS_COLORS.bad : errorRate > 1 ? STATUS_COLORS.warn : STATUS_COLORS.ok;
   const statusText = errorRate > 5 ? "Degraded" : errorRate > 1 ? "Warning" : "Healthy";
-  const textColor = errorRate > 5 ? "#ef4444" : errorRate > 1 ? "#f59e0b" : "#10b981";
-  const mounted = useMounted();
 
   return (
-    <div className="relative">
-      {mounted && <Canvas
-        camera={{ position: [0, 0, 3.5], fov: 45 }}
-        style={{ height: 180 }}
-        frameloop="demand"
-        gl={{ antialias: false, alpha: true, powerPreference: "low-power" }}
-      >
-        <ambientLight intensity={0.4} />
-        <pointLight position={[5, 5, 5]} intensity={1.5} />
-        <pointLight position={[-5, -5, -5]} intensity={0.5} />
-        <OrbInner errorRate={errorRate} />
-      </Canvas>}
-      <div className="text-center -mt-2">
-        <p className="text-xs font-bold" style={{ color: textColor }}>{statusText}</p>
-        <p className="text-xs text-slate-600">{label}</p>
-      </div>
+    <div className="flex flex-col items-center justify-center py-4">
+      <svg width="120" height="120" viewBox="0 0 120 120" role="img" aria-label={`${label}: ${statusText}`}>
+        <circle cx="60" cy="60" r="52" fill={color} opacity="0.12">
+          <animate attributeName="r" values="50;54;50" dur="3s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="60" cy="60" r="40" fill={color} opacity="0.25" />
+        <circle cx="60" cy="60" r="30" fill={color} />
+        <text x="60" y="66" textAnchor="middle" fontSize="16" fontWeight="700" fill="#fff">
+          {errorRate.toFixed(1)}%
+        </text>
+      </svg>
+      <p className="text-xs font-bold" style={{ color }}>{statusText}</p>
+      <p className="text-xs text-slate-600 dark:text-slate-400">{label}</p>
     </div>
   );
 }
 
-// ─── 3D Bar Chart ─────────────────────────────────────────────────────────────
-
-function Bar3D({ x, height, color, label, maxH }: { x: number; height: number; color: string; label: string; maxH: number }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const normalizedH = Math.max(0.05, (height / Math.max(maxH, 1)) * 2.5);
-
-  useFrame(({ clock }) => {
-    if (meshRef.current) {
-      const pulse = 1 + Math.sin(clock.getElapsedTime() * 2 + x) * 0.01;
-      meshRef.current.scale.y = pulse;
-    }
-  });
-
-  return (
-    <group position={[x, normalizedH / 2 - 1.5, 0]}>
-      <RoundedBox ref={meshRef} args={[0.35, normalizedH, 0.35]} radius={0.04} smoothness={4}>
-        <meshStandardMaterial color={color} roughness={0.3} metalness={0.4} />
-      </RoundedBox>
-      <Text position={[0, normalizedH / 2 + 0.2, 0]} fontSize={0.18} color="#64748b" anchorX="center">
-        {height > 999 ? `${(height / 1000).toFixed(1)}k` : String(height)}
-      </Text>
-      <Text position={[0, -normalizedH / 2 - 0.25, 0]} fontSize={0.14} color="#94a3b8" anchorX="center">
-        {label}
-      </Text>
-    </group>
-  );
-}
+// ─── Bar Chart ───────────────────────────────────────────────────────────────
 
 export function BarChart3D({
   data,
@@ -132,221 +64,142 @@ export function BarChart3D({
   data: { label: string; value: number; color?: string }[];
   title: string;
 }) {
-  const maxVal = Math.max(...data.map(d => d.value), 1);
-  const spacing = 0.55;
-  const totalWidth = (data.length - 1) * spacing;
-
-  const mounted = useMounted();
+  const maxVal = Math.max(...data.map((d) => d.value), 1);
+  const W = 460;
+  const H = 190;
+  const chartH = 130;
+  const baseline = 155;
+  const band = W / Math.max(data.length, 1);
+  const barW = Math.min(band * 0.55, 56);
 
   return (
     <div>
       <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{title}</p>
-      {mounted && <Canvas camera={{ position: [0, 1.5, 5], fov: 50 }} style={{ height: 200 }} frameloop="demand" gl={{ antialias: false, alpha: true, powerPreference: "low-power" }}>
-        <ambientLight intensity={0.6} />
-        <pointLight position={[3, 5, 3]} intensity={1.2} />
-        <pointLight position={[-3, -3, 3]} intensity={0.4} />
-        {data.map((d, i) => (
-          <Bar3D
-            key={d.label}
-            x={(i * spacing) - totalWidth / 2}
-            height={d.value}
-            color={d.color ?? "#14b8a6"}
-            label={d.label}
-            maxH={maxVal}
-          />
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 200 }} role="img" aria-label={title}>
+        {[0.25, 0.5, 0.75, 1].map((f) => (
+          <line key={f} x1="0" x2={W} y1={baseline - chartH * f} y2={baseline - chartH * f}
+            stroke="currentColor" className="text-slate-200 dark:text-slate-700" strokeWidth="1" strokeDasharray="3 4" />
         ))}
-        {/* Floor grid */}
-        <gridHelper args={[8, 8, "#e2e8f0", "#f1f5f9"]} position={[0, -1.5, 0]} />
-      </Canvas>}
+        {data.map((d, i) => {
+          const h = Math.max(3, (d.value / maxVal) * chartH);
+          const x = i * band + (band - barW) / 2;
+          const color = d.color ?? "#14b8a6";
+          const display = d.value > 999 ? `${(d.value / 1000).toFixed(1)}k` : String(d.value);
+          return (
+            <g key={d.label}>
+              <rect x={x} y={baseline - h} width={barW} height={h} rx="5" fill={color} opacity="0.9" />
+              <text x={x + barW / 2} y={baseline - h - 6} textAnchor="middle" fontSize="12" fill="#64748b">{display}</text>
+              <text x={x + barW / 2} y={baseline + 16} textAnchor="middle" fontSize="11" fill="#94a3b8">{d.label}</text>
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }
 
-// ─── Latency Gauges ───────────────────────────────────────────────────────────
+// ─── Latency Gauges ──────────────────────────────────────────────────────────
 
-function GaugeRing({ pct, color, label, value, radius }: {
-  pct: number; color: string; label: string; value: string; radius: number;
-}) {
-  const ringRef = useRef<THREE.Mesh>(null);
-  const filled = useMemo(() => {
-    const curve = new THREE.EllipseCurve(0, 0, radius, radius, 0, Math.PI * 2 * pct, false, 0);
-    const points = curve.getPoints(64);
-    const geom = new THREE.BufferGeometry().setFromPoints(
-      points.map(p => new THREE.Vector3(p.x, p.y, 0))
-    );
-    return geom;
-  }, [pct, radius]);
-
-  useFrame(({ clock }) => {
-    if (ringRef.current) {
-      ringRef.current.rotation.z = -clock.getElapsedTime() * 0.1;
-    }
-  });
-
+function Gauge({ pct, color, label, value }: { pct: number; color: string; label: string; value: string }) {
+  const R = 40;
+  const C = 2 * Math.PI * R;
+  const filled = Math.max(pct, 0.01) * C;
   return (
-    <group>
-      {/* Background ring */}
-      <mesh>
-        <torusGeometry args={[radius, 0.06, 16, 128]} />
-        <meshBasicMaterial color="#e2e8f0" />
-      </mesh>
-      {/* Filled arc — fake with a torus capped to pct */}
-      <mesh ref={ringRef}>
-        <torusGeometry args={[radius, 0.09, 16, 128, Math.PI * 2 * Math.max(pct, 0.01)]} />
-        <meshStandardMaterial color={color} roughness={0.2} metalness={0.4} emissive={color} emissiveIntensity={0.2} />
-      </mesh>
-      <Text position={[0, 0.1, 0]} fontSize={0.22} color={color} anchorX="center" fontWeight={700}>
-        {value}
-      </Text>
-      <Text position={[0, -0.22, 0]} fontSize={0.13} color="#94a3b8" anchorX="center">
-        {label}
-      </Text>
-    </group>
+    <svg width="110" height="110" viewBox="0 0 110 110" role="img" aria-label={`${label}: ${value}`}>
+      <circle cx="55" cy="55" r={R} fill="none" stroke="currentColor" className="text-slate-200 dark:text-slate-700" strokeWidth="9" />
+      <circle
+        cx="55" cy="55" r={R} fill="none" stroke={color} strokeWidth="9" strokeLinecap="round"
+        strokeDasharray={`${filled} ${C - filled}`} transform="rotate(-90 55 55)"
+      />
+      <text x="55" y="54" textAnchor="middle" fontSize="15" fontWeight="700" fill={color}>{value}</text>
+      <text x="55" y="72" textAnchor="middle" fontSize="10" fill="#94a3b8">{label}</text>
+    </svg>
   );
 }
 
 export function LatencyGauges({ p50, p95, p99, threshold = 2000 }: {
   p50: number; p95: number; p99: number; threshold?: number;
 }) {
-  const pct50 = Math.min(p50 / threshold, 1);
-  const pct95 = Math.min(p95 / threshold, 1);
-  const pct99 = Math.min(p99 / threshold, 1);
-  const col = (ms: number) => ms < 300 ? "#10b981" : ms < 1000 ? "#f59e0b" : "#ef4444";
-  const fmt = (ms: number) => ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
-  const mounted = useMounted();
-
   return (
     <div>
       <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Latency Percentiles</p>
-      {mounted && <Canvas camera={{ position: [0, 0, 5], fov: 45 }} style={{ height: 180 }} frameloop="demand" gl={{ antialias: false, alpha: true, powerPreference: "low-power" }}>
-        <ambientLight intensity={0.6} />
-        <pointLight position={[0, 3, 3]} intensity={1} />
-        <group position={[-2.2, 0, 0]}>
-          <GaugeRing pct={pct50} color={col(p50)} label="P50" value={fmt(p50)} radius={0.8} />
-        </group>
-        <group position={[0, 0, 0]}>
-          <GaugeRing pct={pct95} color={col(p95)} label="P95" value={fmt(p95)} radius={0.8} />
-        </group>
-        <group position={[2.2, 0, 0]}>
-          <GaugeRing pct={pct99} color={col(p99)} label="P99" value={fmt(p99)} radius={0.8} />
-        </group>
-      </Canvas>}
+      <div className="flex items-center justify-center gap-6 py-4">
+        <Gauge pct={Math.min(p50 / threshold, 1)} color={latencyColor(p50)} label="P50" value={fmtMs(p50)} />
+        <Gauge pct={Math.min(p95 / threshold, 1)} color={latencyColor(p95)} label="P95" value={fmtMs(p95)} />
+        <Gauge pct={Math.min(p99 / threshold, 1)} color={latencyColor(p99)} label="P99" value={fmtMs(p99)} />
+      </div>
     </div>
   );
 }
 
-// ─── Funnel 3D ────────────────────────────────────────────────────────────────
-
-function FunnelStep({ y, radius, height, color, label, count, pct }: {
-  y: number; radius: number; height: number; color: string; label: string; count: number; pct: number;
-}) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  useFrame(({ clock }) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.y = clock.getElapsedTime() * 0.15;
-    }
-  });
-
-  return (
-    <group position={[0, y, 0]}>
-      <mesh ref={meshRef}>
-        <cylinderGeometry args={[radius * 0.7, radius, height, 32]} />
-        <meshStandardMaterial color={color} roughness={0.3} metalness={0.3} transparent opacity={0.85} />
-      </mesh>
-      <Text position={[radius + 0.3, 0, 0]} fontSize={0.14} color="#475569" anchorX="left" maxWidth={2}>
-        {`${label} (${count})`}
-      </Text>
-      <Text position={[-radius - 0.1, 0, 0]} fontSize={0.16} color={color} anchorX="right">
-        {`${pct}%`}
-      </Text>
-    </group>
-  );
-}
+// ─── Booking Funnel ──────────────────────────────────────────────────────────
 
 export function FunnelViz({ steps }: { steps: { label: string; count: number }[] }) {
   const top = steps[0]?.count ?? 1;
   const colors = ["#14b8a6", "#22d3ee", "#38bdf8", "#60a5fa", "#818cf8", "#a78bfa"];
-  const mounted = useMounted();
+  const W = 480;
+  const rowH = 40;
+  const H = steps.length * rowH + 8;
+  const maxW = 240;
+  const minW = 56;
+  const cx = 200;
 
   return (
     <div>
-      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Booking Funnel (3D)</p>
-      {mounted && <Canvas camera={{ position: [2.5, 0, 6], fov: 50 }} style={{ height: 260 }} frameloop="demand" gl={{ antialias: false, alpha: true, powerPreference: "low-power" }}>
-        <ambientLight intensity={0.5} />
-        <pointLight position={[3, 5, 5]} intensity={1.2} />
-        <pointLight position={[-3, -3, 5]} intensity={0.4} />
-        <OrbitControls enablePan={false} enableZoom={false} autoRotate autoRotateSpeed={0.5} />
+      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Booking Funnel</p>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 280 }} role="img" aria-label="Booking funnel">
         {steps.map((step, i) => {
           const pct = top > 0 ? Math.round((step.count / top) * 100) : 0;
-          const radius = 0.3 + (pct / 100) * 1.2;
-          const y = (steps.length / 2 - i) * 0.6;
+          const wTop = minW + ((steps[i - 1] ? (steps[i - 1].count / top) : 1) * (maxW - minW));
+          const wBot = minW + (top > 0 ? step.count / top : 0) * (maxW - minW);
+          const y = i * rowH + 6;
+          const color = colors[i % colors.length] ?? "#14b8a6";
           return (
-            <Float key={i} speed={0.5} rotationIntensity={0} floatIntensity={0.1}>
-              <FunnelStep
-                y={y} radius={radius} height={0.45}
-                color={colors[i % colors.length] ?? "#14b8a6"}
-                label={step.label} count={step.count} pct={pct}
+            <g key={step.label}>
+              <path
+                d={`M ${cx - wTop / 2} ${y} L ${cx + wTop / 2} ${y} L ${cx + wBot / 2} ${y + rowH - 8} L ${cx - wBot / 2} ${y + rowH - 8} Z`}
+                fill={color} opacity="0.85"
               />
-            </Float>
+              <text x={cx - maxW / 2 - 14} y={y + rowH / 2} textAnchor="end" fontSize="12" fontWeight="600" fill={color}>
+                {pct}%
+              </text>
+              <text x={cx + maxW / 2 + 14} y={y + rowH / 2} textAnchor="start" fontSize="12" fill="#64748b">
+                {step.label} ({step.count})
+              </text>
+            </g>
           );
         })}
-      </Canvas>}
+      </svg>
     </div>
   );
 }
 
-// ─── Payment Flow Globe ───────────────────────────────────────────────────────
-
-function PaymentParticle({ position, color }: { position: [number, number, number]; color: string }) {
-  const ref = useRef<THREE.Mesh>(null);
-  const speed = 0.3 + Math.random() * 0.7;
-  const offset = Math.random() * Math.PI * 2;
-
-  useFrame(({ clock }) => {
-    if (ref.current) {
-      const t = clock.getElapsedTime() * speed + offset;
-      ref.current.position.x = position[0] * Math.cos(t * 0.1);
-      ref.current.position.z = position[2] * Math.sin(t * 0.1);
-      ref.current.position.y = position[1] + Math.sin(t) * 0.15;
-    }
-  });
-
-  return (
-    <mesh ref={ref} position={position}>
-      <sphereGeometry args={[0.04, 8, 8]} />
-      <meshBasicMaterial color={color} />
-    </mesh>
-  );
-}
+// ─── Payment Flow ────────────────────────────────────────────────────────────
 
 export function PaymentFlowViz({ successRate, total }: { successRate: number; total: number }) {
-  const particles = useMemo(() => {
-    return Array.from({ length: Math.min(total > 0 ? 30 : 5, 30) }, (_, i) => ({
-      position: [
-        (Math.random() - 0.5) * 4,
-        (Math.random() - 0.5) * 3,
-        (Math.random() - 0.5) * 2,
-      ] as [number, number, number],
-      color: i < (successRate / 100) * 30 ? "#10b981" : "#ef4444",
-    }));
-  }, [total, successRate]);
-  const mounted = useMounted();
+  const color = successRate >= 95 ? STATUS_COLORS.ok : successRate >= 85 ? STATUS_COLORS.warn : STATUS_COLORS.bad;
+  const R = 52;
+  const C = 2 * Math.PI * R;
+  const filled = Math.max(Math.min(successRate / 100, 1), 0.01) * C;
 
   return (
     <div>
       <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Payment Flow</p>
-      {mounted && <Canvas camera={{ position: [0, 0, 6], fov: 50 }} style={{ height: 160 }} frameloop="demand" gl={{ antialias: false, alpha: true, powerPreference: "low-power" }}>
-        <ambientLight intensity={0.8} />
-        {particles.map((p, i) => (
-          <PaymentParticle key={i} position={p.position} color={p.color} />
-        ))}
-        <Text position={[0, 0, 0]} fontSize={0.5} color={successRate >= 95 ? "#10b981" : "#ef4444"} anchorX="center">
-          {`${successRate.toFixed(1)}%`}
-        </Text>
-        <Text position={[0, -0.7, 0]} fontSize={0.2} color="#94a3b8" anchorX="center">
-          success rate
-        </Text>
-      </Canvas>}
+      <div className="flex items-center justify-center py-2">
+        <svg width="150" height="150" viewBox="0 0 150 150" role="img" aria-label={`Payment success rate ${successRate.toFixed(1)}%`}>
+          <circle cx="75" cy="75" r={R} fill="none" stroke="currentColor" className="text-slate-200 dark:text-slate-700" strokeWidth="11" />
+          <circle
+            cx="75" cy="75" r={R} fill="none" stroke={color} strokeWidth="11" strokeLinecap="round"
+            strokeDasharray={`${filled} ${C - filled}`} transform="rotate(-90 75 75)"
+          />
+          <text x="75" y="72" textAnchor="middle" fontSize="20" fontWeight="700" fill={color}>
+            {successRate.toFixed(1)}%
+          </text>
+          <text x="75" y="92" textAnchor="middle" fontSize="11" fill="#94a3b8">
+            success · {total.toLocaleString()} payments
+          </text>
+        </svg>
+      </div>
     </div>
   );
 }

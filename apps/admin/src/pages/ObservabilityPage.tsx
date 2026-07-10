@@ -859,7 +859,7 @@ function ExternalIntegrationsPanel() {
         const res = await fetch(`${apiBase}/admin/observability/sentry`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const d = await res.json() as { status: string; issues: number | null; url?: string };
+        const d = await res.json() as { status: string; issues: number | null; url?: string; detail?: string };
         if (!cancelled) {
           if (d.status === "unconfigured") {
             setTile("sentry-errors", { status: "unconfigured", value: null });
@@ -871,7 +871,9 @@ function ExternalIntegrationsPanel() {
               href: d.url,
             });
           } else {
-            setTile("sentry-errors", { status: "error", value: "Fetch failed" });
+            // Show the server-diagnosed reason (bad token / wrong slug / scopes)
+            // instead of an unactionable "Fetch failed".
+            setTile("sentry-errors", { status: "error", value: "Error", sub: d.detail ?? "Fetch failed" });
           }
         }
       } catch {

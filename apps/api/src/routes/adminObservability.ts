@@ -80,7 +80,7 @@ observabilityRouter.get("/api-health", async (c) => {
         ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms))::int AS p95_latency_ms,
         ROUND(PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY duration_ms))::int AS p99_latency_ms
       FROM api_request_logs
-      WHERE logged_at > NOW() - INTERVAL ${interval}
+      WHERE logged_at > NOW() - ${interval}::interval
     `, [{}] as Array<Record<string, unknown>>),
     settle(sql`
       SELECT
@@ -89,7 +89,7 @@ observabilityRouter.get("/api-health", async (c) => {
         COUNT(*) FILTER (WHERE status_code >= 500)::int AS errors,
         ROUND(AVG(duration_ms))::int AS avg_ms
       FROM api_request_logs
-      WHERE logged_at > NOW() - INTERVAL ${interval}
+      WHERE logged_at > NOW() - ${interval}::interval
       GROUP BY path
       ORDER BY count DESC
       LIMIT 20
@@ -97,7 +97,7 @@ observabilityRouter.get("/api-health", async (c) => {
     settle(sql`
       SELECT status_code, COUNT(*)::int AS count
       FROM api_request_logs
-      WHERE logged_at > NOW() - INTERVAL ${interval}
+      WHERE logged_at > NOW() - ${interval}::interval
       GROUP BY status_code
       ORDER BY status_code
     `, [] as unknown[]),
@@ -111,14 +111,14 @@ observabilityRouter.get("/api-health", async (c) => {
         END AS bucket,
         COUNT(*)::int AS count
       FROM api_request_logs
-      WHERE logged_at > NOW() - INTERVAL ${interval}
+      WHERE logged_at > NOW() - ${interval}::interval
       GROUP BY bucket
       ORDER BY MIN(duration_ms)
     `, [] as unknown[]),
     settle(sql`
       SELECT method, path, status_code, duration_ms, error_message, user_role, country_code, logged_at
       FROM api_request_logs
-      WHERE status_code >= 400 AND logged_at > NOW() - INTERVAL ${interval}
+      WHERE status_code >= 400 AND logged_at > NOW() - ${interval}::interval
       ORDER BY logged_at DESC
       LIMIT 50
     `, [] as unknown[]),
@@ -139,28 +139,28 @@ observabilityRouter.get("/payments", async (c) => {
         COUNT(*) FILTER (WHERE success = false)::int AS failed,
         COALESCE(SUM(amount_cents) FILTER (WHERE success = true), 0)::bigint AS total_volume_cents
       FROM payment_observability_events
-      WHERE occurred_at > NOW() - INTERVAL ${interval}
+      WHERE occurred_at > NOW() - ${interval}::interval
     `, [{}] as Array<Record<string, unknown>>),
     settle(sql`
       SELECT event_type, COUNT(*)::int AS total,
              COUNT(*) FILTER (WHERE success = true)::int AS success,
              COUNT(*) FILTER (WHERE success = false)::int AS failed
       FROM payment_observability_events
-      WHERE occurred_at > NOW() - INTERVAL ${interval}
+      WHERE occurred_at > NOW() - ${interval}::interval
       GROUP BY event_type
       ORDER BY total DESC
     `, [] as unknown[]),
     settle(sql`
       SELECT event_type, error_code, error_message, amount_cents, occurred_at
       FROM payment_observability_events
-      WHERE success = false AND occurred_at > NOW() - INTERVAL ${interval}
+      WHERE success = false AND occurred_at > NOW() - ${interval}::interval
       ORDER BY occurred_at DESC
       LIMIT 30
     `, [] as unknown[]),
     settle(sql`
       SELECT event_type, success, amount_cents, currency, provider_event_id, error_code, occurred_at
       FROM payment_observability_events
-      WHERE occurred_at > NOW() - INTERVAL ${interval}
+      WHERE occurred_at > NOW() - ${interval}::interval
       ORDER BY occurred_at DESC
       LIMIT 50
     `, [] as unknown[]),
@@ -182,27 +182,27 @@ observabilityRouter.get("/booking-funnel", async (c) => {
         'booking_flow_started','address_entered','service_selected',
         'cleaner_selected','payment_started','booking_confirmed'
       )
-      AND occurred_at > NOW() - INTERVAL ${interval}
+      AND occurred_at > NOW() - ${interval}::interval
       GROUP BY event_name
     `, [] as unknown[]),
     settle(sql`
       SELECT status, COUNT(*)::int AS count
       FROM bookings
-      WHERE created_at > NOW() - INTERVAL ${interval}
+      WHERE created_at > NOW() - ${interval}::interval
       GROUP BY status
     `, [] as unknown[]),
     settle(sql`
       SELECT device_type, COUNT(*)::int AS count
       FROM analytics_events
       WHERE event_name = 'booking_confirmed'
-        AND occurred_at > NOW() - INTERVAL ${interval}
+        AND occurred_at > NOW() - ${interval}::interval
       GROUP BY device_type
     `, [] as unknown[]),
     settle(sql`
       SELECT event_name, COUNT(*)::int AS count, device_type
       FROM analytics_events
       WHERE event_name LIKE 'booking_%abandoned%'
-        AND occurred_at > NOW() - INTERVAL ${interval}
+        AND occurred_at > NOW() - ${interval}::interval
       GROUP BY event_name, device_type
       ORDER BY count DESC
     `, [] as unknown[]),
@@ -223,7 +223,7 @@ observabilityRouter.get("/cleaner-ops", async (c) => {
         COUNT(*) FILTER (WHERE status = 'in_progress')::int AS in_progress,
         COUNT(*) FILTER (WHERE status = 'cancelled')::int AS cancelled
       FROM bookings
-      WHERE scheduled_at > NOW() - INTERVAL ${interval}
+      WHERE scheduled_at > NOW() - ${interval}::interval
     `, [{}] as Array<Record<string, unknown>>),
     settle(sql`
       SELECT event_name, COUNT(*)::int AS count
@@ -232,7 +232,7 @@ observabilityRouter.get("/cleaner-ops", async (c) => {
         'cleaner_start_route','cleaner_arrived','cleaner_start_clean',
         'cleaner_finish_clean','cleaner_checkout','cleaner_photo_added'
       )
-      AND occurred_at > NOW() - INTERVAL ${interval}
+      AND occurred_at > NOW() - ${interval}::interval
       GROUP BY event_name
       ORDER BY event_name
     `, [] as unknown[]),
@@ -240,7 +240,7 @@ observabilityRouter.get("/cleaner-ops", async (c) => {
       SELECT COUNT(*)::int AS count
       FROM analytics_events
       WHERE event_name = 'cleaner_late_arrival'
-        AND occurred_at > NOW() - INTERVAL ${interval}
+        AND occurred_at > NOW() - ${interval}::interval
     `, [{ count: 0 }] as Array<Record<string, unknown>>),
     settle(sql`
       SELECT
@@ -248,7 +248,7 @@ observabilityRouter.get("/cleaner-ops", async (c) => {
       FROM analytics_events
       WHERE event_name = 'cleaner_checkout'
         AND properties->>'duration_secs' IS NOT NULL
-        AND occurred_at > NOW() - INTERVAL ${interval}
+        AND occurred_at > NOW() - ${interval}::interval
     `, [{}] as Array<Record<string, unknown>>),
   ]);
   return c.json({ dosStats: dosStats[0], cleanerActivity, lateArrivals: lateArrivals[0], checkoutTimes: checkoutTimes[0] });
@@ -466,7 +466,21 @@ observabilityRouter.get("/sentry", async (c) => {
       `https://us.sentry.io/api/0/projects/${org}/${project}/issues/?limit=25&statsPeriod=24h&query=is:unresolved`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
-    if (!res.ok) return c.json({ status: "error" as const, issues: null });
+    if (!res.ok) {
+      // Surface WHY so the tile is actionable instead of a blind "Fetch
+      // failed": 401 = token invalid/expired, 403 = missing scopes,
+      // 404 = wrong org/project slug.
+      const body = (await res.text().catch(() => "")).slice(0, 200);
+      const hint =
+        res.status === 401
+          ? "SENTRY_AUTH_TOKEN invalid or expired — create a new Organization Auth Token in Sentry → Settings → Auth Tokens"
+          : res.status === 403
+            ? "token lacks permission (needs project:read + event:read scopes)"
+            : res.status === 404
+              ? `org/project not found (org=${org}, project=${project}) — check SENTRY_ORG / SENTRY_PROJECT`
+              : body || "unexpected response";
+      return c.json({ status: "error" as const, issues: null, detail: `Sentry API ${res.status}: ${hint}` });
+    }
     const issues = (await res.json()) as unknown[];
     const total = parseInt(res.headers.get("X-Hits") ?? String(issues.length), 10);
     return c.json({
@@ -474,8 +488,12 @@ observabilityRouter.get("/sentry", async (c) => {
       issues: total,
       url: `https://sentry.io/organizations/${org}/issues/`,
     });
-  } catch {
-    return c.json({ status: "error" as const, issues: null });
+  } catch (err) {
+    return c.json({
+      status: "error" as const,
+      issues: null,
+      detail: `fetch failed: ${err instanceof Error ? err.message : "unknown"}`,
+    });
   }
 });
 
