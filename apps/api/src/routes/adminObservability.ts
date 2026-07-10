@@ -457,7 +457,8 @@ observabilityRouter.get("/sentry", async (c) => {
   // missing env var (e.g. the non-existent "sweepr-api" project) can't break
   // the tile. Only the auth token is required.
   const org = c.env.SENTRY_ORG || "sweepr-45";
-  const project = c.env.SENTRY_PROJECT || "sweepr-react";
+  // The real project in the sweepr-45 org (created by the Sentry wizard).
+  const project = c.env.SENTRY_PROJECT || "javascript-nextjs";
   if (!token) {
     return c.json({ status: "unconfigured" as const, issues: null });
   }

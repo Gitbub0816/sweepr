@@ -153,6 +153,46 @@ adminDebugRouter.get("/yardstik", async (c) => {
 });
 
 /**
+ * One-click Sentry verification: sends a synthetic test event through the same
+ * recordError → forwardToSentry pipeline every real error uses. If SENTRY_DSN
+ * is set correctly, a "Sweepr Sentry test event" appears in Sentry Issues
+ * within seconds (this also satisfies Sentry's "waiting for first error"
+ * onboarding gate).
+ */
+adminDebugRouter.get("/sentry-test", async (c) => {
+  const dsnPresent = Boolean(c.env.SENTRY_DSN);
+  if (!dsnPresent) {
+    return c.json({
+      ok: false,
+      dsnPresent,
+      hint: "Set the DSN first: printf 'https://…' | wrangler secret put SENTRY_DSN (in apps/api). Copy it from Sentry → Settings → Projects → javascript-nextjs → Client Keys (DSN).",
+    });
+  }
+  const { recordError } = await import("../lib/errorLog");
+  const sql = getDb(c.env.DATABASE_URL);
+  await recordError(
+    sql,
+    {
+      source: "server",
+      app: "api",
+      level: "error",
+      message: "Sweepr Sentry test event — integration verified",
+      errorName: "SentryTestEvent",
+      path: "/admin/debug/sentry-test",
+      method: "GET",
+      fingerprint: "sentry-test-event",
+      context: { triggeredBy: c.get("user").clerkId, at: new Date().toISOString() },
+    },
+    c.env,
+  );
+  return c.json({
+    ok: true,
+    dsnPresent,
+    note: "Test event sent through the real pipeline — check Sentry Issues (and the admin Errors feed).",
+  });
+});
+
+/**
  * Dump a cleaner's Stripe Connect state — both what we have locally and what
  * Stripe reports live — so we can see exactly what Stripe is waiting on when a
  * cleaner shows "not set up" after onboarding. Owner-only (router is gated).

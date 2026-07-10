@@ -60,6 +60,8 @@ export interface Env {
   CF_ANALYTICS_TOKEN?: string;
   CF_ZONE_ID?: string;
   SENTRY_AUTH_TOKEN?: string;
+  /** Sentry project DSN — enables server-side forwarding of ALL errors (see lib/sentryForward.ts). */
+  SENTRY_DSN?: string;
   SENTRY_ORG?: string;
   SENTRY_PROJECT?: string;
   // Slack integration (server-side only — never exposed to the browser).

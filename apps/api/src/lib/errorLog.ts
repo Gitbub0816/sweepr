@@ -11,6 +11,7 @@
 import type { Sql } from "@sweepr/db";
 import { logger } from "./logger";
 import { alertAdmins } from "./adminAlerts";
+import { forwardToSentry } from "./sentryForward";
 import type { Env } from "../types";
 
 export interface ErrorLogInput {
@@ -108,6 +109,10 @@ export async function recordError(sql: Sql, input: ErrorLogInput, env?: Env): Pr
         dedupeKey: fingerprint,
       });
     }
+
+    // Mirror to Sentry (single choke point: covers server errors AND client
+    // errors from every app). No-op until SENTRY_DSN is configured.
+    if (env) await forwardToSentry(env, input);
   } catch (err) {
     // Swallow — the error feed must never take down the request path.
     logger.error("recordError failed", err);

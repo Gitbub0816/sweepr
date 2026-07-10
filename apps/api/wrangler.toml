@@ -35,7 +35,11 @@ preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
 # STRIPE_SECRET_KEY
 # STRIPE_WEBHOOK_SECRET
 # MAILERSEND_API_KEY
-# POSTHOG_KEY
+# POSTHOG_KEY                 (PERSONAL API key phx_... — a project key phc_... can't read event counts)
+# SENTRY_DSN                  (Sentry -> Settings -> Projects -> <project> -> Client Keys (DSN);
+#                              enables server-side forwarding of ALL platform errors to Sentry)
+# SENTRY_AUTH_TOKEN           (Organization Auth Token — powers the admin Integrations tile)
+# SENTRY_ORG / SENTRY_PROJECT (optional slugs; default sweepr-45 / javascript-nextjs)
 # ACCESS_CODE_ENCRYPTION_KEY  (32-byte hex key: openssl rand -hex 32)
 # DIDIT_API_KEY               (x-api-key for hosted session creation)
 # DIDIT_WORKFLOW_ID           (personal / individual KYC workflow)
