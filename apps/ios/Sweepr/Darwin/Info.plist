@@ -22,6 +22,10 @@
     <string>0.1.0</string>
     <key>CFBundleVersion</key>
     <string>1</string>
+    <!-- iOS 26 SDK floor — matches Package.swift .iOS(.v26) + Skip.env
+         IPHONEOS_DEPLOYMENT_TARGET. -->
+    <key>MinimumOSVersion</key>
+    <string>26.0</string>
     <key>UILaunchScreen</key>
     <dict/>
     <key>UISupportedInterfaceOrientations</key>

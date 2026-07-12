@@ -30,6 +30,11 @@ public struct RootView: View {
             AccountScreen()
                 .tabItem { Label("Account", systemImage: "person.crop.circle") }
         }
+        .sweeprToast(env.toast)
+        .task {
+            await env.session.refresh()
+            await env.bookingStore.load()
+        }
     }
 }
 
