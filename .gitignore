@@ -14,9 +14,3 @@ sweepr.env.local
 .claude/
 *.tsbuildinfo
 apps/marketing/tsconfig.tsbuildinfo
-
-# Vendored agent skills are versioned; the rest of .claude (worktrees,
-# settings, session state) stays ignored.
-!.claude/
-.claude/*
-!.claude/skills/
