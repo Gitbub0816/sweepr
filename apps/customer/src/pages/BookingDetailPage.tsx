@@ -36,6 +36,7 @@ import { fetchBooking, type BookingWithCleaner } from "../data/bookings";
 import { CleanerTracker } from "../components/CleanerTracker";
 import { TipCard } from "../components/TipCard";
 import { AddServicesCard } from "../components/AddServicesCard";
+import { SmartEntryCard } from "../components/SmartEntryCard";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 
@@ -372,6 +373,10 @@ export function BookingDetailPage() {
               getToken={getToken}
               onUpdated={reload}
             />
+          )}
+
+          {PRE_SERVICE_STATUSES.has(booking.status) && id && (
+            <SmartEntryCard bookingId={id} token={authToken} apiUrl={API} />
           )}
 
           {(booking.status === "completed" || booking.status === "completed_pending_review") && (

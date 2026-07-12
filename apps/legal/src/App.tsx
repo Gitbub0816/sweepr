@@ -33,6 +33,7 @@ import { BackgroundCheckAuthorization } from "./pages/BackgroundCheckAuthorizati
 import { BackgroundCheckAdverseAction } from "./pages/BackgroundCheckAdverseAction";
 import { BackgroundCheckAdjudicationPolicy } from "./pages/BackgroundCheckAdjudicationPolicy";
 import { PromotionsCouponsTerms } from "./pages/PromotionsCouponsTerms";
+import { SmartEntryMembershipTerms } from "./pages/SmartEntryMembershipTerms";
 import { PaymentServicesTerms } from "./pages/PaymentServicesTerms";
 import { PlatformFeePolicy } from "./pages/PlatformFeePolicy";
 import { TaxReportingPolicy } from "./pages/TaxReportingPolicy";
@@ -101,6 +102,7 @@ export default function App() {
           element={<BackgroundCheckAdjudicationPolicy />}
         />
         <Route path="/promotions-coupons-terms" element={<PromotionsCouponsTerms />} />
+        <Route path="/smart-entry-membership" element={<SmartEntryMembershipTerms />} />
 
         {/* Payments & Tax */}
         <Route path="/payment-terms" element={<PaymentServicesTerms />} />

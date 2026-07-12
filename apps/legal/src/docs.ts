@@ -114,6 +114,12 @@ export const DOCS: DocMeta[] = [
     description: "Recurring service and subscription billing terms.",
     category: "Customers",
   },
+  {
+    slug: "smart-entry-membership",
+    title: "Smart Entry & Sweepr+ Terms",
+    description: "Temporary home access, smart-lock use, and Sweepr+ membership billing & benefits.",
+    category: "Customers",
+  },
 
   // ── Cleaners ────────────────────────────────────────────────────────────────
   {

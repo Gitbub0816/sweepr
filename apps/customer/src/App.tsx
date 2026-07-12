@@ -67,6 +67,7 @@ import { BookingsPage } from "./pages/BookingsPage";
 import { RentalsPage } from "./pages/RentalsPage";
 import { BookingDetailPage } from "./pages/BookingDetailPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { MembershipPage } from "./pages/MembershipPage";
 import { PaymentMethodsPage } from "./pages/PaymentMethodsPage";
 import { Home } from "./pages/Home";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -269,6 +270,8 @@ export default function App() {
             element={<Protected><SubscriptionsPage /></Protected>}
           />
           <Route path="/profile" element={<Protected><ProfilePage /></Protected>} />
+          <Route path="/membership" element={<Protected><MembershipPage /></Protected>} />
+          <Route path="/account/membership" element={<Protected><MembershipPage /></Protected>} />
           <Route
             path="/payment-methods"
             element={<Protected><PaymentMethodsPage /></Protected>}
