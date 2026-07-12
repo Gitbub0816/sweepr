@@ -10,6 +10,20 @@ html, body, #root {
   height: 100%;
 }
 
+/* How-it-works route map animations (see HowItWorksSection). */
+@keyframes sweepr-sparkle {
+  0%, 100% { opacity: .32; transform: scale(.72) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.15) rotate(45deg); }
+}
+@keyframes sweepr-fadeswap {
+  from { opacity: 0; transform: translateY(9px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .\[animation\:sweepr-sparkle_2\.4s_ease-in-out_infinite\],
+  .\[animation\:sweepr-fadeswap_\.34s_ease_both\] { animation: none !important; }
+}
+
 body {
   margin: 0;
 }
