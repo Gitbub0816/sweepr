@@ -43,6 +43,8 @@ interface Partner {
    * partner's own domain. When present it replaces the mark+name row.
    */
   wordmark?: string;
+  /** Wordmark is light/white and needs a dark chip to be legible. */
+  wordmarkDark?: boolean;
 }
 
 const CLERK: Partner = {
@@ -67,6 +69,7 @@ const YARDSTIK: Partner = {
   href: "https://www.yardstik.com",
   logo: "https://www.yardstik.com/favicon.ico",
   wordmark: "https://yardstik.com/wp-content/uploads/2026/02/YS-Trust-Reimagined.png",
+  wordmarkDark: true,
 };
 const DIDIT: Partner = {
   name: "Didit",
@@ -175,7 +178,11 @@ function WordmarkImg({ partner }: { partner: Partner }) {
     );
   }
   return (
-    <span className="inline-flex items-center rounded-md bg-white px-2 py-1 ring-1 ring-slate-200">
+    <span
+      className={`inline-flex items-center rounded-md px-2 py-1 ring-1 ${
+        partner.wordmarkDark ? "bg-slate-900 ring-slate-700" : "bg-white ring-slate-200"
+      }`}
+    >
       <img
         src={partner.wordmark}
         alt={`${partner.name} logo`}
