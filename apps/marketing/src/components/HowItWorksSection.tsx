@@ -420,7 +420,7 @@ export function HowItWorksSection() {
   };
 
   return (
-    <section id="how" className="mx-auto max-w-6xl px-4 py-20">
+    <section id="how" className="mx-auto max-w-7xl px-4 py-20">
       <Reveal className="text-center">
         <p className="text-sm font-bold uppercase tracking-wide text-seafoam-700">How Sweepr works</p>
         <h2 className="mt-2 text-3xl font-black text-charcoal dark:text-white sm:text-4xl">
@@ -433,9 +433,11 @@ export function HowItWorksSection() {
       </Reveal>
 
       <Reveal className="mt-12">
-        <div className="grid overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900 lg:h-[540px] lg:grid-cols-[1.7fr_0.85fr]">
+        {/* Nearly viewport-height so most of the road is visible at once —
+            the internal scroll only assists, it isn't the primary viewport. */}
+        <div className="grid overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900 lg:h-[min(88svh,68rem)] lg:grid-cols-[1.7fr_0.85fr]">
           {/* ── Map panel ─────────────────────────────────────────────── */}
-          <div className="relative h-[460px] overflow-hidden border-b border-slate-200 bg-gradient-to-br from-seafoam-50/60 via-white to-slate-50 dark:border-slate-700 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800 lg:h-full lg:border-b-0 lg:border-r">
+          <div className="relative h-[72svh] min-h-[480px] overflow-hidden border-b border-slate-200 bg-gradient-to-br from-seafoam-50/60 via-white to-slate-50 dark:border-slate-700 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800 lg:h-full lg:border-b-0 lg:border-r">
             {/* kicker (pinned over the scrolling road) */}
             <span className="pointer-events-none absolute left-6 top-6 z-20 inline-flex items-center gap-2 rounded-xl border border-seafoam-600/20 bg-white/80 px-3 py-2 text-xs font-extrabold text-seafoam-800 shadow-sm backdrop-blur dark:bg-slate-800/80 dark:text-seafoam-300">
               <Sparkles className="h-4 w-4" aria-hidden="true" />
