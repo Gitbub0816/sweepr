@@ -20,6 +20,7 @@ import { DashboardShell, Card, Button, ErrorState, Skeleton, toast } from "@swee
 import { formatCurrency } from "@sweepr/utils";
 import { NavigationMap } from "../components/NavigationMap";
 import { ScopeReviewSection } from "../components/ScopeReviewSection";
+import { SmartEntryAccess } from "../components/SmartEntryAccess";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 
@@ -322,6 +323,10 @@ export function JobDetailPage() {
           </div>
         )}
       </Card>
+
+      {id && (job.day_status === "arrived" || job.day_status === "in_progress") && (
+        <SmartEntryAccess bookingId={id} getToken={getToken} apiUrl={API} eligible />
+      )}
 
       {/* Action buttons by step */}
       {!isCompleted && (
