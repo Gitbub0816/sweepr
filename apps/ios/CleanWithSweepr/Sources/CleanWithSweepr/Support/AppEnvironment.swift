@@ -14,11 +14,16 @@ import SweeprKit
 @MainActor
 public final class AppEnvironment: ObservableObject {
     public let api: SweeprAPI
+    public let cleanerAPI: CleanerAPI
     public let tokenProvider: AuthTokenProvider
+    /// True while the cleaner is actively mid-shift on a job — drives the
+    /// pinned in-shift banner on the Jobs tab.
+    @Published public var activeJob: Job?
 
     public init(tokenProvider: AuthTokenProvider) {
         self.tokenProvider = tokenProvider
         self.api = SweeprAPI(config: .production, tokenProvider: tokenProvider)
+        self.cleanerAPI = CleanerAPI(tokenProvider: tokenProvider)
     }
 
     public static var preview: AppEnvironment {

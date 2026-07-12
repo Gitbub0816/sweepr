@@ -12,12 +12,15 @@ import SweeprKit
 
 // Cleaner tab bar: Jobs, Route (map), Earnings, Account.
 public struct RootView: View {
+    @EnvironmentObject private var env: AppEnvironment
+
     public init() {}
 
     public var body: some View {
         TabView {
             JobsScreen()
                 .tabItem { Label("Jobs", systemImage: "list.bullet.clipboard.fill") }
+                .badge(env.activeJob != nil ? "•" : "")
 
             RouteScreen()
                 .tabItem { Label("Route", systemImage: "map.fill") }
