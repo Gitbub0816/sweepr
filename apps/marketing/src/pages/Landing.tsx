@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { LanguageSelector } from "../i18n/LanguageSelector";
 import { withLang } from "../i18n/languages";
 import { Reveal } from "../components/Reveal";
+import { HowItWorksSection } from "../components/HowItWorksSection";
 import {
   MapPin,
   CalendarClock,
@@ -420,6 +421,9 @@ export default function Landing() {
       <Suspense fallback={null}>
         <CoverageMapSection />
       </Suspense>
+
+      {/* How it works — collapsible explainer + customer-facing partners */}
+      <HowItWorksSection />
 
       {/* FAQ */}
       <Section id="faq">

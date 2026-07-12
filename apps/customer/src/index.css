@@ -31,11 +31,10 @@ html {
   }
 }
 body {
-  /* 'anywhere' (unlike 'break-word') also affects intrinsic min-content
-     sizing, so long words in grid/flex children shrink the track instead of
-     overflowing the viewport — critical for Tagalog/Vietnamese/German-length
-     words in hero headings on phones. */
-  overflow-wrap: anywhere;
+  /* 'break-word' wraps genuinely long unbroken strings (URLs, long
+     compounds) without the min-content shrinking of 'anywhere', which broke
+     ordinary words mid-glyph inside narrow flex/table columns. */
+  overflow-wrap: break-word;
 }
 @supports (-webkit-touch-callout: none) {
   /* iOS momentum scrolling for a native feel in scroll containers. */

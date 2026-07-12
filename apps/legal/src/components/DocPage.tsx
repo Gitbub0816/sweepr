@@ -59,7 +59,7 @@ export function DocPage({
       initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: prefersReducedMotion ? 0 : 0.3 }}
-      className="legal-doc flex gap-10"
+      className="legal-doc flex flex-col gap-10 lg:flex-row"
     >
       <article className="min-w-0 flex-1">
         <header className="border-b border-slate-200 pb-6">
@@ -107,7 +107,7 @@ export function DocPage({
         <div className="divide-y divide-slate-100">{children}</div>
       </article>
 
-      <div className="w-56 shrink-0">
+      <div className="hidden w-56 shrink-0 lg:block">
         <TableOfContents items={toc} />
       </div>
     </motion.div>
