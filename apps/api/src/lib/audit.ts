@@ -26,6 +26,8 @@ export type AuditAction =
   | "tip.created"
   | "tip.paid_out"
   | "access_code.revealed"
+  | "smart_entry.config_updated"
+  | "smart_entry.access_revoked"
   | "cleaner.approved"
   | "cleaner.rejected"
   | "cleaner.suspended"

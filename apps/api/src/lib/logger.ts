@@ -25,6 +25,22 @@ const REDACT_KEYS = [
   "api_key",
   "card",
   "cvc",
+  // Smart Entry — never let a working credential or lock secret reach a log,
+  // error payload, or breadcrumb (spec §18). Substring match, case-insensitive.
+  "door_code",
+  "doorcode",
+  "entry_code",
+  "access_code",
+  "accesscode",
+  "lock_code",
+  "temporary_pin",
+  "keypad",
+  "credential",
+  "digital_key",
+  "lock_token",
+  "hidden_key_location",
+  "alarm_code",
+  "access_instructions",
 ];
 
 export function redact(obj: unknown): unknown {
