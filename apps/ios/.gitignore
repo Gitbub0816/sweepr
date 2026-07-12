@@ -17,3 +17,5 @@ local.properties
 
 # Secrets — never commit resolved Clerk keys or tokens.
 Skip.local.env
+# Linux verification harness scratch builds (see Verify/verify.sh)
+Verify/.build-scratch/
