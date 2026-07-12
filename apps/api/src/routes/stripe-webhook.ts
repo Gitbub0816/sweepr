@@ -18,6 +18,7 @@ import { audit } from "../lib/audit";
 import { serverTrack } from "../lib/posthog";
 import { initiateAssignment } from "../lib/assignment";
 import { nextOccurrenceDate } from "../lib/subscriptions";
+import { syncSweeprPlusSubscription, markMembershipCanceled, SWEEPR_PLUS_META } from "../lib/stripeSubscriptions";
 import { recordPaymentEvent } from "../lib/paymentObservability";
 import { isValidTransition } from "../lib/statusMachine";
 import type { AppBindings } from "../types";
@@ -481,6 +482,20 @@ stripeWebhookRouter.post("/", async (c) => {
             bookingId: booking.id,
           });
         }
+      }
+      break;
+    }
+    case "customer.subscription.created":
+    case "customer.subscription.updated": {
+      // Sweepr+ membership lifecycle. syncSweeprPlusSubscription ignores any
+      // subscription that isn't tagged metadata.type === 'sweepr_plus'.
+      await syncSweeprPlusSubscription(sql, event.data.object);
+      break;
+    }
+    case "customer.subscription.deleted": {
+      const sub = event.data.object;
+      if (sub.metadata?.type === SWEEPR_PLUS_META) {
+        await markMembershipCanceled(sql, sub.id);
       }
       break;
     }

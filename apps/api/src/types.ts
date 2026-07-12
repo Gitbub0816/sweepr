@@ -53,6 +53,14 @@ export interface Env {
   R2_LEGAL_ACCESS_KEY_ID: string;
   R2_LEGAL_SECRET_ACCESS_KEY: string;
   ACCESS_CODE_ENCRYPTION_KEY?: string;
+  // Smart Entry — Seam smart-lock provider (server-side only). When unset,
+  // Smart Entry falls back to manual/scheduled codes only (no remote unlock).
+  SEAM_API_KEY?: string;
+  SEAM_WEBHOOK_SECRET?: string;
+  // Sweepr+ subscription — Stripe recurring price IDs (price_… ; publishable
+  // enough to live in config, but kept server-side to gate checkout).
+  SWEEPR_PLUS_MONTHLY_PRICE_ID?: string;
+  SWEEPR_PLUS_ANNUAL_PRICE_ID?: string;
   CF_STREAM_ACCOUNT_ID?: string;
   CF_STREAM_API_TOKEN?: string;
   CLERK_WEBHOOK_SECRET?: string;
