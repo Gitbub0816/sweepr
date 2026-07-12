@@ -80,8 +80,8 @@ const DIDIT: Partner = {
 };
 const SEAM: Partner = {
   name: "Seam",
-  role: "Smart-lock access",
-  why: "Connects hundreds of supported smart locks so Sweepr can grant your cleaner temporary, booking-specific entry — gated by time, location, and identity, then revoked after the job.",
+  role: "Smart-lock access, powered by Seam",
+  why: "Seam connects hundreds of supported smart locks so Sweepr can grant your cleaner temporary, booking-specific entry — gated by time, location, and identity, then revoked after the job.",
   href: "https://www.seam.co",
   logo: "https://www.seam.co/favicon.ico",
 };
@@ -183,13 +183,13 @@ const STEPS: Step[] = [
   {
     icon: KeyRound,
     label: "Smart Entry",
-    eyebrow: "Optional · Smart Entry",
+    eyebrow: "Optional · Smart Entry, powered by Seam",
     title: "Let your cleaner in — securely",
-    body: "No need to wait at home. Connect a supported smart lock and Sweepr Smart Entry grants your assigned cleaner temporary, booking-specific access — only during the approved window, only near your home, and automatically revoked when the job is done.",
+    body: "No need to wait at home. Connect a supported smart lock and Sweepr Smart Entry — powered by our smart-lock partner Seam — grants your assigned cleaner temporary, booking-specific access: only during the approved window, only near your home, and automatically revoked when the job is done.",
     points: [
+      "Smart-lock access powered by Seam",
       "Access gated by time, location, identity & check-in",
-      "Every unlock is logged and you're notified live",
-      "Prefer a code or lockbox? Those work too",
+      "Every unlock is logged and you're notified live — a code or lockbox works too",
     ],
     partners: [SEAM],
     paywall: "$5 per cleaning · included with Sweepr+",
@@ -237,12 +237,23 @@ const STEPS: Step[] = [
   },
 ];
 
-// Winding road drawn in a 780×460 space, stretched to fill the panel. Kept
-// wide and shallow so every stop sits comfortably inside the visible panel.
-const ROUTE_VW = 780;
-const ROUTE_VH = 460;
+// A long, mostly-vertical serpentine road. It travels in ONE direction (top →
+// bottom) through a tall scroll container so all eight stops are reachable and
+// none are clipped. Eight equal-length S-segments alternate left↔right so the
+// arc-length-sampled node positions land cleanly on each bend.
+const ROUTE_VW = 460;
+const ROUTE_VH = 1400;
+// Pixel height of the scrollable road area (the viewBox is stretched to fit).
+const ROAD_PX = 1320;
 const ROUTE_D =
-  "M44 366 C150 412 236 250 344 288 C452 326 452 150 560 162 C650 172 700 128 740 92";
+  "M120 90 " +
+  "C120 175 340 175 340 260 " +
+  "C340 345 120 345 120 430 " +
+  "C120 515 340 515 340 600 " +
+  "C340 685 120 685 120 770 " +
+  "C120 855 340 855 340 940 " +
+  "C340 1025 120 1025 120 1110 " +
+  "C120 1195 340 1195 340 1280";
 
 function PartnerLogoImg({ partner, className }: { partner: Partner; className?: string }) {
   const [failed, setFailed] = useState(false);
@@ -346,6 +357,35 @@ export function HowItWorksSection() {
   const travelerRef = useRef<SVGGElement>(null);
   const lenRef = useRef(0);
 
+  // Scroll container + one ref per node, so an explicit selection can smoothly
+  // center the chosen stop. We ONLY scroll in response to a selection action
+  // (this effect keys on `active`) — never on the user's own scroll events, so
+  // manual scrolling is never fought.
+  const mapScrollRef = useRef<HTMLDivElement>(null);
+  const nodeElRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const didMountRef = useRef(false);
+
+  useEffect(() => {
+    // Don't yank the container on first paint; only on real navigation.
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
+    const container = mapScrollRef.current;
+    const node = nodeElRefs.current[active];
+    if (!container || !node) return;
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const target =
+      node.offsetTop + node.offsetHeight / 2 - container.clientHeight / 2;
+    const max = container.scrollHeight - container.clientHeight;
+    container.scrollTo({
+      top: Math.max(0, Math.min(max, target)),
+      behavior: reduce ? "auto" : "smooth",
+    });
+  }, [active]);
+
   // Animate the road fill + traveler along the path whenever `active` changes.
   useEffect(() => {
     const prog = progressRef.current;
@@ -380,7 +420,7 @@ export function HowItWorksSection() {
   };
 
   return (
-    <section id="how-it-works" className="mx-auto max-w-6xl px-4 py-20">
+    <section id="how" className="mx-auto max-w-6xl px-4 py-20">
       <Reveal className="text-center">
         <p className="text-sm font-bold uppercase tracking-wide text-seafoam-700">How Sweepr works</p>
         <h2 className="mt-2 text-3xl font-black text-charcoal dark:text-white sm:text-4xl">
@@ -395,13 +435,25 @@ export function HowItWorksSection() {
       <Reveal className="mt-12">
         <div className="grid overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900 lg:h-[540px] lg:grid-cols-[1.7fr_0.85fr]">
           {/* ── Map panel ─────────────────────────────────────────────── */}
-          <div className="relative min-h-[420px] overflow-hidden border-b border-slate-200 bg-gradient-to-br from-seafoam-50/60 via-white to-slate-50 dark:border-slate-700 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800 lg:h-full lg:border-b-0 lg:border-r">
-            {/* kicker */}
-            <span className="absolute left-6 top-6 z-10 inline-flex items-center gap-2 rounded-xl border border-seafoam-600/20 bg-white/80 px-3 py-2 text-xs font-extrabold text-seafoam-800 shadow-sm backdrop-blur dark:bg-slate-800/80 dark:text-seafoam-300">
+          <div className="relative h-[460px] overflow-hidden border-b border-slate-200 bg-gradient-to-br from-seafoam-50/60 via-white to-slate-50 dark:border-slate-700 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800 lg:h-full lg:border-b-0 lg:border-r">
+            {/* kicker (pinned over the scrolling road) */}
+            <span className="pointer-events-none absolute left-6 top-6 z-20 inline-flex items-center gap-2 rounded-xl border border-seafoam-600/20 bg-white/80 px-3 py-2 text-xs font-extrabold text-seafoam-800 shadow-sm backdrop-blur dark:bg-slate-800/80 dark:text-seafoam-300">
               <Sparkles className="h-4 w-4" aria-hidden="true" />
               Your cleaning journey
             </span>
 
+            {/* soft fades top/bottom to hint that the road scrolls */}
+            <span className="pointer-events-none absolute inset-x-0 top-0 z-[15] h-10 bg-gradient-to-b from-white/90 to-transparent dark:from-slate-900/90" aria-hidden="true" />
+            <span className="pointer-events-none absolute inset-x-0 bottom-0 z-[15] h-10 bg-gradient-to-t from-white/90 to-transparent dark:from-slate-900/90" aria-hidden="true" />
+
+            {/* Scroll container — vertical only, so the page body never scrolls
+                horizontally. Auto-centering writes scrollTop on this element. */}
+            <div
+              ref={mapScrollRef}
+              className="absolute inset-0 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {/* Tall road canvas — every stop lives here and is fully reachable. */}
+              <div className="relative w-full" style={{ height: ROAD_PX }}>
             {/* route */}
             <svg
               className="absolute inset-0 h-full w-full"
@@ -465,8 +517,8 @@ export function HowItWorksSection() {
             <span
               className="pointer-events-none absolute z-[2]"
               style={{
-                left: `${nodePos[STEPS.length - 1]?.x ?? 84.6}%`,
-                top: `${nodePos[STEPS.length - 1]?.y ?? 15.3}%`,
+                left: `${nodePos[STEPS.length - 1]?.x ?? 73.9}%`,
+                top: `${nodePos[STEPS.length - 1]?.y ?? 91.4}%`,
                 width: 88,
                 height: 72,
                 transform: "translate(-50%,-88%)",
@@ -492,6 +544,9 @@ export function HowItWorksSection() {
                 return (
                   <button
                     key={s.title}
+                    ref={(el) => {
+                      nodeElRefs.current[i] = el;
+                    }}
                     type="button"
                     onClick={() => go(i)}
                     aria-current={isActive ? "step" : undefined}
@@ -529,6 +584,8 @@ export function HowItWorksSection() {
                   </button>
                 );
               })}
+              </div>
+            </div>
           </div>
 
           {/* ── Detail panel ──────────────────────────────────────────── */}
@@ -651,7 +708,7 @@ export function HowItWorksSection() {
 
         <p className="mt-4 flex items-center justify-center gap-2 text-center text-xs font-semibold text-slate-500">
           <Sparkles className="h-4 w-4 text-seafoam-700" aria-hidden="true" />
-          Select any stop on the path to explore the booking journey.
+          Tap any stop, or use Back / Next — the map glides to center each step.
         </p>
       </Reveal>
 

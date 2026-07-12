@@ -17,8 +17,6 @@ import { withLang } from "../i18n/languages";
 import { Reveal } from "../components/Reveal";
 import { HowItWorksSection } from "../components/HowItWorksSection";
 import {
-  MapPin,
-  CalendarClock,
   Sparkles,
   ShieldCheck,
   BadgeCheck,
@@ -27,7 +25,6 @@ import {
   Truck,
   Repeat,
   ArrowRight,
-  Star,
   Clock,
   CheckCircle2,
   PlusCircle,
@@ -66,29 +63,6 @@ function Section({
     </section>
   );
 }
-
-const steps = [
-  {
-    icon: ShieldCheck,
-    titleKey: "howItWorks.step1Title" as const,
-    bodyKey: "howItWorks.step1Body" as const,
-  },
-  {
-    icon: MapPin,
-    titleKey: "howItWorks.step2Title" as const,
-    bodyKey: "howItWorks.step2Body" as const,
-  },
-  {
-    icon: CalendarClock,
-    titleKey: "howItWorks.step3Title" as const,
-    bodyKey: "howItWorks.step3Body" as const,
-  },
-  {
-    icon: Star,
-    titleKey: "howItWorks.step4Title" as const,
-    bodyKey: "howItWorks.step4Body" as const,
-  },
-];
 
 const services = [
   {
@@ -266,31 +240,6 @@ export default function Landing() {
           </div>
         </Section>
       </div>
-
-      {/* How it works */}
-      <Section id="how">
-        <SectionHeading
-          eyebrow={t("nav.howItWorks")}
-          title={t("howItWorks.title")}
-          subtitle={t("howItWorks.subtitle")}
-        />
-        <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {steps.map((s, i) => (
-            <Reveal
-              key={s.titleKey}
-              delayMs={i * 100}
-              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900"
-            >
-              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-seafoam-700 text-white">
-                <s.icon aria-hidden="true" className="h-5 w-5" />
-              </div>
-              <p className="text-xs font-bold text-seafoam-700">{t("howItWorks.stepLabel", { n: i + 1 })}</p>
-              <h3 className="mt-1 text-lg font-bold text-charcoal dark:text-white">{t(s.titleKey)}</h3>
-              <p className="mt-2 text-sm text-slate-500">{t(s.bodyKey)}</p>
-            </Reveal>
-          ))}
-        </div>
-      </Section>
 
       {/* Services */}
       <div className="bg-white dark:bg-slate-900/40">
