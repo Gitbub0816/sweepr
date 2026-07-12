@@ -8,20 +8,20 @@
 // distribution, reverse engineering, or use is prohibited.
 //
 import Foundation
-import SweeprKit
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
-// Cleaner-app-only network calls that don't exist on `SweeprKit.SweeprAPI` yet.
-// Kept local to this app (per ownership boundaries) rather than editing
-// SweeprKit directly. NOTE FOR HOISTING: once the backend contracts below are
-// confirmed against `apps/api/src/routes/`, these belong on `SweeprAPI` so the
-// customer app (and Android via SKIP) can reuse them — this file intentionally
-// mirrors `SweeprAPI`'s request-building conventions (Bearer auth via
-// `AuthTokenProvider`, snake_case JSON, ISO-8601 dates) to make that migration
-// mechanical.
+// Cleaner day-of-service network calls, hoisted into SweeprKit alongside
+// `SweeprAPI` so both apps (and Android via SKIP) can reuse them. Mirrors
+// `SweeprAPI`'s request-building conventions (Bearer auth via
+// `AuthTokenProvider`, camelCase request bodies, snake_case responses decoded
+// via `convertFromSnakeCase`, ISO-8601 dates). Endpoints map to
+// `apps/api/src/routes/cleanerAccess.ts` / `dayOfService.ts` /
+// `cleanerDashboard.ts`.
 //
-// Endpoints referenced (per the CLAUDE.md day-of-service flow) but not yet
-// backed by a confirmed response shape are marked STUB — they fail soft to
-// `CleanerMock` data so the UI is always exercisable offline.
+// Endpoints without a confirmed response shape yet are marked STUB — they fail
+// soft to `CleanerMock` data so the UI is always exercisable offline.
 
 public actor CleanerAPI {
     private let baseURL: URL
@@ -86,6 +86,12 @@ public actor CleanerAPI {
         public let code: String?
         public let instructions: String?
         public let expiresInSeconds: Int
+
+        public init(code: String?, instructions: String?, expiresInSeconds: Int) {
+            self.code = code
+            self.instructions = instructions
+            self.expiresInSeconds = expiresInSeconds
+        }
     }
 
     /// GET /cleaner/bookings/:id/access — reveal the access code/instructions.
@@ -154,9 +160,18 @@ public actor CleanerAPI {
                                         jobsCount: $0.jobsCount, includesTips: $0.includesTips) }
     }
 
-    // MARK: - Availability & service area (STUB)
+    // MARK: - Availability & service area (STUB — shape divergence documented)
+    //
+    // NOTE: the real `routes/cleanerDashboard.ts` uses `PUT /availability`
+    // (`{ slots: [{ day_of_week, start_time, end_time, active }] }`) and
+    // `PUT /service-area` (`{ centerLat, centerLng, radiusMiles, label? }`) —
+    // richer than the simple availability toggle / ZIP field the current cleaner
+    // AccountScreen exposes. Wiring these to the real schemas requires the
+    // corresponding UI (an availability-slots editor + a lat/lng/radius picker);
+    // until then these calls stay best-effort and fail soft. Do NOT assume the
+    // simple bodies below validate server-side.
 
-    /// PATCH /cleaner-dashboard/availability { available }
+    /// STUB: simplified availability toggle (see note above).
     public func setAvailability(_ available: Bool) async throws {
         let req = try await makeRequest(method: "PATCH", path: "cleaner-dashboard/availability",
                                          jsonBody: ["available": available])

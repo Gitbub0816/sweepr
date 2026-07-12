@@ -142,15 +142,29 @@ The apps target the **iOS 26 SDK (Xcode 26+)** and use iOS 26-era SwiftUI.
   `navigationDestination`, `.refreshable`, `.scrollIndicators(.hidden)`,
   two-parameter `.onChange`, `.swipeActions`, `@Observable` / `@Bindable`
   (Observation, via SkipModel), and `@Environment(\.openURL)`.
+- **Modern MapKit adopted:** `LiveTrackingScreen` and `RouteScreen` now use the
+  iOS 17+ `Map(position:)` + `MapContentBuilder` API (`Annotation`), replacing the
+  deprecated `Map(coordinateRegion:annotationItems:)` / `MapAnnotation`. A
+  connecting `MapPolyline` between route stops is the next increment once
+  `skip verify` confirms overlay support on Android.
 - **Verify on-device / on a Mac (SKIP support is version-sensitive):** the
-  `.graphical` `DatePicker` and `Stepper` in the booking wizard, and the
-  deprecated `Map(coordinateRegion:annotationItems:)` in LiveTracking (still
-  compiles under iOS 26; migrate to the iOS 17+ `Map { }` + `Annotation` builder
-  if SkipUI prefers it). These are called out as the conservative "confirm it
-  transpiles" set.
+  `.graphical` `DatePicker` and `Stepper` in the booking wizard. Decision: keep
+  both (iOS-26-supported, and the booking flow reads better with the graphical
+  calendar); `.compact` / a plain `+`/`−` control are the SKIP-safe fallbacks if
+  `skip verify` reports either isn't transpilable — swap is localized to
+  `BookFlowScreen.scheduleStep` / `stepperCard`.
 
-Only the SweeprKit + Sweepr (customer) targets were bumped here; the
-`CleanWithSweepr` (cleaner) target is owned separately and left untouched.
+`swift-tools-version` (6.0), `platforms` (`.iOS(.v26)`), and the SKIP `1.5.x`
+dependency line are now aligned across **all three** `Package.swift` files
+(SweeprKit, Sweepr, CleanWithSweepr).
+
+## Compile verification (`Verify/`)
+
+`apps/ios/Verify/` is a checked-in Linux harness that compiler-verifies every
+Swift file against faithful SwiftUI/MapKit stub signatures and runs the SweeprKit
+tests — no Mac required. Run `bash apps/ios/Verify/verify.sh`. See
+`Verify/README.md` for what it proves and its limits (runtime SwiftUI/MapKit
+behaviour still needs Xcode / `skip verify`).
 
 ## Build iOS (needs a Mac + Xcode + the skip toolchain)
 

@@ -210,6 +210,30 @@ public struct DayOfServiceStatus: Codable, Hashable, Sendable {
     public let requiresBeforePhotos: Bool
     public let requiresAfterPhotos: Bool
     public let smartEntry: SmartEntryAccess?
+
+    // Public memberwise init so the cleaner app (a separate module) can build a
+    // local fallback status when the day-of-service fetch fails offline.
+    public init(
+        bookingId: String,
+        status: BookingStatus,
+        checkedInAt: Date?,
+        arrivedAt: Date?,
+        startedAt: Date?,
+        completedAt: Date?,
+        requiresBeforePhotos: Bool,
+        requiresAfterPhotos: Bool,
+        smartEntry: SmartEntryAccess?
+    ) {
+        self.bookingId = bookingId
+        self.status = status
+        self.checkedInAt = checkedInAt
+        self.arrivedAt = arrivedAt
+        self.startedAt = startedAt
+        self.completedAt = completedAt
+        self.requiresBeforePhotos = requiresBeforePhotos
+        self.requiresAfterPhotos = requiresAfterPhotos
+        self.smartEntry = smartEntry
+    }
 }
 
 // MARK: - Cleaner-facing job + earnings

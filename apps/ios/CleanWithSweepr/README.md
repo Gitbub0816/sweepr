@@ -32,14 +32,21 @@ the SKIP-supported subset.
 - **Account** — profile, Didit/Yardstik verification badges, service-area ZIP
   entry, availability toggle, sign out confirmation.
 
-Cleaner-only endpoints without a confirmed backend contract yet (offer
-accept/decline, Smart Entry reveal/unlock, checklist, payouts, availability,
-service area, verification status) live in `Support/CleanerAPI.swift` rather
-than `SweeprKit`, per this app's ownership boundary — hoist them into
-`SweeprKit/Networking/SweeprAPI.swift` once confirmed. Supporting local models
-(`JobSegment`, `DayOfServiceStep`, `RoomChecklist`, `PayoutRecord`,
-`VerificationStatus`, etc.) live in `Support/CleanerModels.swift` for the same
-reason.
+Cleaner day-of-service networking and models have been **hoisted into SweeprKit**
+so both apps (and Android via SKIP) share them: `CleanerAPI` now lives at
+`SweeprKit/Networking/CleanerAPI.swift` and the cleaner models (`JobSegment`,
+`DayOfServiceStep`, `RoomChecklist`, `PayoutRecord`, `VerificationStatus`, …) at
+`SweeprKit/Models/CleanerModels.swift`. The cleaner app imports them via
+`import SweeprKit`.
+
+Confirmed endpoints match `apps/api/src/routes/cleanerDashboard.ts`
+(`/jobs/:id/accept|decline`, `/earnings`, `/my-jobs`). Endpoints still marked
+**STUB** in `CleanerAPI.swift` (Smart Entry reveal/unlock, checklist, payouts,
+availability, service area, verification) have real backend routes whose
+request/response shapes differ from the simplified cleaner UI (e.g. availability
+is a slots array, service area is lat/lng/radius, access reveal returns an
+encrypted credential + requires a location body). Those are documented inline
+and fail soft to `CleanerMock` data until the matching UI is built.
 
 ## Run iOS
 ```bash

@@ -66,4 +66,122 @@ final class SweeprKitTests: XCTestCase {
     func testQuoteLineItemMoney() {
         XCTAssertEqual(QuoteLineItem(label: "Base fee", cents: 12000).money.dollarsString, "$120.00")
     }
+
+    // MARK: - Snake_case decoding (the API sends snake_case responses)
+
+    /// Mirrors the shared decoder config in `SweeprAPI` so fixtures exercise the
+    /// real convertFromSnakeCase + iso8601 path.
+    private func apiDecoder() -> JSONDecoder {
+        let d = JSONDecoder()
+        d.keyDecodingStrategy = .convertFromSnakeCase
+        d.dateDecodingStrategy = .iso8601
+        return d
+    }
+
+    func testBookingDecodesFromSnakeCaseWire() throws {
+        // Shape mirrors GET /bookings/:id → { booking: {...} } (snake_case columns).
+        let json = """
+        {
+          "id": "bk_1",
+          "status": "cleaner_on_the_way",
+          "service_type": "standard_clean",
+          "cleaning_level": "extra_attention",
+          "bedrooms": 2,
+          "bathrooms": 1.5,
+          "scheduled_at": "2026-07-20T17:00:00Z",
+          "address": { "id": "addr_1", "street": "1200 Market St", "zip": "80202" },
+          "add_ons": ["inside_fridge"]
+        }
+        """.data(using: .utf8) ?? Data()
+        let booking = try apiDecoder().decode(Booking.self, from: json)
+        XCTAssertEqual(booking.id, "bk_1")
+        XCTAssertEqual(booking.status, .cleaner_on_the_way)
+        XCTAssertEqual(booking.cleaningLevel, .extra_attention)
+        XCTAssertEqual(booking.bathrooms, 1.5)
+        XCTAssertEqual(booking.packageDisplayName, "Standard Clean")
+        XCTAssertEqual(booking.address?.zip, "80202")
+        XCTAssertTrue(booking.status.isTrackable)
+    }
+
+    func testBookingAccessAuthorizationDecodesSnakeCase() throws {
+        // GET /smart-entry/booking/:id → { authorization } (snake_case columns).
+        let json = """
+        {
+          "authorization": {
+            "access_method": "smart_entry",
+            "lock_device_id": "dev_1",
+            "customer_authorized_at": "2026-07-19T00:00:00Z",
+            "revoked_at": null
+          }
+        }
+        """.data(using: .utf8) ?? Data()
+        let resp = try apiDecoder().decode(BookingAccessResponse.self, from: json)
+        XCTAssertEqual(resp.authorization?.method, .smart_entry)
+        XCTAssertTrue(resp.authorization?.isSmartEntryProvisioned == true)
+    }
+
+    func testDayOfServiceStatusDecodesSnakeCase() throws {
+        let json = """
+        {
+          "booking_id": "bk_9",
+          "status": "arrived",
+          "requires_before_photos": true,
+          "requires_after_photos": false
+        }
+        """.data(using: .utf8) ?? Data()
+        let dos = try apiDecoder().decode(DayOfServiceStatus.self, from: json)
+        XCTAssertEqual(dos.bookingId, "bk_9")
+        XCTAssertEqual(dos.status, .arrived)
+        XCTAssertTrue(dos.requiresBeforePhotos)
+        XCTAssertFalse(dos.requiresAfterPhotos)
+        XCTAssertNil(dos.smartEntry)
+    }
+
+    // MARK: - Hoisted cleaner models
+
+    func testDayOfServiceStepFromStatus() {
+        XCTAssertEqual(DayOfServiceStep.from(status: .confirmed), .confirmed)
+        XCTAssertEqual(DayOfServiceStep.from(status: .cleaner_on_the_way), .enRoute)
+        XCTAssertEqual(DayOfServiceStep.from(status: .in_progress), .inProgress)
+        XCTAssertEqual(DayOfServiceStep.from(status: .completed), .done)
+        // Unknown/earlier statuses resume at the start of the flow.
+        XCTAssertEqual(DayOfServiceStep.from(status: .matching), .confirmed)
+        XCTAssertTrue(DayOfServiceStep.confirmed < DayOfServiceStep.checkout)
+    }
+
+    func testRoomChecklistCompletion() {
+        var room = RoomChecklist(room: "Kitchen", items: [
+            ChecklistItem(label: "Counters"),
+            ChecklistItem(label: "Floors"),
+        ])
+        XCTAssertFalse(room.isComplete)
+        room.items = room.items.map { var i = $0; i.done = true; return i }
+        XCTAssertTrue(room.isComplete)
+    }
+
+    func testJobOfferAndMaskedAddress() {
+        // An offered job hides the exact address behind an area label.
+        let offer = SweeprMock.jobs.first { $0.booking.status == .offered_to_cleaner }
+        XCTAssertNotNil(offer)
+        XCTAssertTrue(offer?.isOffer == true)
+        XCTAssertEqual(offer?.maskedAreaLabel, "Denver area · 80202")
+
+        // A trackable job reveals the full one-line address.
+        let active = Job(id: "j", booking: SweeprMock.booking(status: .cleaner_on_the_way),
+                         payoutEstimate: nil, distanceMeters: nil)
+        XCTAssertTrue(active.isActiveShift)
+        XCTAssertEqual(active.maskedAreaLabel, SweeprMock.address.oneLine)
+    }
+
+    func testVerificationStatusLabels() {
+        let v = VerificationStatus(didit: .cleared, yardstik: .pending)
+        XCTAssertEqual(v.diditLabel, "Cleared")
+        XCTAssertEqual(v.yardstikLabel, "Pending")
+    }
+
+    func testPayoutRoundTripThroughMoney() {
+        let payout = PayoutRecord(id: "po", paidAt: Date(), amount: Money(cents: 18400),
+                                  jobsCount: 2, includesTips: true)
+        XCTAssertEqual(payout.amount.dollarsString, "$184.00")
+    }
 }

@@ -8,13 +8,13 @@
 // distribution, reverse engineering, or use is prohibited.
 //
 import Foundation
-import SweeprKit
 
-// Local, cleaner-app-only models. These are NOT part of SweeprKit yet because the
-// corresponding backend endpoints/shapes haven't been confirmed. Once the API
-// contracts below stabilize, hoist them into `SweeprKit/Models/Models.swift` so
-// the customer app can share them too (see CleanerAPI.swift for the endpoints
-// these back).
+// Cleaner-facing models, hoisted into SweeprKit so both apps (and Android via
+// SKIP) can share them. Backing endpoints live on `CleanerAPI`
+// (Networking/CleanerAPI.swift). Field names mirror the Hono responses in
+// `apps/api/src/routes/cleanerAccess.ts` / `dayOfService.ts` /
+// `cleanerDashboard.ts` (snake_case on the wire, decoded via
+// `convertFromSnakeCase`).
 
 // MARK: - Jobs list segmentation
 
@@ -146,6 +146,13 @@ public struct RouteStop: Identifiable, Sendable {
     public let job: Job
     public let etaMinutes: Int
     public let sequence: Int
+
+    public init(id: String, job: Job, etaMinutes: Int, sequence: Int) {
+        self.id = id
+        self.job = job
+        self.etaMinutes = etaMinutes
+        self.sequence = sequence
+    }
 }
 
 // MARK: - Earnings / payouts
