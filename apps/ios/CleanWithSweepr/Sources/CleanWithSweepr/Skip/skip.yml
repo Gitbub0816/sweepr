@@ -1,0 +1,12 @@
+# Copyright © 2026–Present ClearKey Solutions, LLC.
+# All Rights Reserved. Proprietary and Confidential.
+#
+# SKIP module marker for the Clean with Sweepr cleaner app target.
+skip:
+  mode: 'transpiled'
+build:
+  contents:
+    - block: 'dependencies'
+      contents:
+        - 'implementation("androidx.compose.material3:material3:1.2.1")'
+        - 'implementation("com.google.maps.android:maps-compose:4.3.0")'

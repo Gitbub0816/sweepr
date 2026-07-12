@@ -1,0 +1,19 @@
+# Copyright © 2026–Present ClearKey Solutions, LLC.
+# Proprietary & Confidential. Internal Use Only.
+#
+# SwiftPM / Xcode / SKIP build artifacts.
+.build/
+.swiftpm/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# SKIP-generated Android/Gradle output.
+.skip/
+Android/.gradle/
+Android/build/
+**/build/
+local.properties
+
+# Secrets — never commit resolved Clerk keys or tokens.
+Skip.local.env
