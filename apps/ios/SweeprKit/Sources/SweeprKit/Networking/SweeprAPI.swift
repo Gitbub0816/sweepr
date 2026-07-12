@@ -28,9 +28,11 @@ public struct SweeprAPIConfig: Sendable {
     public let baseURL: URL
     public init(baseURL: URL) { self.baseURL = baseURL }
 
-    /// Production Hono worker.
+    /// Production Hono worker. The `??` fallback keeps this initializer
+    /// non-failable (no force-unwrap); the compile-time-constant literal is
+    /// always a valid URL, so the fallback is unreachable.
     public static let production = SweeprAPIConfig(
-        baseURL: URL(string: "https://api.getsweepr.com")!
+        baseURL: URL(string: "https://api.getsweepr.com") ?? URL(fileURLWithPath: "/")
     )
 }
 
@@ -229,9 +231,11 @@ public actor SweeprAPI {
 
     // MARK: - Cleaner (day-of-service) endpoints
 
-    /// GET /cleaner-dashboard/jobs — jobs offered/assigned to the cleaner.
+    /// GET /cleaner-dashboard/my-jobs — the cleaner's assigned/active jobs
+    /// (envelope `{ jobs }`, per `routes/cleanerDashboard.ts`). Pending offers
+    /// live at `/cleaner-dashboard/available-offers`.
     public func cleanerJobs() async throws -> [Job] {
-        try await request(.GET, "cleaner-dashboard/jobs", as: JobListResponse.self).jobs
+        try await request(.GET, "cleaner-dashboard/my-jobs", as: JobListResponse.self).jobs
     }
 
     /// GET /day-of-service/:bookingId — live day-of-service status for a job.

@@ -19,7 +19,7 @@ import SweeprKit
 public struct LiveTrackingScreen: View {
     @EnvironmentObject private var env: AppEnvironment
     @State private var booking: Booking
-    @State private var region: MKCoordinateRegion
+    @State private var cameraPosition: MapCameraPosition
 
     public init(booking: Booking) {
         _booking = State(initialValue: booking)
@@ -27,31 +27,44 @@ public struct LiveTrackingScreen: View {
             latitude: booking.address?.latitude ?? 39.7392,
             longitude: booking.address?.longitude ?? -104.9903
         )
-        _region = State(initialValue: MKCoordinateRegion(
+        _cameraPosition = State(initialValue: .region(MKCoordinateRegion(
             center: center,
             span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
-        ))
+        )))
     }
 
-    private var annotations: [TrackPoint] {
-        var points: [TrackPoint] = []
-        if let a = booking.address, let lat = a.latitude, let lon = a.longitude {
-            points.append(TrackPoint(kind: .home, coordinate: .init(latitude: lat, longitude: lon)))
-        }
-        if let c = booking.cleaner, let lat = c.latitude, let lon = c.longitude {
-            points.append(TrackPoint(kind: .cleaner, coordinate: .init(latitude: lat, longitude: lon)))
-        }
-        return points
+    private var homeCoordinate: CLLocationCoordinate2D? {
+        guard let a = booking.address, let lat = a.latitude, let lon = a.longitude else { return nil }
+        return CLLocationCoordinate2D(latitude: lat, longitude: lon)
+    }
+
+    private var cleanerCoordinate: CLLocationCoordinate2D? {
+        guard let c = booking.cleaner, let lat = c.latitude, let lon = c.longitude else { return nil }
+        return CLLocationCoordinate2D(latitude: lat, longitude: lon)
     }
 
     public var body: some View {
-        Map(coordinateRegion: $region, annotationItems: annotations) { point in
-            MapAnnotation(coordinate: point.coordinate) {
-                Image(systemName: point.kind == .cleaner ? "car.fill" : "house.fill")
-                    .foregroundColor(.white)
-                    .padding(8)
-                    .background(point.kind == .cleaner ? SweeprColor.brand : SweeprColor.charcoal)
-                    .clipShape(Circle())
+        // Modern iOS 17+ `Map(position:)` + `MapContentBuilder` API (replaces the
+        // deprecated `Map(coordinateRegion:annotationItems:)`). SKIP maps this to
+        // maps-compose markers on Android (declared in skip.yml).
+        Map(position: $cameraPosition) {
+            if let home = homeCoordinate {
+                Annotation("Home", coordinate: home) {
+                    Image(systemName: "house.fill")
+                        .foregroundColor(.white)
+                        .padding(8)
+                        .background(SweeprColor.charcoal)
+                        .clipShape(Circle())
+                }
+            }
+            if let cleaner = cleanerCoordinate {
+                Annotation("Cleaner", coordinate: cleaner) {
+                    Image(systemName: "car.fill")
+                        .foregroundColor(.white)
+                        .padding(8)
+                        .background(SweeprColor.brand)
+                        .clipShape(Circle())
+                }
             }
         }
         .ignoresSafeArea(edges: .top)
@@ -90,11 +103,4 @@ public struct LiveTrackingScreen: View {
             try? await Task.sleep(nanoseconds: 10_000_000_000) // 10s
         }
     }
-}
-
-private struct TrackPoint: Identifiable {
-    enum Kind { case home, cleaner }
-    let id = UUID()
-    let kind: Kind
-    let coordinate: CLLocationCoordinate2D
 }

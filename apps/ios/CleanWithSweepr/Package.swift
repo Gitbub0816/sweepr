@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
 //
 // Copyright © 2026–Present ClearKey Solutions, LLC.
 // All Rights Reserved.
@@ -13,6 +13,9 @@ import PackageDescription
 // Clean with Sweepr — cleaner app. SKIP dual-platform SwiftPM package. Shares
 // SweeprKit with the customer app for models, networking, auth, and the design
 // system.
+//
+// Targets the iOS 26 SDK (Xcode 26+), Swift 6 tools, SKIP 1.5.x line — kept in
+// lockstep with SweeprKit + the customer app (see apps/ios/README.md).
 let package = Package(
     name: "CleanWithSweepr",
     defaultLocalization: "en",
@@ -22,10 +25,10 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../SweeprKit"),
-        .package(url: "https://source.skip.tools/skip.git", from: "1.2.0"),
-        .package(url: "https://source.skip.tools/skip-ui.git", from: "1.0.0"),
-        .package(url: "https://source.skip.tools/skip-foundation.git", from: "1.0.0"),
-        .package(url: "https://source.skip.tools/skip-model.git", from: "1.0.0"),
+        .package(url: "https://source.skip.tools/skip.git", from: "1.5.0"),
+        .package(url: "https://source.skip.tools/skip-ui.git", from: "1.5.0"),
+        .package(url: "https://source.skip.tools/skip-foundation.git", from: "1.5.0"),
+        .package(url: "https://source.skip.tools/skip-model.git", from: "1.5.0"),
     ],
     targets: [
         .target(

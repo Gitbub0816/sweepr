@@ -19,10 +19,10 @@ import UIKit
 public struct RouteScreen: View {
     @EnvironmentObject private var env: AppEnvironment
     @State private var jobs: [Job] = []
-    @State private var region = MKCoordinateRegion(
+    @State private var cameraPosition: MapCameraPosition = .region(MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 39.7392, longitude: -104.9903),
         span: MKCoordinateSpan(latitudeDelta: 0.15, longitudeDelta: 0.15)
-    )
+    ))
 
     public init() {}
 
@@ -49,18 +49,19 @@ public struct RouteScreen: View {
         NavigationStack {
             VStack(spacing: 0) {
                 ZStack(alignment: .topLeading) {
-                    // NOTE: this is a stub — the SwiftUI `Map(coordinateRegion:)`
-                    // API used here doesn't expose a polyline overlay without
-                    // dropping to `MKMapView` (UIViewRepresentable), which risks
-                    // falling outside the SKIP-supported subset. A connecting
-                    // route line between stops is the next increment once
-                    // `skip verify` confirms overlay support on Android.
-                    Map(coordinateRegion: $region, annotationItems: stops) { stop in
-                        MapAnnotation(coordinate: stop.coordinate) {
-                            ZStack {
-                                Circle().fill(SweeprColor.brand).frame(width: 28, height: 28)
-                                Text("\(stop.sequence)").font(SweeprFont.caption().weight(.bold))
-                                    .foregroundColor(.white)
+                    // Modern iOS 17+ `Map(position:)` + `MapContentBuilder` API
+                    // (replaces the deprecated `Map(coordinateRegion:)`). A
+                    // connecting polyline between stops is the next increment once
+                    // `skip verify` confirms `MapPolyline` support on Android; the
+                    // numbered stop markers below are the SKIP-supported subset.
+                    Map(position: $cameraPosition) {
+                        for stop in stops {
+                            Annotation("Stop \(stop.sequence)", coordinate: stop.coordinate) {
+                                ZStack {
+                                    Circle().fill(SweeprColor.brand).frame(width: 28, height: 28)
+                                    Text("\(stop.sequence)").font(SweeprFont.caption().weight(.bold))
+                                        .foregroundColor(.white)
+                                }
                             }
                         }
                     }
