@@ -49,6 +49,7 @@ import { adminPromotionsRouter } from "./routes/adminPromotions";
 import { foundingRouter } from "./routes/founding";
 import { promotionsRouter } from "./routes/promotions";
 import { couponsRouter } from "./routes/coupons";
+import { membershipRouter } from "./routes/membership";
 import { adminCouponsRouter } from "./routes/adminCoupons";
 import { trainingRouter } from "./routes/training";
 import { trainingAdminRouter } from "./routes/admin/trainingAdmin";
@@ -418,6 +419,7 @@ app.route("/founding", foundingRouter);
 app.route("/promotions", promotionsRouter);
 app.route("/coupons", couponsRouter);
 app.route("/admin/coupons", adminCouponsRouter);
+app.route("/membership", membershipRouter);
 app.use("/training/*", (c, next) => {
   // requireAuth is applied per-route inside trainingRouter
   return next();
