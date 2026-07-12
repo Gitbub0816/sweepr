@@ -36,6 +36,8 @@ import { calculateBookingPrice, getAddOnCatalogue } from "../lib/pricingEngine";
 import { resolveBookingPricing, storeQuoteSnapshot, type ResolvedPricing } from "../lib/resolvePricing";
 import { recordLedgerEntry, applyBookingPriceAdjustment } from "../lib/bookingLedger";
 import { autoApplyBestCoupon } from "../lib/coupons";
+import { applyMembershipDiscount } from "../lib/smartEntryBilling";
+import { revokeSmartEntry } from "../lib/smartEntry";
 import { normalizedGreylistKey } from "../lib/scopeReviewEngine";
 import { getStripe } from "../lib/stripe";
 import { isAddOnIncludedInPackage, getAddOn } from "@sweepr/utils";
@@ -648,6 +650,15 @@ bookingsRouter.post(
     logger.error("coupon auto-apply failed", err, { bookingId: created.id });
   }
 
+  // Sweepr+ member discount (spec §4.2, §22): applied after any promo code, on
+  // the eligible cleaning subtotal, capped monthly. No-op unless the member has
+  // an eligible membership and the feature flag is on. Best-effort.
+  try {
+    await applyMembershipDiscount(sql, getStripe(c.env.STRIPE_SECRET_KEY), created.id, user.id);
+  } catch (err) {
+    logger.error("sweepr+ discount apply failed", err, { bookingId: created.id });
+  }
+
   // Booking confirmed -> notify customer.
   await sendNotification(sql, user.id, {
     type: "booking_confirmed",
@@ -851,6 +862,16 @@ bookingsRouter.patch(
 
     const updated = await updateBookingStatus(sql, id, status);
     if (!updated) return c.json({ error: "Not found" }, 404);
+
+    // Cancellation must immediately revoke any Smart Entry access (spec §15):
+    // delete the Seam grant so the temporary PIN/unlock stops working.
+    if (status === "cancelled_by_customer") {
+      try {
+        await revokeSmartEntry(sql, c.env, id, "booking_cancelled");
+      } catch (err) {
+        logger.error("smart entry revoke on cancel failed", err, { bookingId: id });
+      }
+    }
 
     await audit(sql, {
       action: "booking.status_changed",

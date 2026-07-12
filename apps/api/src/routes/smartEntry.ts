@@ -22,6 +22,8 @@ import { loadSmartEntryConfig } from "../lib/smartEntryConfig";
 import { setBookingAccessMethod, provisionSmartEntry, revokeSmartEntry } from "../lib/smartEntry";
 import { makeSeam } from "../lib/seam";
 import { isMember } from "../lib/sweeprPlus";
+import { applySmartEntryFee } from "../lib/smartEntryBilling";
+import { getStripe } from "../lib/stripe";
 import { logger } from "../lib/logger";
 import type { AppBindings } from "../types";
 
@@ -185,10 +187,13 @@ smartEntryRouter.put("/booking/:id", zValidator("json", bookingAccessSchema), as
     consent,
   });
 
+  let feeCents = 0;
   if (body.method === "smart_entry") {
+    // $5 add-on for non-members (members: included). Idempotent.
+    feeCents = await applySmartEntryFee(sql, getStripe(c.env.STRIPE_SECRET_KEY), c.env, bookingId, uid);
     await provisionSmartEntry(sql, c.env, bookingId);
   }
-  return c.json({ ok: true });
+  return c.json({ ok: true, smartEntryFeeCents: feeCents });
 });
 
 /** Customer revokes access for a booking (spec §15). */

@@ -32,7 +32,9 @@ export type LedgerEventType =
   | "refusal_fee"
   | "admin_adjustment"
   | "tax_adjustment"
-  | "coupon_discount";
+  | "coupon_discount"
+  | "smart_entry_fee"
+  | "membership_discount";
 
 export type LedgerSource = "customer" | "cleaner_request" | "admin" | "system";
 
