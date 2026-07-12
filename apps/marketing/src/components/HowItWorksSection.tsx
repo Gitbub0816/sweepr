@@ -14,6 +14,8 @@ import {
   ClipboardCheck,
   CalendarClock,
   ShieldCheck,
+  KeyRound,
+  Navigation,
   Sparkles,
   CreditCard,
   Star,
@@ -76,6 +78,20 @@ const DIDIT: Partner = {
   href: "https://didit.me",
   logo: "https://didit.me/favicon.ico",
 };
+const SEAM: Partner = {
+  name: "Seam",
+  role: "Smart-lock access",
+  why: "Connects hundreds of supported smart locks so Sweepr can grant your cleaner temporary, booking-specific entry — gated by time, location, and identity, then revoked after the job.",
+  href: "https://www.seam.co",
+  logo: "https://www.seam.co/favicon.ico",
+};
+const MAPBOX: Partner = {
+  name: "Mapbox",
+  role: "Cleaner navigation",
+  why: "Powers turn-by-turn navigation that guides your verified cleaner right to your door, so arrivals stay on time and on route.",
+  href: "https://www.mapbox.com",
+  logo: "https://www.mapbox.com/favicon.ico",
+};
 const POSTHOG: Partner = {
   name: "PostHog",
   role: "Product analytics & safety monitoring",
@@ -103,6 +119,8 @@ interface Step {
   partners: Partner[]; // empty ⇒ handled in-house by Sweepr
   /** Distinct in-house blurb shown when there is no partner for this stop. */
   inHouseNote?: string;
+  /** Short pricing/paywall line shown as a pill (e.g. Sweepr+ features). */
+  paywall?: string;
 }
 
 const STEPS: Step[] = [
@@ -163,19 +181,31 @@ const STEPS: Step[] = [
     partners: [YARDSTIK, DIDIT],
   },
   {
-    icon: Sparkles,
-    label: "Clean day",
-    eyebrow: "Clean day",
-    title: "Follow the clean in real time",
-    body: "Your matched pro checks in, follows the exact scope you selected, and documents progress with before-and-after photos so you stay informed — even when you're away.",
+    icon: KeyRound,
+    label: "Smart Entry",
+    eyebrow: "Optional · Smart Entry",
+    title: "Let your cleaner in — securely",
+    body: "No need to wait at home. Connect a supported smart lock and Sweepr Smart Entry grants your assigned cleaner temporary, booking-specific access — only during the approved window, only near your home, and automatically revoked when the job is done.",
     points: [
-      "Arrival and progress notifications",
-      "Before-and-after photo documentation",
-      "Secure in-app communication and support",
+      "Access gated by time, location, identity & check-in",
+      "Every unlock is logged and you're notified live",
+      "Prefer a code or lockbox? Those work too",
     ],
-    partners: [],
-    inHouseNote:
-      "The day-of-service experience — check-in, live status, and photo documentation — was crafted by the Sweepr team so you always know exactly what's happening in your home.",
+    partners: [SEAM],
+    paywall: "$5 per cleaning · included with Sweepr+",
+  },
+  {
+    icon: Navigation,
+    label: "Cleaner arrives",
+    eyebrow: "Clean day",
+    title: "Your cleaner arrives & cleans",
+    body: "Your matched pro navigates straight to your door, checks in, follows the exact scope you selected, and documents progress with before-and-after photos so you stay informed — even when you're away.",
+    points: [
+      "Turn-by-turn navigation to your address",
+      "Before-and-after photo documentation",
+      "Arrival, progress, and completion notifications",
+    ],
+    partners: [MAPBOX],
   },
   {
     icon: CreditCard,
@@ -207,9 +237,12 @@ const STEPS: Step[] = [
   },
 ];
 
-// Winding road drawn in a 780×720 space, stretched to fill the panel.
+// Winding road drawn in a 780×460 space, stretched to fill the panel. Kept
+// wide and shallow so every stop sits comfortably inside the visible panel.
+const ROUTE_VW = 780;
+const ROUTE_VH = 460;
 const ROUTE_D =
-  "M90 610 C210 690 360 625 305 515 C255 415 140 425 225 290 C300 170 450 255 525 350 C615 455 720 315 660 110";
+  "M44 366 C150 412 236 250 344 288 C452 326 452 150 560 162 C650 172 700 128 740 92";
 
 function PartnerLogoImg({ partner, className }: { partner: Partner; className?: string }) {
   const [failed, setFailed] = useState(false);
@@ -328,7 +361,7 @@ export function HowItWorksSection() {
       const pts = STEPS.map((_, i) => {
         const tt = STEPS.length === 1 ? 1 : i / (STEPS.length - 1);
         const p = prog.getPointAtLength(lenRef.current * tt);
-        return { x: (p.x / 780) * 100, y: (p.y / 720) * 100 };
+        return { x: (p.x / ROUTE_VW) * 100, y: (p.y / ROUTE_VH) * 100 };
       });
       setNodePos(pts);
     }
@@ -372,22 +405,22 @@ export function HowItWorksSection() {
             {/* route */}
             <svg
               className="absolute inset-0 h-full w-full"
-              viewBox="0 0 780 720"
+              viewBox={`0 0 ${ROUTE_VW} ${ROUTE_VH}`}
               preserveAspectRatio="none"
               aria-hidden="true"
             >
               <path
                 d={ROUTE_D}
                 className="fill-none stroke-black/5"
-                strokeWidth={32}
+                strokeWidth={22}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                transform="translate(0 7)"
+                transform="translate(0 6)"
               />
               <path
                 d={ROUTE_D}
                 className="fill-none stroke-seafoam-100 dark:stroke-slate-700"
-                strokeWidth={27}
+                strokeWidth={18}
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
@@ -395,7 +428,7 @@ export function HowItWorksSection() {
                 ref={progressRef}
                 d={ROUTE_D}
                 className="fill-none stroke-seafoam-600"
-                strokeWidth={27}
+                strokeWidth={18}
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 style={{ transition: "stroke-dashoffset .85s cubic-bezier(.22,1,.36,1)" }}
@@ -404,7 +437,7 @@ export function HowItWorksSection() {
                 ref={highlightRef}
                 d={ROUTE_D}
                 className="fill-none stroke-white/30"
-                strokeWidth={4}
+                strokeWidth={3}
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 style={{ transition: "stroke-dashoffset .85s cubic-bezier(.22,1,.36,1)" }}
@@ -412,19 +445,19 @@ export function HowItWorksSection() {
               <path
                 d={ROUTE_D}
                 className="fill-none stroke-white/80"
-                strokeWidth={3}
-                strokeDasharray="2 15"
+                strokeWidth={2}
+                strokeDasharray="1.5 11"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
-              <g ref={travelerRef} transform="translate(90 610)">
+              <g ref={travelerRef} transform="translate(44 366)">
                 <circle
-                  r={14}
+                  r={10}
                   className="fill-white stroke-seafoam-600"
-                  strokeWidth={4}
+                  strokeWidth={3}
                   style={{ filter: "drop-shadow(0 8px 10px rgba(15,118,110,.26))" }}
                 />
-                <circle r={5} className="fill-seafoam-600" />
+                <circle r={4} className="fill-seafoam-600" />
               </g>
             </svg>
 
@@ -536,6 +569,13 @@ export function HowItWorksSection() {
                   </li>
                 ))}
               </ul>
+
+              {step.paywall && (
+                <span className="mt-4 inline-flex items-center gap-1.5 self-start rounded-full border border-seafoam-300 bg-seafoam-50 px-3 py-1 text-xs font-extrabold text-seafoam-800 dark:border-seafoam-700 dark:bg-seafoam-900/30 dark:text-seafoam-300">
+                  <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
+                  {step.paywall}
+                </span>
+              )}
 
               {/* partner tie-in / in-house */}
               <div className="pt-6">
