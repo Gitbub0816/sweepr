@@ -44,7 +44,12 @@ public actor SweeprAPI {
     }()
     private let encoder: JSONEncoder = {
         let e = JSONEncoder()
-        e.keyEncodingStrategy = .convertToSnakeCase
+        // IMPORTANT: the Hono API validates camelCase request bodies (zod schemas
+        // use serviceType/addOnKeys/cleaningLevel/deviceId…). Request models here
+        // already declare camelCase properties, so we do NOT convert to
+        // snake_case — that would make every zValidator reject the body. The
+        // decoder still uses convertFromSnakeCase because several responses
+        // (e.g. booking_access_authorizations columns) come back snake_case.
         e.dateEncodingStrategy = .iso8601
         return e
     }()
@@ -61,7 +66,7 @@ public actor SweeprAPI {
 
     // MARK: - Core request
 
-    private enum Method: String { case GET, POST, PATCH, DELETE }
+    private enum Method: String { case GET, POST, PUT, PATCH, DELETE }
 
     private func request<T: Decodable>(
         _ method: Method,
@@ -129,9 +134,94 @@ public actor SweeprAPI {
         try await request(.GET, "bookings/\(id)", as: BookingResponse.self).booking
     }
 
-    /// GET /membership — the customer's membership state.
+    /// GET /membership — legacy compact membership state (kept for callers that
+    /// only need active/plan). Prefer `membershipInfo()` for the full web shape.
     public func membership() async throws -> Membership {
         try await request(.GET, "membership", as: Membership.self)
+    }
+
+    /// GET /auth/me — the signed-in user (generous polling bucket server-side).
+    public func currentUser() async throws -> CurrentUser {
+        try await request(.GET, "auth/me", as: CurrentUserResponse.self).user
+    }
+
+    /// POST /bookings/quote — server-authoritative price for a proposed booking.
+    /// The client NEVER computes totals; this snapshot is the source of truth.
+    public func quote(_ req: QuoteRequest) async throws -> QuoteResponse {
+        try await request(.POST, "bookings/quote", body: req, as: QuoteResponse.self)
+    }
+
+    /// POST /bookings — create a booking from the reviewed quote input.
+    public func createBooking(_ req: QuoteRequest) async throws -> Booking {
+        try await request(.POST, "bookings", body: req, as: BookingResponse.self).booking
+    }
+
+    /// POST /bookings/:id/status — the only customer-permitted transition is
+    /// cancellation (`cancelled_by_customer`); the server validates the machine.
+    @discardableResult
+    public func cancelBooking(id: String) async throws -> Booking {
+        try await request(
+            .POST, "bookings/\(id)/status",
+            body: StatusChangeRequest(status: "cancelled_by_customer"),
+            as: BookingResponse.self
+        ).booking
+    }
+
+    // MARK: - Coupons
+
+    /// GET /coupons/mine — the customer's active/attachable coupons.
+    public func coupons() async throws -> [Coupon] {
+        try await request(.GET, "coupons/mine", as: CouponListResponse.self).coupons
+    }
+
+    // MARK: - Membership (Sweepr+)
+
+    /// GET /membership — full membership state incl. pricing + cancel status.
+    public func membershipInfo() async throws -> MembershipInfo {
+        try await request(.GET, "membership", as: MembershipInfo.self)
+    }
+
+    /// POST /membership/checkout — start a Stripe Checkout subscription; returns
+    /// the hosted URL to open. Returns nil url if checkout couldn't be created.
+    public func startMembershipCheckout(interval: MembershipPlanInterval) async throws -> URL? {
+        let resp = try await request(
+            .POST, "membership/checkout",
+            body: MembershipCheckoutRequest(interval: interval),
+            as: CheckoutSessionResponse.self
+        )
+        return resp.url.flatMap { URL(string: $0) }
+    }
+
+    /// POST /membership/cancel — cancel at period end (benefits persist until then).
+    @discardableResult
+    public func cancelMembership() async throws -> Bool {
+        try await request(.POST, "membership/cancel", as: OKResponse.self).ok
+    }
+
+    /// POST /membership/resume — undo a pending cancellation.
+    @discardableResult
+    public func resumeMembership() async throws -> Bool {
+        try await request(.POST, "membership/resume", as: OKResponse.self).ok
+    }
+
+    // MARK: - Smart Entry
+
+    /// GET /smart-entry/status — whether the feature is on and the $5 fee /
+    /// member-included state for the paywall.
+    public func smartEntryStatus() async throws -> SmartEntryStatus {
+        try await request(.GET, "smart-entry/status", as: SmartEntryStatus.self)
+    }
+
+    /// GET /smart-entry/booking/:id — the booking's current access selection.
+    public func bookingAccess(bookingId: String) async throws -> BookingAccessAuthorization? {
+        try await request(.GET, "smart-entry/booking/\(bookingId)", as: BookingAccessResponse.self).authorization
+    }
+
+    /// PUT /smart-entry/booking/:id — set the access method (+ authorize/provision
+    /// Smart Entry). Returns any fee charged in cents.
+    @discardableResult
+    public func setBookingAccess(bookingId: String, _ req: SetBookingAccessRequest) async throws -> SetBookingAccessResponse {
+        try await request(.PUT, "smart-entry/booking/\(bookingId)", body: req, as: SetBookingAccessResponse.self)
     }
 
     // MARK: - Cleaner (day-of-service) endpoints
@@ -157,6 +247,10 @@ public actor SweeprAPI {
 private struct BookingListResponse: Decodable { let bookings: [Booking] }
 private struct BookingResponse: Decodable { let booking: Booking }
 private struct JobListResponse: Decodable { let jobs: [Job] }
+private struct CurrentUserResponse: Decodable { let user: CurrentUser }
+private struct CouponListResponse: Decodable { let coupons: [Coupon] }
+private struct OKResponse: Decodable { let ok: Bool }
+private struct StatusChangeRequest: Encodable { let status: String }
 
 // MARK: - Encodable erasure (for request bodies)
 

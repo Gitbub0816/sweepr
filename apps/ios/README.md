@@ -14,15 +14,22 @@ source.
 ```
 apps/ios/
 ├── SweeprKit/                 shared Swift package (models, networking, auth, theme, UI)
-│   ├── Package.swift          SKIP deps (skip, skip-ui, skip-foundation, skip-model)
+│   ├── Package.swift          swift-tools 6.0, iOS 26, SKIP 1.5.x deps
+│   ├── Skip.env               IPHONEOS_DEPLOYMENT_TARGET = 26.0
 │   └── Sources/SweeprKit/
 │       ├── Models/            Booking, Address, Cleaner, Quote, Membership,
 │       │                      SmartEntryAccess, DayOfServiceStatus, Job, Money,
-│       │                      BookingStatus (mirrors lib/statusMachine.ts) + MockData
+│       │                      BookingStatus (mirrors lib/statusMachine.ts);
+│       │                      CustomerModels (CurrentUser, ServicePackage, HomeType,
+│       │                      QuoteRequest/Response, Coupon, MembershipInfo,
+│       │                      SmartEntryStatus, AccessMethod, booking-access) + MockData
 │       ├── Networking/        SweeprAPI (async/await URLSession, Bearer auth)
 │       ├── Auth/              AuthTokenProvider protocol (Clerk bridge point)
+│       ├── State/             SessionStore + BookingStore (@Observable, loading states)
 │       ├── Theme/             SweeprTheme design tokens (seafoam / warm graphite)
-│       ├── UI/                SweeprButton, SweeprCard, SweeprBadge, SkeletonBlock
+│       ├── UI/                SweeprButton/Card/Badge/SkeletonBlock, SweeprPatterns
+│       │                      (SectionTitle, QuickAction, StatTile, ChoiceRow,
+│       │                      StatusTimeline), Haptics, SweeprToast
 │       └── Skip/skip.yml      SKIP transpile marker
 │
 ├── Sweepr/                    CUSTOMER app — "Sweepr" (com.getsweepr.customer)
@@ -31,10 +38,16 @@ apps/ios/
 │   ├── Darwin/Info.plist      iOS app metadata + usage strings
 │   └── Sources/Sweepr/
 │       ├── SweeprApp.swift    @main
-│       ├── RootView.swift     TabView: Home · Book · Bookings · Account
-│       ├── Support/           AppEnvironment (SweeprAPI + token provider)
-│       ├── Screens/           Home, Bookings, BookingDetail, BookFlow (stub),
-│       │                      LiveTracking (native map), Account
+│       ├── RootView.swift     TabView: Home · Book · Bookings · Account (+ toast)
+│       ├── Support/           AppEnvironment (SweeprAPI + SessionStore +
+│       │                      BookingStore + ToastCenter)
+│       ├── Screens/           Home (greeting/hero/quick-actions/promo),
+│       │                      BookFlow (7-step wizard + server quote),
+│       │                      Bookings (segmented + swipe-cancel),
+│       │                      BookingDetail (timeline, tip, review, access),
+│       │                      Membership (Sweepr+ join/manage),
+│       │                      SmartEntry (access-method + $5 paywall),
+│       │                      LiveTracking (native MapKit), Account
 │       └── Skip/skip.yml
 │
 └── CleanWithSweepr/           CLEANER app — "Clean with Sweepr" (com.getsweepr.cleaner)
@@ -77,12 +90,29 @@ check on Android.
 
 `SweeprAPI` (actor) talks to the Hono API at `https://api.getsweepr.com` with
 async/await `URLSession` and a `Bearer` token from an injected
-`AuthTokenProvider`. Wired endpoints: `GET /bookings`, `GET /bookings/:id`,
-`GET /membership`, `GET /cleaner-dashboard/jobs`, `GET /day-of-service/:id`,
-`GET /cleaner-dashboard/earnings`. Money crosses the wire as **integer cents**
-(`Money`) exactly like the DB; the client never computes totals. Every screen
-falls back to `SweeprMock` data when the network/Clerk session is unavailable, so
-the UI is coherent in previews and offline.
+`AuthTokenProvider`. Wired endpoints:
+
+- Customer: `GET /auth/me`, `GET /bookings`, `GET /bookings/:id`,
+  `POST /bookings/quote`, `POST /bookings`, `POST /bookings/:id/status` (cancel),
+  `GET /coupons/mine`, `GET /membership`, `POST /membership/checkout|cancel|resume`,
+  `GET /smart-entry/status`, `GET/PUT /smart-entry/booking/:id`.
+- Cleaner (day-of-service): `GET /cleaner-dashboard/jobs`,
+  `GET /day-of-service/:id`, `GET /cleaner-dashboard/earnings`.
+
+**Request bodies are camelCase** — the Hono zod schemas validate camelCase
+(`serviceType`, `addOnKeys`, `cleaningLevel`, `deviceId`…), so the JSON encoder
+does **not** snake_case-convert; the decoder still uses `convertFromSnakeCase`
+because some responses (e.g. `booking_access_authorizations` columns) are
+snake_case. Membership `interval` crosses the wire as `"month"`/`"year"`.
+Money crosses the wire as **integer cents** (`Money`) exactly like the DB; the
+client never computes totals — `POST /bookings/quote` is authoritative. Every
+screen falls back to `SweeprMock` data when the network/Clerk session is
+unavailable, so the UI is coherent in previews and offline.
+
+State lives in two shared `@Observable` stores (SweeprKit `State/`): `SessionStore`
+(auth phase + `CurrentUser`) and `BookingStore` (bookings + `LoadState` +
+pull-to-refresh). `ToastCenter` drives `SweeprToast`. Key actions fire
+`SweeprHaptics`.
 
 ### Auth (Clerk) — the one TODO to finish
 
@@ -91,6 +121,36 @@ Each app currently injects `AnonymousTokenProvider`. To go live, add a
 `ClerkTokenProvider` in each app target that returns
 `Clerk.shared.session?.getToken()` (primary application, `clerk.getsweepr.com`).
 Only the publishable key (`pk_…`, in `Skip.env`) ever lives in source.
+
+## SKIP / iOS 26 configuration
+
+The apps target the **iOS 26 SDK (Xcode 26+)** and use iOS 26-era SwiftUI.
+
+- **Deployment floor is 26.0 everywhere it's declared**, kept in lockstep so the
+  SwiftPM, Xcode, and generated Android/Gradle builds agree: `Package.swift`
+  (`platforms: [.iOS(.v26)]`, SweeprKit also `.macOS(.v15)` for host tests),
+  `Skip.env` (`IPHONEOS_DEPLOYMENT_TARGET = 26.0`), and `Darwin/Info.plist`
+  (`MinimumOSVersion = 26.0`).
+- **`swift-tools-version` is 6.0.** SKIP is compatible with the Swift 6 tools /
+  language mode on its recent release train.
+- **SKIP packages raised to the unified `from: "1.5.0"` line** (skip / skip-ui /
+  skip-foundation / skip-model), up from the previous `1.2.0`/`1.0.0` pins. This
+  is the first release train we target for Swift 6 + iOS 26; **pin to whatever
+  `skip verify` reports on a real Mac** — these are lower-bound guesses made in an
+  environment without the `skip` CLI.
+- **Modern SwiftUI adopted (SKIP-supported subset):** `NavigationStack` +
+  `navigationDestination`, `.refreshable`, `.scrollIndicators(.hidden)`,
+  two-parameter `.onChange`, `.swipeActions`, `@Observable` / `@Bindable`
+  (Observation, via SkipModel), and `@Environment(\.openURL)`.
+- **Verify on-device / on a Mac (SKIP support is version-sensitive):** the
+  `.graphical` `DatePicker` and `Stepper` in the booking wizard, and the
+  deprecated `Map(coordinateRegion:annotationItems:)` in LiveTracking (still
+  compiles under iOS 26; migrate to the iOS 17+ `Map { }` + `Annotation` builder
+  if SkipUI prefers it). These are called out as the conservative "confirm it
+  transpiles" set.
+
+Only the SweeprKit + Sweepr (customer) targets were bumped here; the
+`CleanWithSweepr` (cleaner) target is owned separately and left untouched.
 
 ## Build iOS (needs a Mac + Xcode + the skip toolchain)
 

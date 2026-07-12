@@ -79,4 +79,65 @@ public enum SweeprMock {
         instructions: "Lockbox on the gas meter, left of the front door.",
         code: "4827", revealedAt: nil
     )
+
+    // MARK: - Customer-flow mocks
+
+    public static let currentUser = CurrentUser(
+        clerkId: "user_mock", email: "alex@example.com",
+        firstName: "Alex", lastName: "Nguyen", role: "customer"
+    )
+
+    public static let coupons: [Coupon] = [
+        Coupon(id: "cp_1", code: "WELCOME20", title: "Welcome offer",
+               description: "20% off your first cleaning", theme: "seafoam",
+               kind: "percent", value: 20, addonKey: nil, usesLeft: 1,
+               minBookingTotalCents: 10000),
+        Coupon(id: "cp_2", code: "FRIDGE", title: "Free fridge clean",
+               description: "Inside-fridge add-on on us", theme: "amber",
+               kind: "free_addon", value: nil, addonKey: "inside_fridge",
+               usesLeft: 1, minBookingTotalCents: nil),
+    ]
+
+    public static let membershipInfo = MembershipInfo(
+        enabled: true, member: true, status: "active",
+        cancelAtPeriodEnd: false,
+        currentPeriodEnd: Date().addingTimeInterval(60 * 60 * 24 * 21),
+        pricing: MembershipPricing(
+            monthlyCents: 1900, annualCents: 19000,
+            discountPercent: 10, monthlyDiscountCapCents: 3000
+        )
+    )
+
+    public static let smartEntryStatus = SmartEntryStatus(
+        enabled: true, remoteUnlockEnabled: true, manualCodeEnabled: true,
+        feeCents: 500, includedWithMembership: false
+    )
+
+    public static let quoteResponse = QuoteResponse(
+        total: 203.00,
+        price: QuotePrice(
+            totalPrice: 20300,
+            levelSurchargeCents: 2400,
+            emergencySurchargeCents: 0,
+            isEmergency: false,
+            lineItems: [
+                QuoteLineItem(label: "Base fee", cents: 12000),
+                QuoteLineItem(label: "Bedrooms", cents: 2000),
+                QuoteLineItem(label: "Bathrooms", cents: 1500),
+                QuoteLineItem(label: "Cleaning intensity", cents: 2400),
+                QuoteLineItem(label: "Inside fridge", cents: 2000),
+                QuoteLineItem(label: "Inside oven", cents: 1500),
+                QuoteLineItem(label: "Member discount", cents: -1500),
+            ],
+            requiresCustomQuote: false
+        ),
+        engine: "rule_engine"
+    )
+
+    public static let bookingAccess = BookingAccessAuthorization(
+        accessMethod: "smart_entry", lockDeviceId: "dev_1",
+        customerAuthorizedAt: Date().addingTimeInterval(-3600),
+        accessStartsAt: Date(), accessEndsAt: Date().addingTimeInterval(7200),
+        revokedAt: nil
+    )
 }
