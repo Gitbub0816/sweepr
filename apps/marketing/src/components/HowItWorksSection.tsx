@@ -12,9 +12,11 @@ import { useEffect, useRef, useState } from "react";
 import {
   UserPlus,
   ClipboardCheck,
+  CalendarClock,
   ShieldCheck,
   Sparkles,
   CreditCard,
+  Star,
   ChevronLeft,
   ChevronRight,
   Check,
@@ -99,9 +101,8 @@ interface Step {
   body: string;
   points: string[];
   partners: Partner[]; // empty ⇒ handled in-house by Sweepr
-  /** map node position (percent of the map panel) */
-  x: number;
-  y: number;
+  /** Distinct in-house blurb shown when there is no partner for this stop. */
+  inHouseNote?: string;
 }
 
 const STEPS: Step[] = [
@@ -117,8 +118,6 @@ const STEPS: Step[] = [
       "Return anytime to manage upcoming cleanings",
     ],
     partners: [CLERK],
-    x: 11.5,
-    y: 84.7,
   },
   {
     icon: ClipboardCheck,
@@ -132,8 +131,23 @@ const STEPS: Step[] = [
       "No negotiating or waiting for a quote",
     ],
     partners: [],
-    x: 39.1,
-    y: 71.5,
+    inHouseNote:
+      "Sweepr's pricing engine was built in-house over thousands of hours so your quote is fair, transparent, and final — every line calculated on our own servers, not guessed at.",
+  },
+  {
+    icon: CalendarClock,
+    label: "Pick a time",
+    eyebrow: "Lock it in",
+    title: "Choose a time that works",
+    body: "See real availability in your area and pick the slot that suits you. Confirm in a tap — reschedule or adjust add-ons right up until your cleaner checks in.",
+    points: [
+      "Live availability for your neighborhood",
+      "Flexible rescheduling before check-in",
+      "Instant confirmation, no back-and-forth",
+    ],
+    partners: [],
+    inHouseNote:
+      "Our scheduling and matching logic is 100% Sweepr — carefully tuned by our team so the right cleaner is offered the right job at the right time, near you.",
   },
   {
     icon: ShieldCheck,
@@ -147,8 +161,6 @@ const STEPS: Step[] = [
       "Matched on availability, area, and service fit",
     ],
     partners: [YARDSTIK, DIDIT],
-    x: 28.8,
-    y: 40.3,
   },
   {
     icon: Sparkles,
@@ -162,23 +174,36 @@ const STEPS: Step[] = [
       "Secure in-app communication and support",
     ],
     partners: [],
-    x: 67.3,
-    y: 48.6,
+    inHouseNote:
+      "The day-of-service experience — check-in, live status, and photo documentation — was crafted by the Sweepr team so you always know exactly what's happening in your home.",
   },
   {
     icon: CreditCard,
-    label: "Pay & review",
+    label: "Pay after",
     eyebrow: "You're all set",
-    title: "Pay only after — then tip & review",
-    body: "You're charged only once the job is done. Add an optional tip and leave a review right from your Sweepr account — payments handled by the platform trusted by millions of businesses.",
+    title: "Pay only after the job",
+    body: "You're charged only once the cleaning is complete — never before. Payments are handled securely by the platform trusted by millions of businesses worldwide.",
     points: [
-      "Secure payment, completed after the job",
-      "Optional tips go 100% to your cleaner",
-      "Your feedback keeps marketplace quality high",
+      "Charged after service, from your saved method",
+      "Encrypted — card details never touch our servers",
+      "Clear receipt saved to your account",
     ],
     partners: [STRIPE],
-    x: 84.6,
-    y: 15.3,
+  },
+  {
+    icon: Star,
+    label: "Tip & review",
+    eyebrow: "Wrap up",
+    title: "Tip & review",
+    body: "Loved your clean? Add an optional tip and leave a review right from your account — it goes straight to your cleaner and helps keep marketplace quality high.",
+    points: [
+      "Optional tips go 100% to your cleaner",
+      "Reviews shape who gets matched next",
+      "Rebook your favorite pro in a tap",
+    ],
+    partners: [],
+    inHouseNote:
+      "Tips, reviews, and rebooking all run on Sweepr's own platform — designed by our team to reward great cleaners and make your next booking even easier.",
   },
 ];
 
@@ -278,6 +303,11 @@ export function HowItWorksSection() {
   const step = STEPS[active];
   const StepIcon = step.icon;
 
+  // Node positions sampled directly from the road so any number of stops sits
+  // exactly on the path (percent of the 780×720 viewBox, which — with
+  // preserveAspectRatio:none — maps 1:1 onto the stretched panel).
+  const [nodePos, setNodePos] = useState<Array<{ x: number; y: number }>>([]);
+
   const progressRef = useRef<SVGPathElement>(null);
   const highlightRef = useRef<SVGPathElement>(null);
   const travelerRef = useRef<SVGGElement>(null);
@@ -295,6 +325,12 @@ export function HowItWorksSection() {
         p.style.strokeDasharray = `${lenRef.current} ${lenRef.current}`;
         p.style.strokeDashoffset = String(lenRef.current);
       }
+      const pts = STEPS.map((_, i) => {
+        const tt = STEPS.length === 1 ? 1 : i / (STEPS.length - 1);
+        const p = prog.getPointAtLength(lenRef.current * tt);
+        return { x: (p.x / 780) * 100, y: (p.y / 720) * 100 };
+      });
+      setNodePos(pts);
     }
     const len = lenRef.current;
     const t = STEPS.length === 1 ? 1 : active / (STEPS.length - 1);
@@ -324,9 +360,9 @@ export function HowItWorksSection() {
       </Reveal>
 
       <Reveal className="mt-12">
-        <div className="grid overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900 lg:grid-cols-[1.7fr_0.85fr]">
+        <div className="grid overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900 lg:h-[540px] lg:grid-cols-[1.7fr_0.85fr]">
           {/* ── Map panel ─────────────────────────────────────────────── */}
-          <div className="relative min-h-[560px] overflow-hidden border-b border-slate-200 bg-gradient-to-br from-seafoam-50/60 via-white to-slate-50 dark:border-slate-700 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800 lg:border-b-0 lg:border-r">
+          <div className="relative min-h-[420px] overflow-hidden border-b border-slate-200 bg-gradient-to-br from-seafoam-50/60 via-white to-slate-50 dark:border-slate-700 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800 lg:h-full lg:border-b-0 lg:border-r">
             {/* kicker */}
             <span className="absolute left-6 top-6 z-10 inline-flex items-center gap-2 rounded-xl border border-seafoam-600/20 bg-white/80 px-3 py-2 text-xs font-extrabold text-seafoam-800 shadow-sm backdrop-blur dark:bg-slate-800/80 dark:text-seafoam-300">
               <Sparkles className="h-4 w-4" aria-hidden="true" />
@@ -392,10 +428,16 @@ export function HowItWorksSection() {
               </g>
             </svg>
 
-            {/* destination house */}
+            {/* destination house (sits above the final stop on the road) */}
             <span
               className="pointer-events-none absolute z-[2]"
-              style={{ left: "84.6%", top: "15.3%", width: 92, height: 76, transform: "translate(-50%,-86%)" }}
+              style={{
+                left: `${nodePos[STEPS.length - 1]?.x ?? 84.6}%`,
+                top: `${nodePos[STEPS.length - 1]?.y ?? 15.3}%`,
+                width: 88,
+                height: 72,
+                transform: "translate(-50%,-88%)",
+              }}
               aria-hidden="true"
             >
               <svg viewBox="0 0 110 88" className="h-full w-full overflow-visible">
@@ -408,51 +450,52 @@ export function HowItWorksSection() {
               </svg>
             </span>
 
-            {/* step nodes */}
-            {STEPS.map((s, i) => {
-              const Icon = s.icon;
-              const isActive = i === active;
-              const isPassed = i < active;
-              return (
-                <button
-                  key={s.title}
-                  type="button"
-                  onClick={() => go(i)}
-                  aria-current={isActive ? "step" : undefined}
-                  aria-label={`Step ${i + 1}: ${s.title}`}
-                  className="absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2 focus-visible:outline-none"
-                  style={{ left: `${s.x}%`, top: `${s.y}%` }}
-                >
-                  <span
-                    className={`relative grid h-14 w-14 place-items-center rounded-[1.1rem] border-[3px] border-white transition-all duration-200 dark:border-slate-900 ${
-                      isActive
-                        ? "scale-110 bg-seafoam-700 text-white shadow-[0_17px_36px_rgba(15,118,110,.29),0_0_0_7px_rgba(153,246,228,.5)]"
-                        : isPassed
-                          ? "bg-seafoam-600 text-white shadow-lg"
-                          : "bg-white text-slate-500 shadow-md hover:-translate-y-0.5 hover:text-seafoam-700 dark:bg-slate-800 dark:text-slate-300"
-                    }`}
+            {/* step nodes (positioned exactly on the road) */}
+            {nodePos.length === STEPS.length &&
+              STEPS.map((s, i) => {
+                const Icon = s.icon;
+                const isActive = i === active;
+                const isPassed = i < active;
+                return (
+                  <button
+                    key={s.title}
+                    type="button"
+                    onClick={() => go(i)}
+                    aria-current={isActive ? "step" : undefined}
+                    aria-label={`Step ${i + 1}: ${s.title}`}
+                    className="absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5 focus-visible:outline-none"
+                    style={{ left: `${nodePos[i].x}%`, top: `${nodePos[i].y}%` }}
                   >
-                    <Icon className="h-6 w-6" aria-hidden="true" />
                     <span
-                      className={`absolute -right-2 -top-2 grid h-6 w-6 place-items-center rounded-full border-2 border-white text-[11px] font-black text-white dark:border-slate-900 ${
-                        isActive ? "bg-charcoal" : isPassed ? "bg-seafoam-800" : "bg-slate-700"
+                      className={`relative grid h-11 w-11 place-items-center rounded-[0.95rem] border-[3px] border-white transition-all duration-200 dark:border-slate-900 ${
+                        isActive
+                          ? "scale-110 bg-seafoam-700 text-white shadow-[0_14px_30px_rgba(15,118,110,.29),0_0_0_6px_rgba(153,246,228,.5)]"
+                          : isPassed
+                            ? "bg-seafoam-600 text-white shadow-lg"
+                            : "bg-white text-slate-500 shadow-md hover:-translate-y-0.5 hover:text-seafoam-700 dark:bg-slate-800 dark:text-slate-300"
                       }`}
                     >
-                      {i + 1}
+                      <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+                      <span
+                        className={`absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full border-2 border-white text-[10px] font-black text-white dark:border-slate-900 ${
+                          isActive ? "bg-charcoal" : isPassed ? "bg-seafoam-800" : "bg-slate-700"
+                        }`}
+                      >
+                        {i + 1}
+                      </span>
                     </span>
-                  </span>
-                  <span
-                    className={`max-w-[8rem] rounded-lg border bg-white/85 px-2.5 py-1.5 text-center text-[11px] font-extrabold leading-tight shadow-sm backdrop-blur transition-colors dark:bg-slate-800/85 ${
-                      isActive
-                        ? "border-seafoam-300 text-seafoam-800 dark:text-seafoam-300"
-                        : "border-slate-200 text-slate-700 dark:border-slate-600 dark:text-slate-300"
-                    }`}
-                  >
-                    {s.label}
-                  </span>
-                </button>
-              );
-            })}
+                    <span
+                      className={`max-w-[7rem] rounded-lg border bg-white/85 px-2 py-1 text-center text-[10px] font-extrabold leading-tight shadow-sm backdrop-blur transition-colors dark:bg-slate-800/85 ${
+                        isActive
+                          ? "border-seafoam-300 text-seafoam-800 dark:text-seafoam-300"
+                          : "border-slate-200 text-slate-700 dark:border-slate-600 dark:text-slate-300"
+                      }`}
+                    >
+                      {s.label}
+                    </span>
+                  </button>
+                );
+              })}
           </div>
 
           {/* ── Detail panel ──────────────────────────────────────────── */}
@@ -474,7 +517,7 @@ export function HowItWorksSection() {
               </div>
             </div>
 
-            <div key={swapKey} className="flex flex-1 flex-col px-7 pb-7 pt-6 [animation:sweepr-fadeswap_.34s_ease_both]">
+            <div key={swapKey} className="flex min-h-0 flex-1 flex-col overflow-y-auto px-7 pb-7 pt-6 [animation:sweepr-fadeswap_.34s_ease_both]">
               <span className="grid h-14 w-14 place-items-center rounded-2xl border border-seafoam-100 bg-seafoam-50 text-seafoam-700 dark:border-slate-700 dark:bg-slate-800 dark:text-seafoam-300">
                 <StepIcon className="h-6 w-6" aria-hidden="true" />
               </span>
@@ -495,7 +538,7 @@ export function HowItWorksSection() {
               </ul>
 
               {/* partner tie-in / in-house */}
-              <div className="mt-auto pt-6">
+              <div className="pt-6">
                 {step.partners.length > 0 ? (
                   <>
                     <p className="mb-2.5 text-[11px] font-black uppercase tracking-wider text-slate-400">
@@ -518,8 +561,8 @@ export function HowItWorksSection() {
                       </span>
                     </div>
                     <p className="mt-3 text-[13px] leading-relaxed text-slate-600 dark:text-slate-400">
-                      The Sweepr development team has spent thousands of hours curating
-                      this part of the experience for you!
+                      {step.inHouseNote ??
+                        "The Sweepr development team has spent thousands of hours curating this part of the experience for you!"}
                     </p>
                   </div>
                 )}
