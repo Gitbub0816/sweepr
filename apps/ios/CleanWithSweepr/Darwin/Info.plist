@@ -22,6 +22,9 @@
     <string>0.1.0</string>
     <key>CFBundleVersion</key>
     <string>1</string>
+    <!-- App targets the iOS 26 SDK (Xcode 26+). -->
+    <key>MinimumOSVersion</key>
+    <string>26.0</string>
     <key>UILaunchScreen</key>
     <dict/>
     <key>UISupportedInterfaceOrientations</key>
@@ -33,5 +36,8 @@
     <string>Clean with Sweepr uses your location for job routing and to share live arrival with the customer.</string>
     <key>NSCameraUsageDescription</key>
     <string>Clean with Sweepr uses the camera to capture before/after photos required for check-in and checkout.</string>
+    <!-- Biometric re-auth gate before revealing/unlocking Smart Entry access. -->
+    <key>NSFaceIDUsageDescription</key>
+    <string>Clean with Sweepr uses Face ID to confirm it's you before revealing or unlocking a customer's Smart Entry access.</string>
 </dict>
 </plist>

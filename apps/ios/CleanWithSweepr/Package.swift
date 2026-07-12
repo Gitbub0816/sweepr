@@ -16,7 +16,7 @@ import PackageDescription
 let package = Package(
     name: "CleanWithSweepr",
     defaultLocalization: "en",
-    platforms: [.iOS(.v16)],
+    platforms: [.iOS(.v26)],
     products: [
         .library(name: "CleanWithSweepr", targets: ["CleanWithSweepr"]),
     ],
