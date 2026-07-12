@@ -58,51 +58,60 @@ const JOURNEY: Array<{
 interface Partner {
   name: string;
   role: string;
+  /** One line on why this partner is best-in-class — reinforces trust. */
+  why: string;
   href: string;
   /** Logo asset served from the partner's own domain. */
   logo: string;
 }
 
-// Only partners a customer actually touches or sees during their journey.
-// Behind-the-scenes vendors (databases, analytics, AI scope review, cleaner
-// background checks) are intentionally omitted — see /subprocessors for the
+// The partners whose expertise a customer directly relies on for a safe,
+// trustworthy experience: identity & payments, cleaner vetting, and the
+// monitoring that keeps it all safe. Purely behind-the-scenes infrastructure
+// (hosting, database, email delivery) is omitted — see /subprocessors for the
 // complete, legally authoritative list.
 const PARTNERS: Partner[] = [
   {
     name: "Clerk",
-    role: "Secure sign-in & your account",
+    role: "Sign-in & account security",
+    why: "Bank-grade authentication trusted by thousands of companies — your account is protected with modern security and multi-factor sign-in.",
     href: "https://clerk.com",
     logo: "https://clerk.com/favicon.ico",
   },
   {
     name: "Stripe",
     role: "Payments & tips",
+    why: "The payments platform behind millions of businesses worldwide. Your card details are encrypted and never touch Sweepr's servers, and you're only charged after your clean.",
     href: "https://stripe.com",
     logo: "https://stripe.com/favicon.ico",
   },
   {
-    name: "Mapbox",
-    role: "Maps & service-area coverage",
-    href: "https://www.mapbox.com",
-    logo: "https://www.mapbox.com/favicon.ico",
+    name: "Yardstik",
+    role: "Cleaner background checks",
+    why: "A specialist in vetting the gig and services workforce. Every Sweepr cleaner clears an accredited, FCRA-compliant background check before they can accept a job.",
+    href: "https://www.yardstik.com",
+    logo: "https://www.yardstik.com/favicon.ico",
   },
   {
-    name: "MailerSend",
-    role: "Booking emails & text updates",
-    href: "https://www.mailersend.com",
-    logo: "https://www.mailersend.com/favicon.ico",
+    name: "Didit",
+    role: "Identity verification",
+    why: "Confirms every cleaner is a real, verified person via government-ID and biometric checks — so the pro at your door is exactly who they say they are.",
+    href: "https://didit.me",
+    logo: "https://didit.me/favicon.ico",
   },
   {
-    name: "Twilio",
-    role: "Masked calls with your cleaner",
-    href: "https://www.twilio.com",
-    logo: "https://www.twilio.com/favicon.ico",
+    name: "PostHog",
+    role: "Product analytics & safety monitoring",
+    why: "Privacy-first analytics that help us spot issues, improve the experience, and keep the platform running smoothly and safely.",
+    href: "https://posthog.com",
+    logo: "https://posthog.com/favicon.ico",
   },
   {
-    name: "Cloudflare",
-    role: "Speed & security",
-    href: "https://www.cloudflare.com",
-    logo: "https://www.cloudflare.com/favicon.ico",
+    name: "Sentry",
+    role: "Reliability & error monitoring",
+    why: "Watches for problems in real time so our team can catch and fix issues fast — keeping every booking dependable.",
+    href: "https://sentry.io",
+    logo: "https://sentry.io/favicon.ico",
   },
 ];
 
@@ -113,32 +122,37 @@ function PartnerLogo({ partner }: { partner: Partner }) {
       href={partner.href}
       target="_blank"
       rel="noopener noreferrer nofollow"
-      className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white/70 p-3 transition-colors hover:border-seafoam-300 hover:bg-white dark:border-slate-700 dark:bg-slate-800/50 dark:hover:border-seafoam-600"
+      className="group flex flex-col gap-2 rounded-xl border border-slate-200 bg-white/70 p-4 transition-colors hover:border-seafoam-300 hover:bg-white dark:border-slate-700 dark:bg-slate-800/50 dark:hover:border-seafoam-600"
     >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white ring-1 ring-slate-200 dark:ring-slate-600">
-        {failed ? (
-          <span className="text-sm font-bold text-slate-500">
-            {partner.name.slice(0, 1)}
+      <span className="flex items-center gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white ring-1 ring-slate-200 dark:ring-slate-600">
+          {failed ? (
+            <span className="text-sm font-bold text-slate-500">
+              {partner.name.slice(0, 1)}
+            </span>
+          ) : (
+            <img
+              src={partner.logo}
+              alt={`${partner.name} logo`}
+              width={24}
+              height={24}
+              loading="lazy"
+              className="h-6 w-6 object-contain"
+              onError={() => setFailed(true)}
+            />
+          )}
+        </span>
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-charcoal dark:text-white">
+            {partner.name}
           </span>
-        ) : (
-          <img
-            src={partner.logo}
-            alt={`${partner.name} logo`}
-            width={24}
-            height={24}
-            loading="lazy"
-            className="h-6 w-6 object-contain"
-            onError={() => setFailed(true)}
-          />
-        )}
+          <span className="block text-xs font-medium text-seafoam-700 dark:text-seafoam-300">
+            {partner.role}
+          </span>
+        </span>
       </span>
-      <span className="min-w-0">
-        <span className="block text-sm font-semibold text-charcoal dark:text-white">
-          {partner.name}
-        </span>
-        <span className="block text-xs text-slate-500 dark:text-slate-400">
-          {partner.role}
-        </span>
+      <span className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+        {partner.why}
       </span>
     </a>
   );
@@ -212,11 +226,14 @@ export function HowItWorksSection() {
           {/* Partners */}
           <div className="mt-8 border-t border-slate-200 pt-6 dark:border-slate-700">
             <h3 className="text-sm font-semibold text-charcoal dark:text-white">
-              Trusted partners powering your experience
+              Built on partners you can trust
             </h3>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Sweepr works with best-in-class services so your bookings, payments,
-              and communications stay fast and secure. See our full list of{" "}
+              We don't cut corners on the things that matter. Sweepr is built on
+              industry leaders for identity, payments, cleaner vetting, and safety
+              monitoring — each an expert in what they do — so every booking is
+              secure, every cleaner is verified, and your experience is dependable.
+              See our full list of{" "}
               <a
                 href="https://legal.getsweepr.com/subprocessors"
                 target="_blank"
