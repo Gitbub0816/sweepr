@@ -8,6 +8,9 @@
 // distribution, reverse engineering, or use is prohibited.
 //
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 // SweeprAPI — the async/await networking layer over the Hono API at
 // api.getsweepr.com. One instance is shared per app via `AppEnvironment`.
