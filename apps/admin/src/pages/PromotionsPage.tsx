@@ -103,6 +103,7 @@ export function PromotionsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Promo | null>(null);
   const [stats, setStats] = useState<{ claims: number; founders: number }>({ claims: 0, founders: 0 });
+  const [claims, setClaims] = useState<Array<{ id: string; email: string | null; phone: string | null; granted_founding: boolean; claimed_at: string }>>([]);
   const [saving, setSaving] = useState(false);
   const [creating, setCreating] = useState(false);
 
@@ -121,6 +122,10 @@ export function PromotionsPage() {
       const data = (await res.json()) as { promotion: Promo; stats: { claims: number; founders: number } };
       setDraft(data.promotion);
       setStats(data.stats);
+    }
+    const cr = await authed(`/admin/promotions/${id}/claims`);
+    if (cr.ok) {
+      setClaims(((await cr.json()) as { claims: typeof claims }).claims);
     }
   }, [authed]);
 
@@ -589,6 +594,34 @@ export function PromotionsPage() {
                   <label className="text-xs">Max claims (blank = unlimited)
                     <Input type="number" min={1} value={draft.max_claims ?? ""} onChange={(e) => setDraft({ ...draft, max_claims: e.target.value ? Number(e.target.value) : null })} className="mt-1" />
                   </label>
+                </div>
+              </Card>
+
+              {/* Who claimed this promo */}
+              <Card className="space-y-2 p-4">
+                <h3 className="font-semibold">Claimants ({stats.claims})</h3>
+                <p className="text-xs text-slate-500">
+                  Everyone who claimed this promo. "Pending sign-up" rewards attach when that email
+                  creates an account. Founders granted here also appear on the Founding Members page.
+                </p>
+                <div className="max-h-72 overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead className="text-left text-xs uppercase text-slate-400">
+                      <tr><th className="py-1">Email / phone</th><th>Founding</th><th>Claimed</th></tr>
+                    </thead>
+                    <tbody>
+                      {claims.map((cl) => (
+                        <tr key={cl.id} className="border-t border-slate-100 dark:border-slate-800">
+                          <td className="py-1.5">{cl.email ?? cl.phone ?? "signed-in user"}</td>
+                          <td>{cl.granted_founding ? "🏅 granted" : draft.grants_founding_member ? "pending sign-up" : "—"}</td>
+                          <td className="text-slate-500">{new Date(cl.claimed_at).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                      {claims.length === 0 ? (
+                        <tr><td colSpan={3} className="py-4 text-center text-slate-400">No claims yet.</td></tr>
+                      ) : null}
+                    </tbody>
+                  </table>
                 </div>
               </Card>
 
