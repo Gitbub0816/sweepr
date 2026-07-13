@@ -158,6 +158,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         limiter: Mutex::new(HashMap::new()),
     });
 
+    // CORS: the login page is served from a DIFFERENT host (AUTH_PAGE_ORIGIN,
+    // e.g. signin.getsweepr.com) and calls the two browser-facing endpoints
+    // (transaction context + complete) cross-origin. Only that exact origin is
+    // allowed, only GET/POST, only the Content-Type header, no credentials
+    // (these calls carry no cookies — the Clerk token travels in the body).
+    // Server-to-server endpoints (transactions/exchange/introspect/logout) are
+    // never called from a browser, so CORS never applies to them.
+    let cors = match state
+        .cfg
+        .auth_page_origin
+        .parse::<axum::http::HeaderValue>()
+    {
+        Ok(origin) => tower_http::cors::CorsLayer::new()
+            .allow_origin(origin)
+            .allow_methods([axum::http::Method::GET, axum::http::Method::POST])
+            .allow_headers([axum::http::header::CONTENT_TYPE]),
+        Err(_) => tower_http::cors::CorsLayer::new(), // fail closed: no cross-origin allowed
+    };
+
     let app = Router::new()
         // Unauthenticated, lightweight liveness check for Fly.
         .route("/healthz", get(healthz))
@@ -174,7 +193,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/v1/auth/introspect", post(introspect))
         .route("/v1/auth/logout", post(logout_app))
         .route("/v1/auth/logout-all", post(logout_all))
+        // origin_guard runs first (inner), then CORS wraps it (outer) so
+        // preflight OPTIONS is answered before the guard.
         .layer(middleware::from_fn_with_state(state.clone(), origin_guard))
+        .layer(cors)
         .with_state(state);
 
     let port: u16 = std::env::var("PORT")
@@ -205,6 +227,11 @@ async fn origin_guard(
     // Fly health checks hit /healthz directly on the origin; exempt it (it
     // reveals only "ok").
     if req.uri().path() == "/healthz" {
+        return next.run(req).await;
+    }
+    // CORS preflight has no side effects and is answered by the CORS layer;
+    // let it pass so the browser can complete the actual request.
+    if req.method() == axum::http::Method::OPTIONS {
         return next.run(req).await;
     }
     if let Some(expected) = state.cfg.origin_shared_secret.as_deref() {

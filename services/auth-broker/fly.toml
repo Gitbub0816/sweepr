@@ -10,7 +10,7 @@ primary_region = 'lax'
   dockerfile = 'Dockerfile'
 
 [env]
-  AUTH_PAGE_ORIGIN = 'https://auth.getsweepr.com'
+  AUTH_PAGE_ORIGIN = 'https://signin.getsweepr.com'
   BROKER_DEPLOYMENT = 'standard'
   PORT = '8080'
   PUBLIC_HOST = 'auth.getsweepr.com'

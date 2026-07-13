@@ -16,7 +16,7 @@ path = "src/main.rs"
 axum = "0.7"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
 tower = "0.5"
-tower-http = { version = "0.6", features = ["trace"] }
+tower-http = { version = "0.6", features = ["trace", "cors"] }
 # Postgres over the standard wire protocol with rustls (no OpenSSL). Runtime
 # queries only — NO compile-time query macros, so the build needs no
 # DATABASE_URL and SQLX_OFFLINE is irrelevant.
