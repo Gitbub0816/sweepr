@@ -1,0 +1,10 @@
+{
+  "projectName": "sweepr-auth",
+  "buildCommand": "cd ../.. && pnpm --filter @sweepr/auth build",
+  "buildOutputDirectory": "dist",
+  "rootDirectory": "apps/auth",
+  "environmentVariables": {
+    "NODE_VERSION": "20",
+    "PNPM_VERSION": "9"
+  }
+}

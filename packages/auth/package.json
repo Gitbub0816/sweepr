@@ -1,5 +1,5 @@
 {
-  "name": "@sweepr/auth",
+  "name": "@sweepr/auth-react",
   "version": "0.1.0",
   "private": true,
   "type": "module",
