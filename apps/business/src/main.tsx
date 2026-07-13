@@ -16,9 +16,24 @@ import { ToastProvider, ErrorBoundary } from "@sweepr/ui";
 import App from "./App";
 import { AlmostReady } from "./components/AlmostReady";
 import { CLERK_ENABLED, CLERK_PUBLISHABLE_KEY } from "./clerk";
+import { CENTRAL_AUTH_ENABLED } from "./components/CentralSession";
 import "./index.css";
 
 function Root() {
+  // Central-auth mode: authentication lives ENTIRELY on the auth page
+  // (auth.getsweepr.com) via the broker. The business app must NOT load Clerk
+  // here — mounting ClerkProvider would pull clerk-js from the business Clerk
+  // domain (and hang if that domain isn't provisioned). The SessionProvider
+  // in App.tsx gates pages and redirects unauthenticated users to /auth/login.
+  if (CENTRAL_AUTH_ENABLED) {
+    return (
+      <BrowserRouter>
+        <App />
+        <ToastProvider />
+      </BrowserRouter>
+    );
+  }
+
   // The business Clerk application may not be provisioned yet. Without a
   // publishable key we render a graceful landing state instead of crashing —
   // ClerkProvider (and any Clerk hooks) must never mount without a key.
