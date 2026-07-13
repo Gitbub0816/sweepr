@@ -73,6 +73,12 @@ preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
 # CLERK_ADMIN_SECRET_KEY    (sk_live_… of the SEPARATE admin Clerk app — primary domain admin.getsweepr.com)
 # CLERK_ADMIN_WEBHOOK_SECRET (whsec_… of the admin Clerk app's webhook pointing at
 #                            https://api.getsweepr.com/webhooks/clerk-admin)
+# CLERK_BUSINESS_SECRET_KEY  (sk_live_… of the SEPARATE business Clerk app — business.getsweepr.com;
+#                            unset = business auth boundary is dark)
+# CLERK_BUSINESS_WEBHOOK_SECRET (whsec_… of the business Clerk app's webhook)
+# CLERK_CLEANER_SECRET_KEY   (sk_live_… of the dedicated cleaner Clerk app, once cleaners are split
+#                            out of the shared primary instance; unset = cleaners use CLERK_SECRET_KEY)
+# CLERK_CLEANER_WEBHOOK_SECRET (whsec_… of the dedicated cleaner Clerk app's webhook)
 # SLACK_CLIENT_ID           (Slack app → Basic Information → App Credentials)
 # SLACK_CLIENT_SECRET       (Slack app → Basic Information → App Credentials)
 # SLACK_SIGNING_SECRET      (Slack app → Basic Information → App Credentials; verifies inbound webhooks)

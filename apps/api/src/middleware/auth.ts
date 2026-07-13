@@ -14,6 +14,7 @@ import { upsertUser } from "@sweepr/db";
 import { getDb } from "../lib/db";
 import { isOwnerEmail, isOwnerClerkId } from "../lib/owner";
 import { captureFromContext } from "../lib/securityEvents";
+import { resolveAuthApp, type AuthApplication } from "../lib/authApps";
 import type { AppBindings } from "../types";
 
 // CSRF note: this API uses Authorization: Bearer tokens, not cookies.
@@ -91,12 +92,20 @@ export const requireAuth = createMiddleware<AppBindings>(async (c, next) => {
 
   const adminKey = c.env.CLERK_ADMIN_SECRET_KEY;
   const iss = unsafeIssuer(token);
-  const isAdminIssuer = Boolean(adminKey) && iss.includes("admin.getsweepr.com");
+  // Config-driven issuer routing across the four Clerk applications
+  // (customer/business/cleaner/admin). Falls back to the primary key for
+  // unknown issuers, matching the pre-multi-app behavior.
+  const resolved = resolveAuthApp(iss, c.env);
+  if (!resolved) {
+    // Issuer routes to an app whose secret key isn't provisioned yet — the
+    // boundary is dark, so no token from it can ever be valid.
+    captureFromContext(c, "auth_failure", "low", { reason: "unconfigured_auth_application" });
+    return c.json({ error: "Invalid token" }, 401);
+  }
+  const isAdminIssuer = resolved.app === "admin";
 
   try {
-    const payload = await verifyToken(token, {
-      secretKey: isAdminIssuer ? (adminKey as string) : c.env.CLERK_SECRET_KEY,
-    });
+    const payload = await verifyToken(token, { secretKey: resolved.secretKey });
     clerkId = payload.sub;
     email = (payload as { email?: string }).email;
   } catch {
@@ -107,6 +116,10 @@ export const requireAuth = createMiddleware<AppBindings>(async (c, next) => {
     captureFromContext(c, "auth_failure", "low", { reason: "invalid_or_expired_token" });
     return c.json({ error: "Invalid token" }, 401);
   }
+
+  // Raw per-app Clerk user id (payload.sub) BEFORE any admin email mapping —
+  // this keys the auth_identities row for the session's application silo.
+  const providerUserId = clerkId;
 
   // Admin-instance identity → canonical users row. The admin Clerk app has its
   // own user pool with different user ids, so map by the Clerk-verified email:
@@ -134,6 +147,8 @@ export const requireAuth = createMiddleware<AppBindings>(async (c, next) => {
   }
 
   c.set("user", { clerkId, email });
+  c.set("authApp", resolved.app);
+  c.set("providerUserId", providerUserId);
 
   // Lazily sync the user row — non-fatal if it fails (e.g. DB temporarily down).
   try {
@@ -232,3 +247,31 @@ export const requireAuth = createMiddleware<AppBindings>(async (c, next) => {
 
   await next();
 });
+
+/**
+ * API-boundary guard (spec §20): mount after requireAuth to restrict a router
+ * to tokens issued by specific Clerk applications. A valid token from the
+ * wrong application is rejected — "valid Clerk token" is never sufficient.
+ *
+ * Transitional rule: cleaners currently authenticate through the shared
+ * primary instance, so while CLERK_CLEANER_SECRET_KEY is unset a "cleaner"
+ * boundary also accepts "customer"-app tokens (role checks still gate access).
+ * Once the dedicated cleaner instance ships, the boundary tightens itself.
+ */
+export function requireApp(...apps: AuthApplication[]) {
+  return createMiddleware<AppBindings>(async (c, next) => {
+    const app = c.get("authApp");
+    const allowed =
+      apps.includes(app) ||
+      (apps.includes("cleaner") && app === "customer" && !c.env.CLERK_CLEANER_SECRET_KEY);
+    if (!allowed) {
+      captureFromContext(c, "auth_failure", "medium", {
+        reason: "wrong_auth_application",
+        expected: apps.join(","),
+        actual: app,
+      });
+      return c.json({ error: "Forbidden" }, 403);
+    }
+    await next();
+  });
+}

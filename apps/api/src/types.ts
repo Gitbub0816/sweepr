@@ -27,6 +27,23 @@ export interface Env {
   CLERK_ADMIN_SECRET_KEY?: string;
   /** Svix signing secret (whsec_…) for the admin Clerk app's webhook endpoint. */
   CLERK_ADMIN_WEBHOOK_SECRET?: string;
+  /**
+   * Secret key of the SEPARATE Clerk application serving the business portal
+   * (business.getsweepr.com). Until this is set, the business auth boundary is
+   * dark: business-issued tokens can't exist, so /business routes 401.
+   */
+  CLERK_BUSINESS_SECRET_KEY?: string;
+  /** Svix signing secret for the business Clerk app's webhook endpoint. */
+  CLERK_BUSINESS_WEBHOOK_SECRET?: string;
+  /**
+   * Secret key of the dedicated cleaner Clerk application, once cleaners are
+   * split out of the shared primary instance. While unset, cleaner tokens are
+   * issued by the primary instance and verified with CLERK_SECRET_KEY (the
+   * current shared-pool behavior).
+   */
+  CLERK_CLEANER_SECRET_KEY?: string;
+  /** Svix signing secret for the dedicated cleaner Clerk app's webhook endpoint. */
+  CLERK_CLEANER_WEBHOOK_SECRET?: string;
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
   MAILERSEND_API_KEY: string;
@@ -113,5 +130,10 @@ export type AppBindings = {
   Bindings: Env;
   Variables: {
     user: AuthUser;
+    /** Which Clerk application issued the verified token (multi-app auth). */
+    authApp: import("./lib/authApps").AuthApplication;
+    /** Raw Clerk user id from the verified token, BEFORE any admin email
+     * mapping onto the canonical users row — the per-app identity key. */
+    providerUserId: string;
   };
 };
