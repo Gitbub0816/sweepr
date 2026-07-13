@@ -94,7 +94,7 @@ export function MembersPage() {
   }
 
   const inputCls =
-    "w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-charcoal outline-none transition focus:border-seafoam-400 focus:ring-2 focus:ring-seafoam-400/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white";
+    "w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-charcoal outline-none transition focus:border-gold-400 focus:ring-2 focus:ring-gold-400/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white";
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -160,7 +160,7 @@ export function MembersPage() {
                     {m.email && <p className="truncate text-sm text-slate-500">{m.email}</p>}
                   </div>
                   {m.role && (
-                    <span className="shrink-0 rounded-full bg-seafoam-50 px-3 py-1 text-xs font-medium capitalize text-seafoam-700 dark:bg-slate-800 dark:text-seafoam-400">
+                    <span className="shrink-0 rounded-full bg-gold-50 px-3 py-1 text-xs font-medium capitalize text-gold-700 dark:bg-slate-800 dark:text-gold-400">
                       {m.role}
                     </span>
                   )}

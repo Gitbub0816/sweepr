@@ -12,6 +12,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { UserButton } from "@clerk/clerk-react";
 import { LayoutDashboard, Home as HomeIcon, Users } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
+import { BusinessLogo } from "./components/BusinessLogo";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { SignInPage } from "./pages/SignInPage";
 import { SignUpPage } from "./pages/SignUpPage";
@@ -29,7 +30,13 @@ const nav = [
 function Protected({ children }: { children: React.ReactNode }) {
   return (
     <ProtectedRoute>
-      <AppShell brand="Business" nav={nav} headerRight={<UserButton afterSignOutUrl="/sign-in" />}>
+      <AppShell
+        brand="Business"
+        nav={nav}
+        logo={<BusinessLogo size="sm" />}
+        navActiveClass="bg-gold-50 text-gold-800 dark:bg-gold-900/30 dark:text-gold-300"
+        headerRight={<UserButton afterSignOutUrl="/sign-in" />}
+      >
         {children}
       </AppShell>
     </ProtectedRoute>

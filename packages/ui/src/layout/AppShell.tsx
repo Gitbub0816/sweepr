@@ -36,6 +36,10 @@ export interface AppShellProps {
   children: ReactNode;
   headerRight?: ReactNode;
   accent?: string;
+  /** Replaces the default Sweepr wordmark in the sidebar (per-app branding). */
+  logo?: ReactNode;
+  /** Overrides the active nav-item accent classes (default: seafoam). */
+  navActiveClass?: string;
 }
 
 function readCollapsed(storageKey: string): Record<string, boolean> {
@@ -54,6 +58,8 @@ export function AppShell({
   navGroups,
   children,
   headerRight,
+  logo,
+  navActiveClass,
 }: AppShellProps) {
   const [open, setOpen] = useState(false);
   const storageKey = `sweepr-nav-collapsed:${brand}`;
@@ -83,7 +89,8 @@ export function AppShell({
         cn(
           "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
           isActive
-            ? "bg-seafoam-50 text-seafoam-700 dark:bg-seafoam-900/30 dark:text-seafoam-300"
+            ? navActiveClass ??
+                "bg-seafoam-50 text-seafoam-700 dark:bg-seafoam-900/30 dark:text-seafoam-300"
             : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
         )
       }
@@ -102,8 +109,12 @@ export function AppShell({
     <nav className="flex h-full flex-col p-4 overflow-y-auto">
       <div className="mb-6 flex-shrink-0 flex items-center gap-2 px-2">
         <div className="leading-tight">
-          <SweeprLogo size="lg" />
-          <p className="mt-0.5 text-[11px] text-slate-600">{brand}</p>
+          {logo ?? (
+            <>
+              <SweeprLogo size="lg" />
+              <p className="mt-0.5 text-[11px] text-slate-600">{brand}</p>
+            </>
+          )}
         </div>
       </div>
       {navGroups ? (

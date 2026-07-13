@@ -9,7 +9,8 @@
  */
 
 import type { ReactNode } from "react";
-import { SweeprLogo, ThemeToggle } from "@sweepr/ui";
+import { ThemeToggle } from "@sweepr/ui";
+import { BusinessLogo } from "./BusinessLogo";
 
 export function AuthLayout({
   title,
@@ -21,10 +22,10 @@ export function AuthLayout({
   children: ReactNode;
 }) {
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-seafoam-50 via-offwhite to-seafoam-100 px-4 py-12 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-slate-100 via-offwhite to-gold-50 px-4 py-12 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       <div className="absolute right-4 top-4"><ThemeToggle /></div>
       <div className="mb-8 flex flex-col items-center text-center">
-        <SweeprLogo size="md" />
+        <BusinessLogo size="lg" />
         <h1 className="mt-4 text-2xl font-bold text-charcoal dark:text-white">{title}</h1>
         <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
       </div>
