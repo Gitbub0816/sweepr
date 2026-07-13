@@ -42,4 +42,3 @@ primary_region = 'lax'
   memory = '512mb'
   cpu_kind = 'shared'
   cpus = 1
-  memory_mb = 256
