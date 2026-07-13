@@ -66,7 +66,7 @@ export const onRequestGet: PagesFunction<CustomerAuthEnv> = async ({ request, en
   const state = tx.data?.state;
   const handle = tx.data?.transaction;
   if (!tx.ok || typeof loginUrl !== "string" || typeof state !== "string" || typeof handle !== "string") {
-    return json(502, { error: "auth_unavailable" });
+    return json(502, { error: "auth_unavailable", broker_status: tx.status, broker_error: (tx.data && tx.data.error) || null });
   }
 
   const payload = base64UrlEncode(
