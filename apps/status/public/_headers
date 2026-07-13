@@ -1,5 +1,7 @@
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-uNGFjzYhN4lc1vH9Rsm8lB6J/RDzw73pAdWMeVrjpF0=' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://api.getsweepr.com https://cloudflareinsights.com; frame-src 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-uNGFjzYhN4lc1vH9Rsm8lB6J/RDzw73pAdWMeVrjpF0=' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://api.getsweepr.com https://cloudflareinsights.com; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'; manifest-src 'self'; upgrade-insecure-requests
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
+  Cross-Origin-Resource-Policy: same-origin
   Referrer-Policy: strict-origin-when-cross-origin
