@@ -56,7 +56,7 @@ export function checkAuthConfig(env: CustomerAuthEnv): Response | null {
 // ── Broker client ────────────────────────────────────────────────────────────
 
 export function brokerUrl(env: CustomerAuthEnv): string {
-  return (env.BROKER_URL || "https://broker.getsweepr.com").replace(/\/+$/, "");
+  return (env.BROKER_URL || "https://auth.getsweepr.com").replace(/\/+$/, "");
 }
 
 /** Service-to-service call to the auth broker. Never throws. */
