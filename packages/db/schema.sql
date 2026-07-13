@@ -5671,6 +5671,10 @@ CREATE TABLE IF NOT EXISTS auth_login_transactions (
   -- Opaque browser handle (tx=…) stored as sha256 hex; raw handle never stored.
   handle_digest      TEXT NOT NULL UNIQUE,
   state_digest       TEXT NOT NULL,
+  -- Raw state is retained ONLY to build the callback redirect. It is a CSRF
+  -- binding value validated against the app's own cookie — it cannot create a
+  -- session by itself, so it is not a bearer credential.
+  state_value        TEXT NOT NULL,
   nonce_digest       TEXT NOT NULL,
   pkce_challenge     TEXT NOT NULL,           -- S256 challenge (public by design)
   callback_uri       TEXT NOT NULL,           -- resolved from the registry, never the browser
