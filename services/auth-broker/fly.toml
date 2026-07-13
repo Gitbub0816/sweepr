@@ -1,0 +1,54 @@
+# Copyright © 2026–Present ClearKey Solutions, LLC.
+# Proprietary & Confidential. Internal Use Only.
+#
+# Sweepr central authentication service — SINGLE Fly application, standard
+# instance only. Admin auth is a separate, out-of-scope deployment and MUST NOT
+# be added here. Runtime secrets live in Fly (fly secrets set), never in this
+# file. Public traffic reaches this app through auth.getsweepr.com behind
+# Cloudflare (Full (strict) TLS + X-Sweepr-Origin-Verify header).
+#
+# Region note: primary_region defaults to sjc. If the Neon production database
+# is not in/near us-west, change this to the Fly region closest to Neon and
+# document the change — auth latency is dominated by DB round-trips.
+
+app = "sweepr-auth-prod"
+primary_region = "sjc"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# Non-secret runtime config only. Secrets (DATABASE_URL, CLERK_ISSUER,
+# IP_HASH_SALT, ORIGIN_SHARED_SECRET, BROKER_KEY_*) come from `fly secrets`.
+[env]
+  PORT = "8080"
+  RUST_LOG = "info"
+  PUBLIC_ORIGIN = "https://auth.getsweepr.com"
+  PUBLIC_HOST = "auth.getsweepr.com"
+  AUTH_PAGE_ORIGIN = "https://auth.getsweepr.com"
+  BROKER_DEPLOYMENT = "standard"
+  SESSION_TTL_SECONDS = "259200"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_start_machines = true
+  auto_stop_machines = "stop"
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 100
+    hard_limit = 150
+
+[[http_service.checks]]
+  method = "GET"
+  path = "/healthz"
+  protocol = "http"
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "15s"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "512mb"

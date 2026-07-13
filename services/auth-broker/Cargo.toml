@@ -2,32 +2,47 @@
 # Proprietary & Confidential. Internal Use Only.
 
 [package]
-name = "sweepr-auth-broker"
+name = "sweepr-auth"
 version = "0.1.0"
 edition = "2021"
 authors = ["ClearKey Solutions, LLC"]
 publish = false
 
-[lib]
-crate-type = ["cdylib", "rlib"]
+[[bin]]
+name = "sweepr-auth"
+path = "src/main.rs"
 
 [dependencies]
-worker = "0.6"
+axum = "0.7"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["trace"] }
+# Postgres over the standard wire protocol with rustls (no OpenSSL). Runtime
+# queries only — NO compile-time query macros, so the build needs no
+# DATABASE_URL and SQLX_OFFLINE is irrelevant.
+sqlx = { version = "0.8", default-features = false, features = [
+    "runtime-tokio", "tls-rustls", "postgres", "uuid", "time", "json",
+] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
 hex = "0.4"
 base64 = "0.22"
-getrandom = { version = "0.2", features = ["js"] }
-# Pure-Rust RS256 verification (ring does not build on wasm32-unknown-unknown).
+getrandom = "0.2"
 rsa = { version = "0.9", default-features = false, features = ["sha2"] }
 subtle = "2"
-time = { version = "0.3", features = ["parsing", "formatting"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+time = { version = "0.3", features = ["serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
 [dev-dependencies]
 rand = "0.8"
 
 [profile.release]
-opt-level = "s"
-lto = true
+opt-level = 3
+lto = "fat"
 codegen-units = 1
+panic = "abort"
+strip = "symbols"

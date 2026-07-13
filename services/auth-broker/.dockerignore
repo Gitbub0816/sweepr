@@ -1,0 +1,12 @@
+.git
+.github
+target
+.env
+.env.*
+*.log
+node_modules
+coverage
+.vscode
+.idea
+.DS_Store
+Thumbs.db

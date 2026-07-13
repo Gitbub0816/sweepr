@@ -74,11 +74,28 @@ pub struct Claims {
     pub email: Option<String>,
 }
 
+/// Fetch a Clerk instance's JWKS over HTTPS (rustls). Kept here so the JWT
+/// concern owns its key material end-to-end.
+pub async fn fetch_jwks(client: &reqwest::Client, issuer: &str) -> Result<Jwks, JwtError> {
+    let url = format!("{}/.well-known/jwks.json", issuer.trim_end_matches('/'));
+    let resp = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|_| JwtError::UnknownKey)?;
+    if !resp.status().is_success() {
+        return Err(JwtError::UnknownKey);
+    }
+    resp.json::<Jwks>().await.map_err(|_| JwtError::KeyParse)
+}
+
 /// Clock skew tolerance (seconds) for exp/nbf.
 const LEEWAY: i64 = 30;
 
 fn b64(part: &str) -> Result<Vec<u8>, JwtError> {
-    URL_SAFE_NO_PAD.decode(part).map_err(|_| JwtError::Malformed)
+    URL_SAFE_NO_PAD
+        .decode(part)
+        .map_err(|_| JwtError::Malformed)
 }
 
 /// Verify an RS256 JWT against a JWKS and an exact expected issuer.
@@ -98,8 +115,7 @@ pub fn verify_rs256(
         _ => return Err(JwtError::Malformed),
     };
 
-    let header: Header =
-        serde_json::from_slice(&b64(h)?).map_err(|_| JwtError::Malformed)?;
+    let header: Header = serde_json::from_slice(&b64(h)?).map_err(|_| JwtError::Malformed)?;
     if header.alg != "RS256" {
         return Err(JwtError::UnsupportedAlg);
     }
@@ -157,7 +173,10 @@ mod tests {
         let payload = URL_SAFE_NO_PAD.encode(claims.as_bytes());
         let signing = SigningKey::<Sha256>::new(key.clone());
         let sig = signing.sign(format!("{header}.{payload}").as_bytes());
-        let token = format!("{header}.{payload}.{}", URL_SAFE_NO_PAD.encode(sig.to_bytes()));
+        let token = format!(
+            "{header}.{payload}.{}",
+            URL_SAFE_NO_PAD.encode(sig.to_bytes())
+        );
         let public = key.to_public_key();
         let jwks = Jwks {
             keys: vec![Jwk {
@@ -180,23 +199,47 @@ mod tests {
         );
         let (token, jwks) = make_token(&claims, &key);
 
-        let ok = verify_rs256(&token, &jwks, "https://clerk.getsweepr.com", Some("n1"), now);
+        let ok = verify_rs256(
+            &token,
+            &jwks,
+            "https://clerk.getsweepr.com",
+            Some("n1"),
+            now,
+        );
         assert!(ok.is_ok());
         assert_eq!(ok.unwrap().sub, "user_1");
 
         // Wrong issuer (e.g. admin token hitting the standard path) must fail.
         assert!(matches!(
-            verify_rs256(&token, &jwks, "https://clerk.admin.getsweepr.com", Some("n1"), now),
+            verify_rs256(
+                &token,
+                &jwks,
+                "https://clerk.admin.getsweepr.com",
+                Some("n1"),
+                now
+            ),
             Err(JwtError::WrongIssuer)
         ));
         // Wrong nonce fails.
         assert!(matches!(
-            verify_rs256(&token, &jwks, "https://clerk.getsweepr.com", Some("other"), now),
+            verify_rs256(
+                &token,
+                &jwks,
+                "https://clerk.getsweepr.com",
+                Some("other"),
+                now
+            ),
             Err(JwtError::WrongNonce)
         ));
         // Expired fails.
         assert!(matches!(
-            verify_rs256(&token, &jwks, "https://clerk.getsweepr.com", Some("n1"), now + 7200),
+            verify_rs256(
+                &token,
+                &jwks,
+                "https://clerk.getsweepr.com",
+                Some("n1"),
+                now + 7200
+            ),
             Err(JwtError::Expired)
         ));
         // Tampered payload fails signature.
@@ -211,14 +254,26 @@ mod tests {
         parts[1] = &forged;
         let tampered = parts.join(".");
         assert!(matches!(
-            verify_rs256(&tampered, &jwks, "https://clerk.getsweepr.com", Some("n1"), now),
+            verify_rs256(
+                &tampered,
+                &jwks,
+                "https://clerk.getsweepr.com",
+                Some("n1"),
+                now
+            ),
             Err(JwtError::BadSignature)
         ));
         // Wrong key (different signer) fails.
         let other = RsaPrivateKey::new(&mut rand::rngs::OsRng, 2048).unwrap();
         let (_, other_jwks) = make_token(&claims, &other);
         assert!(matches!(
-            verify_rs256(&token, &other_jwks, "https://clerk.getsweepr.com", Some("n1"), now),
+            verify_rs256(
+                &token,
+                &other_jwks,
+                "https://clerk.getsweepr.com",
+                Some("n1"),
+                now
+            ),
             Err(JwtError::BadSignature)
         ));
     }

@@ -15,7 +15,7 @@
 
 use serde::Serialize;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AppId {
     Customer,
@@ -143,7 +143,15 @@ pub fn sanitize_return_path(raw: &str) -> String {
     }
     // Reject embedded schemes and double-encoding tricks anywhere in the path.
     let lower = raw.to_ascii_lowercase();
-    for needle in ["http:", "https:", "javascript:", "data:", "%2f%2f", "%5c", "@"] {
+    for needle in [
+        "http:",
+        "https:",
+        "javascript:",
+        "data:",
+        "%2f%2f",
+        "%5c",
+        "@",
+    ] {
         if lower.contains(needle) {
             return fallback;
         }
@@ -170,7 +178,10 @@ mod tests {
     #[test]
     fn return_path_sanitizer_rejects_escapes() {
         assert_eq!(sanitize_return_path("/properties/123"), "/properties/123");
-        assert_eq!(sanitize_return_path("/settings/security"), "/settings/security");
+        assert_eq!(
+            sanitize_return_path("/settings/security"),
+            "/settings/security"
+        );
         for bad in [
             "",
             "https://attacker.example/",
