@@ -34,7 +34,7 @@ function Protected({ children }: { children: React.ReactNode }) {
         brand="Business"
         nav={nav}
         logo={<BusinessLogo size="sm" />}
-        navActiveClass="bg-gold-50 text-gold-800 dark:bg-gold-900/30 dark:text-gold-300"
+        navActiveClass="bg-platinum-50 text-platinum-800 dark:bg-platinum-900/30 dark:text-platinum-300"
         headerRight={<UserButton afterSignOutUrl="/sign-in" />}
       >
         {children}

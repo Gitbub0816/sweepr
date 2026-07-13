@@ -22,7 +22,7 @@ export function AuthLayout({
   children: ReactNode;
 }) {
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-slate-100 via-offwhite to-gold-50 px-4 py-12 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-slate-100 via-offwhite to-platinum-50 px-4 py-12 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       <div className="absolute right-4 top-4"><ThemeToggle /></div>
       <div className="mb-8 flex flex-col items-center text-center">
         <BusinessLogo size="lg" />

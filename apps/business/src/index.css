@@ -2,6 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Brand display face: Eurostile Extended Bold. Michroma (OFL) is the
+ * self-hosted stand-in — swap the src below for licensed Eurostile when
+ * available; class usage (font-display) stays the same. */
+@font-face {
+  font-family: "Michroma";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/michroma.woff2") format("woff2");
+}
+
+@layer base {
+  h1, h2, h3 {
+    @apply font-display tracking-wide;
+  }
+}
+
 :root {
   font-family: Inter, system-ui, sans-serif;
 }

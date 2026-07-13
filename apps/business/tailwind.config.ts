@@ -21,35 +21,41 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Sweepr Business accent — metallic gold pulled from the Business
-        // wordmark's sparkle marks, over the shared warm-graphite neutrals.
-        gold: {
-          50: "#fbf7ec",
-          100: "#f6edd4",
-          200: "#eddaa6",
-          300: "#e3c377",
-          400: "#dab052",
-          500: "#d09e38",
-          600: "#b9862b",
-          700: "#996c23",
-          800: "#7a5520",
-          900: "#5f421c",
+        // Sweepr Business accent — brand platinum (base #4B5056, mid #666C73,
+        // highlight #B7BDC4, shadow #2C3035) from the Business wordmark.
+        platinum: {
+          50: "#f4f5f6",
+          100: "#e7e9eb",
+          200: "#ced2d6",
+          300: "#b7bdc4",
+          400: "#8f969e",
+          500: "#666c73",
+          600: "#575d64",
+          700: "#4b5056",
+          800: "#3a3e44",
+          900: "#2c3035",
         },
-        // Remap the platform accent to gold FOR THIS APP ONLY, so shared
+        // Remap the platform accent to platinum FOR THIS APP ONLY, so shared
         // @sweepr/ui components (Button, focus rings, calendar) pick up the
         // Business styling without forking them. Other apps keep seafoam.
         seafoam: {
-          50: "#fbf7ec",
-          100: "#f6edd4",
-          200: "#eddaa6",
-          300: "#e3c377",
-          400: "#dab052",
-          500: "#d09e38",
-          600: "#b9862b",
-          700: "#996c23",
-          800: "#7a5520",
-          900: "#5f421c",
+          50: "#f4f5f6",
+          100: "#e7e9eb",
+          200: "#ced2d6",
+          300: "#b7bdc4",
+          400: "#8f969e",
+          500: "#666c73",
+          600: "#575d64",
+          700: "#4b5056",
+          800: "#3a3e44",
+          900: "#2c3035",
         },
+      },
+      fontFamily: {
+        // Eurostile Extended Bold is the brand display face; Michroma is the
+        // self-hosted open stand-in (drop licensed Eurostile into the same
+        // @font-face in index.css when available).
+        display: ["Michroma", "Eurostile", "ui-sans-serif", "system-ui", "sans-serif"],
       },
     },
   },

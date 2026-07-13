@@ -64,7 +64,7 @@ export function ClaimPage() {
         <ErrorState
           title="Nothing to claim"
           description="Please use the link from your email, or ask your workspace admin to send a new one."
-          action={<Link to="/dashboard" className="text-sm font-medium text-gold-700 hover:underline dark:text-gold-400">Go to dashboard</Link>}
+          action={<Link to="/dashboard" className="text-sm font-medium text-platinum-700 hover:underline dark:text-platinum-400">Go to dashboard</Link>}
         />
       </AuthLayout>
     );
@@ -104,8 +104,8 @@ export function ClaimPage() {
       <div className="w-full max-w-sm">
         {status === "claiming" && <LoadingState rows={2} />}
         {status === "done" && (
-          <div className="flex flex-col items-center rounded-2xl border border-gold-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <CheckCircle2 className="h-10 w-10 text-gold-600" />
+          <div className="flex flex-col items-center rounded-2xl border border-platinum-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <CheckCircle2 className="h-10 w-10 text-platinum-600" />
             <p className="mt-3 font-semibold text-charcoal dark:text-white">Workspace claimed</p>
             <p className="mt-1 text-sm text-slate-500">Taking you to your dashboard…</p>
           </div>

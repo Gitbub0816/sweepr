@@ -10,7 +10,7 @@
 
 const SIZES = { sm: "h-8", md: "h-12", lg: "h-16" } as const;
 
-/** Sweepr Business wordmark (metallic graphite + gold). The mark is dark, so
+/** Sweepr Business wordmark (metallic platinum). The mark is dark, so
  * dark mode floats it on a soft light chip to keep it legible. */
 export function BusinessLogo({ size = "md" }: { size?: keyof typeof SIZES }) {
   return (

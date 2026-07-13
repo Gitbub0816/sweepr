@@ -78,7 +78,7 @@ export function PropertiesPage() {
         <div className="space-y-3">
           {properties.map((p, i) => (
             <Card key={p.id ?? i} className="flex items-start gap-4">
-              <div className="rounded-xl bg-gold-50 p-2.5 text-gold-700 dark:bg-slate-800 dark:text-gold-400">
+              <div className="rounded-xl bg-platinum-50 p-2.5 text-platinum-700 dark:bg-slate-800 dark:text-platinum-400">
                 <MapPin className="h-5 w-5" />
               </div>
               <div className="min-w-0">
