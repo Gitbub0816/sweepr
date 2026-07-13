@@ -127,6 +127,20 @@ Cross-app hand-offs (e.g. customer → business conversion,
 (convention 8): 15-minute `transitionUrl` into `business.getsweepr.com/claim`.
 Customer entry UI: `apps/customer/src/pages/BusinessPage.tsx` (`/business`).
 
+**Central auth broker (pilot: business app).** `services/auth-broker` (Rust
+Worker, broker.getsweepr.com) sits above Clerk: Clerk proves WHO, the broker
+decides WHICH app and mints that app's own isolated session (per-app `__Host-`
+cookie, registry = `src/registry.rs`; admin is a physically separate
+deployment). Flow: app BFF creates a PKCE transaction (service key
+`BROKER_KEY_<APP>` IS the app identity) → hosted login page → one-time code →
+BFF exchanges code+verifier → session cookie; signed-in state is validated
+ONLY via `/v1/auth/introspect` before any data render. Pilot integration:
+`apps/business/functions/` (Pages Functions BFF, dependency-free) +
+`src/components/CentralSession.tsx`, gated by `VITE_CENTRAL_AUTH_ENABLED`
+("true" = broker path, otherwise Clerk gating — exactly one active). Tokens
+never appear in URLs, storage, logs, or frontend code. Fail closed: missing
+key/flag → 503.
+
 ## Domain model (three independent axes)
 - **Package** (`serviceType`) = WHAT gets cleaned (`PACKAGE_SCOPES`)
 - **Cleaning Level** (refresh / extra_attention / significant_attention) = HOW
