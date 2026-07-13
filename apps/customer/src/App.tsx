@@ -74,6 +74,7 @@ import { Home } from "./pages/Home";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { OfflineIndicator } from "./components/OfflineIndicator";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { CENTRAL_AUTH_ENABLED, SessionProvider } from "./components/CentralSession";
 import { NavAuth } from "./components/NavAuth";
 
 const nav = [
@@ -108,10 +109,15 @@ function SkipToMainContent() {
 }
 
 function Protected({ children }: { children: React.ReactNode }) {
+  // Central-auth migration gate: when VITE_CENTRAL_AUTH_ENABLED="true" the
+  // broker SessionProvider validates the host-only session (introspection)
+  // before any protected page — and therefore any PII — renders. Flag off
+  // leaves the Clerk ProtectedRoute path untouched. Exactly one is active.
+  const Gate = CENTRAL_AUTH_ENABLED ? SessionProvider : ProtectedRoute;
   return (
-    <ProtectedRoute>
+    <Gate>
       <Shell>{children}</Shell>
-    </ProtectedRoute>
+    </Gate>
   );
 }
 

@@ -66,6 +66,7 @@ import { VerifyDonePage } from "./pages/VerifyDonePage";
 import { SignInPage } from "./components/SignInPage";
 import { SignUpPage } from "./components/SignUpPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { CENTRAL_AUTH_ENABLED, SessionProvider } from "./components/CentralSession";
 import { OnboardingGuard } from "./components/OnboardingGuard";
 import { NavAuth } from "./components/NavAuth";
 
@@ -91,12 +92,16 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 /** Auth + onboarding-gated app page. jobsGated=true locks the page until approved. */
 function Guarded({ children, jobsGated = false }: { children: React.ReactNode; jobsGated?: boolean }) {
+  // Central-auth migration gate (see customer app): flag on → broker
+  // SessionProvider validates the host-only session before any protected page
+  // renders; flag off → the Clerk ProtectedRoute path is untouched.
+  const Gate = CENTRAL_AUTH_ENABLED ? SessionProvider : ProtectedRoute;
   return (
-    <ProtectedRoute>
+    <Gate>
       <OnboardingGuard jobsGated={jobsGated}>
         <Shell>{children}</Shell>
       </OnboardingGuard>
-    </ProtectedRoute>
+    </Gate>
   );
 }
 
