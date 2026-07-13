@@ -432,10 +432,7 @@ jobs:
   deploy-business:
     name: Deploy Business App (business.getsweepr.com)
     needs: deploy-status
-    # Gated OFF until the Cloudflare Pages project `sweepr-business` exists.
-    # Set repo variable DEPLOY_BUSINESS_APP='true' once created. Prevents the
-    # deploy loop from burning Action minutes retrying a non-existent project.
-    if: github.ref == 'refs/heads/main' && vars.DEPLOY_BUSINESS_APP == 'true'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -478,10 +475,7 @@ jobs:
   deploy-auth:
     name: Deploy Auth Page (auth.getsweepr.com)
     needs: deploy-status
-    # Gated OFF until the login-page host is decided (auth.getsweepr.com is the
-    # Fly Rust service) and the Pages project exists. Set DEPLOY_AUTH_PAGE='true'
-    # to enable. Avoids burning Action minutes on a non-existent project.
-    if: github.ref == 'refs/heads/main' && vars.DEPLOY_AUTH_PAGE == 'true'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
