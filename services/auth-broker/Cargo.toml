@@ -1,0 +1,33 @@
+# Copyright © 2026–Present ClearKey Solutions, LLC.
+# Proprietary & Confidential. Internal Use Only.
+
+[package]
+name = "sweepr-auth-broker"
+version = "0.1.0"
+edition = "2021"
+authors = ["ClearKey Solutions, LLC"]
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+worker = "0.6"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+hex = "0.4"
+base64 = "0.22"
+getrandom = { version = "0.2", features = ["js"] }
+# Pure-Rust RS256 verification (ring does not build on wasm32-unknown-unknown).
+rsa = { version = "0.9", default-features = false, features = ["sha2"] }
+subtle = "2"
+time = { version = "0.3", features = ["parsing", "formatting"] }
+
+[dev-dependencies]
+rand = "0.8"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1

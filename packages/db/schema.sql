@@ -15,7 +15,7 @@
 -- This file is GENERATED. Do not edit by hand — edit the migrations in
 -- src/migrations/ and re-run: node packages/db/build-schema.mjs
 --
--- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql, 034_fee_approval_engine.sql, 035_slack_user_tokens.sql, 036_pricing_engine.sql, 037_security_tickets.sql, 038_compact_ticket_ids.sql, 039_report_submitter.sql, 040_classification_and_templates.sql, 041_fix_security_templates.sql, 042_email_deliverability.sql, 043_slack_purpose_security.sql, 044_senior_admin_roles.sql, 045_status_autodetect.sql, 046_seed_pricing_rule.sql, 047_seed_super_admin_invite.sql, 048_customer_home_profile.sql, 049_reset_bootstrap_invite.sql, 050_customers_user_id_unique.sql, 051_preferred_language.sql, 052_payouts_booking_id_unique.sql, 053_sms_consent.sql, 054_strict_rls.sql, 055_mailbox_messages.sql, 056_admin_mail_center.sql, 057_public_privacy_intake.sql, 058_scope_review_engine.sql, 059_scope_review_links.sql, 060_performance_indexes.sql, 061_composite_query_indexes.sql, 062_atomicity_constraints.sql, 063_customers_updated_at.sql, 064_booking_arrival_window.sql, 065_str_calendar_sync.sql, 066_address_property_type.sql, 067_str_enrollment.sql, 068_availability_backfill.sql, 069_review_tags.sql, 070_error_telemetry_v2.sql, 071_mail_security_rework.sql, 072_assignment_queue_cleaner_cascade.sql, 073_customer_fk_cascade.sql, 074_cleaner_service_area_and_declines.sql, 075_admin_permission_overrides.sql, 076_cleaners_updated_at.sql, 077_adjudication_cases.sql, 078_ip_blocklist.sql, 079_admin_alerting.sql, 080_status_health_checks.sql, 081_yardstik.sql, 082_admin_schedule.sql, 083_adjudication_pre_adverse.sql, 084_yardstik_webhook_dedup.sql, 085_founding_and_promotions.sql, 086_founder_badge_color.sql, 087_coupons_engine.sql, 088_coupon_stacking_locks.sql, 089_smart_entry_and_sweepr_plus.sql, 090_platform_identity_workspaces.sql
+-- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql, 034_fee_approval_engine.sql, 035_slack_user_tokens.sql, 036_pricing_engine.sql, 037_security_tickets.sql, 038_compact_ticket_ids.sql, 039_report_submitter.sql, 040_classification_and_templates.sql, 041_fix_security_templates.sql, 042_email_deliverability.sql, 043_slack_purpose_security.sql, 044_senior_admin_roles.sql, 045_status_autodetect.sql, 046_seed_pricing_rule.sql, 047_seed_super_admin_invite.sql, 048_customer_home_profile.sql, 049_reset_bootstrap_invite.sql, 050_customers_user_id_unique.sql, 051_preferred_language.sql, 052_payouts_booking_id_unique.sql, 053_sms_consent.sql, 054_strict_rls.sql, 055_mailbox_messages.sql, 056_admin_mail_center.sql, 057_public_privacy_intake.sql, 058_scope_review_engine.sql, 059_scope_review_links.sql, 060_performance_indexes.sql, 061_composite_query_indexes.sql, 062_atomicity_constraints.sql, 063_customers_updated_at.sql, 064_booking_arrival_window.sql, 065_str_calendar_sync.sql, 066_address_property_type.sql, 067_str_enrollment.sql, 068_availability_backfill.sql, 069_review_tags.sql, 070_error_telemetry_v2.sql, 071_mail_security_rework.sql, 072_assignment_queue_cleaner_cascade.sql, 073_customer_fk_cascade.sql, 074_cleaner_service_area_and_declines.sql, 075_admin_permission_overrides.sql, 076_cleaners_updated_at.sql, 077_adjudication_cases.sql, 078_ip_blocklist.sql, 079_admin_alerting.sql, 080_status_health_checks.sql, 081_yardstik.sql, 082_admin_schedule.sql, 083_adjudication_pre_adverse.sql, 084_yardstik_webhook_dedup.sql, 085_founding_and_promotions.sql, 086_founder_badge_color.sql, 087_coupons_engine.sql, 088_coupon_stacking_locks.sql, 089_smart_entry_and_sweepr_plus.sql, 090_platform_identity_workspaces.sql, 091_auth_broker.sql
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -5647,3 +5647,109 @@ ALTER TABLE workspace_invitations       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cross_app_transitions       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clerk_organization_mappings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE billing_profiles            ENABLE ROW LEVEL SECURITY;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 091_auth_broker.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Copyright © 2026–Present ClearKey Solutions, LLC.
+-- Proprietary & Confidential. Internal Use Only.
+--
+-- Central authentication broker (Rust service) — strict per-app session
+-- isolation. Clerk proves identity; the broker owns login transactions,
+-- one-time authorization codes, and opaque per-app sessions. Raw tokens and
+-- codes are NEVER stored — only sha256 digests. Single-use semantics are
+-- enforced by conditional UPDATE … WHERE consumed_at IS NULL (claim-then-act),
+-- backed by the constraints below.
+
+-- ── Login transactions (5-minute ceremony state) ─────────────────────────────
+CREATE TABLE IF NOT EXISTS auth_login_transactions (
+  id                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  -- Which app this ceremony will sign the user into. 'admin' rows may only be
+  -- created by the admin broker deployment (separate secrets).
+  app_id             TEXT NOT NULL CHECK (app_id IN ('customer','cleaner','business','admin')),
+  auth_instance      TEXT NOT NULL CHECK (auth_instance IN ('standard','admin')),
+  -- Opaque browser handle (tx=…) stored as sha256 hex; raw handle never stored.
+  handle_digest      TEXT NOT NULL UNIQUE,
+  state_digest       TEXT NOT NULL,
+  nonce_digest       TEXT NOT NULL,
+  pkce_challenge     TEXT NOT NULL,           -- S256 challenge (public by design)
+  callback_uri       TEXT NOT NULL,           -- resolved from the registry, never the browser
+  return_path        TEXT NOT NULL DEFAULT '/',  -- sanitized relative path only
+  status             TEXT NOT NULL DEFAULT 'pending'
+                       CHECK (status IN ('pending','authenticated','completed','expired','rejected')),
+  clerk_user_id      TEXT,                    -- set after Clerk verification
+  principal_user_id  UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_ip_hash    TEXT,
+  created_ua_hash    TEXT,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at         TIMESTAMPTZ NOT NULL,
+  completed_at       TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_auth_tx_expiry ON auth_login_transactions (status, expires_at);
+
+-- ── One-time authorization codes (30–60s) ────────────────────────────────────
+CREATE TABLE IF NOT EXISTS auth_authorization_codes (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  transaction_id  UUID NOT NULL UNIQUE REFERENCES auth_login_transactions(id) ON DELETE CASCADE,
+  code_digest     TEXT NOT NULL UNIQUE,
+  app_id          TEXT NOT NULL CHECK (app_id IN ('customer','cleaner','business','admin')),
+  auth_instance   TEXT NOT NULL CHECK (auth_instance IN ('standard','admin')),
+  principal_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  clerk_user_id   TEXT NOT NULL,
+  callback_uri    TEXT NOT NULL,
+  pkce_challenge  TEXT NOT NULL,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at      TIMESTAMPTZ NOT NULL,
+  consumed_at     TIMESTAMPTZ
+);
+
+-- ── Per-app opaque sessions (72h absolute, server-side authoritative) ────────
+CREATE TABLE IF NOT EXISTS app_sessions (
+  id                     UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  token_digest           TEXT NOT NULL UNIQUE,   -- sha256 of the opaque 32-byte token
+  app_id                 TEXT NOT NULL CHECK (app_id IN ('customer','cleaner','business','admin')),
+  auth_instance          TEXT NOT NULL CHECK (auth_instance IN ('standard','admin')),
+  principal_user_id      UUID REFERENCES users(id) ON DELETE CASCADE,
+  clerk_user_id          TEXT NOT NULL,
+  workspace_id           UUID REFERENCES workspaces(id) ON DELETE SET NULL,
+  membership_id          UUID REFERENCES workspace_memberships(id) ON DELETE SET NULL,
+  role_snapshot          TEXT,
+  -- Bumped on suspension/role change/workspace removal; sessions with a stale
+  -- version re-resolve authorization on next introspection.
+  authorization_version  INTEGER NOT NULL DEFAULT 1,
+  rotated_from           UUID REFERENCES app_sessions(id) ON DELETE SET NULL,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  authenticated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at             TIMESTAMPTZ NOT NULL,   -- absolute: created_at + TTL, never extended
+  revoked_at             TIMESTAMPTZ,
+  revocation_reason      TEXT,
+  created_ip_hash        TEXT,
+  created_ua_hash        TEXT,
+  last_ip_hash           TEXT,
+  last_ua_hash           TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_app_sessions_principal ON app_sessions (principal_user_id, app_id)
+  WHERE revoked_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_app_sessions_expiry ON app_sessions (expires_at) WHERE revoked_at IS NULL;
+
+-- ── Broker audit stream (append-only; admin events carry the admin namespace) ─
+CREATE TABLE IF NOT EXISTS auth_audit_events (
+  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  event_type     TEXT NOT NULL,                 -- auth.* / admin.auth.* catalog
+  app_id         TEXT,
+  auth_instance  TEXT,
+  transaction_id UUID,
+  session_id     UUID,
+  principal_user_id UUID,
+  clerk_user_id  TEXT,
+  detail         JSONB,                         -- safe digests/ids only, never secrets
+  ip_hash        TEXT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_auth_audit_type ON auth_audit_events (event_type, created_at DESC);
+
+ALTER TABLE auth_login_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE auth_authorization_codes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE app_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE auth_audit_events ENABLE ROW LEVEL SECURITY;
