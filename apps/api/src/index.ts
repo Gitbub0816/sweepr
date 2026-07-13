@@ -73,6 +73,8 @@ import { accountRouter } from "./routes/account";
 import { adminNotificationSettingsRouter } from "./routes/adminNotificationSettings";
 import { adminAlertsRouter } from "./routes/adminAlerts";
 import { slackRouter } from "./routes/slack";
+import { businessRouter } from "./routes/business";
+import { customerTransitionRouter } from "./routes/customerTransition";
 import { feeProposalsRouter, feeActionRouter } from "./routes/feeProposals";
 import { scopeReviewRouter } from "./routes/scopeReview";
 import { pricingAdminRouter } from "./routes/pricingAdmin";
@@ -382,6 +384,10 @@ app.route("/admin/debug", adminDebugRouter);
 app.route("/it-tickets", itTicketsRouter);
 app.route("/it", itRouter);
 app.route("/account", accountRouter);
+// Customer → Business bridge: initiation on the customer surface…
+app.route("/account/business-transition", customerTransitionRouter);
+// …and the Business-app workspace engine (requireApp("business") throughout).
+app.route("/business", businessRouter);
 app.route("/admin/notification-settings", adminNotificationSettingsRouter);
 app.route("/admin/alerts", adminAlertsRouter);
 app.route("/admin/mail", adminMailRouter);
