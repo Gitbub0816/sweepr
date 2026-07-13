@@ -445,11 +445,12 @@ jobs:
       - run: pnpm --filter @sweepr/business build
         env:
           VITE_CENTRAL_AUTH_ENABLED: ${{ vars.CENTRAL_AUTH_ENABLED }}
-          # Sweepr Business uses its OWN Clerk application
-          # (clerk.business.getsweepr.com). The secret is unset until that
-          # application is provisioned; the app renders a graceful
-          # "almost ready" landing state when the key is missing.
-          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_BUSINESS_PUBLISHABLE_KEY }}
+          # Path A: all non-admin apps share the ONE standard Clerk instance
+          # (clerk.getsweepr.com). There is no separate business Clerk app, so
+          # the business build uses the standard publishable key like every
+          # other app. In central-auth mode the app skips Clerk entirely and
+          # authenticates via the broker/login page.
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
           VITE_API_URL: https://api.getsweepr.com
       - name: Deploy (with retry/backoff for Cloudflare rate limits)
         run: |
