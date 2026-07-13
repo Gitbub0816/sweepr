@@ -48,7 +48,18 @@ export type AuditAction =
   | "admin.invite_accepted"
   | "admin.permissions.updated"
   | "data.export_requested"
-  | "data.deleted"; // GDPR
+  | "data.deleted" // GDPR
+  | "workspace.created"
+  | "workspace.updated"
+  | "workspace.member_added"
+  | "workspace.member_role_changed"
+  | "workspace.member_suspended"
+  | "workspace.member_removed"
+  | "workspace.invite_created"
+  | "workspace.invite_revoked"
+  | "workspace.invite_accepted"
+  | "workspace.transition_created"
+  | "workspace.transition_completed";
 
 export interface AuditEntry {
   action: AuditAction;
