@@ -11,6 +11,49 @@ Stable conventions live in root `/CLAUDE.md` — this file is state + recent wor
 
 ---
 
+## Session 2026-07-13 (Central auth broker — pilot wiring, business app)
+
+Sweepr-owned central auth broker (Rust Worker, `services/auth-broker`) now has
+its pilot integration: **apps/business**. Architecture recap:
+
+- **Broker** (`broker.getsweepr.com`): Clerk proves WHO; the broker decides
+  WHICH app and issues that app's own isolated session. Per-app `__Host-`
+  cookies (`__Host-sweepr_business_session` etc., registry in
+  `services/auth-broker/src/registry.rs`), PKCE S256 code exchange, one-time
+  ≤45s codes, opaque session tokens (digest at rest), app binding enforced in
+  SQL WHERE clauses — cross-app session reuse is structurally impossible.
+  Service auth: `Authorization: Bearer BROKER_KEY_<APP>` — the key IS the app
+  identity. Admin is a physically separate deployment.
+- **Pilot BFF** (`apps/business/functions/` — Cloudflare Pages Functions,
+  dependency-free, Web Crypto + fetch only):
+  `/auth/login` (PKCE verifier + challenge, broker transaction, 300s HttpOnly
+  `__Host-sweepr_business_login` stash cookie, 302 to broker login page;
+  `?fail=1` renders a static error page — no redirect loops),
+  `/auth/callback` (constant-time state check against the cookie, code+PKCE
+  exchange, sets the session cookie exactly per the broker's cookie contract,
+  redirects to sanitized relative return path), `/auth/session` (introspection
+  → token-free `{active, principal_user_id, expires_at}`, no-store),
+  `/auth/logout` (POST-only, Origin-checked). Shared `functions/_lib.ts`
+  mirrors the broker's `sanitize_return_path`. All endpoints fail closed
+  (missing `BROKER_KEY_BUSINESS` or flag → 503). Tokens never reach the
+  browser, URLs, storage, or logs.
+- **Frontend gate**: `src/components/CentralSession.tsx`. Explicit migration
+  gate `VITE_CENTRAL_AUTH_ENABLED === "true"` selects exactly one path:
+  on → `SessionProvider` introspects `/auth/session` BEFORE any protected
+  render/data fetch (else immediate redirect to `/auth/login?return_to=…`,
+  splash only); off → existing Clerk `ProtectedRoute` untouched.
+- **Remaining ops steps**: create broker KV namespaces (RATE_KV); set broker
+  worker secrets (`DATABASE_URL`, `CLERK_ISSUER`, `IP_HASH_SALT`,
+  `AUTH_PAGE_ORIGIN`, `BROKER_DEPLOYMENT`, `CENTRAL_AUTH_ENABLED`, per-app
+  `BROKER_KEY_*`); set `BROKER_KEY_BUSINESS` + `CENTRAL_AUTH_ENABLED` on the
+  sweepr-business Pages project too (same key both sides); set
+  `DEPLOY_AUTH_BROKER=true` for the workflow; DNS for `broker.getsweepr.com`
+  and `auth.getsweepr.com` (hosted login page); admin broker is a separate
+  deployment with its own secrets — do NOT share keys. Flip
+  `VITE_CENTRAL_AUTH_ENABLED=true` for business only once the broker is live.
+
+---
+
 ## Session 2026-07-13 (Multi-app auth epic — four Clerk applications)
 
 Moving from two Clerk applications to FOUR (customer app.getsweepr.com,
