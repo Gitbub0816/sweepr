@@ -198,7 +198,7 @@ jobs:
           # Cloudflare API at t=0 (code 1042 rate limit).
           sleep $(( (RANDOM % 25) + 1 ))
           for attempt in 1 2 3 4 5 6; do
-            pnpm exec wrangler pages deploy apps/customer/dist --project-name=sweepr-customer --commit-dirty=true && exit 0
+            ( cd apps/customer && pnpm exec wrangler pages deploy dist --project-name=sweepr-customer --commit-dirty=true ) && exit 0
             echo "::warning::deploy attempt $attempt failed (likely CF 1042 rate limit); backing off"
             sleep $(( attempt * 30 ))
           done
@@ -241,7 +241,7 @@ jobs:
           # Cloudflare API at t=0 (code 1042 rate limit).
           sleep $(( (RANDOM % 25) + 1 ))
           for attempt in 1 2 3 4 5 6; do
-            pnpm exec wrangler pages deploy apps/cleaner/dist --project-name=sweepr-cleaner --commit-dirty=true && exit 0
+            ( cd apps/cleaner && pnpm exec wrangler pages deploy dist --project-name=sweepr-cleaner --commit-dirty=true ) && exit 0
             echo "::warning::deploy attempt $attempt failed (likely CF 1042 rate limit); backing off"
             sleep $(( attempt * 30 ))
           done
@@ -458,7 +458,7 @@ jobs:
           # Cloudflare API at t=0 (code 1042 rate limit).
           sleep $(( (RANDOM % 25) + 1 ))
           for attempt in 1 2 3 4 5 6; do
-            out=$(pnpm exec wrangler pages deploy apps/business/dist --project-name=sweepr-business --commit-dirty=true 2>&1) && { echo "$out"; exit 0; }
+            out=$(cd apps/business && pnpm exec wrangler pages deploy dist --project-name=sweepr-business --commit-dirty=true 2>&1) && { echo "$out"; exit 0; }
             echo "$out"
             # Non-transient errors (missing project, auth) must not burn retries.
             case "$out" in
