@@ -10,11 +10,11 @@ primary_region = 'lax'
   dockerfile = 'Dockerfile'
 
 [env]
-  AUTH_PAGE_ORIGIN = 'https://signin.getsweepr.com'
+  AUTH_PAGE_ORIGIN = 'https://auth.getsweepr.com'
   BROKER_DEPLOYMENT = 'standard'
   PORT = '8080'
-  PUBLIC_HOST = 'auth.getsweepr.com'
-  PUBLIC_ORIGIN = 'https://auth.getsweepr.com'
+  PUBLIC_HOST = 'broker.getsweepr.com'
+  PUBLIC_ORIGIN = 'https://broker.getsweepr.com'
   RUST_LOG = 'info'
   SESSION_TTL_SECONDS = '259200'
 

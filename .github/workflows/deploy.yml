@@ -495,7 +495,7 @@ jobs:
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
           # The broker is the Fly service at auth.getsweepr.com (not the old
           # Cloudflare Worker host).
-          VITE_BROKER_URL: https://auth.getsweepr.com
+          VITE_BROKER_URL: https://broker.getsweepr.com
       - name: Deploy (with retry/backoff for Cloudflare rate limits)
         run: |
           # Jitter start so the parallel deploy jobs do not all hit the
@@ -549,7 +549,7 @@ jobs:
             keyname=$(printf 'BROKER_KEY_%s' "$app" | tr '[:lower:]' '[:upper:]')
             put "$keyname" "$key" "$project"
             put CENTRAL_AUTH_ENABLED "true" "$project"
-            put BROKER_URL "https://auth.getsweepr.com" "$project"
+            put BROKER_URL "https://broker.getsweepr.com" "$project"
           done
         env:
           BROKER_KEY_CUSTOMER: ${{ secrets.BROKER_KEY_CUSTOMER }}

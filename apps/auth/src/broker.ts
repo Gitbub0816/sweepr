@@ -18,7 +18,7 @@
 
 export const BROKER_URL = (
   (import.meta.env.VITE_BROKER_URL as string | undefined)?.trim() ||
-  "https://auth.getsweepr.com"
+  "https://broker.getsweepr.com"
 ).replace(/\/+$/, "");
 
 /** GET /v1/auth/transactions/{tx}/context response. */
