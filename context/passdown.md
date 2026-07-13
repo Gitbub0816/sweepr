@@ -4,12 +4,40 @@
 
 # Sweepr — Session Passdown
 
-Last updated: **2026-07-09**. Branch: `claude/wonderful-fermi-nmlpre`
+Last updated: **2026-07-13**. Branch: `claude/wonderful-fermi-nmlpre`
 (everything merged to `main`; branch kept fast-forwarded to main).
 Standing instruction: finished, verified work merges to `main`.
 Stable conventions live in root `/CLAUDE.md` — this file is state + recent work.
 
 ---
+
+## Session 2026-07-13 (Multi-app auth epic — four Clerk applications)
+
+Moving from two Clerk applications to FOUR (customer app.getsweepr.com,
+business business.getsweepr.com, cleaner clean.getsweepr.com, admin
+admin.getsweepr.com) over a Sweepr-owned platform identity layer.
+
+- **Identity layer**: migration 090 `platform_identity_workspaces.sql` —
+  canonical identity mapping N per-app Clerk identities onto one `users` row;
+  workspaces (members, roles, properties) for Sweepr Business.
+- **API libs**: `apps/api/src/lib/authApps.ts` (per-app Clerk instance
+  registry / issuer routing) + `apps/api/src/lib/identity.ts` (identity
+  resolution). Workspace engine + `apps/business` scaffold in progress on a
+  parallel track (another session) — verify merged state before depending on
+  exact shapes.
+- **Customer conversion UI (this session)**: `/business` page in
+  `apps/customer` (`src/pages/BusinessPage.tsx`) — explainer, three paths
+  (full convert / partition with address checkboxes from
+  `/customer-profile/addresses` / fresh workspace), confirmation modal, then
+  `POST /account/business-transition` → shows returned single-use 15-minute
+  `transitionUrl` ("Continue in Sweepr Business", new tab; token never
+  logged). Degrades gracefully (friendly toast) while the endpoint doesn't
+  exist yet. Entry card `BusinessUpsellCard` on `/profile`.
+- **Remains**: create the two new Clerk applications (customer split +
+  business) in the Clerk dashboard, provision publishable/secret keys +
+  webhook secrets (deploy.yml bake + wrangler secrets), DNS (DNS-only
+  records), and land `/account/business-transition` +
+  `business.getsweepr.com/claim`.
 
 ## Session 2026-07-07 → 07-09 (Yardstik, Clerk split, comms, scheduler)
 

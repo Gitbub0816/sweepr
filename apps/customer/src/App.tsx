@@ -69,6 +69,7 @@ import { BookingDetailPage } from "./pages/BookingDetailPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { MembershipPage } from "./pages/MembershipPage";
 import { PaymentMethodsPage } from "./pages/PaymentMethodsPage";
+import { BusinessPage } from "./pages/BusinessPage";
 import { Home } from "./pages/Home";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { OfflineIndicator } from "./components/OfflineIndicator";
@@ -271,6 +272,7 @@ export default function App() {
           />
           <Route path="/profile" element={<Protected><ProfilePage /></Protected>} />
           <Route path="/membership" element={<Protected><MembershipPage /></Protected>} />
+          <Route path="/business" element={<Protected><BusinessPage /></Protected>} />
           <Route path="/account/membership" element={<Protected><MembershipPage /></Protected>} />
           <Route
             path="/payment-methods"

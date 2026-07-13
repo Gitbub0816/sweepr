@@ -15,6 +15,7 @@ import { DashboardShell, Card, AccountPrivacy, SMSOptIn, toast } from "@sweepr/u
 import { CouponsCard } from "../components/CouponsCard";
 import { ContactSettings } from "../components/ContactSettings";
 import { AddressBook } from "../components/AddressBook";
+import { BusinessUpsellCard } from "../components/BusinessUpsellCard";
 import { LanguageSelector } from "../i18n/LanguageSelector";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -112,6 +113,7 @@ export function ProfilePage() {
         </Card>
 
         <CouponsCard />
+        <BusinessUpsellCard />
         <AccountPrivacy
           apiUrl={API_URL}
           getToken={getToken}

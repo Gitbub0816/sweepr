@@ -114,6 +114,19 @@ non-`complete` sign-up must route there, never hang.
 Owners (`1morecruise@gmail.com`, `caleb.owen2019@outlook.com`) self-heal to
 `super_admin`; never seed owners as test cleaners (seed script guards it).
 
+**Four-application migration (in progress).** Target: four separate Clerk
+applications — customer (app.getsweepr.com), business (business.getsweepr.com),
+cleaner (clean.getsweepr.com), admin (admin.getsweepr.com) — over a
+Sweepr-owned platform identity layer (mig. 090
+`platform_identity_workspaces`): a canonical identity maps N Clerk identities
+(one per app) onto one `users` row, and workspaces group members/properties for
+Sweepr Business. Key libs: `apps/api/src/lib/authApps.ts` (per-app Clerk
+instance registry) and `apps/api/src/lib/identity.ts` (identity resolution).
+Cross-app hand-offs (e.g. customer → business conversion,
+`POST /account/business-transition`) use the signed single-use link pattern
+(convention 8): 15-minute `transitionUrl` into `business.getsweepr.com/claim`.
+Customer entry UI: `apps/customer/src/pages/BusinessPage.tsx` (`/business`).
+
 ## Domain model (three independent axes)
 - **Package** (`serviceType`) = WHAT gets cleaned (`PACKAGE_SCOPES`)
 - **Cleaning Level** (refresh / extra_attention / significant_attention) = HOW
