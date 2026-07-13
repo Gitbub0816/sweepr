@@ -549,9 +549,11 @@ jobs:
             keyname=$(printf 'BROKER_KEY_%s' "$app" | tr '[:lower:]' '[:upper:]')
             put "$keyname" "$key" "$project"
             put CENTRAL_AUTH_ENABLED "true" "$project"
-            put BROKER_URL "https://broker.getsweepr.com" "$project"
+            put BROKER_URL "https://sweepr.fly.dev" "$project"
+            [ -n "$ORIGIN_SHARED_SECRET" ] && put ORIGIN_SHARED_SECRET "$ORIGIN_SHARED_SECRET" "$project"
           done
         env:
           BROKER_KEY_CUSTOMER: ${{ secrets.BROKER_KEY_CUSTOMER }}
           BROKER_KEY_CLEANER: ${{ secrets.BROKER_KEY_CLEANER }}
           BROKER_KEY_BUSINESS: ${{ secrets.BROKER_KEY_BUSINESS }}
+          ORIGIN_SHARED_SECRET: ${{ secrets.ORIGIN_SHARED_SECRET }}

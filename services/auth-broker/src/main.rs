@@ -60,7 +60,6 @@ struct Config {
     clerk_issuer: String,
     ip_salt: String,
     auth_page_origin: String,
-    public_host: String,
     origin_shared_secret: Option<String>,
     broker_keys: HashMap<AppId, String>,
 }
@@ -104,8 +103,6 @@ impl Config {
             clerk_issuer: req(issuer_key)?,
             ip_salt: req("IP_HASH_SALT")?,
             auth_page_origin: req(page_key)?,
-            public_host: std::env::var("PUBLIC_HOST")
-                .unwrap_or_else(|_| "auth.getsweepr.com".into()),
             origin_shared_secret: std::env::var("ORIGIN_SHARED_SECRET")
                 .ok()
                 .filter(|s| !s.is_empty()),
@@ -234,18 +231,18 @@ async fn origin_guard(
     if req.method() == axum::http::Method::OPTIONS {
         return next.run(req).await;
     }
+    // Gate on the shared secret alone. Callers reach the broker off-zone (the
+    // BFFs fetch sweepr.fly.dev directly, adding this header, to avoid the
+    // same-Cloudflare-zone Worker-subrequest failure) — so the Host header is
+    // not a reliable signal and the secret is the real proof the request comes
+    // from a trusted Sweepr backend. Possession of the header is what matters.
     if let Some(expected) = state.cfg.origin_shared_secret.as_deref() {
-        let host = headers
-            .get("host")
-            .and_then(|h| h.to_str().ok())
-            .unwrap_or("");
         let presented = headers
             .get("x-sweepr-origin-verify")
             .and_then(|h| h.to_str().ok())
             .unwrap_or("");
-        let host_ok = host == state.cfg.public_host;
         let secret_ok = crypto::digest_eq(&crypto::digest(presented), &crypto::digest(expected));
-        if !host_ok || !secret_ok || presented.is_empty() {
+        if presented.is_empty() || !secret_ok {
             return fail(StatusCode::FORBIDDEN, "origin_forbidden");
         }
     }

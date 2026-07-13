@@ -24,6 +24,10 @@ export interface CleanerAuthEnv {
   BROKER_KEY_CLEANER?: string;
   /** Migration gate; central auth endpoints are dead unless "true". */
   CENTRAL_AUTH_ENABLED?: string;
+  /** Cloudflare cannot inject the origin-verify header on same-zone
+   * Worker subrequests, so the BFF reaches the broker off-zone
+   * (sweepr.fly.dev) and presents this header itself. */
+  ORIGIN_SHARED_SECRET?: string;
 }
 
 export const APP_ORIGIN = "https://clean.getsweepr.com";
@@ -56,7 +60,7 @@ export function checkAuthConfig(env: CleanerAuthEnv): Response | null {
 // ── Broker client ────────────────────────────────────────────────────────────
 
 export function brokerUrl(env: CleanerAuthEnv): string {
-  return (env.BROKER_URL || "https://broker.getsweepr.com").replace(/\/+$/, "");
+  return (env.BROKER_URL || "https://sweepr.fly.dev").replace(/\/+$/, "");
 }
 
 /** Service-to-service call to the auth broker. Never throws. */
@@ -71,6 +75,7 @@ export async function brokerFetch(
       headers: {
         Authorization: `Bearer ${env.BROKER_KEY_CLEANER}`,
         "Content-Type": "application/json",
+        ...(env.ORIGIN_SHARED_SECRET ? { "X-Sweepr-Origin-Verify": env.ORIGIN_SHARED_SECRET } : {}),
       },
       body: JSON.stringify(body),
     });
