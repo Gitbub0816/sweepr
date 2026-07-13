@@ -426,3 +426,39 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy-business:
+    name: Deploy Business App (business.getsweepr.com)
+    needs: deploy-status
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @sweepr/business build
+        env:
+          # Sweepr Business uses its OWN Clerk application
+          # (clerk.business.getsweepr.com). The secret is unset until that
+          # application is provisioned; the app renders a graceful
+          # "almost ready" landing state when the key is missing.
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_BUSINESS_PUBLISHABLE_KEY }}
+          VITE_API_URL: https://api.getsweepr.com
+      - name: Deploy (with retry/backoff for Cloudflare rate limits)
+        run: |
+          # Jitter start so the parallel deploy jobs do not all hit the
+          # Cloudflare API at t=0 (code 1042 rate limit).
+          sleep $(( (RANDOM % 25) + 1 ))
+          for attempt in 1 2 3 4 5 6; do
+            pnpm exec wrangler pages deploy apps/business/dist --project-name=sweepr-business --commit-dirty=true && exit 0
+            echo "::warning::deploy attempt $attempt failed (likely CF 1042 rate limit); backing off"
+            sleep $(( attempt * 30 ))
+          done
+          echo "::error::deploy failed after 6 attempts"; exit 1
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

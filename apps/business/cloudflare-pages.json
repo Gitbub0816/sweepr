@@ -1,0 +1,10 @@
+{
+  "projectName": "sweepr-business",
+  "buildCommand": "cd ../.. && pnpm --filter @sweepr/business build",
+  "buildOutputDirectory": "dist",
+  "rootDirectory": "apps/business",
+  "environmentVariables": {
+    "NODE_VERSION": "20",
+    "PNPM_VERSION": "9"
+  }
+}
