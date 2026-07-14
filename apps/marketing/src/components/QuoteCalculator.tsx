@@ -49,13 +49,23 @@ export function QuoteCalculator({ pricingGated = false }: { pricingGated?: boole
   if (pricingGated) {
     return (
       <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white/95 p-6 text-left shadow-2xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/95">
-        <h2 className="text-lg font-black text-charcoal dark:text-white text-center">
-          Pricing coming soon
-        </h2>
-        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400 text-center leading-relaxed">
-          Our calculator is getting a final deep clean. Join the newsletter and we'll let you know when it's ready.
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          Instant quote
         </p>
-        <div className="mt-5">
+        <h2 className="mt-1 text-xl font-black text-charcoal dark:text-white">
+          Know your price before you book
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+          Answer five questions about your home and see your exact price. No estimates, no callbacks.
+        </p>
+        <a
+          href="/quote"
+          className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-seafoam-700 px-4 py-3.5 text-base font-bold text-white transition hover:bg-seafoam-800"
+        >
+          Get a quote <ArrowRight aria-hidden="true" className="h-4 w-4" />
+        </a>
+        <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800">
+          <p className="mb-2 text-xs text-slate-500">Or get launch updates by email.</p>
           <NewsletterSubscribe apiUrl={API} />
         </div>
       </div>

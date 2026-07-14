@@ -443,9 +443,13 @@ export function HowItWorksSection() {
         {/* Open layout, the road sits at its FULL height in the normal page
             flow (no card, no overflow-hidden, no inner scrollbar), so nothing
             can ever be clipped. The detail panel is sticky alongside it. */}
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_26rem] lg:gap-12">
+        {/* min-w-0 / minmax(0,…) everywhere: grid items default to
+            min-width:auto, so a wide horizontal scroller inside would expand
+            the track (and the page) instead of scrolling — iOS Safari then
+            widens the layout viewport and the whole page renders zoomed out. */}
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1fr)_26rem] lg:gap-12">
           {/* ── Mobile stop strip ─────────────────────────────────── */}
-          <div className="lg:hidden">
+          <div className="min-w-0 max-w-full lg:hidden">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 The route

@@ -51,7 +51,10 @@ export function MarketingShell({
   const [open, setOpen] = useState(false);
   const isDesktop = useIsDesktop();
   return (
-    <div className="min-h-screen bg-offwhite text-charcoal dark:bg-slate-950 dark:text-white">
+    // overflow-x-clip: belt-and-braces so no descendant can widen the layout
+    // viewport on mobile (iOS Safari "zoomed out" pages). Real offenders must
+    // still be fixed at the source; this only stops the page-level blowout.
+    <div className="min-h-screen overflow-x-clip bg-offwhite text-charcoal dark:bg-slate-950 dark:text-white">
       <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/70 backdrop-blur dark:border-slate-800 dark:bg-slate-950/70">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
           <a href="/" className="flex items-center gap-2" aria-label="Sweepr home">

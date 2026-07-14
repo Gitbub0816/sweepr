@@ -163,12 +163,16 @@ export default function Landing() {
             </p>
           </Reveal>
           {/* Mobile: swipeable editorial panels instead of stacked rows. */}
-          <div className="-mx-4 mt-10 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:hidden [&::-webkit-scrollbar]:hidden">
+          {/* The section is block-level and viewport-bound (max-w-6xl px-4), so
+              -mx-4 bleeds this scroller exactly to the viewport edges; the
+              overflow-x-auto keeps the wide row scrolling instead of widening
+              the page. Cards are fractional width so they can never exceed it. */}
+          <div className="-mx-4 mt-10 flex w-auto max-w-none snap-x snap-mandatory items-stretch gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:hidden [&::-webkit-scrollbar]:hidden">
             {useCases.map((u, i) => (
               <a
                 key={u.key}
                 href="/quote"
-                className="flex w-[78%] shrink-0 snap-start flex-col justify-between rounded-2xl border border-slate-200 bg-offwhite p-5 dark:border-slate-700 dark:bg-slate-800/40"
+                className="flex min-h-full w-[82%] max-w-[20rem] shrink-0 snap-start flex-col justify-between rounded-2xl border border-slate-200 bg-offwhite p-5 dark:border-slate-700 dark:bg-slate-800/40"
               >
                 <div>
                   <span className="text-[11px] font-black tabular-nums text-slate-400">
@@ -245,14 +249,17 @@ export default function Landing() {
         <section id="pricing" className="scroll-mt-20 mx-auto max-w-6xl px-4 py-24">
           {pricingGated ? (
             <div className="mx-auto max-w-xl py-6 text-center">
-              <h2 className="text-3xl font-black tracking-tight text-charcoal dark:text-white">
-                {t("pricing.comingSoonTitle")}
+              <Label>{t("pricing.gatedEyebrow", "Instant quote")}</Label>
+              <h2 className="mt-3 text-3xl font-black tracking-tight text-charcoal dark:text-white">
+                {t("pricing.gatedTitle", "Know your price before you book")}
               </h2>
               <p className="mt-4 text-lg leading-relaxed text-slate-600 dark:text-slate-400">
-                {t("pricing.comingSoonSubtitle")}
+                {t("pricing.gatedSubtitle", "Answer five questions, see your exact price.")}
               </p>
-              <div className="mx-auto mt-8 max-w-sm">
-                <NewsletterSubscribe apiUrl={API} />
+              <div className="mt-8">
+                <Button size="lg" onClick={() => (window.location.href = "/quote")}>
+                  {t("pricing.gatedCta", "Get a quote")} <ArrowRight aria-hidden="true" className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           ) : (
