@@ -12,6 +12,8 @@ import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Landing from "./pages/Landing";
 import { CookieConsent } from "./components/CookieConsent";
+import { initCookieEngine } from "@sweepr/ui";
+import { useEffect } from "react";
 import { PromoHost } from "@sweepr/ui";
 
 // Landing is the only route that needs to be in the initial bundle (it's
@@ -32,6 +34,8 @@ function LegalRedirect({ slug }: { slug: string }) {
 }
 
 export default function App() {
+  // Cookie engine: consent-gated writes + periodic sweep of third-party cookies.
+  useEffect(() => initCookieEngine(), []);
   return (
     <>
       <Suspense fallback={null}>

@@ -74,7 +74,7 @@ import { Home } from "./pages/Home";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { OfflineIndicator } from "./components/OfflineIndicator";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import { CENTRAL_AUTH_ENABLED, SessionProvider } from "./components/CentralSession";
+import { CENTRAL_AUTH_ENABLED, SessionProvider, RedirectToCentralLogin } from "./components/CentralSession";
 import { NavAuth } from "./components/NavAuth";
 
 const nav = [
@@ -232,7 +232,7 @@ export default function App() {
         <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback continueSignUpUrl="/sign-up/continue" />} />
 
         {/* Auth routes, outside gate so sign-in is always accessible */}
-        <Route path="/sign-in" element={<SignInPage />} />
+        <Route path="/sign-in" element={CENTRAL_AUTH_ENABLED ? <RedirectToCentralLogin /> : <SignInPage />} />
         <Route path="/sign-up" element={<SignUpPage />} />
         <Route path="/sign-up/continue" element={<ContinueSignUp />} />
 

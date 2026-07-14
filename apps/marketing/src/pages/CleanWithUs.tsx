@@ -209,7 +209,7 @@ export default function CleanWithUs() {
       <div className="mx-auto max-w-6xl px-4">
         <div key={tab} className="sweepr-fade-up">
           {/* How it works: a real sequence, so numbered rows */}
-          <section id="how" className="border-t border-slate-200 py-16 dark:border-slate-800">
+          <section id="how" className="scroll-mt-20 border-t border-slate-200 py-16 dark:border-slate-800">
             <div className="mb-10 max-w-2xl">
               <h2 className="text-3xl font-black tracking-tight text-charcoal [text-wrap:balance] dark:text-white sm:text-4xl">
                 {tab === "individual" ? t("cleanWithUs.howIndividualTitle") : t("cleanWithUs.howBusinessTitle")}
@@ -222,7 +222,7 @@ export default function CleanWithUs() {
           </section>
 
           {/* Why Sweepr: asymmetric split: claim on the left, specifics on the right */}
-          <section id="why" className="py-16">
+          <section id="why" className="scroll-mt-20 py-16">
             <div className="grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-20">
               <div>
                 <div className="lg:sticky lg:top-28">
@@ -252,7 +252,7 @@ export default function CleanWithUs() {
       </div>
 
       {/* Coverage map */}
-      <section id="coverage" className="bg-white py-4 dark:bg-slate-950">
+      <section id="coverage" className="scroll-mt-20 bg-white py-4 dark:bg-slate-950">
         <div className="mx-auto max-w-6xl px-4 pt-12">
           <Reveal className="max-w-2xl">
             <h2 className="text-3xl font-black tracking-tight text-charcoal dark:text-white">
@@ -269,7 +269,7 @@ export default function CleanWithUs() {
       </section>
 
       {/* Background check FAQ */}
-      <section id="background-checks" className="py-14">
+      <section id="background-checks" className="scroll-mt-20 py-14">
         <div className="mx-auto max-w-6xl px-4">
           <div className="grid gap-8 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-16">
             <Reveal>

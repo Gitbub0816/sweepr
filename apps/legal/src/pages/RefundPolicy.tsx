@@ -42,6 +42,15 @@ export function RefundPolicy() {
             refund (the cleaner earns their portion).
           </li>
         </ul>
+        <p>
+          Because bookings are secured with a temporary authorization hold
+          rather than an immediate charge, a cancellation that qualifies for a
+          full refund is normally processed as a release of that hold. Your
+          bank controls how quickly a released hold stops appearing as pending
+          on your statement, typically within a few business days. Where a
+          payment has already been captured, refunds are returned to the
+          original payment method.
+        </p>
       </Section>
 
       <Section id="sameday" title="2. Same-Day Cancellation">

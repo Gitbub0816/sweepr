@@ -188,7 +188,7 @@
       "demoMode": "Demo mode",
       "detailsSecure": "Payment details collected securely via Stripe Elements",
       "payButton": "Pay {{amount}}",
-      "cardNotCharged": "Your card won't be charged until your cleaning is confirmed by a cleaner. Cancel free up to 24 hours before your appointment.",
+      "cardNotCharged": "When you book, we place a temporary hold on your card to secure your appointment. It can show up as a pending charge, but the payment itself only goes through after your cleaning is done. Cancel free up to 24 hours before your appointment and the hold is released.",
       "subscription": "{{cadence}} subscription",
       "subscriptionPrice": "{{price}} / cleaning, save {{savings}} each time",
       "recurringCadence": "Recurring {{cadence}}"

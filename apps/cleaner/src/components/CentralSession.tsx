@@ -52,6 +52,16 @@ function Splash() {
   );
 }
 
+/** Route element for /sign-in and /sign-up when central auth is on: the app
+ * never renders its own credential UI — it hands off to the broker ceremony
+ * (which lands on auth.getsweepr.com) and comes back with a session cookie. */
+export function RedirectToCentralLogin() {
+  useEffect(() => {
+    redirectToLogin();
+  }, []);
+  return <Splash />;
+}
+
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<CentralSession | null>(null);
 

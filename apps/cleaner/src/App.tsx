@@ -66,7 +66,7 @@ import { VerifyDonePage } from "./pages/VerifyDonePage";
 import { SignInPage } from "./components/SignInPage";
 import { SignUpPage } from "./components/SignUpPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import { CENTRAL_AUTH_ENABLED, SessionProvider } from "./components/CentralSession";
+import { CENTRAL_AUTH_ENABLED, SessionProvider, RedirectToCentralLogin } from "./components/CentralSession";
 import { OnboardingGuard } from "./components/OnboardingGuard";
 import { NavAuth } from "./components/NavAuth";
 
@@ -197,7 +197,7 @@ export default function App() {
       {/* Everything else is gated during prelaunch */}
       <Route element={<GateLayout />}>
       {/* Auth */}
-      <Route path="/sign-in" element={<SignInPage />} />
+      <Route path="/sign-in" element={CENTRAL_AUTH_ENABLED ? <RedirectToCentralLogin /> : <SignInPage />} />
       <Route path="/sign-up" element={<SignUpPage />} />
 
       {/* Onboarding (protected, but not onboarding-gated) */}

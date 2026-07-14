@@ -70,16 +70,16 @@ function Wordmark({ appId, displayName }: { appId: string; displayName: string }
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-slate-100 via-offwhite to-seafoam-50 px-4 py-12 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+    <div className="relative flex min-h-svh flex-col items-center justify-center bg-gradient-to-br from-slate-100 via-offwhite to-seafoam-50 px-4 py-4 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       <div className="absolute right-4 top-4"><ThemeToggle /></div>
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         {children}
       </div>
-      <p className="mt-6 flex items-center gap-1.5 text-xs text-slate-400">
+      <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-400">
         <ShieldCheck className="h-3.5 w-3.5" />
         Secured by Sweepr central sign-in
       </p>
-      <nav aria-label="Legal" className="mt-2 flex items-center gap-4 text-xs text-slate-400">
+      <nav aria-label="Legal" className="mt-1.5 flex items-center gap-4 text-xs text-slate-400">
         <a href={`${LEGAL_URL}/terms`} target="_blank" rel="noopener noreferrer" className="hover:text-slate-600 hover:underline dark:hover:text-slate-200">Terms</a>
         <a href={`${LEGAL_URL}/privacy`} target="_blank" rel="noopener noreferrer" className="hover:text-slate-600 hover:underline dark:hover:text-slate-200">Privacy</a>
         <a href={LEGAL_URL} target="_blank" rel="noopener noreferrer" className="hover:text-slate-600 hover:underline dark:hover:text-slate-200">All legal documents</a>
@@ -94,11 +94,12 @@ function ExpiredState() {
       <div className="flex flex-col items-center text-center">
         <SweeprLogo size="md" />
         <h1 className="mt-6 text-xl font-bold text-charcoal dark:text-white">
-          This sign-in link has expired
+          There's nothing to sign in to here
         </h1>
         <p className="mt-2 text-sm text-slate-500">
-          Sign-in links are only valid for a few minutes. Return to the app you
-          were signing in to and try again.
+          This page only works when a Sweepr app sends you here to sign in, and
+          each visit is valid for just a few minutes. Head back to the app you
+          were using and choose Sign in again.
         </p>
         <a
           href="https://getsweepr.com"
@@ -318,10 +319,10 @@ export function LoginPage() {
     <Shell>
       <div className="flex flex-col items-center text-center">
         <Wordmark appId={context.app_id} displayName={context.display_name} />
-        <h1 className="mt-6 text-xl font-bold text-charcoal dark:text-white">
+        <h1 className="mt-4 text-xl font-bold text-charcoal dark:text-white">
           {context.heading}
         </h1>
-        <p className="mt-2 text-sm text-slate-500">
+        <p className="mt-1.5 text-sm text-slate-500">
           You are signing in to <span className="font-semibold">{context.display_name}</span>{" "}
           at <span className="font-mono text-slate-600 dark:text-slate-300">{hostname}</span>
         </p>
@@ -330,18 +331,18 @@ export function LoginPage() {
       {phase.name === "error" && (
         <div
           role="alert"
-          className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
+          className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
         >
           {phase.message}
         </div>
       )}
 
-      <div className="mt-6 flex flex-col gap-2.5">
+      <div className="mt-5 flex flex-col gap-2">
         <button
           type="button"
           disabled={busy}
           onClick={() => void signInWithProvider("oauth_google")}
-          className="inline-flex h-11 items-center justify-center gap-2.5 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-charcoal transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-900"
+          className="inline-flex h-10 items-center justify-center gap-2.5 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-charcoal transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-900"
         >
           <GoogleMark />
           Continue with Google
@@ -350,14 +351,14 @@ export function LoginPage() {
           type="button"
           disabled={busy}
           onClick={() => void signInWithProvider("oauth_apple")}
-          className="inline-flex h-11 items-center justify-center gap-2.5 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-charcoal transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-900"
+          className="inline-flex h-10 items-center justify-center gap-2.5 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-charcoal transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-900"
         >
           <AppleMark />
           Continue with Apple
         </button>
       </div>
 
-      <div className="mt-5 flex items-center gap-3" aria-hidden="true">
+      <div className="mt-4 flex items-center gap-3" aria-hidden="true">
         <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
         <span className="text-xs font-medium uppercase tracking-wider text-slate-400">or</span>
         <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
@@ -366,7 +367,7 @@ export function LoginPage() {
       <form
         id={formId}
         aria-label={`Sign in to ${context.display_name}`}
-        className="mt-6 flex flex-col gap-4"
+        className="mt-4 flex flex-col gap-3"
         onSubmit={submit}
       >
         <label className="text-left text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -379,7 +380,7 @@ export function LoginPage() {
             autoComplete={`${context.autocomplete_section} username`}
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
-            className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base text-charcoal shadow-sm placeholder:text-slate-400 focus:border-seafoam-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-base text-charcoal shadow-sm placeholder:text-slate-400 focus:border-seafoam-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
             placeholder="you@example.com"
           />
         </label>
@@ -392,20 +393,20 @@ export function LoginPage() {
             autoComplete={`${context.autocomplete_section} current-password`}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base text-charcoal shadow-sm placeholder:text-slate-400 focus:border-seafoam-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-base text-charcoal shadow-sm placeholder:text-slate-400 focus:border-seafoam-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
             placeholder="••••••••"
           />
         </label>
         <button
           type="submit"
           disabled={busy}
-          className="mt-2 inline-flex h-11 items-center justify-center rounded-xl bg-charcoal text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+          className="mt-1 inline-flex h-10 items-center justify-center rounded-xl bg-charcoal text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : `Sign in to ${context.display_name}`}
         </button>
       </form>
 
-      <p className="mt-4 text-center text-xs leading-relaxed text-slate-500">
+      <p className="mt-3 text-center text-[11px] leading-relaxed text-slate-500">
         By continuing, you agree to Sweepr's{" "}
         <a
           href={`${LEGAL_URL}/terms`}
@@ -427,7 +428,7 @@ export function LoginPage() {
         .
       </p>
 
-      <div className="mt-6 text-center">
+      <div className="mt-3 text-center">
         <a
           href={context.cancel_url}
           className="text-sm font-medium text-slate-500 underline-offset-4 hover:text-charcoal hover:underline dark:hover:text-white"

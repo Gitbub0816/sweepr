@@ -84,7 +84,7 @@ export default function Landing() {
     { label: t("nav.services"), href: "#services" },
     { label: t("nav.pricing"), href: "#pricing" },
     { label: t("nav.faq"), href: "#faq" },
-    { label: t("nav.becomeACleaner"), href: cleanerUrl },
+    { label: t("nav.becomeACleaner"), href: "/clean-with-us" },
   ];
 
   const faqs: AccordionItemData[] = [
@@ -152,7 +152,7 @@ export default function Landing() {
 
       {/* ── Services — editorial price list, not a card grid ── */}
       <div className="bg-white dark:bg-slate-900/40">
-        <section id="services" className="mx-auto max-w-6xl px-4 py-24">
+        <section id="services" className="scroll-mt-20 mx-auto max-w-6xl px-4 py-24">
           <Reveal className="max-w-2xl">
             <h2 className="text-3xl font-black tracking-tight text-charcoal [text-wrap:balance] dark:text-white sm:text-4xl">
               {t("useCases.title", "See how Sweepr can work for you")}
@@ -186,7 +186,7 @@ export default function Landing() {
       </div>
 
       {/* ── Trust — asymmetric split: one claim, four specifics ── */}
-      <section id="trust" className="mx-auto max-w-6xl px-4 py-24">
+      <section id="trust" className="scroll-mt-20 mx-auto max-w-6xl px-4 py-24">
         <div className="grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-20">
           <Reveal>
             <div className="lg:sticky lg:top-28">
@@ -214,7 +214,7 @@ export default function Landing() {
 
       {/* ── Pricing ── */}
       <div className="bg-white dark:bg-slate-900/40">
-        <section id="pricing" className="mx-auto max-w-6xl px-4 py-24">
+        <section id="pricing" className="scroll-mt-20 mx-auto max-w-6xl px-4 py-24">
           {pricingGated ? (
             <div className="mx-auto max-w-xl py-6 text-center">
               <h2 className="text-3xl font-black tracking-tight text-charcoal dark:text-white">
@@ -245,7 +245,7 @@ export default function Landing() {
                   {[
                     { title: t("pricing.point1Title", "Your quote is exact, not an estimate"), body: t("pricing.point1Body", "Answer a few questions about your home and see the full price before you confirm. That number doesn't change unless you change the job.") },
                     { title: t("pricing.point2Title", "No subscriptions, no memberships required"), body: t("pricing.point2Body", "Book once or set a schedule. Either way you only pay for cleanings that happen.") },
-                    { title: t("pricing.point3Title", "Charged after the clean, never before"), body: t("pricing.point3Body", "Payment runs when the work is done. Tips are optional and go to your cleaner in full.") },
+                    { title: t("pricing.point3Title", "Paid after the clean"), body: t("pricing.point3Body", "Booking places a temporary hold on your card. The payment itself goes through once the work is done. Tips are optional and go to your cleaner in full.") },
                   ].map((row) => (
                     <li key={row.title} className="px-6 py-5">
                       <p className="font-bold text-charcoal dark:text-white">{row.title}</p>
@@ -285,7 +285,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section id="faq" className="mx-auto max-w-6xl px-4 py-24">
+      <section id="faq" className="scroll-mt-20 mx-auto max-w-6xl px-4 py-24">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-16">
           <Reveal>
             <h2 className="text-3xl font-black tracking-tight text-charcoal dark:text-white sm:text-4xl">{t("faq.title")}</h2>
@@ -321,7 +321,7 @@ export default function Landing() {
               {t("cleaner.subtitle")}
             </p>
             <a
-              href={cleanerUrl}
+              href="/clean-with-us"
               className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-seafoam-700 hover:text-seafoam-800"
             >
               {t("cleaner.cta")} <ArrowRight aria-hidden="true" className="h-4 w-4" />

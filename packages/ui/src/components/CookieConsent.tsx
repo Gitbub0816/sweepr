@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from "react";
 import { getAnalyticsConsent, setAnalyticsConsent } from "../lib/analytics";
+import { enforceCookiePolicy } from "../lib/cookieEngine";
 
 /** Stable anonymous id so consent records can be audited/updated (GDPR Art. 7). */
 function anonymousId(): string | undefined {
@@ -54,12 +55,16 @@ export function CookieConsent({
 
   useEffect(() => {
     setVisible(getAnalyticsConsent() === "unset");
+    // Sweep any cookie that doesn't match current consent, including ones
+    // dropped by third-party scripts before the visitor decided.
+    enforceCookiePolicy();
   }, []);
 
   if (!visible) return null;
 
   function choose(granted: boolean) {
     setAnalyticsConsent(granted);
+    enforceCookiePolicy();
     persistConsentRecord(apiUrl, granted);
     setVisible(false);
   }

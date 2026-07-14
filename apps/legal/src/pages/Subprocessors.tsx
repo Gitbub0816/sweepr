@@ -36,6 +36,7 @@ const SUBS: Sub[] = [
   { vendor: "Didit", purpose: "Identity verification", data: "Identity/verification data", region: "US/EU", role: "Processor", status: "Active" },
   { vendor: "Neon", purpose: "Application database", data: "Application data", region: "US", role: "Processor", status: "Active" },
   { vendor: "Cloudflare", purpose: "Hosting, CDN, security", data: "Network/usage metadata", region: "Global", role: "Processor", status: "Active" },
+  { vendor: "Fly.io", purpose: "Central sign-in service hosting (auth broker)", data: "Session identifiers, auth metadata", region: "US", role: "Processor", status: "Active" },
   { vendor: "Cloudflare R2", purpose: "File/photo storage", data: "Uploaded photos & files", region: "Global", role: "Processor", status: "Active" },
   { vendor: "Firebase / Google", purpose: "Push notifications & services", data: "Device tokens", region: "US", role: "Processor", status: "Active" },
   { vendor: "MailerSend", purpose: "Transactional email & SMS", data: "Email, phone numbers, message content", region: "US/EU", role: "Processor", status: "Active" },

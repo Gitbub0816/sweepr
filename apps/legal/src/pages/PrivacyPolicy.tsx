@@ -111,6 +111,12 @@ export function PrivacyPolicy() {
         <p><strong>6.1</strong> We rely on the following service providers, each of which processes personal data on our behalf under contract:</p>
         <ul className="list-disc space-y-1 pl-6">
           <li><strong>Clerk</strong>, authentication and identity management;</li>
+          <li>
+            <strong>Sweepr central sign-in</strong>, our own sign-in service
+            (hosted on Fly.io) that issues per-app session cookies after Clerk
+            verifies your identity; it stores hashed session identifiers, never
+            passwords;
+          </li>
           <li><strong>Stripe</strong>, payment processing (PCI-DSS Level 1 certified);</li>
           <li><strong>Yardstik</strong>, background screening (FCRA-compliant);</li>
           <li><strong>Didit</strong>, identity document verification;</li>

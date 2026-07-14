@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { initAnalytics, persistConsentRecord } from "@sweepr/ui";
+import { initAnalytics, persistConsentRecord, setAdvertisingConsent, enforceCookiePolicy } from "@sweepr/ui";
 
 const STORAGE_KEY = "sweepr_cookie_consent";
 
@@ -49,6 +49,10 @@ function save(record: ConsentRecord) {
   } catch {
     /* ignore storage errors */
   }
+  // The cookie engine gates writes and sweeps anything a denied category
+  // already dropped (advertising = the "marketing" toggle here).
+  setAdvertisingConsent(record.marketing);
+  enforceCookiePolicy();
   // Server-side consent record (GDPR Art. 7 accountability) — fire-and-forget.
   persistConsentRecord(API_URL, record.analytics);
 }

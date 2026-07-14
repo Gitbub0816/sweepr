@@ -74,4 +74,16 @@ export { SafeText, sanitizeText } from "./lib/sanitize";
 export { isValidEmail, validateEmail, validateText, validatePhone } from "./lib/validation";
 export { MAPBOX_STYLES, getMapStyle, getMapboxToken } from "./lib/mapStyles";
 export { initAnalytics, track, identify, resetAnalytics } from "./lib/analytics";
+export {
+  initCookieEngine,
+  enforceCookiePolicy,
+  cookieInventory,
+  classifyCookie,
+  getCookieConsent,
+  setAdvertisingConsent,
+  setCookie,
+  getCookie,
+  deleteCookie,
+  COOKIE_REGISTRY,
+} from "./lib/cookieEngine";
 export { Events } from "./lib/events";

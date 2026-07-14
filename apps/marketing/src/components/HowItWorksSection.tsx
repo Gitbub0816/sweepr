@@ -214,9 +214,9 @@ const STEPS: Step[] = [
     label: "Pay after",
     eyebrow: "You're all set",
     title: "Pay only after the job",
-    body: "You're charged once the cleaning is complete, never before. Stripe handles the payment; your card details never touch our servers.",
+    body: "Booking places a temporary hold on your card, and it may show as pending. The payment itself goes through after the cleaning is done. Stripe handles it all; your card details never touch our servers.",
     points: [
-      "Charged after service, from your saved method",
+      "A hold at booking, paid after service",
       "Encrypted: card details never touch our servers",
       "Clear receipt saved to your account",
     ],
@@ -419,7 +419,7 @@ export function HowItWorksSection() {
   };
 
   return (
-    <section id="how" className="mx-auto max-w-7xl px-4 py-20">
+    <section id="how" className="scroll-mt-20 mx-auto max-w-7xl px-4 py-20">
       <Reveal className="max-w-2xl">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">How Sweepr works</p>
         <h2 className="mt-3 text-3xl font-black tracking-tight text-charcoal [text-wrap:balance] dark:text-white sm:text-4xl">

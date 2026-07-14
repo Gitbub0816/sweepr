@@ -9,6 +9,7 @@
  */
 
 import { useClerk, useUser } from "@clerk/clerk-react";
+import { CENTRAL_AUTH_ENABLED } from "./CentralSession";
 import { LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { NotificationBell } from "@sweepr/ui";
@@ -42,7 +43,16 @@ export function NavAuth() {
     <div className="flex items-center gap-2">
       <Bell />
       <button
-        onClick={() => void signOut(() => navigate("/sign-in"))}
+        onClick={() => {
+          // Central mode: revoke the broker session cookie too, then leave.
+          if (CENTRAL_AUTH_ENABLED) {
+            void fetch("/auth/logout", { method: "POST" }).finally(() =>
+              window.location.assign("/")
+            );
+            return;
+          }
+          void signOut(() => navigate("/sign-in"));
+        }}
         className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-white"
       >
         <LogOut className="h-3.5 w-3.5" />

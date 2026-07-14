@@ -54,6 +54,18 @@ export function PaymentServicesTerms() {
           </Link>
           .
         </p>
+        <p>
+          <strong>Pre-authorization hold.</strong> When you confirm a booking,
+          we place a temporary authorization hold on your payment method for
+          the booking amount. The hold may appear on your statement as a
+          pending charge and may reduce your available balance, but it is not
+          a completed payment. The payment is captured only after the cleaning
+          is completed (or as otherwise provided in the Refund Policy, for
+          example disclosed cancellation fees). If a booking is cancelled and
+          no fee applies, the hold is released; your bank determines how
+          quickly a released hold disappears from your statement, typically
+          within a few business days.
+        </p>
       </Section>
 
       <Section id="saved" title="3. Saved Payment Methods">

@@ -66,7 +66,7 @@ export function SignInPage() {
     if (!isLoaded) return;
     setError("");
     try {
-      await signIn.authenticateWithRedirect({ strategy: provider, redirectUrl: "/sso-callback", redirectUrlComplete: "/book" });
+      await signIn.authenticateWithRedirect({ strategy: provider, redirectUrl: "/sso-callback", redirectUrlComplete: redirectTo });
     } catch (err: unknown) {
       setError((err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? t("auth.oauthFailed"));
     }
