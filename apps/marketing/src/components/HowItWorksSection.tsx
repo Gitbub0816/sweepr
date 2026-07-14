@@ -92,16 +92,6 @@ const SEAM: Partner = {
   href: "https://www.seam.co",
   logo: "https://www.seam.co/favicon.ico",
 };
-const MAPBOX: Partner = {
-  name: "Mapbox",
-  role: "Cleaner navigation",
-  why: "Turn-by-turn navigation that keeps arrivals on time and on route.",
-  href: "https://www.mapbox.com",
-  logo: "https://www.mapbox.com/favicon.ico",
-  // Official combined lockup, self-hosted: Mapbox's terms require the icon and
-  // wordmark to be used together, never separately.
-  wordmark: "/partners/mapbox-logo-black.svg",
-};
 const POSTHOG: Partner = {
   name: "PostHog",
   role: "Product analytics & safety monitoring",
@@ -201,7 +191,9 @@ const STEPS: Step[] = [
       "Check-in confirms the right person at the right home",
       "Arrival, progress, and completion notifications",
     ],
-    partners: [MAPBOX],
+    partners: [],
+    inHouseNote:
+      "Turn-by-turn navigation and live arrival tracking run on our own mapping stack, so we control the route, the ETA, and exactly what your cleaner sees on the way to your door.",
   },
   {
     icon: KeyRound,
