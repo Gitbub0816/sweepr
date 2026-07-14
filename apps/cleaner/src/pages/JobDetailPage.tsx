@@ -18,7 +18,7 @@ import { useAuth } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
 import { DashboardShell, Card, Button, ErrorState, Skeleton, toast } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
-import { NavigationMap } from "../components/NavigationMap";
+import { NavigationMap } from "@sweepr/ui";
 import { ScopeReviewSection } from "../components/ScopeReviewSection";
 import { SmartEntryAccess } from "../components/SmartEntryAccess";
 

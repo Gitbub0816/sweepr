@@ -63,6 +63,7 @@ import { DisputeDetailPage } from "./pages/DisputeDetailPage";
 import { PayoutsPage } from "./pages/PayoutsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ServiceAreasPage } from "./pages/ServiceAreasPage";
+import { MapTestDirectionsPage } from "./pages/MapTestDirectionsPage";
 import { EventsPage } from "./pages/EventsPage";
 import { StatusPage } from "./pages/StatusPage";
 import { TrainingAdminPage } from "./pages/TrainingAdminPage";
@@ -263,6 +264,8 @@ export default function App() {
       <Route path="/insurance" element={<Guarded><InsurancePage /></Guarded>} />
       <Route path="/payouts" element={<Guarded><PayoutsPage /></Guarded>} />
       <Route path="/service-areas" element={<Guarded><ServiceAreasPage /></Guarded>} />
+      {/* Internal QA tool — deliberately not in the nav. */}
+      <Route path="/map_Test/directions/t-b-t" element={<Guarded><MapTestDirectionsPage /></Guarded>} />
       <Route path="/events" element={<Guarded><EventsPage /></Guarded>} />
       <Route path="/status" element={<Guarded><StatusPage /></Guarded>} />
       <Route path="/training" element={<Guarded><TrainingAdminPage /></Guarded>} />

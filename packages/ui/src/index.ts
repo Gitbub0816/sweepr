@@ -47,6 +47,7 @@ export * from "./assets/SweeprLogo";
 // Components
 export * from "./components/SavedPaymentCard";
 export * from "./components/MapR3FOverlay";
+export * from "./components/NavigationMap";
 export * from "./components/NotificationBell";
 export * from "./components/SweeprLoader";
 export * from "./components/SMSOptIn";
