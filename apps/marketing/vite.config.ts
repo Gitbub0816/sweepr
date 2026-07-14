@@ -67,7 +67,6 @@ export default defineConfig({
           if (id.includes("framer-motion") || id.includes("@react-spring"))
             return "vendor-motion";
           if (id.includes("@tanstack/react-query")) return "vendor-query";
-          if (id.includes("mapbox-gl")) return "vendor-mapbox";
           if (
             id.includes(`${path.sep}node_modules${path.sep}three${path.sep}`) ||
             id.includes("@react-three")

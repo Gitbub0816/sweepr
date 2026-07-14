@@ -22,9 +22,9 @@ import { HeroScene } from "../components/HeroScene";
 import { QuoteCalculator } from "../components/QuoteCalculator";
 import { MarketingAuth } from "../components/MarketingAuth";
 
-// mapbox-gl (pulled in by CoverageMapSection) is large and only needed once
-// a visitor scrolls to the coverage-map section, so it's excluded from the
-// initial JS payload.
+// MapKit JS (loaded by CoverageMapSection from Apple's CDN) is only needed
+// once a visitor scrolls to the coverage-map section, so the section is
+// excluded from the initial JS payload.
 const CoverageMapSection = lazy(() =>
   import("../components/CoverageMapSection").then((m) => ({ default: m.CoverageMapSection })),
 );

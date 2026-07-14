@@ -8,37 +8,12 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { useEffect, useRef } from "react";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
-import { getMapStyle, getMapboxToken, isDarkTheme, bindMapTheme, MAP_3D_PITCH } from "@sweepr/ui";
+import { useEffect, useRef, useState } from "react";
+import { loadMapkit, bindMapTheme } from "@sweepr/ui";
 
-const TOKEN = getMapboxToken();
+const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
-// Build a GeoJSON circle polygon from a center + radius in miles.
-function circlePolygon(
-  center: [number, number],
-  radiusMi: number,
-  points = 64
-): GeoJSON.Feature<GeoJSON.Polygon> {
-  const km = radiusMi * 1.60934;
-  const coords: [number, number][] = [];
-  const distanceX = km / (111.32 * Math.cos((center[1] * Math.PI) / 180));
-  const distanceY = km / 110.574;
-  for (let i = 0; i < points; i++) {
-    const theta = (i / points) * (2 * Math.PI);
-    coords.push([
-      center[0] + distanceX * Math.cos(theta),
-      center[1] + distanceY * Math.sin(theta),
-    ]);
-  }
-  coords.push(coords[0]);
-  return {
-    type: "Feature",
-    properties: {},
-    geometry: { type: "Polygon", coordinates: [coords] },
-  };
-}
+const METERS_PER_MILE = 1609.34;
 
 export interface ServiceAreaMapProps {
   center: [number, number]; // [lng, lat]
@@ -47,50 +22,57 @@ export interface ServiceAreaMapProps {
 
 export function ServiceAreaMap({ center, radiusMi }: ServiceAreaMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
-  const markerRef = useRef<mapboxgl.Marker | null>(null);
+  const mapRef = useRef<any>(null);
+  const mapkitRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
+  const circleRef = useRef<any>(null);
   const themeUnbindRef = useRef<(() => void) | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
 
+  // Init map once.
   useEffect(() => {
-    if (!TOKEN || !containerRef.current) return;
-    mapboxgl.accessToken = TOKEN;
+    if (!containerRef.current) return;
+    let cancelled = false;
 
-    if (!mapRef.current) {
-      const map = new mapboxgl.Map({
-        container: containerRef.current,
-        style: getMapStyle(isDarkTheme()).style,
-        center,
-        zoom: 9,
-        pitch: MAP_3D_PITCH,
-        attributionControl: false,
+    loadMapkit(API)
+      .then((mapkit) => {
+        if (cancelled || !containerRef.current || mapRef.current) return;
+        mapkitRef.current = mapkit;
+
+        const map = new mapkit.Map(containerRef.current, {
+          center: new mapkit.Coordinate(center[1], center[0]),
+          cameraDistance: 70000,
+          showsMapTypeControl: false,
+        });
+        mapRef.current = map;
+        themeUnbindRef.current = bindMapTheme(mapkit, map);
+
+        circleRef.current = new mapkit.CircleOverlay(
+          new mapkit.Coordinate(center[1], center[0]),
+          radiusMi * METERS_PER_MILE,
+          {
+            style: new mapkit.Style({
+              fillColor: "#14b8a6",
+              fillOpacity: 0.18,
+              strokeColor: "#0d9488",
+              lineWidth: 2,
+            }),
+          }
+        );
+        map.addOverlay(circleRef.current);
+
+        markerRef.current = new mapkit.MarkerAnnotation(
+          new mapkit.Coordinate(center[1], center[0]),
+          { color: "#14b8a6" }
+        );
+        map.addAnnotation(markerRef.current);
+      })
+      .catch(() => {
+        if (!cancelled) setUnavailable(true);
       });
-      mapRef.current = map;
-      themeUnbindRef.current = bindMapTheme(map);
-      map.on("load", () => {
-        map.addSource("service-area", {
-          type: "geojson",
-          data: circlePolygon(center, radiusMi),
-        });
-        map.addLayer({
-          id: "service-area-fill",
-          type: "fill",
-          source: "service-area",
-          paint: { "fill-color": "#14b8a6", "fill-opacity": 0.18 },
-        });
-        map.addLayer({
-          id: "service-area-line",
-          type: "line",
-          source: "service-area",
-          paint: { "line-color": "#0d9488", "line-width": 2 },
-        });
-      });
-      markerRef.current = new mapboxgl.Marker({ color: "#14b8a6" })
-        .setLngLat(center)
-        .addTo(map);
-    }
 
     return () => {
-      // keep map across re-renders; cleaned on unmount below
+      cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -98,32 +80,36 @@ export function ServiceAreaMap({ center, radiusMi }: ServiceAreaMapProps) {
   // Update circle + marker when center/radius change.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
-    markerRef.current?.setLngLat(center);
-    const source = map.getSource("service-area") as
-      | mapboxgl.GeoJSONSource
-      | undefined;
-    if (source) source.setData(circlePolygon(center, radiusMi));
-    map.setCenter(center);
+    const mapkit = mapkitRef.current;
+    if (!map || !mapkit) return;
+    const coord = new mapkit.Coordinate(center[1], center[0]);
+    markerRef.current.coordinate = coord;
+    if (circleRef.current) {
+      const style = circleRef.current.style;
+      map.removeOverlay(circleRef.current);
+      circleRef.current = new mapkit.CircleOverlay(coord, radiusMi * METERS_PER_MILE, { style });
+      map.addOverlay(circleRef.current);
+    }
+    map.setCenterAnimated(coord, true);
   }, [center, radiusMi]);
 
   useEffect(() => {
     return () => {
       themeUnbindRef.current?.();
       themeUnbindRef.current = null;
-      mapRef.current?.remove();
+      mapRef.current?.destroy();
       mapRef.current = null;
     };
   }, []);
 
-  if (!TOKEN) {
+  if (unavailable) {
     return (
       <div
         className="flex h-[260px] items-center justify-center rounded-2xl border border-slate-200 bg-seafoam-50 text-sm text-slate-600 dark:border-slate-700"
         role="img"
         aria-label="Service area map unavailable"
       >
-        Service area map (set VITE_MAPBOX_PUBLIC_TOKEN)
+        Service area map unavailable
       </div>
     );
   }

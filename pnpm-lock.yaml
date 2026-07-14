@@ -58,9 +58,6 @@ importers:
       lucide-react:
         specifier: ^0.469.0
         version: 0.469.0(react@18.3.1)
-      mapbox-gl:
-        specifier: ^3.25.0
-        version: 3.25.0
       posthog-js:
         specifier: ^1.398.0
         version: 1.398.0
@@ -95,9 +92,6 @@ importers:
       '@sweepr/config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@types/mapbox-gl':
-        specifier: ^3.5.0
-        version: 3.5.0
       '@types/node':
         specifier: ^22.10.5
         version: 22.20.0
@@ -287,9 +281,6 @@ importers:
       '@hookform/resolvers':
         specifier: ^5.4.0
         version: 5.4.0(react-hook-form@7.81.0(react@18.3.1))
-      '@mapbox/search-js-react':
-        specifier: ^1.5.1
-        version: 1.5.1(mapbox-gl@3.25.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@react-three/drei':
         specifier: ^9.122.0
         version: 9.122.0(@react-three/fiber@8.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.185.1))(@types/react@18.3.31)(@types/three@0.184.1)(immer@11.1.11)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.185.1)(use-sync-external-store@1.6.0(react@18.3.1))
@@ -323,9 +314,6 @@ importers:
       lucide-react:
         specifier: ^0.469.0
         version: 0.469.0(react@18.3.1)
-      mapbox-gl:
-        specifier: ^3.25.0
-        version: 3.25.0
       posthog-js:
         specifier: ^1.398.0
         version: 1.398.0
@@ -366,9 +354,6 @@ importers:
       '@sweepr/config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@types/mapbox-gl':
-        specifier: ^3.5.0
-        version: 3.5.0
       '@types/node':
         specifier: ^22.10.5
         version: 22.20.0
@@ -411,9 +396,6 @@ importers:
       '@hookform/resolvers':
         specifier: ^5.4.0
         version: 5.4.0(react-hook-form@7.81.0(react@18.3.1))
-      '@mapbox/search-js-react':
-        specifier: ^1.5.1
-        version: 1.5.1(mapbox-gl@3.25.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@react-three/drei':
         specifier: ^9.122.0
         version: 9.122.0(@react-three/fiber@8.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.185.1))(@types/react@18.3.31)(@types/three@0.184.1)(immer@11.1.11)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.185.1)(use-sync-external-store@1.6.0(react@18.3.1))
@@ -453,9 +435,6 @@ importers:
       lucide-react:
         specifier: ^0.469.0
         version: 0.469.0(react@18.3.1)
-      mapbox-gl:
-        specifier: ^3.25.0
-        version: 3.25.0
       posthog-js:
         specifier: ^1.398.0
         version: 1.398.0
@@ -493,9 +472,6 @@ importers:
       '@sweepr/config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@types/mapbox-gl':
-        specifier: ^3.5.0
-        version: 3.5.0
       '@types/node':
         specifier: ^22.10.5
         version: 22.20.0
@@ -617,9 +593,6 @@ importers:
       lucide-react:
         specifier: ^0.469.0
         version: 0.469.0(react@18.3.1)
-      mapbox-gl:
-        specifier: ^3.25.0
-        version: 3.25.0
       posthog-js:
         specifier: ^1.398.0
         version: 1.398.0
@@ -657,9 +630,6 @@ importers:
       '@sweepr/config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@types/mapbox-gl':
-        specifier: ^3.5.0
-        version: 3.5.0
       '@types/node':
         specifier: ^22.10.5
         version: 22.20.0
@@ -1252,12 +1222,6 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@floating-ui/core@0.7.3':
-    resolution: {integrity: sha512-buc8BXHmG9l82+OQXOFU3Kr2XQx9ys01U/Q9HMIrZ300iLc8HLMgh7dcCqgYzAzf4BkoQvDcXf5Y+CuEZ5JBYg==}
-
-  '@floating-ui/dom@0.5.4':
-    resolution: {integrity: sha512-419BMceRLq0RrmTSDxn8hf9R3VCJv2K9PUfugh5JyEFmdjzDo+e8U5EdR8nzKq8Yj1htzLm3b6eQEEam3/rrtg==}
-
   '@hono/zod-validator@0.8.0':
     resolution: {integrity: sha512-5uS4S1/LKtZQYvD4BtpPUFkOv8d1wNxHHrChm26buMiEYc1FrHWvDUaKVBwkiVtvSExHSpLGDvcnpI2Copyj9w==}
     peerDependencies:
@@ -1404,27 +1368,6 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.9':
     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
-
-  '@mapbox/search-js-core@1.5.1':
-    resolution: {integrity: sha512-aXv9LoN8FvTkMhOOWxIEwFsh8aZFMid1xZfGD71nxWGEWG+TufjCdMCExOI/q7XI49xR1+kEc3ONI21X484uow==}
-    engines: {node: '>=12.20.1'}
-
-  '@mapbox/search-js-react@1.5.1':
-    resolution: {integrity: sha512-+5t7WkAOhpVvqWF9A+BZYEjkFaZ6i5lvLwkXqV5a/UrpsHCCDpcg2Ii5TKvtCJ1GW7VVnCocDH2aF49tIvtM2g==}
-    engines: {node: '>=12.20.1'}
-    peerDependencies:
-      react: '>=16.8.0'
-      react-dom: '>=16.8.0'
-
-  '@mapbox/search-js-web@1.5.1':
-    resolution: {integrity: sha512-hhPbcbamv8Mzitzwgzzxac7GA1TUW5S4aKGDdDkOgbgTyoudunSm4Jem364yxv4bJi4dPFk+WSyhNdF1m5VCkw==}
-    engines: {node: '>=12.20.1'}
-    peerDependencies:
-      mapbox-gl: '>=2.7.0'
-
-  '@mapbox/sphericalmercator@1.2.0':
-    resolution: {integrity: sha512-ZTOuuwGuMOJN+HEmG/68bSEw15HHaMWmQ5gdTsWdWsjDe56K1kGvLOK6bOSC8gWgIvEO0w6un/2Gvv1q5hJSkQ==}
-    hasBin: true
 
   '@mediapipe/tasks-vision@0.10.17':
     resolution: {integrity: sha512-CZWV/q6TTe8ta61cZXjfnnHsfWIdFhms03M9T7Cnd5y2mdpylJM0rF1qRq+wsQVRMLz1OYPVEBU9ph2Bx8cxrg==}
@@ -2037,13 +1980,6 @@ packages:
   '@types/estree@1.0.9':
     resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
 
-  '@types/geojson@7946.0.16':
-    resolution: {integrity: sha512-6C8nqWur3j98U6+lXDfTUWIfgvZU+EumvpHKcYjujKH7woYyLj2sUmff0tRhrqM7BohUw7Pz3ZB1jj2gW9Fvmg==}
-
-  '@types/mapbox-gl@3.5.0':
-    resolution: {integrity: sha512-3wVAUTC6q1UKatLP9YxFBnGJWi3neJUF9OKeyRdUf/BsYjZAP35xmZkL4zogVJbO3vdExuSVYCAkzUXjpjdhOg==}
-    deprecated: This is a stub types definition. mapbox-gl provides its own type definitions, so you do not need this installed.
-
   '@types/node@22.20.0':
     resolution: {integrity: sha512-QWlFW2wf3nTjC13/DqRnBpR4ZO36VJH/JVBkA/vcnmbTBNQIlnObqyqZE1tUR7+Ni23Lda8R1BxMfbXRpCUx5g==}
 
@@ -2486,9 +2422,6 @@ packages:
     resolution: {integrity: sha512-PpOwAdQ/YlXQ2vj8a3h8IipDuYRi3wceVQQGYWxNINccq40Anw7BlsEXCMbt1Zt+OLA6Fq9suIpIWD0OsnISlw==}
     engines: {node: '>=8'}
 
-  focus-trap@6.9.4:
-    resolution: {integrity: sha512-v2NTsZe2FF59Y+sDykKY+XjqZ0cPfhq/hikWVL88BqLivnNiEffAsac6rP6H45ff9wG9LL5ToiDqrLEP9GX9mw==}
-
   fraction.js@5.3.4:
     resolution: {integrity: sha512-1X1NTtiJphryn/uLQz3whtY6jK3fTqoE3ohKs0tT+Ujr1W59oopxmoEh7Lu5p6vBaPbgoM0bzveAW4Qi5RyWDQ==}
 
@@ -2699,9 +2632,6 @@ packages:
     resolution: {integrity: sha512-hdN1wVrZbb29eBGiGjJbeP8JbKjq1urkHJ/LIP/NY48MZ1QVXUsQBV1G1zvYFHn1XE06cwjBsOI2K3Ulnj1YXQ==}
     engines: {node: '>=8'}
 
-  mapbox-gl@3.25.0:
-    resolution: {integrity: sha512-I+9oSkJVFu51xIAAQcjKophFe6zVAGWROHsszeRhX9E1OXEizgPH+8BkF7GaxmmLd9FbADdEfvULF8NxEFcB5w==}
-
   merge2@1.4.1:
     resolution: {integrity: sha512-8q7VEgMJW4J8tcfVPy8g09NcQwZdbwFEqhe/WZkoIzjn/3TGDwtOCYtXGxA3O8tPzpczCCDgv+P2P5y00ZJOOg==}
     engines: {node: '>= 8'}
@@ -2751,9 +2681,6 @@ packages:
 
   no-case@3.0.4:
     resolution: {integrity: sha512-fgAN3jGAh+RoxUGZHTSOLJIqUc2wmoBwGR4tbpNAKmmovFoWq0OdRkb0VkldReO2a2iBT/OEulG9XSUc10r3zg==}
-
-  no-scroll@2.1.1:
-    resolution: {integrity: sha512-YTzGAJOo/B6hkodeT5SKKHpOhAzjMfkUCCXjLJwjWk2F4/InIg+HbdH9kmT7bKpleDuqLZDTRy2OdNtAj0IVyQ==}
 
   node-releases@2.0.48:
     resolution: {integrity: sha512-1uz8041X6LoI6ZSdZacM9lVY28vuzDlSKitnpbSNK0RfKoIJkX29NBPVEFXhnuSuEOA9Ww0xnPJ+ILWbGAv8DA==}
@@ -3279,9 +3206,6 @@ packages:
       '@types/node':
         optional: true
 
-  subtag@0.5.0:
-    resolution: {integrity: sha512-CaIBcTSb/nyk4xiiSOtZYz1B+F12ZxW8NEp54CdT+84vmh/h4sUnHGC6+KQXUfED8u22PQjCYWfZny8d2ELXwg==}
-
   sucrase@3.35.1:
     resolution: {integrity: sha512-DhuTmvZWux4H1UOnWMB3sk0sbaCVOoQZjv8u1rDoTV0HTdGem9hkAZtl4JZy8P2z4Bg0nT+YMeOFyVr4zcG5Tw==}
     engines: {node: '>=16 || 14 >=14.17'}
@@ -3300,9 +3224,6 @@ packages:
     resolution: {integrity: sha512-bYd2lrhc+VarcpkgWclcUi92wYCpOgMws9Sd1hG1ntAu0NEy+14CbotuFjshBU2kt9rYj9TSmDcybpxpeTU1fg==}
     peerDependencies:
       react: ^16.11.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
-
-  tabbable@5.3.3:
-    resolution: {integrity: sha512-QD9qKY3StfbZqWOPLp0++pOrAVb/HbUi5xCc8cUo4XjP19808oaMiDzn0leBY5mCespIBM0CIZePzZjgzR83kA==}
 
   tailwind-merge@2.6.1:
     resolution: {integrity: sha512-Oo6tHdpZsGpkKG88HJ8RR1rg/RdnEkQEfMoEk2x1XRI3F1AxeU+ijRXpiVUF4UbLfcxxRGw6TbUINKYdWVsQTQ==}
@@ -3931,12 +3852,6 @@ snapshots:
   '@esbuild/win32-x64@0.25.12':
     optional: true
 
-  '@floating-ui/core@0.7.3': {}
-
-  '@floating-ui/dom@0.5.4':
-    dependencies:
-      '@floating-ui/core': 0.7.3
-
   '@hono/zod-validator@0.8.0(hono@4.12.26)(zod@3.25.76)':
     dependencies:
       hono: 4.12.26
@@ -4045,32 +3960,6 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
-
-  '@mapbox/search-js-core@1.5.1':
-    dependencies:
-      '@types/geojson': 7946.0.16
-
-  '@mapbox/search-js-react@1.5.1(mapbox-gl@3.25.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
-    dependencies:
-      '@mapbox/search-js-core': 1.5.1
-      '@mapbox/search-js-web': 1.5.1(mapbox-gl@3.25.0)
-      '@types/geojson': 7946.0.16
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-    transitivePeerDependencies:
-      - mapbox-gl
-
-  '@mapbox/search-js-web@1.5.1(mapbox-gl@3.25.0)':
-    dependencies:
-      '@floating-ui/dom': 0.5.4
-      '@mapbox/search-js-core': 1.5.1
-      '@mapbox/sphericalmercator': 1.2.0
-      focus-trap: 6.9.4
-      mapbox-gl: 3.25.0
-      no-scroll: 2.1.1
-      subtag: 0.5.0
-
-  '@mapbox/sphericalmercator@1.2.0': {}
 
   '@mediapipe/tasks-vision@0.10.17': {}
 
@@ -4607,12 +4496,6 @@ snapshots:
 
   '@types/estree@1.0.9': {}
 
-  '@types/geojson@7946.0.16': {}
-
-  '@types/mapbox-gl@3.5.0':
-    dependencies:
-      mapbox-gl: 3.25.0
-
   '@types/node@22.20.0':
     dependencies:
       undici-types: 6.21.0
@@ -5050,10 +4933,6 @@ snapshots:
       locate-path: 5.0.0
       path-exists: 4.0.0
 
-  focus-trap@6.9.4:
-    dependencies:
-      tabbable: 5.3.3
-
   fraction.js@5.3.4: {}
 
   framer-motion@12.42.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
@@ -5216,8 +5095,6 @@ snapshots:
 
   map-obj@4.3.0: {}
 
-  mapbox-gl@3.25.0: {}
-
   merge2@1.4.1: {}
 
   meshline@3.3.1(three@0.185.1):
@@ -5272,8 +5149,6 @@ snapshots:
     dependencies:
       lower-case: 2.0.2
       tslib: 2.8.1
-
-  no-scroll@2.1.1: {}
 
   node-releases@2.0.48: {}
 
@@ -5778,8 +5653,6 @@ snapshots:
     optionalDependencies:
       '@types/node': 22.20.0
 
-  subtag@0.5.0: {}
-
   sucrase@3.35.1:
     dependencies:
       '@jridgewell/gen-mapping': 0.3.13
@@ -5801,8 +5674,6 @@ snapshots:
       dequal: 2.0.3
       react: 18.3.1
       use-sync-external-store: 1.6.0(react@18.3.1)
-
-  tabbable@5.3.3: {}
 
   tailwind-merge@2.6.1: {}
 

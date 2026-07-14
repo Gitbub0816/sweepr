@@ -8,12 +8,10 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { useEffect, useRef } from "react";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
-import { getMapStyle, getMapboxToken, isDarkTheme, bindMapTheme, MAP_3D_PITCH } from "@sweepr/ui";
+import { useEffect, useRef, useState } from "react";
+import { loadMapkit, bindMapTheme } from "@sweepr/ui";
 
-const TOKEN = getMapboxToken();
+const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
 export interface AdminMapProps {
   center: [number, number]; // [lng, lat]
@@ -23,45 +21,62 @@ export interface AdminMapProps {
 /** Compact, non-interactive map preview for the admin detail views. */
 export function AdminMap({ center, label }: AdminMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const mapRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
+  const [unavailable, setUnavailable] = useState(false);
 
   useEffect(() => {
-    if (!TOKEN || !containerRef.current) return;
-    mapboxgl.accessToken = TOKEN;
+    if (!containerRef.current) return;
+    let cancelled = false;
     let unbindTheme: (() => void) | null = null;
-    if (!mapRef.current) {
-      const map = new mapboxgl.Map({
-        container: containerRef.current,
-        style: getMapStyle(isDarkTheme()).style,
-        center,
-        zoom: 11,
-        pitch: MAP_3D_PITCH,
-        interactive: false,
-        attributionControl: false,
+
+    loadMapkit(API)
+      .then((mapkit) => {
+        if (cancelled || !containerRef.current) return;
+        if (!mapRef.current) {
+          const map = new mapkit.Map(containerRef.current, {
+            center: new mapkit.Coordinate(center[1], center[0]),
+            cameraDistance: 6000,
+            isRotationEnabled: false,
+            isZoomEnabled: false,
+            isScrollEnabled: false,
+            showsMapTypeControl: false,
+            showsZoomControl: false,
+            showsCompass: mapkit.FeatureVisibility.Hidden,
+          });
+          mapRef.current = map;
+          unbindTheme = bindMapTheme(mapkit, map);
+          markerRef.current = new mapkit.MarkerAnnotation(
+            new mapkit.Coordinate(center[1], center[0]),
+            { color: "#14b8a6" }
+          );
+          map.addAnnotation(markerRef.current);
+        } else {
+          mapRef.current.center = new mapkit.Coordinate(center[1], center[0]);
+          markerRef.current.coordinate = new mapkit.Coordinate(center[1], center[0]);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setUnavailable(true);
       });
-      mapRef.current = map;
-      unbindTheme = bindMapTheme(map);
-      new mapboxgl.Marker({ color: "#14b8a6" })
-        .setLngLat(center)
-        .addTo(map);
-    } else {
-      mapRef.current.setCenter(center);
-    }
+
     return () => {
+      cancelled = true;
       unbindTheme?.();
-      mapRef.current?.remove();
+      mapRef.current?.destroy();
       mapRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [center]);
 
-  if (!TOKEN) {
+  if (unavailable) {
     return (
       <div
         className="flex h-[200px] items-center justify-center rounded-2xl border border-slate-200 bg-seafoam-50 text-sm text-slate-600 dark:border-slate-700"
         role="img"
         aria-label={label ?? "Map preview unavailable"}
       >
-        Map preview (set VITE_MAPBOX_PUBLIC_TOKEN)
+        Map unavailable
       </div>
     );
   }
