@@ -16,20 +16,7 @@ import { LanguageSelector } from "../i18n/LanguageSelector";
 import { withLang } from "../i18n/languages";
 import { Reveal } from "../components/Reveal";
 import { HowItWorksSection } from "../components/HowItWorksSection";
-import {
-  Sparkles,
-  ShieldCheck,
-  BadgeCheck,
-  HeartHandshake,
-  Home,
-  Truck,
-  Repeat,
-  ArrowRight,
-  Clock,
-  CheckCircle2,
-  PlusCircle,
-  Building2,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { formatCurrency } from "@sweepr/utils";
 import { lazy, Suspense } from "react";
 import { HeroScene } from "../components/HeroScene";
@@ -48,25 +35,8 @@ const CUSTOMER_URL =
 const CLEANER_URL =
   (import.meta.env.VITE_CLEANER_URL || "https://clean.getsweepr.com") + "/sign-up";
 
-function Section({
-  id,
-  children,
-  className = "",
-}: {
-  id?: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <section id={id} className={`mx-auto max-w-6xl px-4 py-20 ${className}`}>
-      {children}
-    </section>
-  );
-}
-
 const services = [
   {
-    icon: Home,
     nameKey: "services.standard" as const,
     price: 89,
     taglineKey: "services.standardTagline" as const,
@@ -74,7 +44,6 @@ const services = [
     bestForKey: "services.standardBestFor" as const,
   },
   {
-    icon: Sparkles,
     nameKey: "services.deep" as const,
     price: 149,
     taglineKey: "services.deepTagline" as const,
@@ -82,7 +51,6 @@ const services = [
     bestForKey: "services.deepBestFor" as const,
   },
   {
-    icon: Building2,
     nameKey: "services.apartment" as const,
     price: 99,
     taglineKey: "services.apartmentTagline" as const,
@@ -90,7 +58,6 @@ const services = [
     bestForKey: "services.apartmentBestFor" as const,
   },
   {
-    icon: Truck,
     nameKey: "services.moveIn" as const,
     price: 179,
     taglineKey: "services.moveInTagline" as const,
@@ -98,7 +65,6 @@ const services = [
     bestForKey: "services.moveInBestFor" as const,
   },
   {
-    icon: Truck,
     nameKey: "services.moveOut" as const,
     price: 199,
     taglineKey: "services.moveOutTagline" as const,
@@ -106,7 +72,6 @@ const services = [
     bestForKey: "services.moveOutBestFor" as const,
   },
   {
-    icon: Repeat,
     nameKey: "services.recurring" as const,
     price: 79,
     taglineKey: "services.recurringTagline" as const,
@@ -114,7 +79,6 @@ const services = [
     bestForKey: "services.recurringBestFor" as const,
   },
   {
-    icon: PlusCircle,
     nameKey: "services.addOns" as const,
     price: 0,
     taglineKey: "services.addOnsTagline" as const,
@@ -124,26 +88,10 @@ const services = [
 ];
 
 const trust = [
-  {
-    icon: ShieldCheck,
-    titleKey: "trust.screenedTitle" as const,
-    bodyKey: "trust.screenedBody" as const,
-  },
-  {
-    icon: BadgeCheck,
-    titleKey: "trust.liabilityTitle" as const,
-    bodyKey: "trust.liabilityBody" as const,
-  },
-  {
-    icon: Clock,
-    titleKey: "trust.trackingTitle" as const,
-    bodyKey: "trust.trackingBody" as const,
-  },
-  {
-    icon: HeartHandshake,
-    titleKey: "trust.guaranteeTitle" as const,
-    bodyKey: "trust.guaranteeBody" as const,
-  },
+  { titleKey: "trust.screenedTitle" as const, bodyKey: "trust.screenedBody" as const },
+  { titleKey: "trust.liabilityTitle" as const, bodyKey: "trust.liabilityBody" as const },
+  { titleKey: "trust.trackingTitle" as const, bodyKey: "trust.trackingBody" as const },
+  { titleKey: "trust.guaranteeTitle" as const, bodyKey: "trust.guaranteeBody" as const },
 ];
 
 const pricingRows = [
@@ -154,6 +102,16 @@ const pricingRows = [
 ];
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
+
+/** Small uppercase label. The only sanctioned "eyebrow" treatment: 11px,
+ * tracked, no background, no border, no pill. Used sparingly. */
+function Label({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+      {children}
+    </p>
+  );
+}
 
 export default function Landing() {
   useSeo({ title: 'Sweepr — Home cleaning, ordered like delivery', description: 'Book trusted, background-checked home cleaners in minutes. Transparent pricing shown before you book, real-time tracking, and a satisfaction guarantee.', canonical: "https://getsweepr.com/" });
@@ -207,24 +165,19 @@ export default function Landing() {
         </div>
       }
     >
-      {/* Hero */}
+      {/* ── Hero — editorial headline, quote widget as the visual anchor ── */}
       <div className="relative overflow-hidden">
         <HeroScene />
-        <Section className="!py-24">
-          <div className="grid items-center gap-12 lg:grid-cols-2">
-            <div>
-              <div className="sweepr-fade-up mb-6">
-                <SweeprLogo size="2xl" />
-              </div>
-              <h1
-                className="sweepr-fade-up sweepr-fade-up-d1 mt-6 max-w-2xl text-5xl font-black leading-[1.05] tracking-tight text-charcoal dark:text-white sm:text-6xl lg:text-7xl"
-              >
+        <section className="mx-auto max-w-6xl px-4 pb-20 pt-16 sm:pt-24 lg:pb-28">
+          <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-16">
+            <div className="pt-2">
+              <h1 className="sweepr-fade-up max-w-[13ch] text-[2.9rem] font-black leading-[1.02] tracking-[-0.035em] text-charcoal [text-wrap:balance] dark:text-white sm:text-6xl lg:text-7xl xl:text-[5.25rem]">
                 {t("hero.title")}
               </h1>
-              <p className="sweepr-fade-up sweepr-fade-up-d2 mt-5 max-w-lg text-lg text-slate-600 dark:text-slate-300">
+              <p className="sweepr-fade-up sweepr-fade-up-d1 mt-6 max-w-[52ch] text-lg leading-relaxed text-slate-700 dark:text-slate-300">
                 {t("hero.subtitle")}
               </p>
-              <div className="sweepr-fade-up sweepr-fade-up-d3 mt-8 flex flex-col gap-3 sm:flex-row">
+              <div className="sweepr-fade-up sweepr-fade-up-d2 mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
                 <Button size="lg" onClick={() => (window.location.href = customerUrl)}>
                   {t("hero.cta")} <ArrowRight aria-hidden="true" className="h-4 w-4" />
                 </Button>
@@ -232,113 +185,125 @@ export default function Landing() {
                   {t("nav.services")}
                 </Button>
               </div>
+              {/* Proof, not adjectives. */}
+              <ul className="sweepr-fade-up sweepr-fade-up-d3 mt-10 flex max-w-xl flex-col gap-2 border-t border-slate-200 pt-5 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-400 sm:flex-row sm:gap-0 sm:divide-x sm:divide-slate-200 dark:sm:divide-slate-700">
+                <li className="sm:pr-5">Background-checked through Yardstik</li>
+                <li className="sm:px-5">The exact price, before you book</li>
+                <li className="sm:pl-5">No subscriptions required</li>
+              </ul>
             </div>
 
-            <div className="sweepr-fade-up sweepr-fade-up-d4 flex justify-center lg:justify-end">
+            <div className="sweepr-fade-up sweepr-fade-up-d2 flex justify-center lg:justify-end lg:pt-3">
               <QuoteCalculator pricingGated={pricingGated} />
             </div>
           </div>
-        </Section>
+        </section>
       </div>
 
-      {/* Services */}
+      {/* ── Services — editorial price list, not a card grid ── */}
       <div className="bg-white dark:bg-slate-900/40">
-        <Section id="services">
-          <SectionHeading
-            eyebrow={t("nav.services")}
-            title={t("services.title")}
-            subtitle={t("services.subtitle")}
-          />
-          <div className="mt-12 grid gap-6 sm:grid-cols-2">
-            {services.map((s, i) => (
-              <Reveal
-                key={s.nameKey}
-                delayMs={(i % 4) * 80}
-                className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-offwhite p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900"
-                style={{ borderLeft: "6px solid #14b8a6" }}
-              >
-                <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-seafoam-50 text-seafoam-700 dark:bg-slate-800">
-                    <s.icon aria-hidden="true" className="h-6 w-6" />
+        <section id="services" className="mx-auto max-w-6xl px-4 py-24">
+          <Reveal className="max-w-2xl">
+            <h2 className="text-3xl font-black tracking-tight text-charcoal [text-wrap:balance] dark:text-white sm:text-4xl">
+              {t("services.title")}
+            </h2>
+            <p className="mt-3 text-slate-600 dark:text-slate-400">{t("services.subtitle")}</p>
+          </Reveal>
+          <div className="mt-12 border-t border-slate-200 dark:border-slate-700">
+            {services.map((s) => (
+              <Reveal key={s.nameKey}>
+                <a
+                  href={customerUrl}
+                  className="group grid gap-x-8 gap-y-2 border-b border-slate-200 py-7 transition-colors hover:bg-offwhite dark:border-slate-700 dark:hover:bg-slate-800/40 sm:grid-cols-[minmax(0,5fr)_minmax(0,6fr)_auto] sm:items-baseline sm:px-3"
+                >
+                  <div>
+                    <h3 className="text-xl font-extrabold tracking-tight text-charcoal dark:text-white">
+                      {t(s.nameKey)}
+                    </h3>
+                    <p className="mt-1 text-sm font-medium text-seafoam-700 dark:text-seafoam-400">{t(s.taglineKey)}</p>
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between gap-3">
-                      <h3 className="text-lg font-black text-charcoal dark:text-white">{t(s.nameKey)}</h3>
-                    </div>
-                    <p className="mt-0.5 text-sm font-semibold text-seafoam-700 dark:text-seafoam-400">{t(s.taglineKey)}</p>
+                  <div>
+                    <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400">{t(s.descKey)}</p>
+                    <p className="mt-2 text-[13px] text-slate-500 dark:text-slate-500">{t(s.bestForKey)}</p>
                   </div>
-                </div>
-                <p className="mt-3 text-sm text-slate-500 leading-relaxed">{t(s.descKey)}</p>
-                <div className="mt-3 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                    <CheckCircle2 aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-seafoam-500" />
-                    <span>{t(s.bestForKey)}</span>
+                  <div className="flex items-baseline gap-4 sm:flex-col sm:items-end sm:gap-1.5">
+                    {s.price > 0 ? (
+                      <p className="whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
+                        from <span className="text-lg font-extrabold tabular-nums text-charcoal dark:text-white">{formatCurrency(s.price)}</span>
+                      </p>
+                    ) : (
+                      <p className="whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">priced per item</p>
+                    )}
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap text-sm font-bold text-seafoam-700 dark:text-seafoam-400">
+                      {t("services.bookNow")}
+                      <ArrowRight aria-hidden="true" className="h-4 w-4 transition-transform duration-200 ease-out group-hover:translate-x-0.5" />
+                    </span>
                   </div>
-                  <a
-                    href={customerUrl}
-                    className="inline-flex items-center gap-1 text-sm font-bold text-seafoam-700 hover:text-seafoam-700 whitespace-nowrap"
-                  >
-                    {t("services.bookNow")} <ArrowRight aria-hidden="true" className="h-4 w-4" />
-                  </a>
-                </div>
+                </a>
               </Reveal>
             ))}
           </div>
-        </Section>
+        </section>
       </div>
 
-      {/* Trust */}
-      <Section id="trust">
-        <SectionHeading
-          eyebrow={t("trust.eyebrow")}
-          title={t("trust.title")}
-          subtitle={t("trust.subtitle")}
-        />
-        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {trust.map((item, i) => (
-            <Reveal
-              key={item.titleKey}
-              delayMs={i * 80}
-              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900"
-            >
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-seafoam-50 text-seafoam-700 dark:bg-slate-800">
-                <item.icon aria-hidden="true" className="h-6 w-6" />
-              </div>
-              <h3 className="font-bold text-charcoal dark:text-white">{t(item.titleKey)}</h3>
-              <p className="mt-2 text-sm text-slate-500 leading-relaxed">{t(item.bodyKey)}</p>
-            </Reveal>
-          ))}
+      {/* ── Trust — asymmetric split: one claim, four specifics ── */}
+      <section id="trust" className="mx-auto max-w-6xl px-4 py-24">
+        <div className="grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-20">
+          <Reveal>
+            <div className="lg:sticky lg:top-28">
+              <Label>{t("trust.eyebrow")}</Label>
+              <h2 className="mt-3 text-3xl font-black leading-tight tracking-tight text-charcoal [text-wrap:balance] dark:text-white sm:text-4xl">
+                {t("trust.title")}
+              </h2>
+              <p className="mt-4 text-slate-600 dark:text-slate-400">{t("trust.subtitle")}</p>
+            </div>
+          </Reveal>
+          <div>
+            {trust.map((item, i) => (
+              <Reveal
+                key={item.titleKey}
+                delayMs={i * 60}
+                className={`py-7 ${i > 0 ? "border-t border-slate-200 dark:border-slate-700" : "pt-0"}`}
+              >
+                <h3 className="text-lg font-extrabold tracking-tight text-charcoal dark:text-white">{t(item.titleKey)}</h3>
+                <p className="mt-2 max-w-[60ch] leading-relaxed text-slate-600 dark:text-slate-400">{t(item.bodyKey)}</p>
+              </Reveal>
+            ))}
+          </div>
         </div>
-      </Section>
+      </section>
 
-      {/* Pricing */}
+      {/* ── Pricing ── */}
       <div className="bg-white dark:bg-slate-900/40">
-        <Section id="pricing">
+        <section id="pricing" className="mx-auto max-w-6xl px-4 py-24">
           {pricingGated ? (
-            <div className="mx-auto max-w-xl text-center py-6">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-seafoam-50 dark:bg-seafoam-900/30 mb-6">
-                <Sparkles aria-hidden="true" className="w-7 h-7 text-seafoam-500" />
-              </div>
+            <div className="mx-auto max-w-xl py-6 text-center">
               <h2 className="text-3xl font-black tracking-tight text-charcoal dark:text-white">
                 {t("pricing.comingSoonTitle")}
               </h2>
-              <p className="mt-4 text-lg text-slate-500 dark:text-slate-400 leading-relaxed">
+              <p className="mt-4 text-lg leading-relaxed text-slate-600 dark:text-slate-400">
                 {t("pricing.comingSoonSubtitle")}
               </p>
-              <div className="mt-8 max-w-sm mx-auto">
+              <div className="mx-auto mt-8 max-w-sm">
                 <NewsletterSubscribe apiUrl={API} />
               </div>
             </div>
           ) : (
-            <>
-              <SectionHeading
-                eyebrow={t("nav.pricing")}
-                title={t("pricing.title")}
-                subtitle={t("pricing.subtitle")}
-              />
-              <div className="mx-auto mt-10 max-w-2xl overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
+            <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
+              <Reveal>
+                <h2 className="text-3xl font-black tracking-tight text-charcoal [text-wrap:balance] dark:text-white sm:text-4xl">
+                  {t("pricing.title")}
+                </h2>
+                <p className="mt-4 text-slate-600 dark:text-slate-400">{t("pricing.subtitle")}</p>
+                <div className="mt-8">
+                  <Button size="lg" onClick={() => (window.location.href = customerUrl)}>
+                    {t("pricing.getQuote")} <ArrowRight aria-hidden="true" className="h-4 w-4" />
+                  </Button>
+                </div>
+              </Reveal>
+              <Reveal delayMs={80} className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-offwhite text-slate-500 dark:bg-slate-800">
+                  <thead className="bg-offwhite text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                     <tr>
                       <th scope="col" className="px-5 py-3 font-medium">{t("pricing.colHome")}</th>
                       <th scope="col" className="px-5 py-3 font-medium">{t("pricing.colService")}</th>
@@ -348,22 +313,17 @@ export default function Landing() {
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {pricingRows.map((r) => (
                       <tr key={r.home} className="bg-white dark:bg-slate-900">
-                        <td className="px-5 py-3 text-charcoal dark:text-white">{r.home}</td>
-                        <td className="px-5 py-3 text-slate-500">{r.service}</td>
-                        <td className="px-5 py-3 text-right font-bold text-charcoal dark:text-white">{formatCurrency(r.price)}</td>
+                        <td className="px-5 py-3.5 text-charcoal dark:text-white">{r.home}</td>
+                        <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">{r.service}</td>
+                        <td className="px-5 py-3.5 text-right font-bold tabular-nums text-charcoal dark:text-white">{formatCurrency(r.price)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
-              <div className="mt-8 text-center">
-                <Button size="lg" onClick={() => (window.location.href = customerUrl)}>
-                  {t("pricing.getQuote")} <ArrowRight aria-hidden="true" className="h-4 w-4" />
-                </Button>
-              </div>
-            </>
+              </Reveal>
+            </div>
           )}
-        </Section>
+        </section>
       </div>
 
       {/* Coverage map */}
@@ -371,16 +331,21 @@ export default function Landing() {
         <CoverageMapSection />
       </Suspense>
 
-      {/* How it works — collapsible explainer + customer-facing partners */}
+      {/* How it works — the interactive journey map (scroll showpiece) */}
       <HowItWorksSection />
 
-      {/* FAQ */}
-      <Section id="faq">
-        <SectionHeading eyebrow={t("nav.faq")} title={t("faq.title")} />
-        <div className="mx-auto mt-10 max-w-2xl">
-          <Accordion items={faqs} />
+      {/* ── FAQ ── */}
+      <section id="faq" className="mx-auto max-w-6xl px-4 py-24">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-16">
+          <Reveal>
+            <h2 className="text-3xl font-black tracking-tight text-charcoal dark:text-white sm:text-4xl">{t("faq.title")}</h2>
+            <p className="mt-4 max-w-[40ch] text-slate-600 dark:text-slate-400">{t("faq.subtitle")}</p>
+          </Reveal>
+          <Reveal delayMs={80}>
+            <Accordion items={faqs} />
+          </Reveal>
         </div>
-      </Section>
+      </section>
 
       {/* Footer */}
       <footer className="border-t border-slate-200 dark:border-slate-800">
@@ -407,7 +372,7 @@ export default function Landing() {
             </p>
             <a
               href={cleanerUrl}
-              className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-seafoam-700 hover:text-seafoam-700"
+              className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-seafoam-700 hover:text-seafoam-800"
             >
               {t("cleaner.cta")} <ArrowRight aria-hidden="true" className="h-4 w-4" />
             </a>
@@ -435,15 +400,5 @@ export default function Landing() {
         </div>
       </footer>
     </MarketingShell>
-  );
-}
-
-function SectionHeading({ eyebrow, title, subtitle }: { eyebrow: string; title: string; subtitle?: string }) {
-  return (
-    <Reveal className="text-center">
-      <p className="text-sm font-bold uppercase tracking-wide text-seafoam-700">{eyebrow}</p>
-      <h2 className="mt-2 text-3xl font-black text-charcoal dark:text-white sm:text-4xl">{title}</h2>
-      {subtitle && <p className="mx-auto mt-3 max-w-xl text-slate-500">{subtitle}</p>}
-    </Reveal>
   );
 }

@@ -266,19 +266,18 @@ export function CoverageMapSection() {
   }
 
   return (
-    <section className="py-20 px-4 bg-white">
+    <section className="bg-white px-4 py-24 dark:bg-slate-900/40">
       <div className="mx-auto max-w-6xl">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl font-bold text-charcoal mb-3">See where Sweepr is</h2>
-          <p className="text-slate-500 max-w-xl mx-auto">
-            We're live in the Bay Area and expanding fast. Request your city and we'll let you know
-            when we arrive.
+        <div className="mb-10 max-w-2xl">
+          <h2 className="mb-3 text-3xl font-black tracking-tight text-charcoal dark:text-white sm:text-4xl">See where Sweepr is</h2>
+          <p className="text-slate-600 dark:text-slate-400">
+            We're live in the Bay Area and expanding. Tell us your city and we'll email you when we get there.
           </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           {/* Map */}
-          <div className="lg:col-span-2 h-[420px] rounded-2xl shadow-lg overflow-hidden border border-slate-100">
+          <div className="h-[420px] overflow-hidden rounded-2xl border border-slate-100 shadow-lg dark:border-slate-700 lg:col-span-2">
             <CoverageMap areas={areas} pins={pins} />
           </div>
 
@@ -286,7 +285,7 @@ export function CoverageMapSection() {
           <div className="space-y-6">
             {/* Live areas */}
             <div>
-              <h3 className="text-sm font-semibold text-charcoal mb-3 uppercase tracking-wide">Live now</h3>
+              <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Live now</h3>
               <div className="space-y-2">
                 {(areas.filter((a) => a.status === "live").length > 0
                   ? areas.filter((a) => a.status === "live")
@@ -294,7 +293,7 @@ export function CoverageMapSection() {
                 ).map((a) => (
                   <div key={a.id} className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-seafoam-500" />
-                    <span className="text-sm text-slate-700">{a.name}</span>
+                    <span className="text-sm text-slate-700 dark:text-slate-300">{a.name}</span>
                   </div>
                 ))}
               </div>
@@ -302,12 +301,12 @@ export function CoverageMapSection() {
 
             {areas.filter((a) => a.status === "upcoming").length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold text-charcoal mb-3 uppercase tracking-wide">Coming soon</h3>
+                <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Coming soon</h3>
                 <div className="space-y-2">
                   {areas.filter((a) => a.status === "upcoming").map((a) => (
                     <div key={a.id} className="flex items-center gap-2">
                       <span className="h-2 w-2 rounded-full bg-amber-400" />
-                      <span className="text-sm text-slate-700">{a.name}</span>
+                      <span className="text-sm text-slate-700 dark:text-slate-300">{a.name}</span>
                     </div>
                   ))}
                 </div>
@@ -315,13 +314,13 @@ export function CoverageMapSection() {
             )}
 
             {/* Request form */}
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-              <h3 className="text-sm font-semibold text-charcoal mb-1">Don't see your city?</h3>
-              <p className="text-xs text-slate-500 mb-4">Tell us where you'd like Sweepr.</p>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-900/60">
+              <h3 className="mb-1 text-sm font-semibold text-charcoal dark:text-white">Don't see your city?</h3>
+              <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">Tell us where you'd like Sweepr.</p>
 
               {submitted ? (
-                <p role="status" className="text-sm text-seafoam-700 font-medium">
-                  Request received! We'll let you know when we expand there.
+                <p role="status" className="text-sm font-medium text-seafoam-700 dark:text-seafoam-300">
+                  Request received. We'll let you know when we expand there.
                 </p>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-3">
@@ -338,7 +337,7 @@ export function CoverageMapSection() {
                     aria-required="true"
                     aria-invalid={error ? "true" : undefined}
                     aria-describedby={error ? "city-request-error" : undefined}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-seafoam-400 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   />
 
                   <label className="flex items-start gap-2 cursor-pointer">
@@ -348,7 +347,7 @@ export function CoverageMapSection() {
                       onChange={(e) => setSubscribe(e.target.checked)}
                       className="mt-0.5 h-4 w-4 rounded border-slate-300 text-seafoam-500 focus:ring-seafoam-400"
                     />
-                    <span className="text-xs text-slate-600 leading-snug">
+                    <span className="text-xs leading-snug text-slate-600 dark:text-slate-400">
                       Notify me when Sweepr comes to my area
                     </span>
                   </label>
@@ -366,7 +365,7 @@ export function CoverageMapSection() {
                         onChange={(e) => setEmail(e.target.value)}
                         required={subscribe}
                         aria-required="true"
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-seafoam-400 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                       />
                     </>
                   )}

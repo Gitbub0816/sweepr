@@ -61,16 +61,16 @@ body {
    hero renders and animates immediately with zero JS-driven animation,
    keeping framer-motion out of the critical path. */
 @keyframes sweepr-fade-up {
-  from { opacity: 0; transform: translateY(24px); }
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
 .sweepr-fade-up {
-  animation: sweepr-fade-up 0.6s ease-out both;
+  animation: sweepr-fade-up 0.25s cubic-bezier(0.23, 1, 0.32, 1) both;
 }
-.sweepr-fade-up-d1 { animation-delay: 0.12s; }
-.sweepr-fade-up-d2 { animation-delay: 0.24s; }
-.sweepr-fade-up-d3 { animation-delay: 0.36s; }
-.sweepr-fade-up-d4 { animation-delay: 0.2s; }
+.sweepr-fade-up-d1 { animation-delay: 0.06s; }
+.sweepr-fade-up-d2 { animation-delay: 0.12s; }
+.sweepr-fade-up-d3 { animation-delay: 0.18s; }
+.sweepr-fade-up-d4 { animation-delay: 0.12s; }
 @media (prefers-reduced-motion: reduce) {
   .sweepr-fade-up { animation: none; opacity: 1; transform: none; }
 }
@@ -80,8 +80,8 @@ body {
    the page. Toggled via a small IntersectionObserver in Reveal.tsx. */
 .sweepr-reveal {
   opacity: 0;
-  transform: translateY(24px);
-  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  transform: translateY(12px);
+  transition: opacity 0.25s cubic-bezier(0.23, 1, 0.32, 1), transform 0.25s cubic-bezier(0.23, 1, 0.32, 1);
 }
 .sweepr-reveal.is-visible {
   opacity: 1;
