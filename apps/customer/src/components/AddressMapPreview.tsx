@@ -8,12 +8,10 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { useEffect, useRef } from "react";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
-import { getMapStyle, getMapboxToken, isDarkTheme, bindMapTheme, MAP_3D_PITCH } from "@sweepr/ui";
+import { useEffect, useRef, useState } from "react";
+import { loadMapkit, bindMapTheme } from "@sweepr/ui";
 
-const TOKEN = getMapboxToken();
+const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
 export interface AddressMapPreviewProps {
   lat: number;
@@ -21,43 +19,53 @@ export interface AddressMapPreviewProps {
 }
 
 /**
- * Small, control-free map preview with a seafoam marker at the selected
- * address. Falls back to a placeholder when no Mapbox token is configured.
+ * Small map preview with a seafoam marker at the selected address and
+ * zoom controls. Falls back to a placeholder if Apple Maps isn't
+ * configured or MapKit JS fails to initialize.
  */
 export function AddressMapPreview({ lat, lng }: AddressMapPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
-  const markerRef = useRef<mapboxgl.Marker | null>(null);
+  const mapRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
   const themeUnbindRef = useRef<(() => void) | null>(null);
+  const mapkitRef = useRef<any>(null);
+  const [unavailable, setUnavailable] = useState(false);
 
   useEffect(() => {
-    if (!TOKEN || !containerRef.current) return;
-    mapboxgl.accessToken = TOKEN;
+    if (!containerRef.current) return;
+    let cancelled = false;
 
-    if (!mapRef.current) {
-      const map = new mapboxgl.Map({
-        container: containerRef.current,
-        style: getMapStyle(isDarkTheme()).style,
-        center: [lng, lat],
-        zoom: 14,
-        pitch: MAP_3D_PITCH,
-        interactive: true,
-        attributionControl: false,
+    loadMapkit(API)
+      .then((mapkit) => {
+        if (cancelled || !containerRef.current) return;
+        mapkitRef.current = mapkit;
+
+        if (!mapRef.current) {
+          const map = new mapkit.Map(containerRef.current, {
+            center: new mapkit.Coordinate(lat, lng),
+            cameraDistance: 1200,
+            showsMapTypeControl: false,
+            showsZoomControl: true,
+            showsCompass: mapkit.FeatureVisibility.Hidden,
+          });
+          mapRef.current = map;
+          themeUnbindRef.current = bindMapTheme(mapkit, map);
+        } else {
+          mapRef.current.center = new mapkit.Coordinate(lat, lng);
+        }
+
+        if (markerRef.current) mapRef.current.removeAnnotation(markerRef.current);
+        markerRef.current = new mapkit.MarkerAnnotation(new mapkit.Coordinate(lat, lng), {
+          color: "#14b8a6",
+        });
+        mapRef.current.addAnnotation(markerRef.current);
+      })
+      .catch(() => {
+        if (!cancelled) setUnavailable(true);
       });
-      mapRef.current = map;
-      themeUnbindRef.current = bindMapTheme(map);
-      map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
-    } else {
-      mapRef.current.setCenter([lng, lat]);
-    }
-
-    if (markerRef.current) markerRef.current.remove();
-    markerRef.current = new mapboxgl.Marker({ color: "#14b8a6" })
-      .setLngLat([lng, lat])
-      .addTo(mapRef.current);
 
     return () => {
-      markerRef.current?.remove();
+      cancelled = true;
     };
   }, [lat, lng]);
 
@@ -65,19 +73,19 @@ export function AddressMapPreview({ lat, lng }: AddressMapPreviewProps) {
     return () => {
       themeUnbindRef.current?.();
       themeUnbindRef.current = null;
-      mapRef.current?.remove();
+      mapRef.current?.destroy();
       mapRef.current = null;
     };
   }, []);
 
-  if (!TOKEN) {
+  if (unavailable) {
     return (
       <div
         className="flex h-[200px] items-center justify-center rounded-2xl border border-slate-200 bg-seafoam-50 text-sm text-slate-600 dark:border-slate-700"
         role="img"
         aria-label="Map preview unavailable"
       >
-        Map preview (set VITE_MAPBOX_PUBLIC_TOKEN)
+        Map unavailable
       </div>
     );
   }

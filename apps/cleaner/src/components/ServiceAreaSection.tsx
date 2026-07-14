@@ -10,30 +10,27 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { Card, Input, Button, toast, getMapboxToken } from "@sweepr/ui";
+import { Card, Input, Button, toast, loadMapkit } from "@sweepr/ui";
 import { MapPin } from "lucide-react";
 import { ServiceAreaMap } from "./ServiceAreaMap";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
-const MAPBOX_TOKEN = getMapboxToken();
 
-/** Forward-geocode an address/city to [lng, lat] via Mapbox, then Nominatim. */
+/** Forward-geocode an address/city to [lng, lat] via Apple MapKit JS search. */
 async function geocode(query: string): Promise<[number, number] | null> {
   try {
-    if (MAPBOX_TOKEN) {
-      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&limit=1`;
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = (await res.json()) as { features?: Array<{ center: [number, number] }> };
-        if (data.features?.[0]) return data.features[0].center;
-      }
-    }
-    const nom = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
-    const res = await fetch(nom);
-    if (res.ok) {
-      const data = (await res.json()) as Array<{ lon: string; lat: string }>;
-      if (data[0]) return [Number(data[0].lon), Number(data[0].lat)];
-    }
+    const mapkit = await loadMapkit(API_URL);
+    const search = new mapkit.Search();
+    return await new Promise<[number, number] | null>((resolve) => {
+      search.search(query, (error: unknown, data: { places?: Array<{ coordinate: { latitude: number; longitude: number } }> }) => {
+        if (error || !data.places?.length) {
+          resolve(null);
+          return;
+        }
+        const { latitude, longitude } = data.places[0].coordinate;
+        resolve([longitude, latitude]);
+      });
+    });
   } catch {
     /* geocode is best-effort */
   }

@@ -9,57 +9,76 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
-import { getMapStyle, getMapboxToken, isDarkTheme, bindMapTheme, MAP_3D_PITCH } from "@sweepr/ui";
+import { loadMapkit, bindMapTheme } from "@sweepr/ui";
 import { Navigation, ChevronRight, Clock } from "lucide-react";
 
-const TOKEN = getMapboxToken();
+const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
 interface Step {
   instruction: string;
   distanceM: number;
   durationS: number;
+  coordinate: [number, number] | null; // [lng, lat] of the step's start, for proximity matching
 }
 
 interface RouteResult {
   steps: Step[];
   totalDistanceM: number;
   totalDurationS: number;
-  geometry: GeoJSON.LineString;
+  path: [number, number][]; // [lng, lat][]
 }
 
 async function fetchRoute(
+  mapkit: any,
   origin: [number, number],
   dest: [number, number]
 ): Promise<RouteResult | null> {
-  const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${origin[0]},${origin[1]};${dest[0]},${dest[1]}?steps=true&geometries=geojson&overview=full&access_token=${TOKEN}`;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const data = (await res.json()) as {
-      routes?: Array<{
+  const directions = new mapkit.Directions();
+  return new Promise((resolve) => {
+    directions.route(
+      {
+        origin: new mapkit.Coordinate(origin[1], origin[0]),
+        destination: new mapkit.Coordinate(dest[1], dest[0]),
+      },
+      (error: unknown, data: { routes?: Array<{
         distance: number;
-        duration: number;
-        geometry: GeoJSON.LineString;
-        legs: Array<{ steps: Array<{ maneuver: { instruction: string }; distance: number; duration: number }> }>;
-      }>;
-    };
-    const route = data.routes?.[0];
-    if (!route) return null;
-    return {
-      totalDistanceM: route.distance,
-      totalDurationS: route.duration,
-      geometry: route.geometry,
-      steps: route.legs[0]?.steps.map((s) => ({
-        instruction: s.maneuver.instruction,
-        distanceM: s.distance,
-        durationS: s.duration,
-      })) ?? [],
-    };
-  } catch {
-    return null;
-  }
+        expectedTravelTime: number;
+        steps: Array<{ instructions: string; distance: number; transportType: number; path?: Array<{ latitude: number; longitude: number }> }>;
+        path: Array<{ latitude: number; longitude: number }>;
+      }> }) => {
+        if (error || !data.routes?.length) {
+          resolve(null);
+          return;
+        }
+        const route = data.routes[0];
+        resolve({
+          totalDistanceM: route.distance,
+          totalDurationS: route.expectedTravelTime / 1000,
+          path: route.path.map((c) => [c.longitude, c.latitude] as [number, number]),
+          steps: route.steps.map((s) => ({
+            instruction: s.instructions,
+            distanceM: s.distance,
+            durationS: 0,
+            coordinate: s.path?.[0] ? [s.path[0].longitude, s.path[0].latitude] : null,
+          })),
+        });
+      }
+    );
+  });
+}
+
+function geocodeAddress(mapkit: any, query: string): Promise<[number, number] | null> {
+  return new Promise((resolve) => {
+    const search = new mapkit.Search();
+    search.search(query, (error: unknown, data: { places?: Array<{ coordinate: { latitude: number; longitude: number } }> }) => {
+      if (error || !data.places?.length) {
+        resolve(null);
+        return;
+      }
+      const { latitude, longitude } = data.places[0].coordinate;
+      resolve([longitude, latitude]);
+    });
+  });
 }
 
 function fmtDist(m: number): string {
@@ -81,11 +100,14 @@ export interface NavigationMapProps {
 
 export function NavigationMap({ destination, currentLat, currentLng }: NavigationMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
-  const destMarkerRef = useRef<mapboxgl.Marker | null>(null);
-  const posMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const mapRef = useRef<any>(null);
+  const mapkitRef = useRef<any>(null);
+  const destMarkerRef = useRef<any>(null);
+  const posMarkerRef = useRef<any>(null);
+  const routeOverlayRef = useRef<any>(null);
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
+  const [unavailable, setUnavailable] = useState(false);
   const routeRef = useRef<RouteResult | null>(null);
   const lastFetchRef = useRef<number>(0);
 
@@ -93,139 +115,108 @@ export function NavigationMap({ destination, currentLat, currentLng }: Navigatio
   const geocodeCache = useRef<{ label: string; coords: [number, number] } | null>(null);
   const [destCoords, setDestCoords] = useState<[number, number] | null>(null);
 
+  // Init map + geocode once mapkit is ready
   useEffect(() => {
-    if (!TOKEN) return;
-    if (geocodeCache.current?.label === destination.label) {
-      setDestCoords(geocodeCache.current.coords);
-      return;
-    }
-    const encoded = encodeURIComponent(destination.label);
-    fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encoded}.json?limit=1&access_token=${TOKEN}`)
-      .then((r) => r.json())
-      .then((data: { features?: Array<{ center: [number, number] }> }) => {
-        const coords = data.features?.[0]?.center;
-        if (coords) {
-          geocodeCache.current = { label: destination.label, coords };
-          setDestCoords(coords);
+    if (!containerRef.current) return;
+    let cancelled = false;
+
+    loadMapkit(API)
+      .then(async (mapkit) => {
+        if (cancelled) return;
+        mapkitRef.current = mapkit;
+
+        let coords: [number, number] = [destination.lng, destination.lat];
+        if (geocodeCache.current?.label === destination.label) {
+          coords = geocodeCache.current.coords;
+        } else {
+          const geocoded = await geocodeAddress(mapkit, destination.label);
+          if (geocoded) {
+            geocodeCache.current = { label: destination.label, coords: geocoded };
+            coords = geocoded;
+          }
         }
+        if (cancelled) return;
+        setDestCoords(coords);
+
+        if (!containerRef.current || mapRef.current) return;
+        const map = new mapkit.Map(containerRef.current, {
+          center: new mapkit.Coordinate(coords[1], coords[0]),
+          cameraDistance: 1500,
+          showsMapTypeControl: false,
+        });
+        mapRef.current = map;
+        bindMapTheme(mapkit, map);
+
+        destMarkerRef.current = new mapkit.MarkerAnnotation(
+          new mapkit.Coordinate(coords[1], coords[0]),
+          { color: "#14b8a6", glyphText: "\u{1F3E0}" }
+        );
+        map.addAnnotation(destMarkerRef.current);
       })
-      .catch(() => {});
-  }, [destination.label]);
-
-  // Init map
-  useEffect(() => {
-    if (!TOKEN || !containerRef.current || mapRef.current) return;
-    mapboxgl.accessToken = TOKEN;
-    const map = new mapboxgl.Map({
-      container: containerRef.current,
-      style: getMapStyle(isDarkTheme()).style,
-      zoom: 14,
-      center: destCoords ?? [destination.lng, destination.lat],
-      pitch: MAP_3D_PITCH,
-      attributionControl: false,
-    });
-    mapRef.current = map;
-    const unbindTheme = bindMapTheme(map);
-
-    map.on("load", () => {
-      map.addSource("route", { type: "geojson", data: { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: [] } } });
-      map.addLayer({
-        id: "route-line",
-        type: "line",
-        source: "route",
-        layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#14b8a6", "line-width": 5, "line-opacity": 0.9 },
+      .catch(() => {
+        if (!cancelled) setUnavailable(true);
       });
-      map.addLayer({
-        id: "route-line-outline",
-        type: "line",
-        source: "route",
-        layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#0d9488", "line-width": 8, "line-opacity": 0.3 },
-      });
-    });
 
-    // Destination marker
-    const destEl = document.createElement("div");
-    destEl.className = "flex items-center justify-center w-8 h-8 rounded-full bg-seafoam-500 shadow-lg border-2 border-white";
-    destEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>`;
-    destMarkerRef.current = new mapboxgl.Marker({ element: destEl })
-      .setLngLat(destCoords ?? [destination.lng, destination.lat])
-      .addTo(map);
-
-    return () => unbindTheme();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Cleanup on unmount
-  useEffect(() => {
     return () => {
-      mapRef.current?.remove();
+      cancelled = true;
+      mapRef.current?.destroy();
       mapRef.current = null;
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [destination.label]);
 
-  // Update destination marker when coords resolved
-  useEffect(() => {
-    if (!destCoords) return;
-    destMarkerRef.current?.setLngLat(destCoords);
-  }, [destCoords]);
+  // Update route line + fetch route
+  const updateRoute = useCallback(
+    async (lng: number, lat: number) => {
+      const map = mapRef.current;
+      const mapkit = mapkitRef.current;
+      if (!map || !mapkit) return;
 
-  // Update position marker + fetch route
-  const updateRoute = useCallback(async (lng: number, lat: number) => {
-    const map = mapRef.current;
-    if (!map) return;
+      const coord = new mapkit.Coordinate(lat, lng);
+      if (!posMarkerRef.current) {
+        posMarkerRef.current = new mapkit.MarkerAnnotation(coord, {
+          color: "#14b8a6",
+          glyphText: "\u{1F9F9}",
+        });
+        map.addAnnotation(posMarkerRef.current);
+      } else {
+        posMarkerRef.current.coordinate = coord;
+      }
 
-    // Update cleaner position marker
-    const el = posMarkerRef.current?.getElement();
-    if (!posMarkerRef.current) {
-      const posEl = document.createElement("div");
-      posEl.className = "w-4 h-4 rounded-full bg-seafoam-500 border-2 border-white shadow-md";
-      posMarkerRef.current = new mapboxgl.Marker({ element: posEl })
-        .setLngLat([lng, lat])
-        .addTo(map);
-    } else {
-      posMarkerRef.current.setLngLat([lng, lat]);
-    }
-    if (el) el.style.transform += " scale(1.2)";
+      // Throttle route fetches to every 30s
+      const now = Date.now();
+      if (now - lastFetchRef.current < 30_000 && routeRef.current) return;
+      if (!destCoords) return;
+      lastFetchRef.current = now;
 
-    // Throttle route fetches to every 30s
-    const now = Date.now();
-    if (now - lastFetchRef.current < 30_000 && routeRef.current) return;
-    if (!destCoords) return;
-    lastFetchRef.current = now;
+      const result = await fetchRoute(mapkit, [lng, lat], destCoords);
+      if (!result) return;
+      routeRef.current = result;
+      setRoute(result);
 
-    const result = await fetchRoute([lng, lat], destCoords);
-    if (!result) return;
-    routeRef.current = result;
-    setRoute(result);
+      // Update route line on map
+      if (routeOverlayRef.current) map.removeOverlay(routeOverlayRef.current);
+      const pathCoords = result.path.map(([plng, plat]) => new mapkit.Coordinate(plat, plng));
+      routeOverlayRef.current = new mapkit.PolylineOverlay(pathCoords, {
+        style: new mapkit.Style({ strokeColor: "#14b8a6", lineWidth: 5, lineJoin: "round", lineCap: "round" }),
+      });
+      map.addOverlay(routeOverlayRef.current);
 
-    // Update route line on map
-    const source = map.getSource("route") as mapboxgl.GeoJSONSource | undefined;
-    if (source) {
-      source.setData({ type: "Feature", properties: {}, geometry: result.geometry });
-    }
+      // Fit map to route + both markers
+      const items = [posMarkerRef.current, destMarkerRef.current].filter(Boolean);
+      if (items.length) map.showItems(items, { animate: true, padding: new mapkit.Padding(60, 60, 60, 60) });
 
-    // Fit map to route
-    const coords = result.geometry.coordinates as [number, number][];
-    if (coords.length > 1) {
-      const bounds = coords.reduce(
-        (b, c) => b.extend(c as [number, number]),
-        new mapboxgl.LngLatBounds(coords[0], coords[0])
-      );
-      map.fitBounds(bounds, { padding: 60, maxZoom: 16 });
-    }
-
-    // Determine current step based on proximity
-    const closestStep = result.steps.findIndex((_, i) => {
-      const stepCoord = result.geometry.coordinates[i] as [number, number] | undefined;
-      if (!stepCoord) return false;
-      const dLng = stepCoord[0] - lng;
-      const dLat = stepCoord[1] - lat;
-      return Math.sqrt(dLng * dLng + dLat * dLat) < 0.005;
-    });
-    if (closestStep >= 0) setCurrentStepIdx(closestStep);
-  }, [destCoords]);
+      // Determine current step based on proximity
+      const closestStep = result.steps.findIndex((s) => {
+        if (!s.coordinate) return false;
+        const dLng = s.coordinate[0] - lng;
+        const dLat = s.coordinate[1] - lat;
+        return Math.sqrt(dLng * dLng + dLat * dLat) < 0.005;
+      });
+      if (closestStep >= 0) setCurrentStepIdx(closestStep);
+    },
+    [destCoords]
+  );
 
   useEffect(() => {
     if (currentLat === null || currentLng === null) return;
@@ -235,10 +226,10 @@ export function NavigationMap({ destination, currentLat, currentLng }: Navigatio
   const currentStep = route?.steps[currentStepIdx];
   const nextStep = route?.steps[currentStepIdx + 1];
 
-  if (!TOKEN) {
+  if (unavailable) {
     return (
       <div className="flex h-48 items-center justify-center rounded-2xl border border-slate-200 bg-seafoam-50 text-sm text-slate-600">
-        Navigation map (set VITE_MAPBOX_TOKEN)
+        Navigation map unavailable
       </div>
     );
   }

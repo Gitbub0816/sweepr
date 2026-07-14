@@ -13,13 +13,12 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
 import { MapPin, Plus, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Input, getMapboxToken } from "@sweepr/ui";
+import { Input, loadMapkit } from "@sweepr/ui";
 import type { Address } from "@sweepr/types";
 import { useBookingStore } from "../../store/booking";
 import { StepShell } from "../StepShell";
 import { AddressMapPreview } from "../../components/AddressMapPreview";
 
-const MAPBOX_TOKEN = getMapboxToken();
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 interface SavedAddress {
@@ -53,39 +52,38 @@ const US_STATE_ABBREVS: Record<string, string> = {
   Wisconsin: "WI", Wyoming: "WY", "District of Columbia": "DC",
 };
 
-interface GeoFeature {
-  id: string;
-  place_name: string;
-  place_type: string[];
-  text: string;
-  context?: Array<{ id: string; text: string; short_code?: string }>;
-  geometry: { coordinates: [number, number] };
+interface MapkitStructuredAddress {
+  administrativeArea?: string;
+  administrativeAreaCode?: string;
+  locality?: string;
+  postCode?: string;
+  thoroughfare?: string;
+  subThoroughfare?: string;
+  fullThoroughfare?: string;
 }
 
-interface GeoResponse {
-  features: GeoFeature[];
+interface MapkitPlace {
+  name?: string;
+  formattedAddress?: string;
+  coordinate: { latitude: number; longitude: number };
+  structuredAddress?: MapkitStructuredAddress;
+}
+
+/** Lightweight suggestion shape used by the dropdown — one per resolved
+ *  MapKit place. */
+interface GeoFeature {
+  id: string;
+  label: string;
+  place: MapkitPlace;
 }
 
 function parseFeature(f: GeoFeature): Address | null {
-  const ctx = f.context ?? [];
-  const get = (prefix: string) => ctx.find((c) => c.id.startsWith(prefix));
-
-  const regionCtx = get("region");
-  // Mapbox short_code for US regions is "US-CA" etc.
-  const stateCode =
-    regionCtx?.short_code?.replace(/^US-/, "") ??
-    (regionCtx?.text ? US_STATE_ABBREVS[regionCtx.text] : undefined) ??
-    "";
-
-  const zip = get("postcode")?.text ?? (f.place_type.includes("postcode") ? f.text : "");
-  const city =
-    get("place")?.text ??
-    (f.place_type.includes("place") ? f.text : "");
-  const [lng, lat] = f.geometry.coordinates;
-
-  const line1 = f.place_type.includes("address")
-    ? f.place_name.split(",")[0].trim()
-    : "";
+  const sa = f.place.structuredAddress;
+  const stateCode = sa?.administrativeAreaCode ?? (sa?.administrativeArea ? US_STATE_ABBREVS[sa.administrativeArea] : undefined) ?? "";
+  const zip = sa?.postCode ?? "";
+  const city = sa?.locality ?? "";
+  const line1 = sa?.fullThoroughfare ?? [sa?.subThoroughfare, sa?.thoroughfare].filter(Boolean).join(" ");
+  const { latitude: lat, longitude: lng } = f.place.coordinate;
 
   return {
     id: `addr_${zip || Date.now()}`,
@@ -97,8 +95,6 @@ function parseFeature(f: GeoFeature): Address | null {
     lng,
   };
 }
-
-const ZIP_RE = /^\d{5}$/;
 
 export function AddressStep() {
   const { t } = useTranslation();
@@ -191,27 +187,27 @@ export function AddressStep() {
 
   async function fetchSuggestions(q: string) {
     const trimmed = q.trim();
-    if (!MAPBOX_TOKEN || trimmed.length < 2) {
+    if (trimmed.length < 2) {
       setSuggestions([]);
       setShowDropdown(false);
       return;
     }
     setLoading(true);
     try {
-      // For zip codes use postcode type only; otherwise include address + place
-      const types = ZIP_RE.test(trimmed) ? "postcode" : "address,place,postcode";
-      const url = new URL(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(trimmed)}.json`
-      );
-      url.searchParams.set("access_token", MAPBOX_TOKEN);
-      url.searchParams.set("country", "us");
-      url.searchParams.set("types", types);
-      url.searchParams.set("autocomplete", "true");
-      url.searchParams.set("limit", "6");
-      const res = await fetch(url.toString());
-      const data: GeoResponse = await res.json();
-      setSuggestions(data.features ?? []);
-      setShowDropdown((data.features?.length ?? 0) > 0);
+      const mapkit = await loadMapkit(API_URL);
+      const search = new mapkit.Search({ region: undefined });
+      const places = await new Promise<MapkitPlace[]>((resolve) => {
+        search.search(trimmed, (error: unknown, data: { places?: MapkitPlace[] }) => {
+          resolve(error ? [] : (data.places ?? []).slice(0, 6));
+        });
+      });
+      const features: GeoFeature[] = places.map((place, i) => ({
+        id: `${place.formattedAddress ?? place.name ?? "place"}-${i}`,
+        label: place.formattedAddress ?? place.name ?? trimmed,
+        place,
+      }));
+      setSuggestions(features);
+      setShowDropdown(features.length > 0);
     } catch {
       setSuggestions([]);
     } finally {
@@ -238,8 +234,7 @@ export function AddressStep() {
     const inArea = SERVICE_AREA_STATES.includes(parsed.state.toUpperCase());
     setOutOfArea(!inArea);
 
-    const label = f.place_name;
-    setQuery(label);
+    setQuery(f.label);
 
     if (!inArea) return;
     setAddress(parsed);
@@ -330,7 +325,7 @@ export function AddressStep() {
                   className="flex w-full items-start gap-3 px-4 py-3 text-left text-sm hover:bg-seafoam-50 dark:hover:bg-slate-800"
                 >
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-seafoam-500" aria-hidden="true" />
-                  <span className="text-slate-700 dark:text-slate-200">{f.place_name}</span>
+                  <span className="text-slate-700 dark:text-slate-200">{f.label}</span>
                 </button>
               </li>
             ))}

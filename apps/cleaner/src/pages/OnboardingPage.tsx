@@ -36,7 +36,7 @@ import {
   toast,
   track,
   Events,
-  getMapboxToken,
+  loadMapkit,
 } from "@sweepr/ui";
 import type { ServiceType, AddOn } from "@sweepr/types";
 import { ADD_ONS, formatCurrency } from "@sweepr/utils";
@@ -890,27 +890,21 @@ function StepBusinessInfo({ form, set }: { form: FormState; set: SetFn }) {
   );
 }
 
-const MAPBOX_TOKEN = getMapboxToken();
-
 async function geocodeCity(query: string): Promise<[number, number] | null> {
   if (!query.trim()) return null;
   try {
-    if (MAPBOX_TOKEN) {
-      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&types=place,region,locality&limit=1`;
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = (await res.json()) as { features?: Array<{ center: [number, number] }> };
-        const coords = data.features?.[0]?.center;
-        if (coords) return [coords[0], coords[1]];
-      }
-    }
-    // Fallback: OpenStreetMap Nominatim (no API key required)
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
-    const res = await fetch(url, { headers: { "Accept-Language": "en" } });
-    if (!res.ok) return null;
-    const data = (await res.json()) as Array<{ lon: string; lat: string }>;
-    if (data[0]) return [parseFloat(data[0].lon), parseFloat(data[0].lat)];
-    return null;
+    const mapkit = await loadMapkit(API_URL);
+    const search = new mapkit.Search();
+    return await new Promise<[number, number] | null>((resolve) => {
+      search.search(query, (error: unknown, data: { places?: Array<{ coordinate: { latitude: number; longitude: number } }> }) => {
+        if (error || !data.places?.length) {
+          resolve(null);
+          return;
+        }
+        const { latitude, longitude } = data.places[0].coordinate;
+        resolve([longitude, latitude]);
+      });
+    });
   } catch {
     return null;
   }

@@ -9,12 +9,10 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
-import { getMapStyle, getMapboxToken, isDarkTheme, bindMapTheme, MAP_3D_PITCH } from "@sweepr/ui";
+import { loadMapkit, bindMapTheme } from "@sweepr/ui";
 import { Clock, Navigation2 } from "lucide-react";
 
-const TOKEN = getMapboxToken();
+const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
 const POLL_INTERVAL_MS = 15_000;
 
@@ -31,16 +29,29 @@ function fmtDuration(s: number): string {
   return `${Math.floor(m / 60)}h ${m % 60}m away`;
 }
 
-async function fetchEta(cleanerLng: number, cleanerLat: number, destLng: number, destLat: number): Promise<number | null> {
-  const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${cleanerLng},${cleanerLat};${destLng},${destLat}?overview=false&access_token=${TOKEN}`;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const data = (await res.json()) as { routes?: Array<{ duration: number }> };
-    return data.routes?.[0]?.duration ?? null;
-  } catch {
-    return null;
-  }
+function fetchEta(
+  mapkit: any,
+  cleanerLng: number,
+  cleanerLat: number,
+  destLng: number,
+  destLat: number
+): Promise<number | null> {
+  const directions = new mapkit.Directions();
+  return new Promise((resolve) => {
+    directions.route(
+      {
+        origin: new mapkit.Coordinate(cleanerLat, cleanerLng),
+        destination: new mapkit.Coordinate(destLat, destLng),
+      },
+      (error: unknown, data: { routes?: Array<{ expectedTravelTime: number }> }) => {
+        if (error || !data.routes?.length) {
+          resolve(null);
+          return;
+        }
+        resolve(data.routes[0].expectedTravelTime / 1000);
+      }
+    );
+  });
 }
 
 export interface CleanerTrackerProps {
@@ -55,12 +66,14 @@ export interface CleanerTrackerProps {
 
 export function CleanerTracker({ bookingId, token, apiUrl, destLat, destLng, dayStatus }: CleanerTrackerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
-  const cleanerMarkerRef = useRef<mapboxgl.Marker | null>(null);
-  const destMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const mapRef = useRef<any>(null);
+  const mapkitRef = useRef<any>(null);
+  const cleanerMarkerRef = useRef<any>(null);
+  const destMarkerRef = useRef<any>(null);
   const [location, setLocation] = useState<Location | null>(null);
   const [etaSec, setEtaSec] = useState<number | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchLocation = useCallback(async () => {
@@ -75,8 +88,8 @@ export function CleanerTracker({ bookingId, token, apiUrl, destLat, destLng, day
         setLocation(loc);
         setLastUpdated(new Date());
 
-        if (TOKEN && destLat && destLng) {
-          const dur = await fetchEta(loc.lng, loc.lat, destLng, destLat);
+        if (mapkitRef.current && destLat && destLng) {
+          const dur = await fetchEta(mapkitRef.current, loc.lng, loc.lat, destLng, destLat);
           setEtaSec(dur);
         }
       }
@@ -99,77 +112,70 @@ export function CleanerTracker({ bookingId, token, apiUrl, destLat, destLng, day
 
   // Init map
   useEffect(() => {
-    if (!TOKEN || !containerRef.current || mapRef.current) return;
-    if (destLat == null || destLng == null) return;
-    mapboxgl.accessToken = TOKEN;
-    const map = new mapboxgl.Map({
-      container: containerRef.current,
-      style: getMapStyle(isDarkTheme()).style,
-      center: [destLng, destLat],
-      zoom: 13,
-      pitch: MAP_3D_PITCH,
-      attributionControl: false,
-    });
-    mapRef.current = map;
-    const unbindTheme = bindMapTheme(map);
+    if (!containerRef.current || destLat == null || destLng == null) return;
+    let cancelled = false;
 
-    // Destination (home) marker
-    const homeEl = document.createElement("div");
-    homeEl.innerHTML = `<div style="width:36px;height:36px;border-radius:50%;background:#14b8a6;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></div>`;
-    destMarkerRef.current = new mapboxgl.Marker({ element: homeEl })
-      .setLngLat([destLng, destLat])
-      .setPopup(new mapboxgl.Popup({ offset: 25 }).setText("Your home"))
-      .addTo(map);
+    loadMapkit(API)
+      .then((mapkit) => {
+        if (cancelled || !containerRef.current || mapRef.current) return;
+        mapkitRef.current = mapkit;
 
-    return () => unbindTheme();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+        const map = new mapkit.Map(containerRef.current, {
+          center: new mapkit.Coordinate(destLat, destLng),
+          cameraDistance: 3000,
+          showsMapTypeControl: false,
+        });
+        mapRef.current = map;
+        bindMapTheme(mapkit, map);
 
-  // Cleanup
-  useEffect(() => {
+        // Destination (home) marker
+        destMarkerRef.current = new mapkit.MarkerAnnotation(
+          new mapkit.Coordinate(destLat, destLng),
+          { color: "#14b8a6", title: "Your home", glyphText: "\u{1F3E0}" }
+        );
+        map.addAnnotation(destMarkerRef.current);
+      })
+      .catch(() => {
+        if (!cancelled) setUnavailable(true);
+      });
+
     return () => {
-      mapRef.current?.remove();
+      cancelled = true;
+      mapRef.current?.destroy();
       mapRef.current = null;
-      const style = document.getElementById('cleaner-tracker-style');
-      if (style) style.remove();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Update cleaner marker when location changes
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !location) return;
+    const mapkit = mapkitRef.current;
+    if (!map || !mapkit || !location) return;
 
+    const coord = new mapkit.Coordinate(location.lat, location.lng);
     if (!cleanerMarkerRef.current) {
-      const el = document.createElement("div");
-      el.innerHTML = `<div style="width:40px;height:40px;border-radius:50%;background:#0f172a;border:3px solid #14b8a6;box-shadow:0 2px 10px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;animation:pulse 2s infinite;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="#14b8a6"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg></div>`;
-      if (!document.getElementById('cleaner-tracker-style')) {
-        const style = document.createElement("style");
-        style.id = 'cleaner-tracker-style';
-        style.textContent = `@keyframes pulse { 0%,100%{box-shadow:0 2px 10px rgba(20,184,166,0.4)} 50%{box-shadow:0 2px 20px rgba(20,184,166,0.8)} }`;
-        document.head.appendChild(style);
-      }
-      cleanerMarkerRef.current = new mapboxgl.Marker({ element: el })
-        .setLngLat([location.lng, location.lat])
-        .setPopup(new mapboxgl.Popup({ offset: 25 }).setText("Your Sweepr"))
-        .addTo(map);
+      cleanerMarkerRef.current = new mapkit.MarkerAnnotation(coord, {
+        color: "#0f172a",
+        title: "Your Sweepr",
+        glyphColor: "#14b8a6",
+      });
+      map.addAnnotation(cleanerMarkerRef.current);
     } else {
-      cleanerMarkerRef.current.setLngLat([location.lng, location.lat]);
+      cleanerMarkerRef.current.coordinate = coord;
     }
 
-    // Fit bounds to show both cleaner and destination
+    // Fit to show both cleaner and destination
     if (destLat !== undefined && destLng !== undefined) {
-      const bounds = new mapboxgl.LngLatBounds()
-        .extend([location.lng, location.lat])
-        .extend([destLng, destLat]);
-      map.fitBounds(bounds, { padding: 80, maxZoom: 15 });
+      const items = [cleanerMarkerRef.current, destMarkerRef.current].filter(Boolean);
+      map.showItems(items, { animate: true, padding: new mapkit.Padding(80, 80, 80, 80) });
     }
   }, [location, destLat, destLng]);
 
-  if (!TOKEN) {
+  if (unavailable) {
     return (
       <div className="flex h-48 items-center justify-center rounded-2xl border border-slate-200 bg-seafoam-50 text-sm text-slate-600 dark:border-slate-700">
-        Live tracker (set VITE_MAPBOX_TOKEN)
+        Live tracker unavailable
       </div>
     );
   }

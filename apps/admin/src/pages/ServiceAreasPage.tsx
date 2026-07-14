@@ -10,13 +10,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
-import { DashboardShell, Card, Button, Input, toast, getMapStyle, getMapboxToken, isDarkTheme, bindMapTheme, MAP_3D_PITCH, CardListSkeleton } from "@sweepr/ui";
+import { DashboardShell, Card, Button, Input, toast, loadMapkit, bindMapTheme, CardListSkeleton } from "@sweepr/ui";
 import { Plus, Trash2, MapPin } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
-const TOKEN = getMapboxToken();
 
 interface ServiceArea {
   id: string;
@@ -56,76 +53,69 @@ const BAY_AREA: [number, number][] = [
 
 function AreaMap({ areas, requests }: { areas: ServiceArea[]; requests: CityRequest[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const mapRef = useRef<any>(null);
+  const [unavailable, setUnavailable] = useState(false);
 
   useEffect(() => {
-    if (!containerRef.current || !TOKEN || mapRef.current) return;
-    mapboxgl.accessToken = TOKEN;
-    const map = new mapboxgl.Map({
-      container: containerRef.current,
-      style: getMapStyle(isDarkTheme()).style,
-      center: [-122.15, 37.75],
-      zoom: 7.5,
-      pitch: MAP_3D_PITCH,
-    });
-    mapRef.current = map;
-    const unbindTheme = bindMapTheme(map);
+    if (!containerRef.current) return;
+    let cancelled = false;
 
-    map.on("load", () => {
-      const allAreas = areas.length > 0 ? areas : [
-        { id: "bf", name: "Bay Area", slug: "bay-area", status: "live" as const, polygon: BAY_AREA },
-      ];
+    loadMapkit(API)
+      .then((mapkit) => {
+        if (cancelled || !containerRef.current || mapRef.current) return;
 
-      allAreas.forEach((area) => {
-        const coords = area.polygon ?? BAY_AREA;
-        const sid = `area-${area.id}`;
-        const color = area.status === "live" ? "#14b8a6" : "#f59e0b";
-        const borderColor = area.status === "live" ? "#0d9488" : "#d97706";
-
-        map.addSource(sid, {
-          type: "geojson",
-          data: { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [coords] } },
+        const map = new mapkit.Map(containerRef.current, {
+          center: new mapkit.Coordinate(37.75, -122.15),
+          cameraDistance: 400000,
+          showsMapTypeControl: false,
         });
-        map.addLayer({ id: `${sid}-fill`, type: "fill", source: sid, paint: { "fill-color": color, "fill-opacity": 0.12 } });
-        map.addLayer({ id: `${sid}-glow`, type: "line", source: sid, paint: { "line-color": color, "line-width": 8, "line-opacity": 0.15, "line-blur": 4 } });
-        map.addLayer({ id: `${sid}-border`, type: "line", source: sid, paint: { "line-color": borderColor, "line-width": 1.5, "line-opacity": 0.8 } });
+        mapRef.current = map;
+        bindMapTheme(mapkit, map);
+
+        const allAreas = areas.length > 0 ? areas : [
+          { id: "bf", name: "Bay Area", slug: "bay-area", status: "live" as const, polygon: BAY_AREA },
+        ];
+
+        allAreas.forEach((area) => {
+          const coords = area.polygon ?? BAY_AREA;
+          const points = coords.map(([lng, lat]) => new mapkit.Coordinate(lat, lng));
+          const color = area.status === "live" ? "#14b8a6" : "#f59e0b";
+          const borderColor = area.status === "live" ? "#0d9488" : "#d97706";
+
+          map.addOverlay(new mapkit.PolygonOverlay(points, {
+            style: new mapkit.Style({ fillColor: color, fillOpacity: 0.12, lineWidth: 0 }),
+          }));
+          map.addOverlay(new mapkit.PolylineOverlay(points, {
+            style: new mapkit.Style({ strokeColor: color, lineWidth: 8, strokeOpacity: 0.15 }),
+          }));
+          map.addOverlay(new mapkit.PolylineOverlay(points, {
+            style: new mapkit.Style({ strokeColor: borderColor, lineWidth: 1.5, strokeOpacity: 0.8 }),
+          }));
+        });
+
+        const pinned = requests.filter((r) => r.lat && r.lng);
+        if (pinned.length > 0) {
+          const annotations = pinned.map((r) => new mapkit.MarkerAnnotation(
+            new mapkit.Coordinate(r.lat!, r.lng!),
+            { color: "#f59e0b", glyphColor: "#fff", title: r.input, calloutEnabled: true }
+          ));
+          map.addAnnotations(annotations);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setUnavailable(true);
       });
 
-      const pinned = requests.filter((r) => r.lat && r.lng);
-      if (pinned.length > 0) {
-        map.addSource("pins", {
-          type: "geojson",
-          data: {
-            type: "FeatureCollection",
-            features: pinned.map((r) => ({
-              type: "Feature", properties: { label: r.input },
-              geometry: { type: "Point", coordinates: [r.lng!, r.lat!] },
-            })),
-          },
-        });
-        map.addLayer({ id: "pins-layer", type: "circle", source: "pins", paint: {
-          "circle-radius": 6, "circle-color": "#f59e0b",
-          "circle-stroke-width": 2, "circle-stroke-color": "#fff",
-        }});
-        const popup = new mapboxgl.Popup({ closeButton: false });
-        map.on("mouseenter", "pins-layer", (e) => {
-          map.getCanvas().style.cursor = "pointer";
-          const geom = e.features![0].geometry as GeoJSON.Point;
-          const coords = geom.coordinates as [number, number];
-          popup.setLngLat(coords)
-            .setHTML(`<span style="font-size:12px">${e.features![0].properties!.label as string}</span>`)
-            .addTo(map);
-        });
-        map.on("mouseleave", "pins-layer", () => { map.getCanvas().style.cursor = ""; popup.remove(); });
-      }
-    });
-
-    return () => { unbindTheme(); map.remove(); mapRef.current = null; };
+    return () => {
+      cancelled = true;
+      mapRef.current?.destroy();
+      mapRef.current = null;
+    };
   }, [areas, requests]);
 
-  if (!TOKEN) return (
+  if (unavailable) return (
     <div className="flex h-full items-center justify-center bg-slate-100 rounded-xl">
-      <p className="text-slate-600 text-sm">Set VITE_MAPBOX_PUBLIC_TOKEN to enable map</p>
+      <p className="text-slate-600 text-sm">Map unavailable</p>
     </div>
   );
 
