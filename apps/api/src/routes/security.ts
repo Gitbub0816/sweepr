@@ -125,7 +125,7 @@ securityRouter.post("/inbound", async (c) => {
   alertAdminsFromContext(c, {
     category: "security",
     title: `New security ticket ${gen.caseCode}`,
-    body: `${classification} — ${subject}\nFrom: ${senderEmail}`,
+    body: `${classification}, ${subject}\nFrom: ${senderEmail}`,
     linkPath: "/security",
     dedupeKey: gen.ticketId,
   });
@@ -135,7 +135,7 @@ securityRouter.post("/inbound", async (c) => {
     try {
       await sendEmail(c.env.MAILERSEND_API_KEY, {
         to: senderEmail,
-        subject: `Sweepr Security — Report Received (${gen.caseCode})`,
+        subject: `Sweepr Security, Report Received (${gen.caseCode})`,
         from: SENDERS.SECURITY,
         replyTo: SENDERS.SECURITY,
         templateId: TEMPLATES.SECURITY_AUTOREPLY,
@@ -150,7 +150,7 @@ securityRouter.post("/inbound", async (c) => {
       await sql`
         INSERT INTO security_ticket_messages (ticket_id, direction, from_email, to_email, subject, body, delivery_status)
         VALUES (${ticket.id}, 'auto_reply', 'security@getsweepr.com', ${senderEmail},
-                ${`Sweepr Security — Report Received (${gen.caseCode})`}, 'Automated acknowledgement sent.', 'sent')
+                ${`Sweepr Security, Report Received (${gen.caseCode})`}, 'Automated acknowledgement sent.', 'sent')
       `;
     } catch (err) {
       logger.error("security.autoreply failed", err, { caseCode: gen.caseCode });
@@ -427,7 +427,7 @@ securityRouter.post(
         const caseCode = (ticket.case_code as string) ?? (ticket.ticket_id as string);
         await sendEmail(c.env.MAILERSEND_API_KEY, {
           to: ticket.sender_email as string,
-          subject: `Sweepr Security Update — ${caseCode}`,
+          subject: `Sweepr Security Update, ${caseCode}`,
           from: SENDERS.SECURITY,
           replyTo: SENDERS.SECURITY,
           templateId: TEMPLATES.SECURITY_MANUAL_RESPONSE,
@@ -453,7 +453,7 @@ securityRouter.post(
     await sql`
       INSERT INTO security_ticket_messages (ticket_id, direction, from_email, to_email, subject, body, delivery_status)
       VALUES (${id}, 'outbound', 'security@getsweepr.com', ${ticket.sender_email as string},
-              ${`Sweepr Security Update — ${(ticket.case_code as string) ?? (ticket.ticket_id as string)}`}, ${body}, ${delivery})
+              ${`Sweepr Security Update, ${(ticket.case_code as string) ?? (ticket.ticket_id as string)}`}, ${body}, ${delivery})
     `;
     await sql`
       UPDATE security_tickets SET status = ${newStatus}, classification = ${newClass},

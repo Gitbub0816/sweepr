@@ -70,7 +70,7 @@ export function ReadingPane({ message, parent, onReply, onReplyAll, onForward, o
             </div>
             <div className="flex gap-1">
               <dt className="font-medium text-slate-600 dark:text-slate-300">To:</dt>
-              <dd className="truncate">{message.to_email ?? "—"}</dd>
+              <dd className="truncate">{message.to_email ?? ", "}</dd>
             </div>
             {message.cc_email && (
               <div className="flex gap-1">

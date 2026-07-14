@@ -278,7 +278,7 @@ export function ReviewStep() {
           value={
             arrivalWindowStart && arrivalWindowEnd
               ? t("booking.review.arrivesBetween", {
-                  defaultValue: "{{date}} — Arrives between {{start}} – {{end}}",
+                  defaultValue: "{{date}}, Arrives between {{start}} – {{end}}",
                   date: formatDate(scheduledFor),
                   start: formatWindowTime(arrivalWindowStart),
                   end: formatWindowTime(arrivalWindowEnd),
@@ -288,7 +288,7 @@ export function ReviewStep() {
         />
       </Card>
 
-      {/* Room-condition summary — labels only, NO per-item pricing. The single
+      {/* Room-condition summary, labels only, NO per-item pricing. The single
           final owed amount below is the only number the customer sees. */}
       <Card className="mt-4">
         <SectionHeading>Rooms</SectionHeading>
@@ -377,7 +377,7 @@ export function ReviewStep() {
         />
       </div>
 
-      {/* Required scope acknowledgement — blocks payment until checked. */}
+      {/* Required scope acknowledgement, blocks payment until checked. */}
       <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/40">
         <label className="flex cursor-pointer items-start gap-3">
           <span className="relative mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center">

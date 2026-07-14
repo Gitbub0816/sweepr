@@ -146,7 +146,7 @@ export function BackgroundCheckStep({ n, getToken, onComplete, trainingComplete 
         <StepHeader n={n} />
         <p className="text-sm text-slate-500">Complete the Yardstik form below.</p>
         <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-          <iframe src={phase.invitationUrl} title="Background check — powered by Yardstik" className="h-[640px] w-full" allow="camera; microphone" sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-top-navigation-by-user-activation" onLoad={pollStatus} />
+          <iframe src={phase.invitationUrl} title="Background check, powered by Yardstik" className="h-[640px] w-full" allow="camera; microphone" sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-top-navigation-by-user-activation" onLoad={pollStatus} />
         </div>
         <p className="text-center text-xs text-slate-600">Secured by <a href="https://yardstik.com" target="_blank" rel="noopener noreferrer" className="underline">Yardstik</a>. Results are typically available within 1–3 business days.</p>
         <div className="flex gap-3"><a href={phase.invitationUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-seafoam-700 underline underline-offset-2 hover:text-seafoam-700"><ExternalLink className="h-4 w-4" />Open in new tab</a><Button variant="secondary" onClick={pollStatus} className="ml-auto">I've completed the form</Button></div>
@@ -177,7 +177,7 @@ function FcraDisclosure() {
 }
 
 const STATUS_COPY: Record<string, { icon: React.ReactNode; title: string; body: string; cta?: string }> = {
-  pending: { icon: <Clock className="h-10 w-10 text-amber-400" />, title: "Check in progress", body: "Your background check has been submitted. Results are typically available within 1–3 business days. We'll email you when it's done.", cta: "Continue — we'll notify you" },
+  pending: { icon: <Clock className="h-10 w-10 text-amber-400" />, title: "Check in progress", body: "Your background check has been submitted. Results are typically available within 1–3 business days. We'll email you when it's done.", cta: "Continue, we'll notify you" },
   consider: { icon: <Clock className="h-10 w-10 text-amber-400" />, title: "Under review", body: "Your report requires additional review by our team. We'll reach out within 2 business days." },
   clear: { icon: <CheckCircle2 className="h-10 w-10 text-seafoam-500" />, title: "Check passed!", body: "Your background check is clear. You're one step closer to accepting jobs on Sweepr.", cta: "Continue" },
   pre_adverse_action: { icon: <AlertCircle className="h-10 w-10 text-amber-500" />, title: "Review notice", body: "Your report contains information that may affect your application. You should have received an email with a copy of the report and instructions to dispute any inaccuracies. You have at least 7 calendar days to respond." },

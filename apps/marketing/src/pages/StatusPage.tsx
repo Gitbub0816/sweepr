@@ -122,7 +122,7 @@ function IncidentCard({ incident }: { incident: Incident }) {
 }
 
 export default function StatusPage() {
-  useSeo({ title: 'System status — Sweepr', description: "Live uptime and incident history for Sweepr's platform and services.", canonical: "https://getsweepr.com/status" });
+  useSeo({ title: 'System status, Sweepr', description: "Live uptime and incident history for Sweepr's platform and services.", canonical: "https://getsweepr.com/status" });
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
 

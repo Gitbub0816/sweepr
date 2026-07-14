@@ -75,7 +75,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       )}
     >
       {/* Crossfading icon pair via plain CSS transitions instead of
-          framer-motion's AnimatePresence — this component is used from
+          framer-motion's AnimatePresence, this component is used from
           eagerly-rendered shell chrome across every app, so pulling in
           framer-motion here forced it into the initial bundle everywhere. */}
       <span

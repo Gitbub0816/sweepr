@@ -84,13 +84,13 @@ export function CleanersPage() {
       header: "Name",
       cell: (r) => (
         <span className="flex items-center gap-2 font-medium text-charcoal dark:text-white">
-          {[r.first_name, r.last_name].filter(Boolean).join(" ") || "—"}
+          {[r.first_name, r.last_name].filter(Boolean).join(" ") || ", "}
           {r.founding_member ? <FoundingMemberBadge founderId={r.founding_member_id} showTooltip={false} /> : null}
         </span>
       ),
     },
-    { header: "Email", cell: (r) => r.email ?? "—" },
-    { header: "Location", cell: (r) => [r.city, r.state].filter(Boolean).join(", ") || "—" },
+    { header: "Email", cell: (r) => r.email ?? ", " },
+    { header: "Location", cell: (r) => [r.city, r.state].filter(Boolean).join(", ") || ", " },
     {
       header: "Rating",
       cell: (r) =>
@@ -130,7 +130,7 @@ export function CleanersPage() {
   return (
     <DashboardShell
       title="Cleaners"
-      description={`${cleaners.length} cleaner${cleaners.length !== 1 ? "s" : ""} — live from Neon.`}
+      description={`${cleaners.length} cleaner${cleaners.length !== 1 ? "s" : ""}, live from Neon.`}
       actions={
         <button
           onClick={() => void load()}

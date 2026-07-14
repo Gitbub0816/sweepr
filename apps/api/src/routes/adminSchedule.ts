@@ -204,7 +204,7 @@ adminScheduleRouter.get("/export.ics", async (c) => {
     "X-WR-CALNAME:Sweepr Admin Schedule",
   ];
   for (const r of rows) {
-    const desc = [r.description, r.kind === "automation" ? `[automation: ${r.action_type} — ${r.status}]` : null]
+    const desc = [r.description, r.kind === "automation" ? `[automation: ${r.action_type}, ${r.status}]` : null]
       .filter(Boolean)
       .join("\n");
     lines.push(

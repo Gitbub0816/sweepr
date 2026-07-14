@@ -60,12 +60,12 @@ export function ApplicationsPage() {
       header: "Name",
       cell: (r) => (
         <span className="font-medium text-charcoal dark:text-white">
-          {[r.first_name, r.last_name].filter(Boolean).join(" ") || "—"}
+          {[r.first_name, r.last_name].filter(Boolean).join(" ") || ", "}
         </span>
       ),
     },
-    { header: "Email", cell: (r) => r.email ?? "—" },
-    { header: "Location", cell: (r) => [r.city, r.state].filter(Boolean).join(", ") || "—" },
+    { header: "Email", cell: (r) => r.email ?? ", " },
+    { header: "Location", cell: (r) => [r.city, r.state].filter(Boolean).join(", ") || ", " },
     { header: "Applied", cell: (r) => new Date(r.created_at).toLocaleDateString() },
     {
       header: "Status",
@@ -85,7 +85,7 @@ export function ApplicationsPage() {
   return (
     <DashboardShell
       title="Applications"
-      description="Pending cleaner applications awaiting review — live from Neon."
+      description="Pending cleaner applications awaiting review, live from Neon."
       actions={
         <button
           onClick={() => void load()}

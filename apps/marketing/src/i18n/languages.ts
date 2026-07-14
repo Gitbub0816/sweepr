@@ -40,7 +40,7 @@ export function applyDir(lang: Language) {
 
 /** Append ?lang=xx to any URL, replacing an existing lang param. */
 export function withLang(url: string, langCode: string): string {
-  if (langCode === "en") return url; // English is default — no param needed
+  if (langCode === "en") return url; // English is default, no param needed
   try {
     const u = new URL(url);
     u.searchParams.set("lang", langCode);

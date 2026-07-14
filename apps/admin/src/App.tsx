@@ -241,7 +241,7 @@ export default function App() {
     <Routes>
       <Route path="/sign-in" element={<SignInPage />} />
 
-      {/* Public — no auth required, token in query string */}
+      {/* Public, no auth required, token in query string */}
       <Route path="/accept-invite" element={<AcceptInvitePage />} />
 
       <Route path="/" element={<Guarded><DashboardPage /></Guarded>} />
@@ -267,7 +267,7 @@ export default function App() {
       <Route path="/status" element={<Guarded><StatusPage /></Guarded>} />
       <Route path="/training" element={<Guarded><TrainingAdminPage /></Guarded>} />
       <Route path="/courses" element={<Guarded><CourseBuilderPage /></Guarded>} />
-      {/* Editor is a full-screen takeover — auth + admin gated, but outside the AppShell. */}
+      {/* Editor is a full-screen takeover, auth + admin gated, but outside the AppShell. */}
       <Route
         path="/courses/:id"
         element={

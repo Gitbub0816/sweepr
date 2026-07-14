@@ -125,7 +125,7 @@ export function AlertPrefsPanel() {
       const summary = Object.entries(data.channels ?? {})
         .map(([ch, status]) => `${CHANNEL_LABELS[ch as AlertChannel] ?? ch}: ${status}`)
         .join(" · ");
-      toast.success(`Test alert sent — ${summary}`);
+      toast.success(`Test alert sent, ${summary}`);
       queryClient.invalidateQueries({ queryKey: ALERT_BADGES_KEY });
       queryClient.invalidateQueries({ queryKey: ALERT_FEED_KEY });
     } catch {

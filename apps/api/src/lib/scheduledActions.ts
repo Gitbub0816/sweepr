@@ -64,7 +64,7 @@ export const SCHEDULED_ACTION_CATALOG = [
   {
     type: "prelaunch_toggle",
     label: "Toggle prelaunch gate",
-    description: "Turn a prelaunch gate on/off — e.g. open the customer app at launch time.",
+    description: "Turn a prelaunch gate on/off, e.g. open the customer app at launch time.",
     fields: [
       { key: "key", label: "Gate", kind: "select", options: ["prelaunch_customer", "prelaunch_cleaner", "prelaunch_pricing"], required: true },
       { key: "value", label: "Value", kind: "select", options: ["on", "off"], required: true },
@@ -110,7 +110,7 @@ async function runBroadcast(sql: Sql, env: Env, p: Record<string, unknown>): Pro
   }
 
   const list = [...emails];
-  if (list.length === 0) return "No recipients for audience — nothing sent.";
+  if (list.length === 0) return "No recipients for audience, nothing sent.";
   const html = wrapBodyInTemplate(subject, body, undefined, { unsubscribe: true });
   const sent = await sendBulkEmail(env.MAILERSEND_API_KEY, list.map((e) => ({ email: e })), subject, html, sql);
   await sql`

@@ -119,7 +119,7 @@ export async function notifyProposalCreated(sql: Sql, env: Env, proposal: Propos
         const requesterName = admins.find((x) => x.clerk_id === proposal.proposer_clerk_id)?.email ?? "A Sweepr administrator";
         await sendEmail(env.MAILERSEND_API_KEY, {
           to: a.email,
-          subject: `Sweepr Approval Request — ${proposal.title}`,
+          subject: `Sweepr Approval Request, ${proposal.title}`,
           from: SENDERS.ADMIN,
           replyTo: SENDERS.SECURITY,
           templateId: TEMPLATES.ADMIN_APPROVAL_REQUEST,
@@ -272,7 +272,7 @@ export async function notifyPricingProposalCreated(sql: Sql, env: Env, proposal:
         const requesterName = admins.find((x) => x.clerk_id === proposal.proposer_clerk_id)?.email ?? "A Sweepr administrator";
         await sendEmail(env.MAILERSEND_API_KEY, {
           to: a.email,
-          subject: `Sweepr Approval Request — ${proposal.title}`,
+          subject: `Sweepr Approval Request, ${proposal.title}`,
           from: SENDERS.ADMIN,
           replyTo: SENDERS.SECURITY,
           templateId: TEMPLATES.ADMIN_APPROVAL_REQUEST,

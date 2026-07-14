@@ -90,7 +90,7 @@ export function SmartEntryAccess({ bookingId, getToken, apiUrl, eligible }: Prop
           toast.success(data.message ?? "The door was unlocked. Please secure it when you leave.");
         }
       } catch (err) {
-        toast.error(err instanceof Error && err.message === "no_geolocation" ? "Enable location to use Smart Entry." : "Location is required — try again near the property.");
+        toast.error(err instanceof Error && err.message === "no_geolocation" ? "Enable location to use Smart Entry." : "Location is required, try again near the property.");
       } finally {
         setBusy(false);
       }

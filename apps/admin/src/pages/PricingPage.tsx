@@ -133,7 +133,7 @@ function RulesSimulatorTab() {
   const propCols: Column<Proposal>[] = [
     { header: "Title", cell: (r) => <span className="font-medium text-charcoal dark:text-white">{r.title}</span> },
     { header: "Rule", cell: (r) => r.rule_name },
-    { header: "Effective", cell: (r) => r.proposed_effective_at ? new Date(r.proposed_effective_at).toLocaleDateString() : "—" },
+    { header: "Effective", cell: (r) => r.proposed_effective_at ? new Date(r.proposed_effective_at).toLocaleDateString() : ", " },
     { header: "Status", cell: (r) => <Badge variant={PROP_STATUS[r.status] ?? "info"}>{r.status.replace(/_/g, " ")}</Badge> },
     { header: "", align: "right", cell: (r) => <Button size="sm" variant="secondary" onClick={() => navigate(`/pricing/approvals/${r.id}`)}>Review</Button> },
   ];

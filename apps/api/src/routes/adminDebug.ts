@@ -156,7 +156,7 @@ adminDebugRouter.get("/yardstik", async (c) => {
   return c.json({
     keyPresent: Boolean(key),
     keyPrefix: key ? key.slice(0, 8) : null,
-    configuredYardstikUrl: c.env.YARDSTIK_API_URL ?? "(unset — defaults to https://api.yardstik.com)",
+    configuredYardstikUrl: c.env.YARDSTIK_API_URL ?? "(unset, defaults to https://api.yardstik.com)",
     accountPackageId: c.env.YARDSTIK_ACCOUNT_PACKAGE_ID ?? "(unset)",
     results,
   });
@@ -186,7 +186,7 @@ adminDebugRouter.get("/sentry-test", async (c) => {
       source: "server",
       app: "api",
       level: "error",
-      message: "Sweepr Sentry test event — integration verified",
+      message: "Sweepr Sentry test event, integration verified",
       errorName: "SentryTestEvent",
       path: "/admin/debug/sentry-test",
       method: "GET",
@@ -198,7 +198,7 @@ adminDebugRouter.get("/sentry-test", async (c) => {
   return c.json({
     ok: true,
     dsnPresent,
-    note: "Test event sent through the real pipeline — check Sentry Issues (and the admin Errors feed).",
+    note: "Test event sent through the real pipeline, check Sentry Issues (and the admin Errors feed).",
   });
 });
 

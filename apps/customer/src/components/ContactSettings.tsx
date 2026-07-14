@@ -23,8 +23,8 @@ export function ContactSettings() {
   const { user } = useUser();
   if (!user) return null;
 
-  const currentEmail = user.primaryEmailAddress?.emailAddress ?? "—";
-  const currentPhone = user.primaryPhoneNumber?.phoneNumber ?? "—";
+  const currentEmail = user.primaryEmailAddress?.emailAddress ?? ", ";
+  const currentPhone = user.primaryPhoneNumber?.phoneNumber ?? ", ";
 
   return (
     <Card className="space-y-6">

@@ -62,7 +62,7 @@ function usePrelaunch(): boolean {
     fetch(`${API_URL}/status`)
       .then((r) => r.json() as Promise<{ settings?: { prelaunch_cleaner?: boolean } }>)
       .then((d) => setActive(d.settings?.prelaunch_cleaner ?? false))
-      .catch(() => {}); // non-fatal — defaults to false (no gate)
+      .catch(() => {}); // non-fatal, defaults to false (no gate)
   }, []);
   return active;
 }
@@ -823,7 +823,7 @@ function StepWelcome({ form, set }: { form: FormState; set: SetFn }) {
         maxLength={500}
       />
       <p className="-mt-2 text-xs text-slate-600">
-        {form.bio.length}/500 — minimum 50 characters
+        {form.bio.length}/500, minimum 50 characters
       </p>
       <Textarea
         label="Professional experience"
@@ -1246,7 +1246,7 @@ function StepReview({
       <StepTitle
         n={stepNumber}
         title="Review & submit"
-        subtitle="Almost done — review your details."
+        subtitle="Almost done, review your details."
       />
 
       <div className="rounded-xl bg-gradient-to-br from-seafoam-500 to-seafoam-600 p-5 text-white">
@@ -1262,32 +1262,32 @@ function StepReview({
       <dl className="space-y-2 text-sm">
         {mode === "business" ? (
           <>
-            <Row label="Business" value={form.businessLegalName || "—"} />
+            <Row label="Business" value={form.businessLegalName || ", "} />
             <Row
               label="Business type"
               value={
                 BUSINESS_TYPES.find((t) => t.value === form.businessType)
-                  ?.label || "—"
+                  ?.label || ", "
               }
             />
             <Row
               label="State of incorporation"
-              value={form.businessVerification.stateOfIncorporation || "—"}
+              value={form.businessVerification.stateOfIncorporation || ", "}
             />
-            <Row label="EIN" value={form.businessVerification.ein ? "Provided" : "—"} />
-            <Row label="Authorized rep" value={form.authorizedRep.name || "—"} />
+            <Row label="EIN" value={form.businessVerification.ein ? "Provided" : ", "} />
+            <Row label="Authorized rep" value={form.authorizedRep.name || ", "} />
           </>
         ) : (
           <>
-            <Row label="Name" value={form.fullName || "—"} />
-            <Row label="Phone" value={form.phone || "—"} />
+            <Row label="Name" value={form.fullName || ", "} />
+            <Row label="Phone" value={form.phone || ", "} />
           </>
         )}
         <Row label="Based in" value={form.basedIn} />
         <Row label="Service radius" value={`${form.radiusMi} mi`} />
         <Row
           label="Services"
-          value={form.services.map((s) => t(`serviceTypes.${s}`)).join(", ") || "—"}
+          value={form.services.map((s) => t(`serviceTypes.${s}`)).join(", ") || ", "}
         />
         <Row
           label="Add-ons"

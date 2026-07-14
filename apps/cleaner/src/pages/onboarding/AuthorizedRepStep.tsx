@@ -59,7 +59,7 @@ export function AuthorizedRepStep({
         <p>
           This person will undergo a background check in the next step. Their
           date of birth, SSN, and address will be collected securely by our
-          background-check partner Yardstik — they never pass through Sweepr.
+          background-check partner Yardstik, they never pass through Sweepr.
         </p>
       </div>
 

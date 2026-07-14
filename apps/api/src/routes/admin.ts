@@ -280,12 +280,12 @@ adminRouter.patch("/applications/:id/approve", async (c) => {
         from: SENDERS.DEFAULT,
         html: wrapBodyInTemplate(
           approveSubject,
-          `Congratulations${cleaner.first_name ? ` ${cleaner.first_name}` : ""} — your application to clean with Sweepr has been approved.\n\n` +
+          `Congratulations${cleaner.first_name ? ` ${cleaner.first_name}` : ""}, your application to clean with Sweepr has been approved.\n\n` +
             `You can now sign in to Sweepr to set your availability and start accepting jobs in your area. Welcome to the team!`,
           undefined,
           {
             cta: { label: "Open Sweepr", url: "https://clean.getsweepr.com" },
-            preheader: "Your Sweepr application was approved — sign in to start accepting jobs.",
+            preheader: "Your Sweepr application was approved, sign in to start accepting jobs.",
           },
         ),
       });

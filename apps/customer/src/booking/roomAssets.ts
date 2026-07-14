@@ -34,10 +34,10 @@ export const CONDITION_LEVELS: RoomConditionLevel[] = [
 
 /** Short, non-judgmental caption per level so the customer can self-select. */
 export const LEVEL_CAPTIONS: Record<RoomConditionLevel, string> = {
-  level_1: "Lightly used — mostly tidy",
-  level_2: "Everyday mess — normal wear",
-  level_3: "Needs attention — built-up grime",
-  level_4: "Heavy — lots of attention needed",
+  level_1: "Lightly used, mostly tidy",
+  level_2: "Everyday mess, normal wear",
+  level_3: "Needs attention, built-up grime",
+  level_4: "Heavy, lots of attention needed",
 };
 
 export function roomImage(type: RoomType, level: RoomConditionLevel): string {

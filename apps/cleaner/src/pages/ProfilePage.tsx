@@ -96,7 +96,7 @@ export function ProfilePage() {
               <p className="font-semibold text-charcoal dark:text-white">{name || "Your profile"}</p>
               <p className="flex items-center gap-1 text-sm text-slate-500">
                 <Star className="h-3.5 w-3.5 fill-amberaccent text-amberaccent" />
-                {cleaner?.rating != null ? Number(cleaner.rating).toFixed(1) : "—"} · {cleaner?.total_jobs ?? 0} jobs
+                {cleaner?.rating != null ? Number(cleaner.rating).toFixed(1) : ", "} · {cleaner?.total_jobs ?? 0} jobs
               </p>
             </div>
           </div>

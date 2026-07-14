@@ -16,7 +16,7 @@
 import { useSeo } from "../lib/useSeo";
 
 export default function AccessibilityPage() {
-  useSeo({ title: 'Accessibility statement — Sweepr', description: "Sweepr's commitment to WCAG 2.2 AA accessibility conformance, and how to report accessibility issues.", canonical: "https://getsweepr.com/accessibility" });
+  useSeo({ title: 'Accessibility statement, Sweepr', description: "Sweepr's commitment to WCAG 2.2 AA accessibility conformance, and how to report accessibility issues.", canonical: "https://getsweepr.com/accessibility" });
   return (
     <main id="main" className="mx-auto max-w-2xl px-4 py-16">
       <h1 className="text-3xl font-bold text-charcoal">Accessibility statement</h1>
@@ -47,7 +47,7 @@ export default function AccessibilityPage() {
         <h2 id="a11y-feedback" className="text-xl font-semibold text-charcoal">Feedback</h2>
         <p className="mt-2 text-slate-600">
           If you encounter an accessibility barrier anywhere on Sweepr, please
-          tell us — we take every report seriously and aim to respond within
+          tell us, we take every report seriously and aim to respond within
           two business days. Email{" "}
           <a href="mailto:help@getsweepr.com" className="text-seafoam-700 underline">
             help@getsweepr.com

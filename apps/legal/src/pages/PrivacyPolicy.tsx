@@ -63,7 +63,7 @@ export function PrivacyPolicy() {
         <p><strong>3.1 Information You Provide Directly:</strong></p>
         <ul className="list-disc space-y-1 pl-6">
           <li>Identity data: first name, last name, email address, phone number;</li>
-          <li>Account credentials (managed by Clerk — we do not store passwords);</li>
+          <li>Account credentials (managed by Clerk, we do not store passwords);</li>
           <li>Booking data: service address, home size, service preferences, scheduling details, and notes;</li>
           <li>Business information (for Cleaner businesses): business name, license numbers, and authorized representative details;</li>
           <li>Communications: messages you send through the Platform.</li>
@@ -77,9 +77,9 @@ export function PrivacyPolicy() {
         </ul>
         <p><strong>3.3 Information from Third Parties:</strong></p>
         <ul className="list-disc space-y-1 pl-6">
-          <li>Background check status (pass/fail/pending) from Yardstik — PII is collected and retained by Yardstik, not Sweepr;</li>
-          <li>Identity verification status from Didit — ID images and biometric data are collected by Didit on their secure systems; Sweepr receives only a verification result;</li>
-          <li>Payment tokenization data from Stripe — we receive a token reference, not full card numbers;</li>
+          <li>Background check status (pass/fail/pending) from Yardstik, PII is collected and retained by Yardstik, not Sweepr;</li>
+          <li>Identity verification status from Didit, ID images and biometric data are collected by Didit on their secure systems; Sweepr receives only a verification result;</li>
+          <li>Payment tokenization data from Stripe, we receive a token reference, not full card numbers;</li>
           <li>Authentication data from Clerk.</li>
         </ul>
       </Section>
@@ -110,17 +110,17 @@ export function PrivacyPolicy() {
       <Section id="subprocessors" title="6. Service Providers (Subprocessors)">
         <p><strong>6.1</strong> We rely on the following service providers, each of which processes personal data on our behalf under contract:</p>
         <ul className="list-disc space-y-1 pl-6">
-          <li><strong>Clerk</strong> — authentication and identity management;</li>
-          <li><strong>Stripe</strong> — payment processing (PCI-DSS Level 1 certified);</li>
-          <li><strong>Yardstik</strong> — background screening (FCRA-compliant);</li>
-          <li><strong>Didit</strong> — identity document verification;</li>
-          <li><strong>Neon</strong> — PostgreSQL database hosting;</li>
-          <li><strong>Firebase / Google</strong> — real-time notifications;</li>
-          <li><strong>Cloudflare</strong> — CDN, hosting, and security services;</li>
-          <li><strong>MailerSend</strong> — transactional email delivery;</li>
-          <li><strong>Mapbox</strong> — mapping and geocoding services;</li>
-          <li><strong>Twilio</strong> — SMS message delivery;</li>
-          <li><strong>PostHog</strong> — product analytics (self-hosted configuration, no third-party sale).</li>
+          <li><strong>Clerk</strong>, authentication and identity management;</li>
+          <li><strong>Stripe</strong>, payment processing (PCI-DSS Level 1 certified);</li>
+          <li><strong>Yardstik</strong>, background screening (FCRA-compliant);</li>
+          <li><strong>Didit</strong>, identity document verification;</li>
+          <li><strong>Neon</strong>, PostgreSQL database hosting;</li>
+          <li><strong>Firebase / Google</strong>, real-time notifications;</li>
+          <li><strong>Cloudflare</strong>, CDN, hosting, and security services;</li>
+          <li><strong>MailerSend</strong>, transactional email delivery;</li>
+          <li><strong>Mapbox</strong>, mapping and geocoding services;</li>
+          <li><strong>Twilio</strong>, SMS message delivery;</li>
+          <li><strong>PostHog</strong>, product analytics (self-hosted configuration, no third-party sale).</li>
         </ul>
       </Section>
 
@@ -198,7 +198,7 @@ export function PrivacyPolicy() {
       <Section id="contact" title="15. Contact and Data Requests">
         <p>For privacy inquiries, data subject requests, or to contact our privacy team:</p>
         <address className="not-italic mt-3 space-y-1 text-sm text-slate-700">
-          <p><strong>Privacy Team — {COMPANY_NAME}</strong></p>
+          <p><strong>Privacy Team, {COMPANY_NAME}</strong></p>
           <p>{REGISTERED_ADDRESS}</p>
           <p>Email: <a className="text-seafoam-700 underline" href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a></p>
         </address>

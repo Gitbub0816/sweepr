@@ -474,11 +474,11 @@ observabilityRouter.get("/sentry", async (c) => {
       const body = (await res.text().catch(() => "")).slice(0, 200);
       const hint =
         res.status === 401
-          ? "SENTRY_AUTH_TOKEN invalid or expired — create a new Organization Auth Token in Sentry → Settings → Auth Tokens"
+          ? "SENTRY_AUTH_TOKEN invalid or expired, create a new Organization Auth Token in Sentry → Settings → Auth Tokens"
           : res.status === 403
             ? "token lacks permission (needs project:read + event:read scopes)"
             : res.status === 404
-              ? `org/project not found (org=${org}, project=${project}) — check SENTRY_ORG / SENTRY_PROJECT`
+              ? `org/project not found (org=${org}, project=${project}), check SENTRY_ORG / SENTRY_PROJECT`
               : body || "unexpected response";
       return c.json({ status: "error" as const, issues: null, detail: `Sentry API ${res.status}: ${hint}` });
     }

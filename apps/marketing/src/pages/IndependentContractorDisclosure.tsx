@@ -23,7 +23,7 @@ function P({ children }: { children: React.ReactNode }) {
 }
 
 export default function IndependentContractorDisclosure() {
-  useSeo({ title: 'Independent contractor agreement — Sweepr', description: 'Terms for independent cleaners providing services through the Sweepr platform.', canonical: "https://getsweepr.com/independent-contractor" });
+  useSeo({ title: 'Independent contractor agreement, Sweepr', description: 'Terms for independent cleaners providing services through the Sweepr platform.', canonical: "https://getsweepr.com/independent-contractor" });
   return (
     <MarketingShell
       navLinks={[]}

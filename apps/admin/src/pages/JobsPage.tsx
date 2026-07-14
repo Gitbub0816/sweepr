@@ -98,11 +98,11 @@ export function JobsPage() {
 
   const columns: Column<Job>[] = [
     { header: "Job ID", cell: (r) => <span className="font-mono text-xs text-slate-600">{r.id.slice(0, 8)}…</span> },
-    { header: "Service", cell: (r) => r.service_type?.replace(/_/g, " ") ?? "—" },
-    { header: "Customer", cell: (r) => r.customer_email ?? "—" },
+    { header: "Service", cell: (r) => r.service_type?.replace(/_/g, " ") ?? ", " },
+    { header: "Customer", cell: (r) => r.customer_email ?? ", " },
     { header: "Cleaner", cell: (r) => [r.cleaner_first, r.cleaner_last].filter(Boolean).join(" ") || "Unassigned" },
-    { header: "City", cell: (r) => [r.address_city, r.address_state].filter(Boolean).join(", ") || "—" },
-    { header: "Scheduled", cell: (r) => r.scheduled_for ? new Date(r.scheduled_for).toLocaleDateString() : "—" },
+    { header: "City", cell: (r) => [r.address_city, r.address_state].filter(Boolean).join(", ") || ", " },
+    { header: "Scheduled", cell: (r) => r.scheduled_for ? new Date(r.scheduled_for).toLocaleDateString() : ", " },
     {
       header: "Status",
       cell: (r) => (
@@ -114,7 +114,7 @@ export function JobsPage() {
     {
       header: "Total",
       align: "right",
-      cell: (r) => r.amount_cents ? formatCurrency(r.amount_cents / 100) : "—",
+      cell: (r) => r.amount_cents ? formatCurrency(r.amount_cents / 100) : ", ",
     },
     {
       header: "",
@@ -130,7 +130,7 @@ export function JobsPage() {
   return (
     <DashboardShell
       title="Jobs"
-      description={`${total} booking${total !== 1 ? "s" : ""} total — live from Neon.`}
+      description={`${total} booking${total !== 1 ? "s" : ""} total, live from Neon.`}
       actions={
         <button
           onClick={() => void load()}

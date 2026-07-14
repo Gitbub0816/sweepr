@@ -142,7 +142,7 @@ export function ApprovalDetailPage() {
     ? `${(config.percentage_bps / 100).toFixed(2)}%`
     : config?.flat_amount_cents != null
       ? `$${(config.flat_amount_cents / 100).toFixed(2)}`
-      : "—";
+      : ", ";
   const terminal = ["declined", "expired_declined", "cancelled", "effective", "notice_sent"].includes(proposal.status);
 
   return (
@@ -159,10 +159,10 @@ export function ApprovalDetailPage() {
               <Badge variant={STATUS_VARIANT[proposal.status] ?? "info"}>{proposal.status.replace(/_/g, " ")}</Badge>
             </div>
             <dl className="grid grid-cols-2 gap-3 text-sm">
-              <Detail label="Configuration" value={config?.name ?? "—"} />
+              <Detail label="Configuration" value={config?.name ?? ", "} />
               <Detail label="Amount" value={amount} />
-              <Detail label="Affects" value={config?.affected_party?.replace(/_/g, " ") ?? "—"} />
-              <Detail label="Method" value={config?.calculation_method?.replace(/_/g, " ") ?? "—"} />
+              <Detail label="Affects" value={config?.affected_party?.replace(/_/g, " ") ?? ", "} />
+              <Detail label="Method" value={config?.calculation_method?.replace(/_/g, " ") ?? ", "} />
               <Detail label="Proposed effective" value={new Date(proposal.proposed_effective_at).toLocaleString()} />
               <Detail label="Response deadline" value={new Date(proposal.response_deadline_at).toLocaleString()} />
               {proposal.cooldown_expires_at && <Detail label="Cooldown ends" value={new Date(proposal.cooldown_expires_at).toLocaleString()} />}
@@ -186,7 +186,7 @@ export function ApprovalDetailPage() {
                   <span className="shrink-0 font-mono text-xs">{new Date(a.created_at).toLocaleString()}</span>
                   <span>
                     <span className="font-medium text-charcoal dark:text-white">{a.actor_email ?? a.actor_clerk_id}</span>
-                    {" — "}{a.action.replace(/_/g, " ")}{a.comment ? `: ${a.comment}` : ""}
+                    {", "}{a.action.replace(/_/g, " ")}{a.comment ? `: ${a.comment}` : ""}
                   </span>
                 </li>
               ))}

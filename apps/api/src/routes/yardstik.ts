@@ -368,7 +368,7 @@ const yardstikWebhookHandler = async (c: Context<AppBindings>) => {
         }
 
         if (!autoEngaged) {
-          const reasoning = haiku?.reasoning ?? "No AI adjudication available — manual review required.";
+          const reasoning = haiku?.reasoning ?? "No AI adjudication available, manual review required.";
           await sql`
             INSERT INTO notifications (user_id, type, body, created_at)
             SELECT u.id, 'yardstik_consider',

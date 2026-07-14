@@ -78,7 +78,7 @@ itInboundRouter.post("/inbound", async (c) => {
   alertAdminsFromContext(c, {
     category: "it",
     title: `New IT ticket ${gen.caseCode}`,
-    body: `${cls.label} — ${subject}\nFrom: ${senderEmail}`,
+    body: `${cls.label}, ${subject}\nFrom: ${senderEmail}`,
     linkPath: "/it-portal",
     dedupeKey: gen.ticketId,
   });
@@ -87,7 +87,7 @@ itInboundRouter.post("/inbound", async (c) => {
     try {
       await sendEmail(c.env.MAILERSEND_API_KEY, {
         to: senderEmail,
-        subject: `Sweepr IT — Request Received (${gen.caseCode})`,
+        subject: `Sweepr IT, Request Received (${gen.caseCode})`,
         from: SENDERS.IT,
         replyTo: SENDERS.IT,
         templateId: TEMPLATES.IT_AUTOREPLY,

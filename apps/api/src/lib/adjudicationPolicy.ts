@@ -143,7 +143,7 @@ export function adjudicate(
   if (pendingCharges.length > 0) {
     for (const p of pendingCharges) {
       reasons.push(
-        `Pending charge (${CATEGORY_LABELS[p.category]}: ${p.offense}) — application on hold until final disposition.`,
+        `Pending charge (${CATEGORY_LABELS[p.category]}: ${p.offense}), application on hold until final disposition.`,
       );
     }
     rules.push("pending_charges_hold");
@@ -156,7 +156,7 @@ export function adjudicate(
     const windowMonths = DENIAL_WINDOW_MONTHS[c.category];
     const age = monthsBetween(c.convictionDate, now);
     if (windowMonths === Infinity) {
-      reasons.push(`${CATEGORY_LABELS.permanent}: ${c.offense} — permanent disqualification.`);
+      reasons.push(`${CATEGORY_LABELS.permanent}: ${c.offense}, permanent disqualification.`);
       rules.push("permanent_disqualification");
       return { decision: "auto_deny", reasons, rules };
     }
@@ -169,7 +169,7 @@ export function adjudicate(
       return { decision: "auto_deny", reasons, rules };
     }
     reasons.push(
-      `${CATEGORY_LABELS[c.category]}: ${c.offense} (${c.convictionDate}) is outside the automatic-denial window — Executive Review required.`,
+      `${CATEGORY_LABELS[c.category]}: ${c.offense} (${c.convictionDate}) is outside the automatic-denial window, Executive Review required.`,
     );
     rules.push(`window_review:${c.category}`);
     needsReview = true;
@@ -178,23 +178,23 @@ export function adjudicate(
   // 3) Pattern-of-conduct rules (Executive Review regardless of category).
   const misdemeanors = convicted.filter((c) => MISDEMEANOR_CATEGORIES.includes(c.category));
   if (misdemeanors.length >= 3) {
-    reasons.push(`Pattern: ${misdemeanors.length} misdemeanor convictions — Executive Review required.`);
+    reasons.push(`Pattern: ${misdemeanors.length} misdemeanor convictions, Executive Review required.`);
     rules.push("pattern_misdemeanors");
     needsReview = true;
   }
   if (convicted.filter((c) => THEFT_CATEGORIES.includes(c.category)).length >= 2) {
-    reasons.push("Pattern: multiple theft-related convictions — Executive Review required.");
+    reasons.push("Pattern: multiple theft-related convictions, Executive Review required.");
     rules.push("pattern_theft");
     needsReview = true;
   }
   if (convicted.filter((c) => VIOLENT_CATEGORIES.includes(c.category)).length >= 2) {
-    reasons.push("Pattern: multiple violent convictions — Executive Review required.");
+    reasons.push("Pattern: multiple violent convictions, Executive Review required.");
     rules.push("pattern_violent");
     needsReview = true;
   }
   const categories = new Set(convicted.map((c) => c.category));
   if (convicted.length >= 2 && categories.size >= 2) {
-    reasons.push("Pattern: convictions across multiple offense categories — Executive Review required.");
+    reasons.push("Pattern: convictions across multiple offense categories, Executive Review required.");
     rules.push("pattern_multi_category");
     needsReview = true;
   }

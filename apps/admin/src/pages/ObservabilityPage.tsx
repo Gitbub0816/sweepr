@@ -131,17 +131,17 @@ function OverviewTab() {
 
   const errorRate = data?.apiHealth?.total
     ? (((data.apiHealth.errors_5xx + data.apiHealth.errors_4xx) / data.apiHealth.total) * 100).toFixed(1)
-    : "—";
+    : ", ";
   const paySuccessRate = data?.paymentHealth?.total
     ? ((data.paymentHealth.success / data.paymentHealth.total) * 100).toFixed(1)
-    : "—";
+    : ", ";
 
   return (
     <div className="space-y-6">
       <SectionHeader title="System Overview (last 24 h)" onRefresh={reload} loading={loading} />
       {error && <ErrorBox msg={error} />}
 
-      {/* R3F visual hero — health orbs */}
+      {/* R3F visual hero, health orbs */}
       {!loading && data && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="col-span-1 bg-white rounded-xl border border-slate-200 p-3">
@@ -180,18 +180,18 @@ function OverviewTab() {
       {loading ? <LoadingGrid /> : (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatCard label="API Requests" value={data?.apiHealth?.total ?? "—"} />
+            <StatCard label="API Requests" value={data?.apiHealth?.total ?? ", "} />
             <StatCard label="Error Rate" value={`${errorRate}%`}
               color={parseFloat(errorRate) > 5 ? "red" : parseFloat(errorRate) > 1 ? "amber" : "green"} />
-            <StatCard label="Avg Latency" value={data?.apiHealth?.avg_latency_ms ? `${data.apiHealth.avg_latency_ms}ms` : "—"} />
-            <StatCard label="P95 Latency" value={data?.apiHealth?.p95_latency_ms ? `${data.apiHealth.p95_latency_ms}ms` : "—"}
+            <StatCard label="Avg Latency" value={data?.apiHealth?.avg_latency_ms ? `${data.apiHealth.avg_latency_ms}ms` : ", "} />
+            <StatCard label="P95 Latency" value={data?.apiHealth?.p95_latency_ms ? `${data.apiHealth.p95_latency_ms}ms` : ", "}
               color={(data?.apiHealth?.p95_latency_ms ?? 0) > 2000 ? "amber" : "slate"} />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <StatCard label="Payment Events (24h)" value={data?.paymentHealth?.total ?? "—"} />
+            <StatCard label="Payment Events (24h)" value={data?.paymentHealth?.total ?? ", "} />
             <StatCard label="Payment Success Rate" value={`${paySuccessRate}%`}
               color={parseFloat(paySuccessRate) < 95 ? "red" : "green"} />
-            <StatCard label="Payment Failures" value={data?.paymentHealth?.failed ?? "—"}
+            <StatCard label="Payment Failures" value={data?.paymentHealth?.failed ?? ", "}
               color={(data?.paymentHealth?.failed ?? 0) > 0 ? "amber" : "green"} />
           </div>
         </>
@@ -217,7 +217,7 @@ function OverviewTab() {
                     <td className="px-3 py-2">
                       <span className="rounded-full bg-red-100 text-red-700 px-2 py-0.5">{row.status_code}</span>
                     </td>
-                    <td className="px-3 py-2 text-slate-500 max-w-xs truncate">{row.error_message ?? "—"}</td>
+                    <td className="px-3 py-2 text-slate-500 max-w-xs truncate">{row.error_message ?? ", "}</td>
                     <td className="px-3 py-2 text-slate-600">{new Date(row.logged_at).toLocaleTimeString()}</td>
                   </tr>
                 ))}
@@ -269,10 +269,10 @@ function ApiHealthTab() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatCard label="Total Requests" value={data.summary?.total_requests ?? "—"} />
-            <StatCard label="5xx Errors" value={data.summary?.errors_5xx ?? "—"} color={(data.summary?.errors_5xx ?? 0) > 0 ? "red" : "green"} />
-            <StatCard label="P95 Latency" value={data.summary?.p95_latency_ms ? `${data.summary.p95_latency_ms}ms` : "—"} />
-            <StatCard label="P99 Latency" value={data.summary?.p99_latency_ms ? `${data.summary.p99_latency_ms}ms` : "—"} color={(data.summary?.p99_latency_ms ?? 0) > 5000 ? "amber" : "slate"} />
+            <StatCard label="Total Requests" value={data.summary?.total_requests ?? ", "} />
+            <StatCard label="5xx Errors" value={data.summary?.errors_5xx ?? ", "} color={(data.summary?.errors_5xx ?? 0) > 0 ? "red" : "green"} />
+            <StatCard label="P95 Latency" value={data.summary?.p95_latency_ms ? `${data.summary.p95_latency_ms}ms` : ", "} />
+            <StatCard label="P99 Latency" value={data.summary?.p99_latency_ms ? `${data.summary.p99_latency_ms}ms` : ", "} color={(data.summary?.p99_latency_ms ?? 0) > 5000 ? "amber" : "slate"} />
           </div>
 
           {data.byPath.length > 0 && (
@@ -298,7 +298,7 @@ function ApiHealthTab() {
                             ? <span className="text-red-600 font-medium">{row.errors}</span>
                             : <span className="text-emerald-600">0</span>}
                         </td>
-                        <td className="px-3 py-2 text-right text-slate-500">{row.avg_ms ?? "—"}</td>
+                        <td className="px-3 py-2 text-right text-slate-500">{row.avg_ms ?? ", "}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -332,8 +332,8 @@ function ApiHealthTab() {
                             {row.status_code}
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-slate-500">{row.duration_ms ?? "—"}</td>
-                        <td className="px-3 py-2 text-slate-500 max-w-xs truncate">{row.error_message ?? "—"}</td>
+                        <td className="px-3 py-2 text-slate-500">{row.duration_ms ?? ", "}</td>
+                        <td className="px-3 py-2 text-slate-500 max-w-xs truncate">{row.error_message ?? ", "}</td>
                         <td className="px-3 py-2 text-slate-600">{new Date(row.logged_at).toLocaleString()}</td>
                       </tr>
                     ))}
@@ -360,7 +360,7 @@ function PaymentsTab() {
 
   const successRate = data?.summary?.total
     ? ((data.summary.success / data.summary.total) * 100).toFixed(1)
-    : "—";
+    : ", ";
 
   return (
     <div className="space-y-6">
@@ -405,10 +405,10 @@ function PaymentsTab() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatCard label="Total Events" value={data.summary?.total ?? "—"} />
+            <StatCard label="Total Events" value={data.summary?.total ?? ", "} />
             <StatCard label="Success Rate" value={`${successRate}%`}
               color={parseFloat(successRate) < 95 ? "red" : "green"} />
-            <StatCard label="Failures" value={data.summary?.failed ?? "—"}
+            <StatCard label="Failures" value={data.summary?.failed ?? ", "}
               color={(data.summary?.failed ?? 0) > 0 ? "amber" : "green"} />
             <StatCard label="Volume" value={data.summary?.total_volume_cents
               ? `$${(data.summary.total_volume_cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
@@ -435,10 +435,10 @@ function PaymentsTab() {
                     {data.failures.map((row, i) => (
                       <tr key={i} className="hover:bg-red-50">
                         <td className="px-3 py-2 font-mono text-charcoal">{row.event_type}</td>
-                        <td className="px-3 py-2 text-red-600 font-medium">{row.error_code ?? "—"}</td>
-                        <td className="px-3 py-2 text-slate-500 max-w-xs truncate">{row.error_message ?? "—"}</td>
+                        <td className="px-3 py-2 text-red-600 font-medium">{row.error_code ?? ", "}</td>
+                        <td className="px-3 py-2 text-slate-500 max-w-xs truncate">{row.error_message ?? ", "}</td>
                         <td className="px-3 py-2 text-right text-charcoal">
-                          {row.amount_cents ? `$${(row.amount_cents / 100).toFixed(2)}` : "—"}
+                          {row.amount_cents ? `$${(row.amount_cents / 100).toFixed(2)}` : ", "}
                         </td>
                         <td className="px-3 py-2 text-slate-600">{new Date(row.occurred_at).toLocaleString()}</td>
                       </tr>
@@ -602,7 +602,7 @@ function CleanerOpsTab() {
 
   const completionRate = data?.dosStats?.total_jobs
     ? ((data.dosStats.completed / data.dosStats.total_jobs) * 100).toFixed(1)
-    : "—";
+    : ", ";
 
   const EVENT_LABELS: Record<string, string> = {
     cleaner_start_route: "Route started",
@@ -630,12 +630,12 @@ function CleanerOpsTab() {
       {loading ? <LoadingGrid /> : data && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatCard label="Total Jobs" value={data.dosStats?.total_jobs ?? "—"} />
+            <StatCard label="Total Jobs" value={data.dosStats?.total_jobs ?? ", "} />
             <StatCard label="Completion Rate" value={`${completionRate}%`}
               color={parseFloat(completionRate) < 80 ? "amber" : "green"} />
             <StatCard label="Late Arrivals" value={data.lateArrivals?.count ?? 0}
               color={(data.lateArrivals?.count ?? 0) > 0 ? "amber" : "green"} />
-            <StatCard label="Avg Checkout" value={data.checkoutTimes?.avg_checkout_mins ? `${data.checkoutTimes.avg_checkout_mins}min` : "—"} />
+            <StatCard label="Avg Checkout" value={data.checkoutTimes?.avg_checkout_mins ? `${data.checkoutTimes.avg_checkout_mins}min` : ", "} />
           </div>
 
           {data.cleanerActivity.length > 0 && (
@@ -707,7 +707,7 @@ function AuditTrailTab() {
               {(data?.rows ?? []).map((row) => (
                 <>
                   <tr key={row.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => setExpandedRow(expandedRow === row.id ? null : row.id)}>
-                    <td className="px-3 py-2.5 text-charcoal">{row.actor_email ?? "—"}</td>
+                    <td className="px-3 py-2.5 text-charcoal">{row.actor_email ?? ", "}</td>
                     <td className="px-3 py-2.5"><span className="rounded-full bg-seafoam-100 text-seafoam-700 px-2 py-0.5">{row.action}</span></td>
                     <td className="px-3 py-2.5 font-mono text-slate-500">{row.table_name}</td>
                     <td className="px-3 py-2.5 font-mono text-slate-600">{row.record_id?.slice(0, 8)}…</td>
@@ -792,7 +792,7 @@ function IntegrationCard({ tile }: { tile: IntegrationTile }) {
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{tile.label}</p>
         </div>
         <p className="text-lg font-bold text-charcoal truncate">
-          {tile.status === "loading" ? <span className="text-slate-300">—</span> : tile.value ?? "—"}
+          {tile.status === "loading" ? <span className="text-slate-300">, </span> : tile.value ?? ", "}
         </p>
         {tile.sub && <p className="text-xs text-slate-600 mt-0.5">{tile.sub}</p>}
         {tile.status === "unconfigured" && (
@@ -976,10 +976,10 @@ function SentryTestButton() {
       const d = (await res.json()) as { ok: boolean; note?: string; hint?: string };
       if (res.ok && d.ok) {
         setState("sent");
-        setNote(d.note ?? "Test event sent — check Sentry Issues.");
+        setNote(d.note ?? "Test event sent, check Sentry Issues.");
       } else {
         setState("failed");
-        setNote(d.hint ?? "Failed — is SENTRY_DSN set on the Worker?");
+        setNote(d.hint ?? "Failed, is SENTRY_DSN set on the Worker?");
       }
     } catch {
       setState("failed");
@@ -1047,7 +1047,7 @@ function IntegrationsTab() {
                 <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColor(row.status)}`}>{row.status}</span>
                 <div className="mt-1 flex items-center gap-1 text-xs text-slate-600">
                   <Clock className="h-3 w-3" />
-                  {row.latency_ms ? `${row.latency_ms}ms` : "—"}
+                  {row.latency_ms ? `${row.latency_ms}ms` : ", "}
                 </div>
               </div>
             </div>

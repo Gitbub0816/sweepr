@@ -559,7 +559,7 @@ bookingsRouter.post(
           -- Compare the uuid column directly (Postgres then infers the bind
           -- param as uuid). Wrapping it in COALESCE(..., '<uuid text literal>')
           -- forced the param to text and raised "operator does not exist:
-          -- uuid = text" (42883) — which is what actually 500'd the losing
+          -- uuid = text" (42883), which is what actually 500'd the losing
           -- concurrent submit, not the duplicate detection.
           AND address_id IS NOT DISTINCT FROM ${input.addressId ?? null}::uuid
           AND scheduled_at = ${effectiveScheduledAt}

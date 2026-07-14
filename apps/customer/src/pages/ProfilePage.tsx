@@ -97,7 +97,7 @@ export function ProfilePage() {
             <p className="truncate font-semibold text-charcoal dark:text-white">
               {[user?.firstName, user?.lastName].filter(Boolean).join(" ") || t("profile.yourAccount")}
             </p>
-            <p className="truncate text-sm text-slate-500">{email || "—"}</p>
+            <p className="truncate text-sm text-slate-500">{email || ", "}</p>
           </div>
         </Card>
 

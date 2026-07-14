@@ -61,7 +61,7 @@ const STATUS_VARIANT: Record<string, "info" | "warning" | "success" | "error" | 
 };
 
 function ConfidenceBadge({ value }: { value: number | null }) {
-  if (value == null) return <span className="text-slate-400">—</span>;
+  if (value == null) return <span className="text-slate-400">, </span>;
   const pct = value <= 1 ? value * 100 : value;
   let variant: "success" | "warning" | "info" | "error" = "error";
   if (pct >= 95) variant = "success";
@@ -113,12 +113,12 @@ export function ScopeReviewPage() {
       ),
     },
     { header: "Booking", cell: (r) => <span className="font-mono text-xs">{r.bookingId.slice(0, 8)}</span> },
-    { header: "Customer", cell: (r) => r.customerName ?? "—" },
-    { header: "Cleaner", cell: (r) => r.cleanerName ?? "—" },
+    { header: "Customer", cell: (r) => r.customerName ?? ", " },
+    { header: "Cleaner", cell: (r) => r.cleanerName ?? ", " },
     { header: "AI confidence", cell: (r) => <ConfidenceBadge value={r.aiConfidence} /> },
-    { header: "AI recommendation", cell: (r) => r.aiRecommendation?.replace(/_/g, " ") ?? "—" },
+    { header: "AI recommendation", cell: (r) => r.aiRecommendation?.replace(/_/g, " ") ?? ", " },
     { header: "Status", cell: (r) => <Badge variant={STATUS_VARIANT[r.status] ?? "default"}>{r.status.replace(/_/g, " ")}</Badge> },
-    { header: "Expires", cell: (r) => (r.expiresAt ? new Date(r.expiresAt).toLocaleString() : "—") },
+    { header: "Expires", cell: (r) => (r.expiresAt ? new Date(r.expiresAt).toLocaleString() : ", ") },
   ];
 
   return (

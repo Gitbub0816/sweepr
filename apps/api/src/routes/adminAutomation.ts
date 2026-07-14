@@ -527,7 +527,7 @@ adminAutomationRouter.post("/noshow-check", async (c) => {
         await sendNotification(sql, admin.id, {
           type: "noshow_alert",
           title: "Possible no-show",
-          body: `Booking ${b.id.slice(0, 8)} was scheduled ${new Date(b.scheduled_at).toLocaleString()} — cleaner hasn't started.`,
+          body: `Booking ${b.id.slice(0, 8)} was scheduled ${new Date(b.scheduled_at).toLocaleString()}, cleaner hasn't started.`,
           data: { href: `/jobs/${b.id}` },
         });
       }

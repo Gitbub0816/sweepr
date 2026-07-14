@@ -38,7 +38,7 @@ export function PromotionsCouponsTerms() {
       <Section id="overview" title="1. Overview">
         <p>
           Sweepr may, at its discretion, run promotional campaigns ("Promotions") on its websites,
-          applications, and marketing channels. Some Promotions grant a coupon ("Coupon") — a
+          applications, and marketing channels. Some Promotions grant a coupon ("Coupon"), a
           one-time or limited-use credit toward a future booking, such as a percentage discount, a
           fixed amount off, or a complimentary add-on service.
         </p>

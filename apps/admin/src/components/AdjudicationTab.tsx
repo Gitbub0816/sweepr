@@ -117,7 +117,7 @@ export function AdjudicationTab() {
 
   const columns: Column<CaseRow>[] = [
     { header: "Applicant", cell: (r: CaseRow) => (
-      <div><span className="font-medium">{[r.first_name, r.last_name].filter(Boolean).join(" ") || "—"}</span>
+      <div><span className="font-medium">{[r.first_name, r.last_name].filter(Boolean).join(" ") || ", "}</span>
         <span className="block text-xs text-slate-400">{r.email ?? ""}</span></div>
     ) },
     { header: "Status", cell: (r: CaseRow) => <Badge variant={STATUS_BADGE[r.status] ?? "default"}>{r.status.replace(/_/g, " ")}</Badge> },
@@ -126,7 +126,7 @@ export function AdjudicationTab() {
       : <span className="text-xs text-slate-400">not evaluated</span> },
     { header: "Outcome", cell: (r: CaseRow) => r.final_outcome
       ? <Badge variant={r.final_outcome === "approved" ? "success" : "error"}>{r.final_outcome}</Badge>
-      : <span className="text-xs text-slate-400">—</span> },
+      : <span className="text-xs text-slate-400">, </span> },
     { header: "Opened", cell: (r: CaseRow) => <span className="text-xs text-slate-500">{new Date(r.created_at).toLocaleDateString()}</span> },
     { header: "", cell: (r: CaseRow) => <Button variant="secondary" onClick={() => setDetail(r)}>Open</Button> },
   ];
@@ -153,7 +153,7 @@ export function AdjudicationTab() {
           <div className="space-y-4">
             <Select label="Applicant (cleaner)" value={newCleanerId} onChange={(e) => setNewCleanerId(e.target.value)}
               options={[{ value: "", label: "Select…" }, ...cleaners.map((c) => ({
-                value: c.id, label: `${[c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed"} — ${c.email ?? ""}`,
+                value: c.id, label: `${[c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed"}, ${c.email ?? ""}`,
               }))]} />
             <Button onClick={() => void createCase()} disabled={!newCleanerId} className="w-full">Open case</Button>
           </div>
@@ -226,7 +226,7 @@ function CaseModal({ row, onClose, authed, onChanged }: {
   }
 
   return (
-    <Modal open onOpenChange={(o) => !o && onClose()} title={`Adjudication — ${[row.first_name, row.last_name].filter(Boolean).join(" ") || row.email || "case"}`}>
+    <Modal open onOpenChange={(o) => !o && onClose()} title={`Adjudication, ${[row.first_name, row.last_name].filter(Boolean).join(" ") || row.email || "case"}`}>
       <div className="max-h-[70vh] space-y-5 overflow-y-auto pr-1">
         {row.decision && (
           <Card className="space-y-1.5 p-3">
@@ -248,7 +248,7 @@ function CaseModal({ row, onClose, authed, onChanged }: {
                 <h3 className="text-sm font-semibold text-charcoal dark:text-white">Convictions</h3>
                 <Button variant="secondary" onClick={addConviction}><Plus className="mr-1 h-3.5 w-3.5" /> Add conviction</Button>
               </div>
-              {convictions.length === 0 && <p className="text-xs text-slate-400">None entered — the engine treats an empty record as clean.</p>}
+              {convictions.length === 0 && <p className="text-xs text-slate-400">None entered, the engine treats an empty record as clean.</p>}
               <div className="space-y-2">
                 {convictions.map((cv, i) => (
                   <div key={i} className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 p-2 dark:border-slate-700 sm:grid-cols-[1fr_1fr_140px_36px]">
@@ -271,7 +271,7 @@ function CaseModal({ row, onClose, authed, onChanged }: {
                 <h3 className="text-sm font-semibold text-charcoal dark:text-white">Pending charges</h3>
                 <Button variant="secondary" onClick={addPending}><Plus className="mr-1 h-3.5 w-3.5" /> Add pending charge</Button>
               </div>
-              {pending.length === 0 && <p className="text-xs text-slate-400">None — any pending charge places the application on hold until final disposition.</p>}
+              {pending.length === 0 && <p className="text-xs text-slate-400">None, any pending charge places the application on hold until final disposition.</p>}
               <div className="space-y-2">
                 {pending.map((p, i) => (
                   <div key={i} className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 p-2 dark:border-slate-700 sm:grid-cols-[1fr_1fr_36px]">
@@ -296,7 +296,7 @@ function CaseModal({ row, onClose, authed, onChanged }: {
                 <h3 className="text-sm font-semibold text-charcoal dark:text-white">Executive Review decision</h3>
                 <p className="text-xs text-slate-500">
                   Discretionary, individualized review per the policy. A denial starts the FCRA
-                  adverse-action process — it is not communicated automatically.
+                  adverse-action process, it is not communicated automatically.
                 </p>
                 <Textarea label="Decision note (required)" value={note} onChange={(e) => setNote(e.target.value)} rows={3}
                   placeholder="Factors considered: time since offense, rehabilitation, references…" />

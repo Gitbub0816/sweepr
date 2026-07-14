@@ -58,7 +58,7 @@ export function ComposeModal({ boxAddress, compose, sending, onChange, onSend, o
     <Modal
       open={compose.open}
       onOpenChange={(open) => { if (!open) onClose(); }}
-      title={`${MODE_TITLE[compose.mode]}${boxAddress ? ` — from ${boxAddress}` : ""}`}
+      title={`${MODE_TITLE[compose.mode]}${boxAddress ? `, from ${boxAddress}` : ""}`}
       className="max-w-lg"
       footer={
         <>

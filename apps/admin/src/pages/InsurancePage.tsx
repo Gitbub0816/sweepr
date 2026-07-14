@@ -101,29 +101,29 @@ export function InsurancePage() {
         </div>
       ),
     },
-    { header: "Insurer", cell: (r) => r.insurer_name ?? "—" },
-    { header: "Policy #", cell: (r) => r.policy_number ?? "—" },
+    { header: "Insurer", cell: (r) => r.insurer_name ?? ", " },
+    { header: "Policy #", cell: (r) => r.policy_number ?? ", " },
     {
       header: "Coverage",
       align: "right",
       cell: (r) =>
         r.coverage_amount_usd
           ? `$${(r.coverage_amount_usd / 1_000_000).toFixed(1)}M`
-          : "—",
+          : ", ",
     },
     {
       header: "Expires",
       cell: (r) =>
         r.policy_expires_at
           ? new Date(r.policy_expires_at).toLocaleDateString()
-          : "—",
+          : ", ",
     },
     {
       header: "Uploaded",
       cell: (r) =>
         r.doc_uploaded_at
           ? new Date(r.doc_uploaded_at).toLocaleDateString()
-          : "—",
+          : ", ",
     },
     {
       header: "Status",
@@ -185,7 +185,7 @@ export function InsurancePage() {
             <h3 className="font-semibold text-charcoal">Review Policy Submission</h3>
             <div>
               <label className="text-xs font-medium text-slate-600 block mb-1">
-                Note (optional — required on rejection)
+                Note (optional, required on rejection)
               </label>
               <textarea
                 rows={3}

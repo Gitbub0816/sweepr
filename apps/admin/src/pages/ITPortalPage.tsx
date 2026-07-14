@@ -133,7 +133,7 @@ interface QueueStats {
 }
 
 function fmtDuration(seconds: number | null | undefined): string {
-  if (seconds == null || seconds <= 0) return "—";
+  if (seconds == null || seconds <= 0) return ", ";
   const d = Math.floor(seconds / 86400);
   const h = Math.floor((seconds % 86400) / 3600);
   const m = Math.floor((seconds % 3600) / 60);
@@ -414,7 +414,7 @@ function TicketsSection() {
                     </div>
                     <p className="mt-1 truncate text-sm font-medium text-charcoal">{t.title}</p>
                     <p className="text-xs text-slate-600">
-                      {t.reporter_email ?? "—"} · {new Date(t.created_at).toLocaleString()} · open {fmtDuration((Date.now() - new Date(t.created_at).getTime()) / 1000)}
+                      {t.reporter_email ?? ", "} · {new Date(t.created_at).toLocaleString()} · open {fmtDuration((Date.now() - new Date(t.created_at).getTime()) / 1000)}
                     </p>
                   </div>
                 </button>
@@ -559,7 +559,7 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
       });
       if (res.ok) {
         const d = (await res.json()) as { security: { case_code: string } };
-        toast.success(`Escalated — security case ${d.security.case_code} opened.`);
+        toast.success(`Escalated, security case ${d.security.case_code} opened.`);
         await load();
         onRefreshList();
       } else {
@@ -624,7 +624,7 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
 
   // Classify the comment body to distinguish system vs human entries
   function isSystemComment(body: string) {
-    return body.startsWith("[Emailed reporter —") || body.startsWith("[Auto-reply");
+    return body.startsWith("[Emailed reporter, ") || body.startsWith("[Auto-reply");
   }
 
   return (
@@ -636,7 +636,7 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
             <h2 className="text-lg font-bold text-charcoal">
               {ticket ? <><span className="font-mono text-seafoam-700">{ticket.case_code ?? `#${ticket.ticket_number}`}</span> · {ticket.title}</> : "Loading…"}
             </h2>
-            {ticket && <p className="font-mono text-xs text-slate-600">Ticket ID: {ticket.ticket_id ?? "—"}</p>}
+            {ticket && <p className="font-mono text-xs text-slate-600">Ticket ID: {ticket.ticket_id ?? ", "}</p>}
           </div>
           <button onClick={onClose} aria-label="Close ticket details" className="text-slate-600 hover:text-slate-600"><X className="h-5 w-5" /></button>
         </div>
@@ -667,12 +667,12 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
 
                 {/* Metadata grid */}
                 <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-100 p-3 text-xs text-slate-500">
-                  <div>Reporter: <span className="text-slate-700">{ticket.reporter_email ?? "—"}</span></div>
+                  <div>Reporter: <span className="text-slate-700">{ticket.reporter_email ?? ", "}</span></div>
                   <div>Submitted by: <span className="text-slate-700">{ticket.reporter_clerk_id ? "signed-in user" : "anonymous / inbound email"}</span></div>
                   <div>Source: <span className="text-slate-700">{ticket.source.replace("_", " ")}</span></div>
-                  <div>App: <span className="text-slate-700">{ticket.app ?? "—"}</span></div>
+                  <div>App: <span className="text-slate-700">{ticket.app ?? ", "}</span></div>
                   <div>Assigned: <span className="text-slate-700">{ticket.assigned_to ?? "unassigned"}</span></div>
-                  <div>Due: <span className={`${ticket.due_at && new Date(ticket.due_at) < new Date() ? "font-semibold text-red-600" : "text-slate-700"}`}>{ticket.due_at ? new Date(ticket.due_at).toLocaleDateString() : "—"}</span></div>
+                  <div>Due: <span className={`${ticket.due_at && new Date(ticket.due_at) < new Date() ? "font-semibold text-red-600" : "text-slate-700"}`}>{ticket.due_at ? new Date(ticket.due_at).toLocaleDateString() : ", "}</span></div>
                 </div>
 
                 {/* Description */}
@@ -756,7 +756,7 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
                   <button onClick={assign} disabled={busy || !assignTo.trim()} className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50">Assign</button>
                 </div>
 
-                {/* Email the reporter — deep-links to the Mail tab, mailto-style */}
+                {/* Email the reporter, deep-links to the Mail tab, mailto-style */}
                 <div className="rounded-xl border border-slate-200 p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <h3 className="flex items-center gap-1.5 text-sm font-semibold text-charcoal"><Mail className="h-4 w-4" /> Email reporter</h3>
@@ -776,7 +776,7 @@ function TicketDrawer({ ticketId, onClose, onRefreshList }: { ticketId: string; 
                       <EmailReporterButton box="it" to={ticket.reporter_email} caseCode={ticket.case_code ?? ticket.ticket_id} subject={ticket.title} body={emailBody} />
                     </>
                   ) : (
-                    <p className="text-xs text-slate-600">No reporter email on this ticket — this ticket was submitted internally or without an email address.</p>
+                    <p className="text-xs text-slate-600">No reporter email on this ticket, this ticket was submitted internally or without an email address.</p>
                   )}
                 </div>
 
@@ -1000,9 +1000,9 @@ function UserRow({ user }: { user: ClerkUser }) {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-charcoal">
-            {[user.firstName, user.lastName].filter(Boolean).join(" ") || "—"}
+            {[user.firstName, user.lastName].filter(Boolean).join(" ") || ", "}
           </p>
-          <p className="text-xs text-slate-500">{user.email ?? "—"}</p>
+          <p className="text-xs text-slate-500">{user.email ?? ", "}</p>
           <p className="mt-0.5 font-mono text-[10px] text-slate-300">{user.id}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -1217,7 +1217,7 @@ function TemplatesSection() {
                 <input value={editing.name ?? ""} onChange={(e) => setEditing({ ...editing, name: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-500">Classification (optional — suggest for a specific issue type)</label>
+                <label className="mb-1 block text-xs font-medium text-slate-500">Classification (optional, suggest for a specific issue type)</label>
                 <input value={editing.classification ?? ""} onChange={(e) => setEditing({ ...editing, classification: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
               </div>
               <div>

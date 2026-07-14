@@ -392,7 +392,7 @@ export function BookingDetailPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-sm font-semibold text-charcoal dark:text-white">
-                    {needsReview ? "Complete — rate your clean" : "How did it go?"}
+                    {needsReview ? "Complete, rate your clean" : "How did it go?"}
                   </h2>
                   <p className="text-sm text-slate-500 dark:text-slate-400">
                     {needsReview ? "Let us know how it went." : "Leave an optional rating for your cleaner."}

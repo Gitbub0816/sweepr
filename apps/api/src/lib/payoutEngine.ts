@@ -78,10 +78,10 @@ export async function loadFeeSettings(sql: Sql): Promise<FeeSettings> {
 }
 
 export interface PayoutBreakdown {
-  grossAmount: number;   // cents — total charged to customer
-  platformFee: number;   // cents — kept by Sweepr
-  reserveHold: number;   // cents — withheld in reserve
-  cleanerPayout: number; // cents — transferred to cleaner
+  grossAmount: number;   // cents, total charged to customer
+  platformFee: number;   // cents, kept by Sweepr
+  reserveHold: number;   // cents, withheld in reserve
+  cleanerPayout: number; // cents, transferred to cleaner
   feeRate: number;       // 0-1 effective rate applied
   scheduledFor: Date;    // when to release
 }

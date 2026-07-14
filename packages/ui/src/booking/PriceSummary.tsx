@@ -46,7 +46,7 @@ export function PriceSummary({
           {formatCurrency(quote.total)}
         </p>
         <p className="mt-1 text-xs text-slate-400">
-          Includes everything — supplies, service, tax
+          Includes everything, supplies, service, tax
         </p>
       </div>
 

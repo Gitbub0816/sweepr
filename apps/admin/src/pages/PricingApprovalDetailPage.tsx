@@ -78,7 +78,7 @@ export function PricingApprovalDetailPage() {
   if (loading) return <DashboardShell title="Pricing proposal"><div className="h-48 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" /></DashboardShell>;
   if (!proposal) return <DashboardShell title="Not found"><Button variant="ghost" onClick={() => navigate("/pricing")}><ArrowLeft className="h-4 w-4" /> Back</Button></DashboardShell>;
 
-  const fmt = (c?: number) => (c == null ? "—" : `$${(c / 100).toFixed(2)}`);
+  const fmt = (c?: number) => (c == null ? ", " : `$${(c / 100).toFixed(2)}`);
   const terminal = ["declined", "expired_declined", "cancelled", "effective", "notice_sent"].includes(proposal.status);
 
   return (
@@ -95,7 +95,7 @@ export function PricingApprovalDetailPage() {
               <Badge variant={SV[proposal.status] ?? "info"}>{proposal.status.replace(/_/g, " ")}</Badge>
             </div>
             <dl className="grid grid-cols-2 gap-3 text-sm">
-              <D label="Rule" value={`${rule?.name ?? "—"} (v${rule?.version ?? "?"})`} />
+              <D label="Rule" value={`${rule?.name ?? ", "} (v${rule?.version ?? "?"})`} />
               <D label="Market" value={[rule?.market_city, rule?.market_state].filter(Boolean).join(", ") || "Default"} />
               <D label="Base fee" value={fmt(rule?.base_fee_cents)} />
               <D label="Minimum" value={fmt(rule?.minimum_booking_price_cents)} />
@@ -117,7 +117,7 @@ export function PricingApprovalDetailPage() {
               {actions.map((a) => (
                 <li key={a.id} className="flex gap-3 text-slate-500">
                   <span className="shrink-0 font-mono text-xs">{new Date(a.created_at).toLocaleString()}</span>
-                  <span><span className="font-medium text-charcoal dark:text-white">{a.actor_email ?? a.actor_clerk_id}</span>{" — "}{a.action.replace(/_/g, " ")}{a.comment ? `: ${a.comment}` : ""}</span>
+                  <span><span className="font-medium text-charcoal dark:text-white">{a.actor_email ?? a.actor_clerk_id}</span>{", "}{a.action.replace(/_/g, " ")}{a.comment ? `: ${a.comment}` : ""}</span>
                 </li>
               ))}
             </ul>

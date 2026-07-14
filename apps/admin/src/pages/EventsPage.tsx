@@ -119,7 +119,7 @@ export function EventsPage() {
   return (
     <DashboardShell
       title="Events"
-      description={`Live audit log — ${total} total events (refreshes every 10s).`}
+      description={`Live audit log, ${total} total events (refreshes every 10s).`}
       actions={
         <div className="flex items-center gap-2">
           <Button variant="ghost" onClick={load} aria-label="Refresh">
@@ -176,7 +176,7 @@ export function EventsPage() {
                       {e.target_type}:{e.target_id}
                     </td>
                     <td className="py-2 pr-4 text-slate-600">
-                      {e.ip_address ?? "—"}
+                      {e.ip_address ?? ", "}
                     </td>
                   </tr>
                 ))}

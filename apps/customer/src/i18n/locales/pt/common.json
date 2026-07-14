@@ -154,7 +154,7 @@
       "notesPlaceholder": "Código do portão, estacionamento, pets, áreas prioritárias…",
       "continueToPayment": "Ir para pagamento",
       "creatingBooking": "Criando agendamento…",
-      "includesEverything": "Inclui tudo — materiais, serviço e impostos",
+      "includesEverything": "Inclui tudo, materiais, serviço e impostos",
       "firstClean": "Primeira limpeza",
       "yourClean": "Sua limpeza",
       "rushBooking": "Agendamento urgente",
@@ -207,7 +207,7 @@
       "payButton": "Pagar {{amount}}",
       "cardNotCharged": "Seu cartão só será cobrado quando sua limpeza for confirmada por um profissional. Cancele gratuitamente até 24 horas antes do horário marcado.",
       "subscription": "Assinatura {{cadence}}",
-      "subscriptionPrice": "{{price}} / limpeza — economize {{savings}} a cada vez",
+      "subscriptionPrice": "{{price}} / limpeza, economize {{savings}} a cada vez",
       "recurringCadence": "Recorrente {{cadence}}"
     },
     "package": {
@@ -374,7 +374,7 @@
       },
       "underReview": "Candidatura em análise",
       "finishSetup": "Conclua a configuração da sua conta",
-      "reviewingApplication": "Estamos analisando sua candidatura — enviaremos um e-mail quando for aprovada.",
+      "reviewingApplication": "Estamos analisando sua candidatura, enviaremos um e-mail quando for aprovada.",
       "completeSteps": "Conclua estas etapas para desbloquear o quadro de trabalhos.",
       "onboarding": {
         "profile": "Perfil e serviços",
@@ -387,7 +387,7 @@
       "welcomeBack": "Bem-vindo de volta, {{name}}",
       "upcomingJob": "Você tem {{count}} trabalho agendado",
       "upcomingJobs": "Você tem {{count}} trabalhos agendados",
-      "noUpcomingJobs": "Nenhum trabalho agendado — confira o Quadro de Trabalhos.",
+      "noUpcomingJobs": "Nenhum trabalho agendado, confira o Quadro de Trabalhos.",
       "pro": "Pro",
       "stats": {
         "upcomingJobs": "Trabalhos Agendados",
@@ -416,7 +416,7 @@
       "description": "Aceite os trabalhos que funcionam para você. O endereço completo é liberado ao aceitar.",
       "lookingForJobs": "Procurando trabalhos próximos a você…",
       "noJobsTitle": "Nenhum trabalho disponível agora",
-      "noJobsDesc": "Volte em breve — novas ofertas aparecem ao longo do dia.",
+      "noJobsDesc": "Volte em breve, novas ofertas aparecem ao longo do dia.",
       "youreOnline": "Você está online",
       "youreOffline": "Você está offline",
       "goOnlineToSeeJobs": "Fique online para ver os trabalhos disponíveis próximos a você.",

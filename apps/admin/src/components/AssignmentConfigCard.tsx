@@ -81,7 +81,7 @@ export function AssignmentConfigCard() {
       </div>
       <p className="mb-4 text-sm text-slate-500">
         How the platform automatically chooses cleaners for new jobs. Selection is a weighted
-        random draw — the floor below controls how much it leans to the best match vs. chance.
+        random draw, the floor below controls how much it leans to the best match vs. chance.
       </p>
 
       <div className="space-y-5">

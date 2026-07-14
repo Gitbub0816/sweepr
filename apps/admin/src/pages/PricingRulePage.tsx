@@ -234,7 +234,7 @@ export function PricingRulePage() {
               </div>
             </div>
             <div>
-              <p className="mb-2 text-xs text-slate-500">Rate per extra sq ft (cents, decimals ok — e.g. 4.5 = $0.045)</p>
+              <p className="mb-2 text-xs text-slate-500">Rate per extra sq ft (cents, decimals ok, e.g. 4.5 = $0.045)</p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
                 {SVC_TYPES.map(svc => (
                   <Input key={svc} label={SVC_LABELS[svc]} type="number" step="0.1"
@@ -290,7 +290,7 @@ export function PricingRulePage() {
         {hasConfigJson && (
           <Card className="space-y-3">
             <h3 className="text-sm font-semibold text-charcoal dark:text-white">Property type multipliers</h3>
-            <p className="text-xs text-slate-500">Decimal — 1.0 = no change, 1.1 = +10%</p>
+            <p className="text-xs text-slate-500">Decimal, 1.0 = no change, 1.1 = +10%</p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {PROP_TYPES.map(pt => (
                 <Input key={pt} label={PROP_LABELS[pt]} type="number" step="0.01"
@@ -306,7 +306,7 @@ export function PricingRulePage() {
         {hasConfigJson && (
           <Card className="space-y-3">
             <h3 className="text-sm font-semibold text-charcoal dark:text-white">Condition multipliers</h3>
-            <p className="text-xs text-slate-500">Decimal — 1.08 = +8% surcharge</p>
+            <p className="text-xs text-slate-500">Decimal, 1.08 = +8% surcharge</p>
             <div className="grid grid-cols-2 gap-2">
               {([ ["pets", "Pets"], ["heavySoil", "Heavy Soil"], ["lotsOfClutter", "Lots of Clutter"], ["smokerHome", "Smoker Home"] ] as [string, string][]).map(([k, label]) => (
                 <Input key={k} label={label} type="number" step="0.01"
@@ -337,7 +337,7 @@ export function PricingRulePage() {
         {hasConfigJson && (
           <Card className="space-y-3">
             <h3 className="text-sm font-semibold text-charcoal dark:text-white">Cleaner payout</h3>
-            <p className="text-xs text-slate-500">Decimal — 0.65 = cleaner keeps 65% of customer price</p>
+            <p className="text-xs text-slate-500">Decimal, 0.65 = cleaner keeps 65% of customer price</p>
             <Input label="Default %" type="number" step="0.01"
               value={cfgNum("cleanerPayout", "defaultPercent")}
               onChange={(e) => setCfgNum("cleanerPayout", "defaultPercent", e.target.value)}
@@ -402,7 +402,7 @@ export function PricingRulePage() {
 
             <Card className="space-y-3">
               <h3 className="text-sm font-semibold text-charcoal dark:text-white">Service type multipliers</h3>
-              <p className="text-xs text-slate-500">×100 — 100 = 1.0×, 155 = 1.55×</p>
+              <p className="text-xs text-slate-500">×100, 100 = 1.0×, 155 = 1.55×</p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {SVC_TYPES.map(svc => (
                   <Input key={svc} label={SVC_LABELS[svc]} type="number"
@@ -415,7 +415,7 @@ export function PricingRulePage() {
 
             <Card className="space-y-3">
               <h3 className="text-sm font-semibold text-charcoal dark:text-white">Property type adjustments</h3>
-              <p className="text-xs text-slate-500">Basis points — 500 = +5%</p>
+              <p className="text-xs text-slate-500">Basis points, 500 = +5%</p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {PROP_TYPES.map(pt => (
                   <Input key={pt} label={PROP_LABELS[pt]} type="number"
@@ -428,7 +428,7 @@ export function PricingRulePage() {
 
             <Card className="space-y-3">
               <h3 className="text-sm font-semibold text-charcoal dark:text-white">Intensity multipliers</h3>
-              <p className="text-xs text-slate-500">×100 — 100 = 1.0×, 125 = 1.25×</p>
+              <p className="text-xs text-slate-500">×100, 100 = 1.0×, 125 = 1.25×</p>
               <div className="grid grid-cols-2 gap-2">
                 {(["light", "normal", "heavy", "extreme"] as const).map(lvl => (
                   <Input key={lvl} label={lvl.charAt(0).toUpperCase() + lvl.slice(1)} type="number"
@@ -441,7 +441,7 @@ export function PricingRulePage() {
 
             <Card className="space-y-3">
               <h3 className="text-sm font-semibold text-charcoal dark:text-white">Urgency multipliers</h3>
-              <p className="text-xs text-slate-500">×100 — 100 = 1.0×, 120 = +20%</p>
+              <p className="text-xs text-slate-500">×100, 100 = 1.0×, 120 = +20%</p>
               <Select label="Urgency pricing" options={BOOL} value={rule.urgency_pricing_enabled ? "yes" : "no"} onChange={(e) => set("urgency_pricing_enabled", e.target.value === "yes")} disabled={!editable} />
               <div className="grid grid-cols-2 gap-2">
                 {(["same_day", "next_day", "peak", "low_supply"] as const).map(u => (
@@ -455,7 +455,7 @@ export function PricingRulePage() {
 
             <Card className="space-y-3">
               <h3 className="text-sm font-semibold text-charcoal dark:text-white">Recurring discounts</h3>
-              <p className="text-xs text-slate-500">Basis points — 1000 = 10% off</p>
+              <p className="text-xs text-slate-500">Basis points, 1000 = 10% off</p>
               <Select label="Recurring discount" options={BOOL} value={rule.recurring_discount_enabled ? "yes" : "no"} onChange={(e) => set("recurring_discount_enabled", e.target.value === "yes")} disabled={!editable} />
               <div className="grid grid-cols-3 gap-2">
                 {([ ["weekly_bps", "Weekly"], ["biweekly_bps", "Biweekly"], ["monthly_bps", "Monthly"] ] as [string, string][]).map(([k, label]) => (
@@ -500,7 +500,7 @@ export function PricingRulePage() {
           <Input label="Title" value={prop.title} onChange={(e) => setProp((p) => ({ ...p, title: e.target.value }))} />
           <Textarea label="Reason" value={prop.reason} onChange={(e) => setProp((p) => ({ ...p, reason: e.target.value }))} />
           <Textarea label="External notice summary (required if customer/cleaner-affecting)" value={prop.externalNoticeSummary} onChange={(e) => setProp((p) => ({ ...p, externalNoticeSummary: e.target.value }))} />
-          <Select label="Affects customers or cleaners?" options={[{ value: "yes", label: "Yes — notice required" }, { value: "no", label: "No — internal only" }]} value={prop.affectsParties ? "yes" : "no"} onChange={(e) => setProp((p) => ({ ...p, affectsParties: e.target.value === "yes" }))} />
+          <Select label="Affects customers or cleaners?" options={[{ value: "yes", label: "Yes, notice required" }, { value: "no", label: "No, internal only" }]} value={prop.affectsParties ? "yes" : "no"} onChange={(e) => setProp((p) => ({ ...p, affectsParties: e.target.value === "yes" }))} />
           <Input label="Proposed effective (≥ 48h out)" type="datetime-local" value={prop.proposedEffectiveAt} onChange={(e) => setProp((p) => ({ ...p, proposedEffectiveAt: e.target.value }))} />
         </div>
       </Modal>

@@ -135,7 +135,7 @@ export function EarningsPage() {
           {data.pendingPayout > 0 && (
             <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
               <strong>{formatCurrency(data.pendingPayout / 100)}</strong> {t("cleaner.earnings.pendingPayout")}
-              {data.nextPayoutDate && ` — ${t("cleaner.earnings.expected")} ${new Date(data.nextPayoutDate).toLocaleDateString()}`}.
+              {data.nextPayoutDate && `, ${t("cleaner.earnings.expected")} ${new Date(data.nextPayoutDate).toLocaleDateString()}`}.
             </div>
           )}
 

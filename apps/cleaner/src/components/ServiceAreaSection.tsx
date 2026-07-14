@@ -89,7 +89,7 @@ export function ServiceAreaSection() {
     const coords = await geocode(address.trim());
     setLocating(false);
     if (coords) { setCenter(coords); setHasArea(true); }
-    else toast.error("Couldn't find that address — try a nearby city and ZIP.");
+    else toast.error("Couldn't find that address, try a nearby city and ZIP.");
   }
 
   async function save() {

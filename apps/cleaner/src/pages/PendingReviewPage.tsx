@@ -71,7 +71,7 @@ export function PendingReviewPage() {
             </a>
           </p>
           <p className="mt-2 text-xs text-slate-600">
-            In the meantime, follow us on social — we'll be in touch soon.
+            In the meantime, follow us on social, we'll be in touch soon.
           </p>
         </div>
       </div>

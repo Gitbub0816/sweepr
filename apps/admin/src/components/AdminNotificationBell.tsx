@@ -30,7 +30,9 @@ export function AdminNotificationBell() {
   const wrapRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { total } = useAlertBadges();
-  const { data: items, isLoading } = useAlertFeed(open);
+  // Feed loads when the panel is open OR there are unread alerts, so the
+  // collapsed pill can summarize the newest unread item.
+  const { data: items, isLoading } = useAlertFeed(open || total > 0);
   const { markRead, markAllRead } = useMarkAlertsRead();
 
   useEffect(() => {
@@ -50,18 +52,35 @@ export function AdminNotificationBell() {
 
   return (
     <div ref={wrapRef} className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        aria-label={total > 0 ? `Notifications (${total} unread)` : "Notifications"}
-        className="relative rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-white"
-      >
-        <Bell className="h-[18px] w-[18px]" />
-        {total > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-semibold leading-none text-white">
-            {total > 99 ? "99+" : total}
+      {/* Zero unread: plain bell. Unread: the one sanctioned pill, carrying a
+          live summary of the newest unread alert. */}
+      {total === 0 ? (
+        <button
+          onClick={() => setOpen((o) => !o)}
+          aria-label="Notifications"
+          className="relative rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-white"
+        >
+          <Bell className="h-[18px] w-[18px]" />
+        </button>
+      ) : (
+        <button
+          onClick={() => setOpen((o) => !o)}
+          aria-label={`Notifications, ${total} unread. Newest: ${items?.find((i) => !i.read_at)?.title ?? ""}`}
+          className="inline-flex h-9 max-w-56 items-center gap-2 rounded-full border border-rose-200 bg-rose-50 pl-2.5 pr-3 text-rose-700 transition hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-950/60"
+        >
+          <span className="relative inline-flex shrink-0">
+            <Bell className="h-4 w-4" />
+            {total > 1 && (
+              <span className="absolute -right-2 -top-2 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-semibold leading-none text-white">
+                {total > 99 ? "99+" : total}
+              </span>
+            )}
           </span>
-        )}
-      </button>
+          <span className="truncate text-xs font-medium">
+            {items?.find((i) => !i.read_at)?.title ?? `${total} new notifications`}
+          </span>
+        </button>
+      )}
 
       {open && (
         <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">

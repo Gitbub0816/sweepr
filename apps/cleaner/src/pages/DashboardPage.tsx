@@ -555,7 +555,7 @@ function ScheduleTab() {
             {blocked.dates.map((d) => (
               <div key={d.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
                 <span className="font-medium">{d.blocked_date}</span>
-                <span className="text-slate-600">{d.reason ?? "—"}</span>
+                <span className="text-slate-600">{d.reason ?? ", "}</span>
                 <button onClick={() => removeBlockedDate(d.id)} className="text-red-400 hover:text-red-600 text-xs">Remove</button>
               </div>
             ))}
@@ -626,7 +626,7 @@ function EarningsTab() {
       {data.pendingPayout > 0 && (
         <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
           <strong>{formatCurrency(data.pendingPayout / 100)}</strong> {t("cleaner.earnings.pendingPayout")}
-          {data.nextPayoutDate && ` — ${t("cleaner.earnings.expected")} ${new Date(data.nextPayoutDate).toLocaleDateString()}`}.
+          {data.nextPayoutDate && `, ${t("cleaner.earnings.expected")} ${new Date(data.nextPayoutDate).toLocaleDateString()}`}.
         </div>
       )}
 

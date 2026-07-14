@@ -30,13 +30,13 @@ export function ReporterContextPanel({ context, kind }: { context: TicketContext
         {user ? (
           <div className="rounded-lg border border-slate-200 p-2 dark:border-slate-700">
             <p className="font-medium text-charcoal dark:text-white">{String(user.email)}</p>
-            <p className="text-slate-600">Role: {String(user.role ?? "—")}{user.admin_role ? ` · ${String(user.admin_role)}` : ""}</p>
-            <p className="text-slate-600">Joined {user.created_at ? new Date(String(user.created_at)).toLocaleDateString() : "—"}</p>
+            <p className="text-slate-600">Role: {String(user.role ?? ", ")}{user.admin_role ? ` · ${String(user.admin_role)}` : ""}</p>
+            <p className="text-slate-600">Joined {user.created_at ? new Date(String(user.created_at)).toLocaleDateString() : ", "}</p>
           </div>
         ) : <p className="text-slate-600">No Sweepr account matches this email.</p>}
       </section>
 
-      {/* Admin invites — key signal for "who invited this person" */}
+      {/* Admin invites, key signal for "who invited this person" */}
       {invites.length > 0 && (
         <section>
           <p className="mb-1 flex items-center gap-1.5 font-semibold text-slate-500"><Mail className="h-3.5 w-3.5" /> Admin invites</p>

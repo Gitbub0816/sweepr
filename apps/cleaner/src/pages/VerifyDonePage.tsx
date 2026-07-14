@@ -32,7 +32,7 @@ export function VerifyDonePage() {
           </h1>
           <p className="max-w-xs text-base text-slate-500 dark:text-slate-400">
             You're all set on this device. Return to your desktop tab to
-            continue your application — it will update automatically.
+            continue your application, it will update automatically.
           </p>
         </div>
       </div>

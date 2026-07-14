@@ -20,7 +20,7 @@ export function AlmostReady() {
       <div className="absolute right-4 top-4"><ThemeToggle /></div>
       <div className="flex flex-col items-center text-center">
         <BusinessLogo size="lg" />
-        <div className="mt-8 flex items-center gap-2 rounded-full border border-platinum-200 bg-white px-4 py-1.5 text-sm font-medium text-platinum-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-platinum-400">
+        <div className="mt-8 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-platinum-600 dark:text-platinum-400">
           <Sparkles className="h-4 w-4" />
           Coming soon
         </div>
@@ -29,7 +29,7 @@ export function AlmostReady() {
         </h1>
         <p className="mt-3 max-w-md text-base text-slate-500">
           Manage properties, teams, and cleanings for your whole portfolio in
-          one workspace. We&rsquo;re putting on the finishing touches — check
+          one workspace. We&rsquo;re putting on the finishing touches, check
           back soon.
         </p>
         <a

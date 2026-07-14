@@ -136,7 +136,7 @@ unsubscribeRouter.get("/", (c) => {
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
   return c.html(`<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Unsubscribe — Sweepr</title>
+<title>Unsubscribe, Sweepr</title>
 <style>body{font-family:sans-serif;max-width:26rem;margin:12vh auto;padding:0 1rem;color:#111}
 label{display:block;font-weight:600;margin-bottom:.4rem}input{width:100%;padding:.6rem;font-size:1rem;border:1px solid #cbd5e1;border-radius:.5rem}
 button{margin-top:1rem;padding:.6rem 1.4rem;font-size:1rem;font-weight:600;background:#0f766e;color:#fff;border:0;border-radius:.5rem;cursor:pointer}

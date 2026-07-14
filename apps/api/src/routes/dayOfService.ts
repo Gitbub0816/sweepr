@@ -131,13 +131,13 @@ dayOfServiceRouter.post(
       if (settings.allow_same_day_only) {
         const sameDay = now.toDateString() === scheduledAt.toDateString();
         if (!sameDay) {
-          return c.json({ error: "Address is not yet available — must be same day as scheduled clean" }, 403);
+          return c.json({ error: "Address is not yet available, must be same day as scheduled clean" }, 403);
         }
       }
 
       if (now < revealWindowStart) {
         const hoursUntil = Math.ceil((revealWindowStart.getTime() - now.getTime()) / (60 * 60 * 1000));
-        return c.json({ error: `Address is not yet available — available ${hoursUntil}h before scheduled start` }, 403);
+        return c.json({ error: `Address is not yet available, available ${hoursUntil}h before scheduled start` }, 403);
       }
     }
 
@@ -490,7 +490,7 @@ dayOfServiceRouter.post(
     const ctx = await getBookingAuthCtx(sql, bookingId, clerkId);
     if (!ctx) return c.json({ error: "Not found" }, 404);
     if (!canUploadPhotos(ctx)) {
-      return c.json({ error: "Forbidden — photos can only be uploaded during an active job" }, 403);
+      return c.json({ error: "Forbidden, photos can only be uploaded during an active job" }, 403);
     }
 
     // Guard against cross-booking storage key injection.

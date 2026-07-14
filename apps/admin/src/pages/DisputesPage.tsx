@@ -59,9 +59,9 @@ export function DisputesPage() {
 
   const columns: Column<Dispute>[] = [
     { header: "Booking", cell: (r) => <span className="font-mono text-xs">{r.booking_id?.slice(0, 8)}…</span> },
-    { header: "Customer", cell: (r) => [r.customer_first, r.customer_last].filter(Boolean).join(" ") || "—" },
+    { header: "Customer", cell: (r) => [r.customer_first, r.customer_last].filter(Boolean).join(" ") || ", " },
     { header: "Cleaner", cell: (r) => [r.cleaner_first, r.cleaner_last].filter(Boolean).join(" ") || "Unassigned" },
-    { header: "At stake", align: "right", cell: (r) => r.total_price ? formatCurrency(r.total_price / 100) : "—" },
+    { header: "At stake", align: "right", cell: (r) => r.total_price ? formatCurrency(r.total_price / 100) : ", " },
     {
       header: "Status",
       cell: (r) => (
@@ -88,7 +88,7 @@ export function DisputesPage() {
   return (
     <DashboardShell
       title="Disputes"
-      description="Open and in-progress disputes — live from Neon."
+      description="Open and in-progress disputes, live from Neon."
       actions={
         <button
           onClick={() => void load()}
@@ -104,7 +104,7 @@ export function DisputesPage() {
       ) : rows.length === 0 ? (
         <EmptyState
           icon={<ShieldCheck className="h-10 w-10 text-seafoam-500" />}
-          title="No open disputes — great sign! 🎉"
+          title="No open disputes, great sign! 🎉"
           description="When a customer or cleaner raises an issue, it'll show up here."
         />
       ) : (

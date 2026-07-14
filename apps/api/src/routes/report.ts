@@ -133,7 +133,7 @@ reportRouter.post("/", zValidator("json", schema), async (c) => {
     alertAdminsFromContext(c, {
       category: "security",
       title: `New security ticket ${gen.caseCode}`,
-      body: `${body.category} — ${title}\nFrom: ${email}`,
+      body: `${body.category}, ${title}\nFrom: ${email}`,
       linkPath: "/security",
       dedupeKey: gen.ticketId,
     });
@@ -141,7 +141,7 @@ reportRouter.post("/", zValidator("json", schema), async (c) => {
       try {
         await sendEmail(c.env.MAILERSEND_API_KEY, {
           to: email,
-          subject: `Sweepr Security — Report Received (${gen.caseCode})`,
+          subject: `Sweepr Security, Report Received (${gen.caseCode})`,
           from: SENDERS.SECURITY,
           replyTo: SENDERS.SECURITY,
           templateId: TEMPLATES.SECURITY_AUTOREPLY,
@@ -183,7 +183,7 @@ reportRouter.post("/", zValidator("json", schema), async (c) => {
   alertAdminsFromContext(c, {
     category: "it",
     title: `New IT ticket ${gen.caseCode}`,
-    body: `${body.category} — ${title}\nFrom: ${email}`,
+    body: `${body.category}, ${title}\nFrom: ${email}`,
     linkPath: "/it-portal",
     dedupeKey: gen.ticketId,
   });
@@ -191,7 +191,7 @@ reportRouter.post("/", zValidator("json", schema), async (c) => {
     try {
       await sendEmail(c.env.MAILERSEND_API_KEY, {
         to: email,
-        subject: `Sweepr IT — Request Received (${gen.caseCode})`,
+        subject: `Sweepr IT, Request Received (${gen.caseCode})`,
         from: SENDERS.IT,
         replyTo: SENDERS.IT,
         templateId: TEMPLATES.IT_AUTOREPLY,

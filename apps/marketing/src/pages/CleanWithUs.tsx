@@ -191,7 +191,7 @@ function TabSwitch({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CleanWithUs() {
-  useSeo({ title: 'Become a Sweepr cleaner — flexible cleaning jobs, get paid fast', description: 'Apply to clean with Sweepr. Set your own schedule, get matched to jobs near you, and get paid through the platform. Background check and training required.', canonical: "https://getsweepr.com/clean-with-us" });
+  useSeo({ title: 'Become a Sweepr cleaner, flexible cleaning jobs, get paid fast', description: 'Apply to clean with Sweepr. Set your own schedule, get matched to jobs near you, and get paid through the platform. Background check and training required.', canonical: "https://getsweepr.com/clean-with-us" });
   const [tab, setTab] = useState<Tab>("individual");
   const { t, i18n } = useTranslation();
   const cleanerUrl = withLang(CLEANER_URL, i18n.language);
@@ -280,7 +280,7 @@ export default function CleanWithUs() {
           </motion.div>
         </AnimatePresence>
 
-        {/* The "Sweepr" difference — shared */}
+        {/* The "Sweepr" difference, shared */}
         <section className="py-16">
           <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-seafoam-700 to-seafoam-800 px-6 py-14 text-center text-white sm:px-12">
             <SweeprLogo size="lg" className="mx-auto mb-6 brightness-0 invert" />

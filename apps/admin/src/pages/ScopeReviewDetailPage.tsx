@@ -178,7 +178,7 @@ export function ScopeReviewDetailPage() {
   return (
     <DashboardShell
       title={req.requestType === "refusal" ? "Service Refusal" : "Additional Attention Fee"}
-      description={`Booking ${req.bookingId.slice(0, 8)} • ${req.customerName ?? "—"} / ${req.cleanerName ?? "—"}`}
+      description={`Booking ${req.bookingId.slice(0, 8)} • ${req.customerName ?? ", "} / ${req.cleanerName ?? ", "}`}
       actions={<Button variant="ghost" onClick={() => navigate("/scope-review")}><ArrowLeft className="h-4 w-4" /> Back</Button>}
     >
       <div className="grid gap-6 lg:grid-cols-3">
@@ -190,13 +190,13 @@ export function ScopeReviewDetailPage() {
             </div>
             <dl className="grid grid-cols-2 gap-3 text-sm">
               <Detail label="Created" value={new Date(req.createdAt).toLocaleString()} />
-              <Detail label="Expires" value={req.expiresAt ? new Date(req.expiresAt).toLocaleString() : "—"} />
-              <Detail label="Customer" value={req.customerName ?? "—"} />
+              <Detail label="Expires" value={req.expiresAt ? new Date(req.expiresAt).toLocaleString() : ", "} />
+              <Detail label="Customer" value={req.customerName ?? ", "} />
               <Detail label="Customer status" value={req.customerAccountStatus ?? "normal"} />
-              <Detail label="Cleaner" value={req.cleanerName ?? "—"} />
-              <Detail label="Address" value={req.address ?? "—"} />
+              <Detail label="Cleaner" value={req.cleanerName ?? ", "} />
+              <Detail label="Address" value={req.address ?? ", "} />
               {req.refusalReason && <Detail label="Refusal reason" value={req.refusalReason.replace(/_/g, " ")} />}
-              <Detail label="Cleaner notes" value={req.cleanerNotes ?? "—"} />
+              <Detail label="Cleaner notes" value={req.cleanerNotes ?? ", "} />
             </dl>
           </Card>
 
@@ -206,7 +206,7 @@ export function ScopeReviewDetailPage() {
               <div className="flex items-center gap-3">
                 <ConfidenceMeter value={req.aiConfidence} />
                 <span className="text-sm text-slate-600 dark:text-slate-300">
-                  Recommendation: <strong>{req.aiRecommendation?.replace(/_/g, " ") ?? "—"}</strong>
+                  Recommendation: <strong>{req.aiRecommendation?.replace(/_/g, " ") ?? ", "}</strong>
                 </span>
               </div>
               {ai.scope_level_detected && (
@@ -284,7 +284,7 @@ export function ScopeReviewDetailPage() {
               {req.requestType === "additional_attention" && (
                 <Select
                   label="Fee tier"
-                  options={AAF_TIERS.map((t) => ({ value: t.value, label: `${t.label} — ${formatCurrency((feeCents[t.value] ?? 0) / 100)}` }))}
+                  options={AAF_TIERS.map((t) => ({ value: t.value, label: `${t.label}, ${formatCurrency((feeCents[t.value] ?? 0) / 100)}` }))}
                   value={feeCode}
                   onChange={(e) => setFeeCode(e.target.value)}
                 />
@@ -340,7 +340,7 @@ export function ScopeReviewDetailPage() {
 }
 
 function ConfidenceMeter({ value }: { value: number | null }) {
-  if (value == null) return <span className="text-slate-400">—</span>;
+  if (value == null) return <span className="text-slate-400">, </span>;
   const pct = value <= 1 ? value * 100 : value;
   let color = "bg-red-500";
   if (pct >= 95) color = "bg-emerald-500";

@@ -133,10 +133,10 @@ function TransactionsTab() {
     { header: "Gross", align: "right", cell: (r) => formatCurrency((r.gross_amount ?? 0) / 100) },
     { header: "Platform Fee", align: "right", cell: (r) => formatCurrency((r.platform_fee ?? 0) / 100) },
     { header: "Cleaner Net", align: "right", cell: (r) => <span className="font-semibold">{formatCurrency((r.amount ?? 0) / 100)}</span> },
-    { header: "Rate", align: "right", cell: (r) => r.fee_rate ? `${(Number(r.fee_rate) * 100).toFixed(1)}%` : "—" },
+    { header: "Rate", align: "right", cell: (r) => r.fee_rate ? `${(Number(r.fee_rate) * 100).toFixed(1)}%` : ", " },
     { header: "Tier ×", align: "right", cell: (r) => r.tier_multiplier ? `${Number(r.tier_multiplier).toFixed(3)}` : "1.000" },
     { header: "Status", cell: (r) => <Badge variant={STATUS_VARIANT[r.status] ?? "warning"}>{r.status}</Badge> },
-    { header: "Transfer ID", cell: (r) => r.stripe_transfer_id ? <code className="text-xs">{r.stripe_transfer_id}</code> : "—" },
+    { header: "Transfer ID", cell: (r) => r.stripe_transfer_id ? <code className="text-xs">{r.stripe_transfer_id}</code> : ", " },
   ];
 
   return loading
@@ -201,9 +201,9 @@ function PayoutsListTab() {
     { header: "Cleaner", cell: (r) => <span className="font-medium">{r.cleaner_name}</span> },
     { header: "Amount", align: "right", cell: (r) => formatCurrency(r.amount / 100) },
     { header: "Status", cell: (r) => <Badge variant={STATUS_VARIANT[r.status] ?? "warning"}>{r.status}</Badge> },
-    { header: "Scheduled", cell: (r) => r.scheduled_for ? new Date(r.scheduled_for).toLocaleDateString() : "—" },
-    { header: "Paid", cell: (r) => r.paid_at ? new Date(r.paid_at).toLocaleDateString() : "—" },
-    { header: "Hold Reason", cell: (r) => r.held_reason ?? "—" },
+    { header: "Scheduled", cell: (r) => r.scheduled_for ? new Date(r.scheduled_for).toLocaleDateString() : ", " },
+    { header: "Paid", cell: (r) => r.paid_at ? new Date(r.paid_at).toLocaleDateString() : ", " },
+    { header: "Hold Reason", cell: (r) => r.held_reason ?? ", " },
     {
       header: "",
       align: "right",
@@ -284,7 +284,7 @@ function FeeConfigTab() {
       });
       if (!res.ok) throw new Error();
       const body = await res.json() as { proposalId?: string };
-      toast.success("Fee change proposal submitted — pending approval.");
+      toast.success("Fee change proposal submitted, pending approval.");
       setReason("");
       reload();
       if (body.proposalId) {
@@ -402,13 +402,13 @@ function ContractorEarningsTab() {
 
   const cols: Column<EarningsRow>[] = [
     { header: "Cleaner", cell: (r) => <span className="font-medium">{r.name}</span> },
-    { header: "Tier", cell: (r) => r.tier ? <Badge variant="info">{r.tier}</Badge> : "—" },
+    { header: "Tier", cell: (r) => r.tier ? <Badge variant="info">{r.tier}</Badge> : ", " },
     { header: "Payouts", align: "right", cell: (r) => String(r.payout_count) },
     { header: "Gross", align: "right", cell: (r) => formatCurrency(Number(r.total_gross) / 100) },
     { header: "Platform Fee", align: "right", cell: (r) => formatCurrency(Number(r.total_platform_fee) / 100) },
     { header: "Total Earned", align: "right", cell: (r) => <span className="font-semibold text-green-700">{formatCurrency(Number(r.total_paid) / 100)}</span> },
-    { header: "Avg Rate", align: "right", cell: (r) => r.avg_fee_rate ? `${(Number(r.avg_fee_rate) * 100).toFixed(1)}%` : "—" },
-    { header: "Last Paid", cell: (r) => r.last_paid_at ? new Date(r.last_paid_at).toLocaleDateString() : "—" },
+    { header: "Avg Rate", align: "right", cell: (r) => r.avg_fee_rate ? `${(Number(r.avg_fee_rate) * 100).toFixed(1)}%` : ", " },
+    { header: "Last Paid", cell: (r) => r.last_paid_at ? new Date(r.last_paid_at).toLocaleDateString() : ", " },
     { header: "Connect", cell: (r) => r.stripe_connect_id ? <span className="text-green-600 text-xs">Linked</span> : <span className="text-red-500 text-xs">Missing</span> },
   ];
 
@@ -461,8 +461,8 @@ function DisputesTab() {
     { header: "Cleaner", cell: (r) => <span className="font-medium">{r.cleaner_name}</span> },
     { header: "Amount", align: "right", cell: (r) => formatCurrency(r.amount / 100) },
     { header: "Status", cell: (r) => <Badge variant={STATUS_VARIANT[r.status] ?? "warning"}>{r.status}</Badge> },
-    { header: "Dispute ID", cell: (r) => r.dispute_id ? <code className="text-xs">{r.dispute_id}</code> : "—" },
-    { header: "Hold Reason", cell: (r) => r.held_reason ?? "—" },
+    { header: "Dispute ID", cell: (r) => r.dispute_id ? <code className="text-xs">{r.dispute_id}</code> : ", " },
+    { header: "Hold Reason", cell: (r) => r.held_reason ?? ", " },
     { header: "Date", cell: (r) => new Date(r.created_at).toLocaleDateString() },
     {
       header: "",
@@ -577,9 +577,9 @@ function SettingsTab() {
                   <tr key={r.id} className="border-b border-slate-50">
                     <td className="whitespace-nowrap py-2 pr-4 font-medium">{r.actor_name}</td>
                     <td className="whitespace-nowrap py-2 pr-4 font-mono">{r.setting_name}</td>
-                    <td className="whitespace-nowrap py-2 pr-4 text-red-600">{r.old_value ?? "—"}</td>
-                    <td className="whitespace-nowrap py-2 pr-4 text-green-600">{r.new_value ?? "—"}</td>
-                    <td className="py-2 pr-4 text-slate-500">{r.reason ?? "—"}</td>
+                    <td className="whitespace-nowrap py-2 pr-4 text-red-600">{r.old_value ?? ", "}</td>
+                    <td className="whitespace-nowrap py-2 pr-4 text-green-600">{r.new_value ?? ", "}</td>
+                    <td className="py-2 pr-4 text-slate-500">{r.reason ?? ", "}</td>
                     <td className="whitespace-nowrap py-2 text-slate-600">{new Date(r.created_at).toLocaleDateString()}</td>
                   </tr>
                 ))}

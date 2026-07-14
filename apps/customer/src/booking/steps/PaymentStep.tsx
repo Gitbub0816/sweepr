@@ -208,7 +208,7 @@ function CheckoutForm({ total }: { total: number }) {
         />
       </div>
 
-      {/* Billing address — separate so it gets our label styling via Stripe rules */}
+      {/* Billing address, separate so it gets our label styling via Stripe rules */}
       <div>
         <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-400">
           {t("booking.payment.billingAddress")}
@@ -257,7 +257,7 @@ function DemoCheckout({ total }: { total: number }) {
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-300">
-        <strong>{t("booking.payment.demoMode")}</strong> — set{" "}
+        <strong>{t("booking.payment.demoMode")}</strong>, set{" "}
         <code className="text-xs">VITE_STRIPE_PUBLISHABLE_KEY</code> to enable
         live Stripe Elements.
       </div>

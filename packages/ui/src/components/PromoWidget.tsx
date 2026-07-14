@@ -468,7 +468,7 @@ export function PromoWidget({
         {reward && !done ? (
           <p className="mb-2 text-center text-sm font-semibold" style={{ color: accent ?? "#0f766e" }}>
             🎁 {reward}
-            {offerMinutes ? ` — valid ${offerMinutes} min after claiming` : ""}
+            {offerMinutes ? `, valid ${offerMinutes} min after claiming` : ""}
           </p>
         ) : null}
 

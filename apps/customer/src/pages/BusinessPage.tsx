@@ -80,7 +80,7 @@ const MODE_OPTIONS: Array<{
     mode: "fresh",
     title: "Start fresh",
     description:
-      "Create an empty business workspace. Nothing moves — add properties and teammates later.",
+      "Create an empty business workspace. Nothing moves, add properties and teammates later.",
     icon: Sparkles,
   },
 ];
@@ -195,7 +195,7 @@ export function BusinessPage() {
     return (
       <DashboardShell
         title="Sweepr Business"
-        description="Your workspace is ready — finish setup in Sweepr Business."
+        description="Your workspace is ready, finish setup in Sweepr Business."
       >
         <div className="max-w-lg space-y-6">
           <Card className="space-y-4 text-center">
@@ -249,7 +249,7 @@ export function BusinessPage() {
               {
                 icon: Users,
                 title: "Team access",
-                text: "Invite teammates to book and manage cleanings — property managers, assistants, co-hosts.",
+                text: "Invite teammates to book and manage cleanings, property managers, assistants, co-hosts.",
               },
               {
                 icon: MapPin,
@@ -272,7 +272,7 @@ export function BusinessPage() {
             ))}
           </ul>
           <p className="text-xs text-slate-500">
-            Your personal Sweepr account keeps working, and your booking history stays intact —
+            Your personal Sweepr account keeps working, and your booking history stays intact, 
             this only changes how your properties are managed going forward.
           </p>
         </Card>
@@ -393,7 +393,7 @@ export function BusinessPage() {
           if (!submitting) setConfirmOpen(o);
         }}
         title="Confirm your business setup"
-        description={`Workspace: ${workspaceName.trim() || "—"}`}
+        description={`Workspace: ${workspaceName.trim() || ", "}`}
         footer={
           <div className="flex w-full justify-end gap-2">
             <Button variant="ghost" disabled={submitting} onClick={() => setConfirmOpen(false)}>
@@ -410,7 +410,7 @@ export function BusinessPage() {
             <p className="font-semibold text-charcoal dark:text-white">What moves</p>
             <ul className="mt-1 list-disc space-y-1 pl-5 text-slate-600 dark:text-slate-300">
               {mode === "fresh" ? (
-                <li>Nothing yet — you'll start with an empty business workspace.</li>
+                <li>Nothing yet, you'll start with an empty business workspace.</li>
               ) : mode === "partition" ? (
                 <li>
                   {selectedIds.size} selected {selectedIds.size === 1 ? "property" : "properties"}{" "}
@@ -424,7 +424,7 @@ export function BusinessPage() {
           <div>
             <p className="font-semibold text-charcoal dark:text-white">What stays</p>
             <ul className="mt-1 list-disc space-y-1 pl-5 text-slate-600 dark:text-slate-300">
-              <li>Your personal account keeps working — same sign-in, same app.</li>
+              <li>Your personal account keeps working, same sign-in, same app.</li>
               <li>Your booking history stays intact and visible.</li>
             </ul>
           </div>

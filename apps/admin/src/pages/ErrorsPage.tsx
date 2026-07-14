@@ -322,10 +322,10 @@ export function ErrorsPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <StatCard label="Open" value={counts?.unresolved ?? "—"} />
-        <StatCard label="Last 24h" value={counts?.last_24h ?? "—"} />
-        <StatCard label="Server (open)" value={counts?.server_open ?? "—"} />
-        <StatCard label="Client (open)" value={counts?.client_open ?? "—"} />
+        <StatCard label="Open" value={counts?.unresolved ?? ", "} />
+        <StatCard label="Last 24h" value={counts?.last_24h ?? ", "} />
+        <StatCard label="Server (open)" value={counts?.server_open ?? ", "} />
+        <StatCard label="Client (open)" value={counts?.client_open ?? ", "} />
       </div>
 
       {/* View toggle */}

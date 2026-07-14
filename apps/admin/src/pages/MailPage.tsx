@@ -361,7 +361,7 @@ export function MailPage() {
         onClose={closeCompose}
       />
 
-      {/* Mailbox permissions — super_admin only (hidden when the API says 403) */}
+      {/* Mailbox permissions, super_admin only (hidden when the API says 403) */}
       {grants !== null && (
         <Card className="p-4">
           <div className="mb-3 flex items-center gap-2">
@@ -418,7 +418,7 @@ export function MailPage() {
                     <tr key={g.id} className="border-b border-slate-100 dark:border-slate-800">
                       <td className="whitespace-nowrap py-2">{g.email}</td>
                       <td className="whitespace-nowrap py-2">{g.mailbox}@getsweepr.com</td>
-                      <td className="whitespace-nowrap py-2 text-slate-600">{g.granted_by_email ?? "—"}</td>
+                      <td className="whitespace-nowrap py-2 text-slate-600">{g.granted_by_email ?? ", "}</td>
                       <td className="py-2 text-right">
                         <button onClick={() => void removeGrant(g.id)} className="text-red-500 hover:text-red-700" title="Revoke">
                           <Trash2 className="h-4 w-4" />

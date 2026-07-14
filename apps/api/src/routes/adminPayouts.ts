@@ -308,13 +308,13 @@ adminPayoutsRouter.put(
     let proposal: Awaited<ReturnType<typeof createProposal>>;
     try {
       proposal = await createProposal(sql, { clerkId: authUser.clerkId, email: authUser.email }, {
-        title: `Platform fee config change — ${body.feeType} ${body.feeValue}`,
+        title: `Platform fee config change, ${body.feeType} ${body.feeValue}`,
         reason: body.reason,
         internalNotes: body.notes,
         // internal_only skips the external-notice requirement in createProposal
         proposedEffectiveAt,
         feeConfig: {
-          name: `Platform fee — ${body.feeType} ${body.feeValue}`,
+          name: `Platform fee, ${body.feeType} ${body.feeValue}`,
           fee_type: "platform_fee",
           affected_party: "internal_only",
           calculation_method: body.feeType === "flat" ? "flat_amount" : "percentage",

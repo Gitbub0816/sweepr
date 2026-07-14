@@ -37,20 +37,20 @@ export function CookiePolicy() {
       <Section id="categories" title="2. Cookie Categories">
         <ul className="list-disc space-y-1 pl-6">
           <li>
-            <strong>Strictly Necessary</strong> — required for the Platform to
+            <strong>Strictly Necessary</strong>, required for the Platform to
             function, including authentication and security. These cannot be
             disabled.
           </li>
           <li>
-            <strong>Functional</strong> — remember your preferences (e.g., theme,
+            <strong>Functional</strong>, remember your preferences (e.g., theme,
             saved addresses).
           </li>
           <li>
-            <strong>Analytics</strong> — help us understand how the Platform is
+            <strong>Analytics</strong>, help us understand how the Platform is
             used so we can improve it.
           </li>
           <li>
-            <strong>Marketing</strong> — used to deliver and measure relevant
+            <strong>Marketing</strong>, used to deliver and measure relevant
             offers (only with your consent).
           </li>
         </ul>
@@ -58,10 +58,10 @@ export function CookiePolicy() {
 
       <Section id="which" title="3. Cookies We Use">
         <ul className="list-disc space-y-1 pl-6">
-          <li>Session and authentication cookies (Clerk) — strictly necessary;</li>
-          <li>Theme and preference cookies — functional;</li>
-          <li>Aggregated usage analytics — analytics;</li>
-          <li>Fraud-prevention cookies (Stripe) — strictly necessary.</li>
+          <li>Session and authentication cookies (Clerk), strictly necessary;</li>
+          <li>Theme and preference cookies, functional;</li>
+          <li>Aggregated usage analytics, analytics;</li>
+          <li>Fraud-prevention cookies (Stripe), strictly necessary.</li>
         </ul>
       </Section>
 

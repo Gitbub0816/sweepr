@@ -41,7 +41,7 @@ export function RoomConditionStep() {
   return (
     <StepShell
       title="How do your rooms look?"
-      subtitle="Pick the photo that best matches each room. This helps us bring the right time and supplies — you won't be charged for extra time on the day."
+      subtitle="Pick the photo that best matches each room. This helps us bring the right time and supplies, you won't be charged for extra time on the day."
       onBack={() => navigate("/book/home")}
       onNext={() => navigate("/book/addons")}
       nextDisabled={!allSelected}

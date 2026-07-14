@@ -253,7 +253,7 @@ export function StatusPage() {
           <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-800/30 dark:bg-red-900/20">
             <Bot className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
             <p className="text-sm font-medium text-red-800 dark:text-red-300">
-              {autoOpen.length} auto-detected incident{autoOpen.length > 1 ? "s" : ""} currently open — review and update them below.
+              {autoOpen.length} auto-detected incident{autoOpen.length > 1 ? "s" : ""} currently open, review and update them below.
             </p>
           </div>
         )}

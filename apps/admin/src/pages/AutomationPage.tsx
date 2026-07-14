@@ -164,20 +164,20 @@ export function AutomationPage() {
 
       {/* Queue stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <StatCard icon={Users} label="Pending assignments" value={dashboard?.pendingAssignments ?? "—"}
+        <StatCard icon={Users} label="Pending assignments" value={dashboard?.pendingAssignments ?? ", "}
           color={dashboard?.pendingAssignments ? "amber" : "green"}
           onRun={() => runJob("expire-offers", "Expire offers")} running={running["expire-offers"]} />
-        <StatCard icon={CreditCard} label="Uncaptured payments" value={dashboard?.pendingCaptures ?? "—"}
+        <StatCard icon={CreditCard} label="Uncaptured payments" value={dashboard?.pendingCaptures ?? ", "}
           color={dashboard?.pendingCaptures ? "amber" : "green"}
           onRun={() => runJob("capture-completed", "Batch capture")} running={running["capture-completed"]} />
-        <StatCard icon={Wallet} label="Pending payouts" value={dashboard?.pendingPayouts ?? "—"}
+        <StatCard icon={Wallet} label="Pending payouts" value={dashboard?.pendingPayouts ?? ", "}
           sub={dashboard?.pendingPayoutsCents ? `$${(dashboard.pendingPayoutsCents / 100).toFixed(2)} total` : undefined}
           color={dashboard?.pendingPayouts ? "blue" : "green"}
           onRun={() => runJob("batch-payouts", "Batch payouts")} running={running["batch-payouts"]} />
-        <StatCard icon={Bell} label="Reminders due" value={dashboard?.remindersDue ?? "—"}
+        <StatCard icon={Bell} label="Reminders due" value={dashboard?.remindersDue ?? ", "}
           color={dashboard?.remindersDue ? "amber" : "green"}
           onRun={() => runJob("send-reminders", "Send reminders")} running={running["send-reminders"]} />
-        <StatCard icon={AlertTriangle} label="Possible no-shows" value={dashboard?.possibleNoshows ?? "—"}
+        <StatCard icon={AlertTriangle} label="Possible no-shows" value={dashboard?.possibleNoshows ?? ", "}
           color={dashboard?.possibleNoshows ? "red" : "green"}
           onRun={() => runJob("noshow-check", "No-show check")} running={running["noshow-check"]} />
         <StatCard icon={Zap} label="Cron interval" value="15 min" sub="Configured in wrangler.toml" />
@@ -210,7 +210,7 @@ export function AutomationPage() {
                     <td className="px-3 py-2 text-right font-medium text-seafoam-700">{row.score?.toFixed(1)}</td>
                     <td className="px-3 py-2"><StatusBadge status={row.status} /></td>
                     <td className="px-3 py-2 text-slate-600">
-                      {row.expires_at ? new Date(row.expires_at).toLocaleTimeString() : "—"}
+                      {row.expires_at ? new Date(row.expires_at).toLocaleTimeString() : ", "}
                     </td>
                   </tr>
                 ))}
@@ -242,7 +242,7 @@ export function AutomationPage() {
                 {(dashboard?.recentRuns ?? []).map(run => {
                   const duration = run.finished_at
                     ? `${((new Date(run.finished_at).getTime() - new Date(run.started_at).getTime()) / 1000).toFixed(1)}s`
-                    : "—";
+                    : ", ";
                   return (
                     <>
                       <tr key={run.id} className="hover:bg-slate-50 cursor-pointer"

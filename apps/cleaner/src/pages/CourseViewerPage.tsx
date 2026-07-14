@@ -286,7 +286,7 @@ function LearnerBlock({ block }: { block: Block }) {
     case "quiz":
       return (
         <div className="h-full w-full overflow-auto rounded-lg border border-violet-200 bg-violet-50 p-3 text-sm text-violet-800">
-          Quiz — {((p.questions as unknown[]) ?? []).length} question(s)
+          Quiz, {((p.questions as unknown[]) ?? []).length} question(s)
         </div>
       );
     default:

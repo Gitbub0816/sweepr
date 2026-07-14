@@ -262,7 +262,7 @@ export function SignUpPage() {
               </form>
             )}
 
-            {/* Single stable Clerk Smart CAPTCHA target — one per page. */}
+            {/* Single stable Clerk Smart CAPTCHA target, one per page. */}
             <div id="clerk-captcha" className="mt-4 empty:hidden" />
 
             <p className="mt-6 text-center text-sm text-slate-500">

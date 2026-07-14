@@ -783,7 +783,7 @@ function QuizResultView({
               : `${t("cleaner.training.needScore", { score: passingScore })} ${
                   attemptsRemaining > 0
                     ? `${attemptsRemaining} ${t("cleaner.training.attemptsRemaining")}.`
-                    : "You have used all your attempts — please contact Sweepr support."
+                    : "You have used all your attempts, please contact Sweepr support."
                 }`}
           </p>
 

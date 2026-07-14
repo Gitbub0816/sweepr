@@ -26,7 +26,7 @@ function P({ children }: { children: React.ReactNode }) {
 }
 
 export default function PrivacyPolicy() {
-  useSeo({ title: 'Privacy policy — Sweepr', description: 'How Sweepr collects, uses, and protects your personal data, and how to exercise your privacy rights.', canonical: "https://getsweepr.com/privacy" });
+  useSeo({ title: 'Privacy policy, Sweepr', description: 'How Sweepr collects, uses, and protects your personal data, and how to exercise your privacy rights.', canonical: "https://getsweepr.com/privacy" });
   return (
     <MarketingShell
       navLinks={[]}
@@ -51,14 +51,14 @@ export default function PrivacyPolicy() {
         <Heading>1. Information We Collect</Heading>
         <P>
           Account data (name, email, phone), booking details (address, home
-          details, scheduling), payment information (processed by Stripe — we do
+          details, scheduling), payment information (processed by Stripe, we do
           not store full card numbers), device and usage data, and approximate
           location to match you with nearby cleaners.
         </P>
         <P>
           For cleaners, we additionally process identity verification data via
           Didit and background-check results via Yardstik. We retain only the
-          verification/candidate identifiers and pass/fail status — we do not
+          verification/candidate identifiers and pass/fail status, we do not
           store the underlying background-check report contents beyond what is
           legally required.
         </P>

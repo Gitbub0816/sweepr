@@ -85,8 +85,8 @@ export function BackgroundCheckAdjudicationPolicy() {
         <p>
           The purpose of this Policy is to establish consistent, objective, and defensible standards
           for evaluating criminal background checks while balancing customer safety, fairness,
-          rehabilitation, and legal compliance. Because Cleaners routinely enter customers' homes —
-          often while customers are absent — Sweepr maintains screening standards that are more
+          rehabilitation, and legal compliance. Because Cleaners routinely enter customers' homes, 
+          often while customers are absent, Sweepr maintains screening standards that are more
           stringent than those of many employers or comparable platforms.
         </p>
         <p>

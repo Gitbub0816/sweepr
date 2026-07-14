@@ -172,7 +172,7 @@ export async function applyBookingPriceAdjustment(
           paymentIntentSynced = true;
         } catch (incErr) {
           uncollectedIncrease = true;
-          logger.warn("applyBookingPriceAdjustment: incrementAuthorization failed — increase uncollected", {
+          logger.warn("applyBookingPriceAdjustment: incrementAuthorization failed, increase uncollected", {
             bookingId: input.bookingId,
             paymentIntentId,
             newTotal,
@@ -192,7 +192,7 @@ export async function applyBookingPriceAdjustment(
   }
 
   const ledgerReason = uncollectedIncrease
-    ? `${input.reason ?? ""} [UNCOLLECTED: increase not authorized on existing PI — manual follow-up]`.trim()
+    ? `${input.reason ?? ""} [UNCOLLECTED: increase not authorized on existing PI, manual follow-up]`.trim()
     : input.reason ?? null;
 
   const ledgerId = await recordLedgerEntry(sql, {

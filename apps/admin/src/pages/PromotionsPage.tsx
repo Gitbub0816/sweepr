@@ -398,7 +398,7 @@ export function PromotionsPage() {
                       onChange={(e) => setDraft({ ...draft, cta: { ...draft.cta, claimants: e.target.value as "anonymous" | "signed_in" | "both" } })}
                       className="mt-1 w-full rounded-md border border-slate-200 bg-transparent px-2 py-1.5 text-sm dark:border-slate-700"
                     >
-                      <option value="both">Anyone — signed in or not</option>
+                      <option value="both">Anyone, signed in or not</option>
                       <option value="anonymous">Marketing visitors only (signed-out)</option>
                       <option value="signed_in">Signed-in only ("Sign in to claim" for visitors)</option>
                     </select>
@@ -422,13 +422,13 @@ export function PromotionsPage() {
                 {draft.grants_founding_member ? (
                   <p className="text-xs text-slate-500">
                     Signed-out claims capture an email; status attaches automatically when that person
-                    signs up with the same email. One founding status per person — a cleaner-founder
+                    signs up with the same email. One founding status per person, a cleaner-founder
                     can never also claim customer-founder (and vice versa).
                   </p>
                 ) : null}
               </Card>
 
-              {/* Reward — the coupon this promo grants (coupons are silent: they
+              {/* Reward, the coupon this promo grants (coupons are silent: they
                   sit on the account and apply automatically at booking) */}
               <Card className="space-y-3 p-4">
                 <h3 className="font-semibold">Reward (coupon)</h3>
@@ -465,7 +465,7 @@ export function PromotionsPage() {
                       <label className="text-xs">Uses per person
                         <Input type="number" min={1} value={rc.maxRedemptions ?? 1} onChange={(e) => patch({ maxRedemptions: Number(e.target.value) })} className="mt-1" />
                       </label>
-                      <label className="text-xs">Valid days (max 180 — legal cap)
+                      <label className="text-xs">Valid days (max 180, legal cap)
                         <Input type="number" min={1} max={180} value={rc.validDays ?? 180} onChange={(e) => patch({ validDays: Math.min(Number(e.target.value), 180) })} className="mt-1" />
                       </label>
                       <label className="text-xs">Flash offer window (minutes, optional)
@@ -486,8 +486,8 @@ export function PromotionsPage() {
                         </label>
                       ) : null}
                       <p className="col-span-2 text-xs text-slate-500">
-                        Each person can claim this promo's coupon ONCE — enforced per account and per
-                        email at the database. Coupons are silent — no widget. They appear in the person's account and apply
+                        Each person can claim this promo's coupon ONCE, enforced per account and per
+                        email at the database. Coupons are silent, no widget. They appear in the person's account and apply
                         automatically to the next qualifying booking. Anonymous claims capture an email;
                         the coupon activates when that person signs up (required to claim, per the
                         Promotions &amp; Coupons Terms).
@@ -497,7 +497,7 @@ export function PromotionsPage() {
                 })() : null}
               </Card>
 
-              {/* Slide designer — free-form PowerPoint-grade canvas */}
+              {/* Slide designer, free-form PowerPoint-grade canvas */}
               <Card className="space-y-3 p-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold">Slide designer (free-form)</h3>
@@ -516,13 +516,13 @@ export function PromotionsPage() {
                   />
                 ) : (
                   <p className="text-xs text-slate-500">
-                    One-slide PowerPoint-style editor: text boxes, photos, shapes, and CTA buttons —
+                    One-slide PowerPoint-style editor: text boxes, photos, shapes, and CTA buttons, 
                     positioned freely, layered, rotated. Takes precedence over blocks and poster mode.
                   </p>
                 )}
               </Card>
 
-              {/* Poster — the whole widget is one uploaded image; drag on it to
+              {/* Poster, the whole widget is one uploaded image; drag on it to
                   draw interactive hotspots and assign each a CTA */}
               <Card className="space-y-3 p-4">
                 <div className="flex items-center justify-between">
@@ -561,9 +561,9 @@ export function PromotionsPage() {
                   <label className="text-xs">Placement
                     <select value={draft.display.placement ?? "modal"} onChange={(e) => setDraft({ ...draft, display: { ...draft.display, placement: e.target.value } })}
                       className="mt-1 w-full rounded-md border border-slate-200 bg-transparent px-2 py-1.5 text-sm dark:border-slate-700">
-                      <option value="modal">Popup — overlays the page after the delay</option>
-                      <option value="banner">Banner — slim top strip; “View offer” expands the popup</option>
-                      <option value="inline">Embedded — in-page / direct /promo link only</option>
+                      <option value="modal">Popup, overlays the page after the delay</option>
+                      <option value="banner">Banner, slim top strip; “View offer” expands the popup</option>
+                      <option value="inline">Embedded, in-page / direct /promo link only</option>
                     </select>
                   </label>
                   <label className="text-xs">Show after (seconds)
@@ -613,7 +613,7 @@ export function PromotionsPage() {
                       {claims.map((cl) => (
                         <tr key={cl.id} className="border-t border-slate-100 dark:border-slate-800">
                           <td className="py-1.5">{cl.email ?? cl.phone ?? "signed-in user"}</td>
-                          <td>{cl.granted_founding ? "🏅 granted" : draft.grants_founding_member ? "pending sign-up" : "—"}</td>
+                          <td>{cl.granted_founding ? "🏅 granted" : draft.grants_founding_member ? "pending sign-up" : ", "}</td>
                           <td className="text-slate-500">{new Date(cl.claimed_at).toLocaleString()}</td>
                         </tr>
                       ))}

@@ -48,7 +48,7 @@ export function DocPage({
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    document.title = `${title} — Sweepr Legal`;
+    document.title = `${title}, Sweepr Legal`;
     // Move focus to the page heading on route change so keyboard/screen
     // reader users land on new content instead of staying on stale focus.
     headingRef.current?.focus();
@@ -85,7 +85,7 @@ export function DocPage({
             <div className="no-print mt-4 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>
-                <strong>Draft — attorney review required.</strong> This document
+                <strong>Draft, attorney review required.</strong> This document
                 is a working draft prepared for internal development. It is not
                 legal advice and must be reviewed and approved by qualified
                 counsel before production use.

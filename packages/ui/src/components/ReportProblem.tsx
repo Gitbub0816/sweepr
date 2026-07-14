@@ -161,7 +161,7 @@ export function ReportProblem({ app, apiUrl, getToken }: Props) {
             {done !== null ? (
               <div className="py-8 text-center">
                 <CheckCircle2 className="mx-auto h-12 w-12 text-seafoam-500" />
-                <p className="mt-3 font-semibold text-charcoal dark:text-white">Thanks — we're on it.</p>
+                <p className="mt-3 font-semibold text-charcoal dark:text-white">Thanks, we're on it.</p>
                 <p className="mt-1 text-sm text-slate-500">
                   {done ? <>Your Case Code is <span className="font-mono font-semibold text-charcoal dark:text-white">{done}</span>. Reference it if you contact us. </> : ""}
                   We'll follow up by email if needed.

@@ -512,7 +512,7 @@ scopeReviewRouter.get("/action/:token", async (c) => {
     });
     const title = link.action === "approve" ? "Request approved" : "Request denied";
     const detail = result.noop
-      ? "This request had already been decided — no changes were made."
+      ? "This request had already been decided, no changes were made."
       : link.action === "approve"
         ? "The request has been approved and any applicable fee has been recorded."
         : "The request has been denied. The cleaner has been notified.";

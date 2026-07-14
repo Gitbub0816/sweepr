@@ -214,7 +214,7 @@ export function CleaningPricingPanel() {
       <p className="text-sm text-slate-500">Room-condition home cleaning and short-term rental turnarounds.</p>
 
       <Card className="flex items-center justify-between bg-seafoam-50 dark:bg-seafoam-900/20">
-        <span className="text-sm text-slate-600 dark:text-slate-300">Preview — 1,500 sqft, 2bd/2ba, mixed conditions</span>
+        <span className="text-sm text-slate-600 dark:text-slate-300">Preview, 1,500 sqft, 2bd/2ba, mixed conditions</span>
         <span className="text-2xl font-bold text-charcoal dark:text-white">${preview.customerVisible.totalOwed.toFixed(0)}</span>
       </Card>
 

@@ -333,7 +333,7 @@ export function JobDetailPage() {
         <div className="space-y-3">
           {dayStatus === "confirmed" && (
             <Button fullWidth onClick={() => action("start-route", currentPos ?? {})} loading={busy}>
-              <Navigation className="h-4 w-4 mr-2" /> Start Route — Reveal Address
+              <Navigation className="h-4 w-4 mr-2" /> Start Route, Reveal Address
             </Button>
           )}
 
@@ -351,7 +351,7 @@ export function JobDetailPage() {
           {dayStatus === "en_route" && !job.address && (
             <div className="rounded-lg bg-seafoam-50 border border-seafoam-200 px-4 py-3 text-sm text-seafoam-700 flex items-center gap-2">
               <Navigation className="h-4 w-4 animate-pulse" />
-              GPS tracking active — auto-arrival within 150m
+              GPS tracking active, auto-arrival within 150m
             </div>
           )}
 
@@ -412,7 +412,7 @@ export function JobDetailPage() {
         </Card>
       )}
 
-      {/* Additional attention / refusal requests — only once checked in and job not completed */}
+      {/* Additional attention / refusal requests, only once checked in and job not completed */}
       {job.arrival_verified_at && !isCompleted && <ScopeReviewSection bookingId={job.id} />}
 
       {/* Photos taken */}

@@ -81,10 +81,10 @@ export function FoundingMembersPage() {
   async function grant() {
     if (!grantId.trim()) return;
     const res = await authed("/admin/founding/grant", { method: "POST", body: JSON.stringify({ audience, id: grantId.trim() }) });
-    if (!res.ok) { toast.error("Grant failed — check the ID"); return; }
+    if (!res.ok) { toast.error("Grant failed, check the ID"); return; }
     const result = (await res.json()) as { status: string };
     if (result.status === "already_other_audience") {
-      toast.error(`This person already holds founding status as a ${audience === "cleaner" ? "customer" : "cleaner"} — it can only be held on one account type. Revoke that one first.`);
+      toast.error(`This person already holds founding status as a ${audience === "cleaner" ? "customer" : "cleaner"}, it can only be held on one account type. Revoke that one first.`);
       return;
     }
     toast.success(result.status === "already_member" ? "Already a member" : "Granted");
@@ -188,10 +188,10 @@ export function FoundingMembersPage() {
             <tbody>
               {members.map((m) => (
                 <tr key={m.id} className="border-t border-slate-100 dark:border-slate-800">
-                  <td className="py-2 tabular-nums">{m.founding_member_id ?? "—"}</td>
-                  <td>{[m.first_name, m.last_name].filter(Boolean).join(" ") || "—"}</td>
+                  <td className="py-2 tabular-nums">{m.founding_member_id ?? ", "}</td>
+                  <td>{[m.first_name, m.last_name].filter(Boolean).join(" ") || ", "}</td>
                   <td className="text-slate-500">{m.email}</td>
-                  <td className="text-slate-500">{m.founding_member_since ? new Date(m.founding_member_since).toLocaleDateString() : "—"}</td>
+                  <td className="text-slate-500">{m.founding_member_since ? new Date(m.founding_member_since).toLocaleDateString() : ", "}</td>
                   <td>
                     {m.founding_member ? <FoundingMemberBadge founderId={m.founding_member_id} showTooltip={false} />
                       : <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700 dark:bg-red-900/40 dark:text-red-300">Revoked</span>}

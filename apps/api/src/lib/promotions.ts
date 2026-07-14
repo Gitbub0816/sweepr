@@ -100,7 +100,7 @@ export function templateSlug(templateKey: string): string {
 export const PROMO_TEMPLATES: PromoTemplate[] = [
   {
     templateKey: "founding_member_cleaner",
-    name: "Founding Member — Cleaners",
+    name: "Founding Member, Cleaners",
     audience: "cleaners",
     grantsFoundingMember: true,
     design: {
@@ -146,7 +146,7 @@ export const PROMO_TEMPLATES: PromoTemplate[] = [
   },
   {
     templateKey: "founding_member_customer",
-    name: "Founding Member — Customers",
+    name: "Founding Member, Customers",
     audience: "customers",
     grantsFoundingMember: true,
     design: {
@@ -154,7 +154,7 @@ export const PROMO_TEMPLATES: PromoTemplate[] = [
       accent: "#0f766e",
       blocks: [
         { type: "badge", text: "🏅 Founding Member", align: "center" },
-        { type: "heading", text: "You're early — become a Founding Member", align: "center", size: "xl" },
+        { type: "heading", text: "You're early, become a Founding Member", align: "center", size: "xl" },
         {
           type: "text",
           align: "center",
@@ -209,7 +209,7 @@ export const PROMO_TEMPLATES: PromoTemplate[] = [
       label: "Notify me",
       action: "claim",
       requireField: "email",
-      successMessage: "You're on the list — talk soon!",
+      successMessage: "You're on the list, talk soon!",
     },
     display: {
       placement: "modal",
@@ -443,7 +443,7 @@ export async function claimPromotion(
   const couponSuffix = mintedCoupon
     ? input.userId
       ? ` Your coupon ${mintedCoupon.code} (${mintedCoupon.title}) is on your account and will apply automatically.`
-      : ` Sign up with this email and your coupon (${mintedCoupon.title}) will be waiting — it applies automatically at booking.`
+      : ` Sign up with this email and your coupon (${mintedCoupon.title}) will be waiting, it applies automatically at booking.`
     : "";
 
   // Founding Member grant (authenticated claim only).
@@ -475,7 +475,7 @@ export async function claimPromotion(
             status: "claimed",
             message: `You already hold Founding Member status as a ${
               audience === "cleaner" ? "customer" : "cleaner"
-            } — it can only be claimed once, on one account type.`,
+            }, it can only be claimed once, on one account type.`,
           };
         }
       }
@@ -535,7 +535,7 @@ export async function redeemPendingFoundingClaims(
     if (audience === "cleaner") {
       const c = (await sql`SELECT id FROM cleaners WHERE user_id = ${userId} LIMIT 1`) as Array<{ id: string }>;
       targetId = c[0]?.id;
-      if (!targetId) continue; // not onboarded yet — approval will enroll them
+      if (!targetId) continue; // not onboarded yet, approval will enroll them
     } else {
       await sql`INSERT INTO customers (user_id) SELECT ${userId}
                 WHERE NOT EXISTS (SELECT 1 FROM customers WHERE user_id = ${userId})`;

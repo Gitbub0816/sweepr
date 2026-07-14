@@ -215,8 +215,8 @@ function SecurityReportsTab({ authed }: { authed: (path: string, init?: RequestI
                   <div>
                     <h3 className="font-semibold text-charcoal dark:text-white">{active.subject ?? "(no subject)"}</h3>
                     <p className="text-xs">
-                      <span className="font-mono font-semibold text-seafoam-700">{active.case_code ?? "—"}</span>
-                      <span className="ml-2 font-mono text-slate-600">Ticket ID: {active.ticket_id ?? "—"}</span>
+                      <span className="font-mono font-semibold text-seafoam-700">{active.case_code ?? ", "}</span>
+                      <span className="ml-2 font-mono text-slate-600">Ticket ID: {active.ticket_id ?? ", "}</span>
                     </p>
                     <p className="text-xs text-slate-600">from {active.sender_name ? `${active.sender_name} <${active.sender_email}>` : active.sender_email}</p>
                   </div>

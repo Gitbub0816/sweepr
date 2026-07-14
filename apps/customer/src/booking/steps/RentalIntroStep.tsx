@@ -26,7 +26,7 @@ export function RentalIntroStep() {
       </h1>
       <p className="mt-1 text-sm text-slate-500">
         Connect your booking calendar and we'll schedule a turnaround clean after each
-        guest checks out — automatically.
+        guest checks out, automatically.
       </p>
 
       <ul className="mt-6 space-y-4">
@@ -44,7 +44,7 @@ export function RentalIntroStep() {
           {
             icon: ShieldCheck,
             title: "Simple monthly subscription",
-            body: "A low monthly fee per enrolled property plus a flat turnaround fee per clean — you see both before you enroll, and nothing books without your say-so.",
+            body: "A low monthly fee per enrolled property plus a flat turnaround fee per clean, you see both before you enroll, and nothing books without your say-so.",
           },
         ].map(({ icon: Icon, title, body }) => (
           <li key={title} className="flex gap-3">

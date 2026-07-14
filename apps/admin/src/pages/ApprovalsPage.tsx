@@ -148,7 +148,7 @@ export function ApprovalsPage() {
     { header: "Title", cell: (r) => <span className="font-medium text-charcoal dark:text-white">{r.title}</span> },
     { header: "Fee type", cell: (r) => r.fee_type?.replace(/_/g, " ") },
     { header: "Affects", cell: (r) => r.affected_party?.replace(/_/g, " ") },
-    { header: "Effective", cell: (r) => r.proposed_effective_at ? new Date(r.proposed_effective_at).toLocaleDateString() : "—" },
+    { header: "Effective", cell: (r) => r.proposed_effective_at ? new Date(r.proposed_effective_at).toLocaleDateString() : ", " },
     { header: "Status", cell: (r) => <Badge variant={STATUS_VARIANT[r.status] ?? "info"}>{r.status.replace(/_/g, " ")}</Badge> },
     { header: "", align: "right", cell: (r) => <Button size="sm" variant="secondary" onClick={() => navigate(`/approvals/${r.id}`)}>Review</Button> },
   ];
@@ -196,7 +196,7 @@ export function ApprovalsPage() {
         }
       >
         <div className="space-y-3">
-          <Input label="Configuration name" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Standard platform fee — 2026 Q3" />
+          <Input label="Configuration name" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Standard platform fee, 2026 Q3" />
           <div className="grid grid-cols-2 gap-3">
             <Select label="Fee type" options={FEE_TYPES} value={form.fee_type} onChange={(e) => set("fee_type", e.target.value)} />
             <Select label="Affected party" options={PARTIES} value={form.affected_party} onChange={(e) => set("affected_party", e.target.value)} />

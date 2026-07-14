@@ -154,7 +154,7 @@
       "notesPlaceholder": "Gate code, parking, pets, mga gustong pagtuunan…",
       "continueToPayment": "Tuloy sa payment",
       "creatingBooking": "Ginagawa ang booking…",
-      "includesEverything": "Kasama na lahat — supplies, service, tax",
+      "includesEverything": "Kasama na lahat, supplies, service, tax",
       "firstClean": "Unang cleaning",
       "yourClean": "Ang cleaning mo",
       "rushBooking": "Rush booking",
@@ -207,7 +207,7 @@
       "payButton": "Bayaran ang {{amount}}",
       "cardNotCharged": "Hindi macha-charge ang card mo hangga't hindi kinukumpirma ng cleaner ang booking. Libreng mag-cancel hanggang 24 oras bago ang appointment.",
       "subscription": "{{cadence}} na subscription",
-      "subscriptionPrice": "{{price}} / cleaning — tipid ng {{savings}} kada beses",
+      "subscriptionPrice": "{{price}} / cleaning, tipid ng {{savings}} kada beses",
       "recurringCadence": "Paulit-ulit kada {{cadence}}"
     },
     "package": {
@@ -363,7 +363,7 @@
   "cleaner": {
     "dashboard": {
       "title": "Dashboard Ko",
-      "description": "Mga job, earnings, schedule at performance mo — sabay-sabay makikita.",
+      "description": "Mga job, earnings, schedule at performance mo, sabay-sabay makikita.",
       "tabs": {
         "overview": "Overview",
         "myJobs": "Mga Job Ko",
@@ -374,7 +374,7 @@
       },
       "underReview": "Nire-review pa ang application mo",
       "finishSetup": "Tapusin ang setup ng account mo",
-      "reviewingApplication": "Nire-review pa namin ang application mo — mag-e-email kami pag approved ka na.",
+      "reviewingApplication": "Nire-review pa namin ang application mo, mag-e-email kami pag approved ka na.",
       "completeSteps": "Tapusin ang mga step na ito para ma-unlock ang job board.",
       "onboarding": {
         "profile": "Profile at services",
@@ -387,7 +387,7 @@
       "welcomeBack": "Welcome back, {{name}}!",
       "upcomingJob": "May {{count}} upcoming job ka",
       "upcomingJobs": "May {{count}} upcoming jobs ka",
-      "noUpcomingJobs": "Wala ka pang upcoming job — check mo ang Job Board.",
+      "noUpcomingJobs": "Wala ka pang upcoming job, check mo ang Job Board.",
       "pro": "Pro",
       "stats": {
         "upcomingJobs": "Upcoming Jobs",
@@ -416,7 +416,7 @@
       "description": "Tanggapin ang mga job na bagay sa'yo. Makikita ang buong address pag nag-accept ka.",
       "lookingForJobs": "Naghahanap ng jobs malapit sa'yo…",
       "noJobsTitle": "Walang available na job ngayon",
-      "noJobsDesc": "Balik ka mamaya — may mga bagong offer buong araw.",
+      "noJobsDesc": "Balik ka mamaya, may mga bagong offer buong araw.",
       "youreOnline": "Online ka",
       "youreOffline": "Offline ka",
       "goOnlineToSeeJobs": "Mag-online para makita ang mga job malapit sa'yo.",

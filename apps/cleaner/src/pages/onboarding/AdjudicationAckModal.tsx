@@ -80,7 +80,7 @@ export function AdjudicationAckModal({ open, onClose, onAcknowledged, getToken, 
             <li><strong>Your rights.</strong> If information in your report may lead to a denial, you'll receive a copy of the report and a chance to dispute or explain it before any final decision (FCRA adverse-action process).</li>
           </ul>
           <p>
-            The full policy — including every offense category and time window — is published at:
+            The full policy, including every offense category and time window, is published at:
           </p>
           <a
             href={LEGAL_URL}

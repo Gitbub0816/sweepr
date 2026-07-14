@@ -120,7 +120,7 @@ export function SMSConsentPolicy() {
                 />
               </div>
 
-              {/* Never pre-checked — express consent is affirmative. */}
+              {/* Never pre-checked, express consent is affirmative. */}
               <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 text-sm">
                 <input
                   type="checkbox"
@@ -158,7 +158,7 @@ export function SMSConsentPolicy() {
           )}
         </div>
 
-        {/* Disclosures — carriers verify this content on this page. */}
+        {/* Disclosures, carriers verify this content on this page. */}
         <div className="mt-8 space-y-6 text-sm text-slate-600">
           <div>
             <h2 className="mb-2 font-semibold text-slate-900" style={{ fontFamily: SANS }}>

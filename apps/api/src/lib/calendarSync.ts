@@ -60,9 +60,9 @@ export async function syncCalendarSource(sql: Sql, sourceId: string): Promise<Sy
     let autoBooked = 0;
 
     for (const r of reservations) {
-      if (!r.end) continue; // no checkout date — skip
+      if (!r.end) continue; // no checkout date, skip
       const checkout = r.end.slice(0, 10);
-      if (checkout < today) continue; // past turnover — ignore
+      if (checkout < today) continue; // past turnover, ignore
 
       // Dedupe insert. COALESCE('') mirrors the unique index on null UIDs.
       const inserted = (await sql`
@@ -191,7 +191,7 @@ export async function createTurnaroundBooking(
         ${prop.customer_id}, ${addressId}, 'booked', 'vacation_rental',
         ${prop.bedrooms ?? 1}, ${prop.bathrooms ?? 1}, ${prop.sqft ?? 800}, 'apartment',
         ${scheduledAt}, ${price.turnaroundCents}, 0, 0, ${price.taxCents}, ${totalCents},
-        ${`STR turnaround — ${prop.nickname}`}, '11:00', '13:00'
+        ${`STR turnaround, ${prop.nickname}`}, '11:00', '13:00'
       ) RETURNING id
     `) as { id: string }[];
     const bookingId = rows[0]?.id ?? null;

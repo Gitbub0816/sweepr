@@ -342,7 +342,7 @@ itTicketsRouter.post("/admin/:id/escalate-security", requireAdmin, async (c) => 
   await sql`
     INSERT INTO it_ticket_comments (ticket_id, author_clerk_id, author_email, is_admin, body)
     VALUES (${id}, ${clerkId}, ${email ?? null}, TRUE,
-            ${`[Escalated to Security — ${secTicket.case_code}]`})
+            ${`[Escalated to Security, ${secTicket.case_code}]`})
   `;
   await sql`UPDATE it_tickets SET updated_at = NOW() WHERE id = ${id}`;
 
@@ -387,12 +387,12 @@ itTicketsRouter.post(
 
     const caseCode = (t.case_code as string) ?? (t.ticket_id as string) ?? `IT_${String(t.ticket_number ?? "")}`;
     const classification = (t.category as string) ?? "Other";
-    if (!c.env.MAILERSEND_API_KEY) return c.json({ error: "Email not configured — MAILERSEND_API_KEY is missing." }, 502);
+    if (!c.env.MAILERSEND_API_KEY) return c.json({ error: "Email not configured, MAILERSEND_API_KEY is missing." }, 502);
     let delivery = "failed";
     try {
       await sendEmail(c.env.MAILERSEND_API_KEY, {
         to: t.reporter_email as string,
-        subject: `Sweepr IT Update — ${caseCode}`,
+        subject: `Sweepr IT Update, ${caseCode}`,
         from: SENDERS.IT,
         replyTo: SENDERS.IT,
         templateId: TEMPLATES.IT_MANUAL_RESPONSE,
@@ -415,7 +415,7 @@ itTicketsRouter.post(
     }
     await sql`
       INSERT INTO it_ticket_comments (ticket_id, author_clerk_id, author_email, is_admin, body)
-      VALUES (${id}, ${clerkId}, ${email ?? null}, TRUE, ${`[Emailed reporter — ${delivery}]\n${body}`})
+      VALUES (${id}, ${clerkId}, ${email ?? null}, TRUE, ${`[Emailed reporter, ${delivery}]\n${body}`})
     `;
     await sql`UPDATE it_tickets SET assigned_to = COALESCE(${assignedTo ?? null}, assigned_to), updated_at = NOW() WHERE id = ${id}`;
     return c.json({ ok: true });
@@ -439,7 +439,7 @@ itTicketsRouter.post("/admin/from-error/:errorId", requireAdmin, async (c) => {
                             ticket_id, case_code, ticket_prefix, encoded_date, encoded_time, issue_type, hex_suffix)
     VALUES (
       ${`Error: ${err.message.slice(0, 160)}`},
-      ${`Auto-created from error log.\nPath: ${err.path ?? "—"}\nStatus: ${err.status_code ?? "—"}`},
+      ${`Auto-created from error log.\nPath: ${err.path ?? ", "}\nStatus: ${err.status_code ?? ", "}`},
       'bug', 'high', 'error', ${err.app ?? null}, ${clerkId}, ${email ?? null}, ${err.id},
       ${JSON.stringify({ errorId: err.id })},
       ${gen.ticketId}, ${gen.caseCode}, 'IT', ${gen.encodedDate}, ${gen.encodedTime}, ${gen.issueType}, ${gen.hex}

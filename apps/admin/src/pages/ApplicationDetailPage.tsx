@@ -139,7 +139,7 @@ export function ApplicationDetailPage() {
   }
 
   const name = [app.first_name, app.last_name].filter(Boolean).join(" ") || app.business_name || "Applicant";
-  const basedIn = [app.city, app.state].filter(Boolean).join(", ") || "—";
+  const basedIn = [app.city, app.state].filter(Boolean).join(", ") || ", ";
   const services = (app.preferred_service_types ?? []) as ServiceType[];
   const isBusiness = app.account_type === "business";
 
@@ -175,8 +175,8 @@ export function ApplicationDetailPage() {
                   </p>
                   {isBusiness && <Badge variant="info">Business Account</Badge>}
                 </div>
-                <p className="text-sm text-slate-500">{app.email ?? "—"}</p>
-                <p className="text-sm text-slate-500">{app.phone ?? "—"}</p>
+                <p className="text-sm text-slate-500">{app.email ?? ", "}</p>
+                <p className="text-sm text-slate-500">{app.phone ?? ", "}</p>
               </div>
             </div>
             {app.bio && (
@@ -188,7 +188,7 @@ export function ApplicationDetailPage() {
 
           <Card>
             <h3 className="mb-3 font-semibold text-charcoal dark:text-white">
-              Service area — {basedIn}
+              Service area, {basedIn}
               {app.max_distance_miles ? ` (${app.max_distance_miles} mi)` : ""}
             </h3>
             {services.length > 0 ? (
@@ -303,7 +303,7 @@ function Row({ label, value }: { label: string; value: string | null | undefined
     <div className="flex justify-between gap-4">
       <dt className="text-slate-600">{label}</dt>
       <dd className="text-right font-medium text-charcoal dark:text-white">
-        {value ?? "—"}
+        {value ?? ", "}
       </dd>
     </div>
   );

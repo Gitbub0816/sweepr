@@ -200,7 +200,7 @@ export async function notifyScopeReviewCreated(
       await sendNotification(sql, a.user_id, {
         type: "scope_review",
         title: `${typeLabel} review needed`,
-        body: `Booking ${req.booking_id} — ${req.ai_recommendation ?? "review"}`,
+        body: `Booking ${req.booking_id}, ${req.ai_recommendation ?? "review"}`,
         data: { requestId: req.id, bookingId: req.booking_id },
       });
     } catch (err) {
@@ -251,15 +251,15 @@ function buildAdminEmailHtml(opts: {
     : `Current total: ${money(req.total_price)}${opts.proposedFee ? ` → proposed fee code: ${esc(opts.proposedFee)}` : ""}`;
 
   const rows: Array<[string, string]> = [
-    ["Customer", esc(req.customer_name) || "—"],
-    ["Cleaner", esc(req.cleaner_name) || "—"],
+    ["Customer", esc(req.customer_name) || ", "],
+    ["Cleaner", esc(req.cleaner_name) || ", "],
     ["Booking", esc(req.booking_id)],
-    ["Address", esc(address) || "—"],
-    ["Package", esc(req.selected_package) || "—"],
-    ["Condition level", esc(req.selected_condition) || "—"],
+    ["Address", esc(address) || ", "],
+    ["Package", esc(req.selected_package) || ", "],
+    ["Condition level", esc(req.selected_condition) || ", "],
     ["Request type", esc(opts.typeLabel)],
-    ["AI confidence", req.ai_confidence != null ? `${req.ai_confidence}%` : "—"],
-    ["AI recommendation", esc(req.ai_recommendation) || "—"],
+    ["AI confidence", req.ai_confidence != null ? `${req.ai_confidence}%` : ", "],
+    ["AI recommendation", esc(req.ai_recommendation) || ", "],
   ];
   if (req.refusal_reason) rows.push(["Refusal reason", esc(req.refusal_reason)]);
 
@@ -287,7 +287,7 @@ function buildAdminEmailHtml(opts: {
     : "";
 
   return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:28px 24px;color:#111">
-  <h1 style="font-size:20px;font-weight:700;margin:0 0 8px">${esc(opts.typeLabel)} — Review Needed</h1>
+  <h1 style="font-size:20px;font-weight:700;margin:0 0 8px">${esc(opts.typeLabel)}, Review Needed</h1>
   <p style="font-size:14px;color:#374151;margin:0 0 6px">${esc(opts.recommendationCopy)}</p>
   <p style="font-size:13px;color:#6b7280;margin:0 0 16px">${esc(financial)}${req.expires_at ? ` · Deadline: ${formatEmailTimestamp(new Date(req.expires_at))}` : ""}</p>
   <table style="border-collapse:collapse;margin:0 0 16px">${table}</table>
@@ -324,7 +324,7 @@ export async function notifyCleanerDecision(
   if (opts.decision === "approved") {
     if (opts.requestType === "refusal") {
       title = "Service refusal approved";
-      body = "Your service refusal was approved. You may leave — a refusal fee has been applied.";
+      body = "Your service refusal was approved. You may leave, a refusal fee has been applied.";
     } else {
       title = "Additional attention fee approved";
       body = `Approved (${money(opts.feeAmountCents)}). Please continue the service.`;

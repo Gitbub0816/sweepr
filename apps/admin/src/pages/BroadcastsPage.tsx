@@ -38,8 +38,8 @@ interface BroadcastSend {
 
 const AUDIENCE_LABELS: Record<Audience, string> = {
   newsletter: "Newsletter subscribers",
-  waitlist_customer: "Waitlist — customers",
-  waitlist_cleaner: "Waitlist — cleaners",
+  waitlist_customer: "Waitlist, customers",
+  waitlist_cleaner: "Waitlist, cleaners",
   city: "City update subscribers",
   all: "All lists (deduplicated)",
 };
@@ -243,7 +243,7 @@ export function BroadcastsPage() {
                   placeholder={"Your message here…\n\nDouble line breaks become paragraphs."}
                 />
                 <p className="mt-1.5 text-xs text-slate-600">
-                  Plain text — your branded email template is applied automatically.
+                  Plain text, your branded email template is applied automatically.
                 </p>
               </div>
 

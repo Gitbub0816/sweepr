@@ -70,7 +70,7 @@ export function AddOnsStep() {
                 <span className="block text-sm font-medium text-charcoal dark:text-white">
                   {addOn.name}
                 </span>
-                {/* No per-add-on pricing shown — the final owed total appears
+                {/* No per-add-on pricing shown, the final owed total appears
                     only at the review step. */}
                 {included && (
                   <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-seafoam-100 px-2 py-0.5 text-xs font-medium text-seafoam-700 dark:bg-seafoam-900/40 dark:text-seafoam-300">

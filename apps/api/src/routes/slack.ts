@@ -195,9 +195,9 @@ slackRouter.get("/oauth/callback", async (c) => {
       for (const ch of entitled) {
         try {
           await inviteUsers(ws.bot_token, ch.channel_id, [slackUserId]);
-        } catch { /* already_in_channel or can't invite — non-fatal */ }
+        } catch { /* already_in_channel or can't invite, non-fatal */ }
       }
-    } catch { /* non-fatal — don't block the redirect */ }
+    } catch { /* non-fatal, don't block the redirect */ }
 
     return c.redirect(`${dest}?connected_user=1`);
   }
@@ -412,7 +412,7 @@ slackRouter.post("/commands", async (c) => {
   return c.json({
     response_type: "ephemeral",
     text: [
-      "*Sweepr* — quick links:",
+      "*Sweepr*, quick links:",
       `• Approvals: ${base}/approvals`,
       `• Admin dashboard: ${base}`,
       "Try `/sweepr approvals`.",

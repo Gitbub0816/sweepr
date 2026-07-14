@@ -137,7 +137,7 @@ export function JobDetailPage() {
     );
   }
 
-  const customer = [job.customer_first, job.customer_last].filter(Boolean).join(" ") || job.customer_email || "—";
+  const customer = [job.customer_first, job.customer_last].filter(Boolean).join(" ") || job.customer_email || ", ";
 
   return (
     <DashboardShell
@@ -156,10 +156,10 @@ export function JobDetailPage() {
               <p className="text-sm text-slate-500">Scheduled: {formatDateTime(job.scheduled_at)}</p>
             )}
             <p className="text-sm text-slate-500">
-              {[job.street, job.unit, job.city, job.state, job.zip].filter(Boolean).join(", ") || "—"}
+              {[job.street, job.unit, job.city, job.state, job.zip].filter(Boolean).join(", ") || ", "}
             </p>
             <p className="text-sm text-slate-500">
-              {job.bedrooms ?? "—"} bd · {job.bathrooms ?? "—"} ba · {job.sqft ?? "—"} sqft
+              {job.bedrooms ?? ", "} bd · {job.bathrooms ?? ", "} ba · {job.sqft ?? ", "} sqft
             </p>
             {job.total_price != null && (
               <p className="text-sm font-medium text-charcoal dark:text-white">

@@ -172,7 +172,7 @@ export function SmartEntryCard({ bookingId, token, apiUrl }: Props) {
         <div className="mt-3 space-y-3">
           {!status.includedWithMembership && (
             <p className="text-xs text-slate-500">
-              Smart Entry is a {formatCurrency(status.feeCents)} add-on for this cleaning — or{" "}
+              Smart Entry is a {formatCurrency(status.feeCents)} add-on for this cleaning, or{" "}
               <Link to="/membership" className="font-semibold text-seafoam-700 underline">
                 free with Sweepr+
               </Link>
@@ -188,7 +188,7 @@ export function SmartEntryCard({ bookingId, token, apiUrl }: Props) {
             />
             <span>
               I authorize Sweepr to give my assigned, verified cleaner temporary access to my selected lock for this
-              booking only — during the authorized window and near my address — revoked after the job. See the{" "}
+              booking only, during the authorized window and near my address, revoked after the job. See the{" "}
               <a
                 href="https://legal.getsweepr.com/smart-entry-membership"
                 target="_blank"

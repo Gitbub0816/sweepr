@@ -99,7 +99,7 @@ export function BookingLayout() {
           </AnimatePresence>
         </div>
 
-        {/* Booking recap — deliberately NO pricing here. The customer sees the
+        {/* Booking recap, deliberately NO pricing here. The customer sees the
             final owed amount only on the Review step. */}
         <aside className="hidden lg:block">
           <BookingRecap />
@@ -170,7 +170,7 @@ function BookingRecap() {
         ))}
       </div>
       <p className="mt-4 text-xs text-slate-400">
-        You'll see your total on the review step — one simple price, everything included.
+        You'll see your total on the review step, one simple price, everything included.
       </p>
     </div>
   );

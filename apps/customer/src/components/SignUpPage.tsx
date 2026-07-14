@@ -255,7 +255,7 @@ export function SignUpPage() {
               <SMSOptIn value={smsOpted} onChange={setSmsOpted} />
             </div>
 
-            {/* Single stable Clerk Smart CAPTCHA target — one per page. */}
+            {/* Single stable Clerk Smart CAPTCHA target, one per page. */}
             <div id="clerk-captcha" className="mt-4 empty:hidden" />
 
             <p className="mt-4 text-center text-sm text-slate-500">

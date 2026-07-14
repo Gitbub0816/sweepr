@@ -37,12 +37,12 @@ interface Customer {
 function ConsentDetail({ customer, onClose }: { customer: Customer; onClose: () => void }) {
   const rows: Array<[string, string]> = [
     ["Status", customer.sms_consent ? "✅ Granted" : "❌ Revoked / never granted"],
-    ["Consent date", customer.sms_consent_at ? new Date(customer.sms_consent_at).toLocaleString() : "—"],
-    ["Consent source", customer.sms_consent_source ?? "—"],
-    ["Consent version", customer.sms_consent_version ?? "—"],
-    ["IP address", customer.sms_consent_ip ?? "—"],
-    ["User agent", customer.sms_consent_user_agent ?? "—"],
-    ["Revoked date", customer.sms_consent_revoked_at ? new Date(customer.sms_consent_revoked_at).toLocaleString() : "—"],
+    ["Consent date", customer.sms_consent_at ? new Date(customer.sms_consent_at).toLocaleString() : ", "],
+    ["Consent source", customer.sms_consent_source ?? ", "],
+    ["Consent version", customer.sms_consent_version ?? ", "],
+    ["IP address", customer.sms_consent_ip ?? ", "],
+    ["User agent", customer.sms_consent_user_agent ?? ", "],
+    ["Revoked date", customer.sms_consent_revoked_at ? new Date(customer.sms_consent_revoked_at).toLocaleString() : ", "],
   ];
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
@@ -52,7 +52,7 @@ function ConsentDetail({ customer, onClose }: { customer: Customer; onClose: () 
       >
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-bold text-charcoal dark:text-white">
-            SMS Consent — {[customer.first_name, customer.last_name].filter(Boolean).join(" ") || customer.email}
+            SMS Consent, {[customer.first_name, customer.last_name].filter(Boolean).join(" ") || customer.email}
           </h3>
           <button onClick={onClose} className="text-slate-600 hover:text-slate-600" aria-label="Close">
             <X className="h-5 w-5" />
@@ -103,11 +103,11 @@ export function CustomersPage() {
       header: "Name",
       cell: (r) => (
         <span className="font-medium text-charcoal dark:text-white">
-          {[r.first_name, r.last_name].filter(Boolean).join(" ") || "—"}
+          {[r.first_name, r.last_name].filter(Boolean).join(" ") || ", "}
         </span>
       ),
     },
-    { header: "Email", cell: (r) => r.email ?? "—" },
+    { header: "Email", cell: (r) => r.email ?? ", " },
     { header: "Bookings", cell: (r) => r.booking_count },
     {
       header: "SMS Consent",
@@ -122,7 +122,7 @@ export function CustomersPage() {
     {
       header: "Lifetime spend",
       align: "right",
-      cell: (r) => r.lifetime_cents > 0 ? formatCurrency(r.lifetime_cents / 100) : "—",
+      cell: (r) => r.lifetime_cents > 0 ? formatCurrency(r.lifetime_cents / 100) : ", ",
     },
     { header: "Joined", cell: (r) => new Date(r.created_at).toLocaleDateString() },
   ];
@@ -130,7 +130,7 @@ export function CustomersPage() {
   return (
     <DashboardShell
       title="Customers"
-      description={`${customers.length} registered customer${customers.length !== 1 ? "s" : ""} — live from Neon.`}
+      description={`${customers.length} registered customer${customers.length !== 1 ? "s" : ""}, live from Neon.`}
       actions={
         <button
           onClick={() => void load()}

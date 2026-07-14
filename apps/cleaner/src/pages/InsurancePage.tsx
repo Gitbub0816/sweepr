@@ -199,7 +199,7 @@ export function InsurancePage() {
             : <ShieldAlert className="h-8 w-8 text-amber-500 shrink-0" />}
           <div>
             <p className={cn("font-semibold", isActive ? "text-emerald-800" : "text-amber-800")}>
-              {isActive ? "Coverage active — you're good to accept jobs." : "Coverage required before you can accept jobs."}
+              {isActive ? "Coverage active, you're good to accept jobs." : "Coverage required before you can accept jobs."}
             </p>
             {record && (
               <p className="text-sm text-slate-600 mt-0.5">
@@ -256,7 +256,7 @@ export function InsurancePage() {
             {[
               "$1,000,000 general liability coverage",
               "Covers property damage during Sweepr jobs",
-              "Included in your existing earnings flow — no separate payment",
+              "Included in your existing earnings flow, no separate payment",
               "Certificate of insurance available on request",
             ].map((item) => (
               <li key={item} className="flex items-center gap-2">
@@ -310,7 +310,7 @@ export function InsurancePage() {
                 disabled={!consentChecked && !consentSigned}
                 fullWidth
               >
-                Enroll — $15/mo
+                Enroll, $15/mo
               </Button>
             </>
           )}

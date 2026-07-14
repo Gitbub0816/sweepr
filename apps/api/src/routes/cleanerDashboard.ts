@@ -193,7 +193,7 @@ cleanerDashboardRouter.get("/available-offers", async (c) => {
     WHERE aq.cleaner_id = ${ctx.cleaner_id}
       -- assignment_queue rows are inserted 'pending' for every ranked candidate
       -- up front (position 1..N), but only the lowest still-pending position
-      -- for a booking is the *currently active* offer — the rest are backups
+      -- for a booking is the *currently active* offer, the rest are backups
       -- waiting in the cascade should this one decline/expire. Statuses
       -- 'offered'/'queued' are included defensively in case future code
       -- introduces them.

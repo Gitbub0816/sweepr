@@ -33,7 +33,7 @@ export function ServiceScopePolicy() {
       intro="This policy describes what is and is not included in a Sweepr cleaning. It is intended to set clear expectations for customers and Cleaners and to reduce disputes."
       toc={toc}
     >
-      <Section id="standard" title="1. Standard Cleaning — Typical Inclusions">
+      <Section id="standard" title="1. Standard Cleaning, Typical Inclusions">
         <ul className="list-disc space-y-1 pl-6">
           <li>Dusting accessible surfaces, sills, and fixtures;</li>
           <li>Vacuuming and mopping floors;</li>
@@ -43,7 +43,7 @@ export function ServiceScopePolicy() {
         </ul>
       </Section>
 
-      <Section id="deep" title="2. Deep Cleaning — Additional Inclusions">
+      <Section id="deep" title="2. Deep Cleaning, Additional Inclusions">
         <p>
           Deep cleaning includes standard cleaning plus more detailed work such
           as baseboards, door frames, additional grime removal, and more

@@ -286,7 +286,7 @@ export function ScheduleStep() {
           </span>
         </button>
 
-        {/* Cadence picker — no per-visit pricing here; recurring savings are
+        {/* Cadence picker, no per-visit pricing here; recurring savings are
             shown with the final total on the review step. */}
         {isSubscription && (
           <div className="mt-4 grid grid-cols-3 gap-2">

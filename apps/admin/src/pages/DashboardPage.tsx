@@ -136,7 +136,7 @@ export function DashboardPage() {
   return (
     <DashboardShell
       title="Dashboard"
-      description="Live platform overview — data from Neon."
+      description="Live platform overview, data from Neon."
       actions={
         <button
           onClick={() => void load(true)}
@@ -273,9 +273,9 @@ export function DashboardPage() {
                       <tr key={b.id} className="border-t border-slate-100 dark:border-slate-800">
                         <td className="py-2 pr-4 font-mono text-xs text-slate-500">{b.id.slice(0, 8)}…</td>
                         <td className="py-2 pr-4 text-slate-700 dark:text-slate-300 capitalize">{b.service_type?.replace(/_/g, " ")}</td>
-                        <td className="py-2 pr-4 text-slate-600 dark:text-slate-400">{b.customer_email ?? "—"}</td>
+                        <td className="py-2 pr-4 text-slate-600 dark:text-slate-400">{b.customer_email ?? ", "}</td>
                         <td className="py-2 pr-4 text-slate-600 dark:text-slate-400">{b.cleaner_name ?? "Unassigned"}</td>
-                        <td className="py-2 pr-4 text-xs text-slate-500">{b.scheduled_for ? new Date(b.scheduled_for).toLocaleDateString() : "—"}</td>
+                        <td className="py-2 pr-4 text-xs text-slate-500">{b.scheduled_for ? new Date(b.scheduled_for).toLocaleDateString() : ", "}</td>
                         <td className="py-2 pr-4">
                           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLOR[b.status] ?? "bg-slate-100 text-slate-700"}`}>
                             {b.status?.replace(/_/g, " ")}
@@ -310,7 +310,7 @@ export function DashboardPage() {
             )}
           </Card>
 
-          {/* PostHog embed — loaded only on demand so a stale share link can't
+          {/* PostHog embed, loaded only on demand so a stale share link can't
               auto-spam PostHog's fake_token/401 errors on every page view. */}
           {DASHBOARD_URL_VALID && (
             <Card>
@@ -337,7 +337,7 @@ export function DashboardPage() {
               ) : (
                 <p className="text-sm text-slate-500">
                   Embedded PostHog dashboard. Click “Load dashboard” to display it. If it
-                  fails to load, the share link has likely expired — regenerate it in
+                  fails to load, the share link has likely expired, regenerate it in
                   PostHog and update the <code>VITE_POSTHOG_DASHBOARD_URL</code> secret.
                 </p>
               )}

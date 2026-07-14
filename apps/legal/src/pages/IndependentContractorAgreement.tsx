@@ -68,7 +68,7 @@ export function IndependentContractorAgreement() {
       </Section>
 
       {/*
-        NOTE (DRAFT — attorney review required): Proposition 22 applies to
+        NOTE (DRAFT, attorney review required): Proposition 22 applies to
         app-based transportation and delivery network companies, not ordinary
         home-cleaning marketplaces, and should NOT be relied upon here. The
         classification analysis below is framed around AB5 / the Borello

@@ -57,7 +57,7 @@ export class ErrorBoundary extends Component<Props, State> {
           Something went wrong
         </h1>
         <p className="mt-2 max-w-sm text-slate-500">
-          We hit an unexpected snag. Try reloading — your booking progress is
+          We hit an unexpected snag. Try reloading, your booking progress is
           saved.
         </p>
         <button

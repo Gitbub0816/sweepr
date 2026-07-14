@@ -67,27 +67,45 @@ export function NotificationBell({
     };
   }, [open]);
 
+  // With zero unread the trigger is a plain bell. With unread notifications it
+  // expands into a small pill summarizing the newest unread item. This is the
+  // one sanctioned pill in the product: it carries live information, so it has
+  // earned the shape.
+  const newestUnread = notifications.find((n) => !n.read);
+
   return (
     <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-label={
-          unread > 0
-            ? `Notifications, ${unread} unread`
-            : "Notifications"
-        }
-        aria-haspopup="true"
-        aria-expanded={open}
-        className="relative inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-      >
-        <Bell className="h-5 w-5" />
-        {unread > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-seafoam-700 px-1 text-[10px] font-bold text-white">
-            {unread > 9 ? "9+" : unread}
+      {unread === 0 ? (
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-label="Notifications"
+          aria-haspopup="true"
+          aria-expanded={open}
+          className="relative inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+        >
+          <Bell className="h-5 w-5" />
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-label={`Notifications, ${unread} unread. Newest: ${newestUnread?.title ?? ""}`}
+          aria-haspopup="true"
+          aria-expanded={open}
+          className="inline-flex h-9 max-w-56 items-center gap-2 rounded-full border border-seafoam-200 bg-seafoam-50 pl-2.5 pr-3 text-seafoam-800 transition-colors hover:bg-seafoam-100 dark:border-seafoam-800/60 dark:bg-seafoam-900/30 dark:text-seafoam-200 dark:hover:bg-seafoam-900/50"
+        >
+          <span className="relative inline-flex shrink-0">
+            <Bell className="h-4 w-4" />
+            {unread > 1 && (
+              <span className="absolute -right-2 -top-2 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-seafoam-700 px-1 text-[9px] font-bold text-white">
+                {unread > 9 ? "9+" : unread}
+              </span>
+            )}
           </span>
-        )}
-      </button>
+          <span className="truncate text-xs font-medium">{newestUnread?.title}</span>
+        </button>
+      )}
 
       {open && (
         <div

@@ -129,7 +129,7 @@ export default function App() {
 
         {/* Platform Policies */}
         <Route path="/sms-policy" element={<SMSPolicy />} />
-        {/* /sms/consent is handled above App's shell — see early return. */}
+        {/* /sms/consent is handled above App's shell, see early return. */}
         <Route path="/legal-updates" element={<LegalUpdatesPolicy />} />
         <Route path="/copyright" element={<CopyrightPolicy />} />
         <Route

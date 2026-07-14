@@ -146,7 +146,7 @@ export function NewsletterPage() {
                 placeholder={"Hello Sweepr community,\n\nYour message here…\n\nDouble line breaks become paragraphs."}
               />
               <p className="mt-1.5 text-xs text-slate-600">
-                Plain text only — your branded email template is applied automatically.
+                Plain text only, your branded email template is applied automatically.
               </p>
             </div>
 

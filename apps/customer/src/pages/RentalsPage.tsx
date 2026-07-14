@@ -168,7 +168,7 @@ function EnrollPanel({
         method: "POST",
         body: JSON.stringify({ acceptDisclosures: true, disclaimerVersion: "v1" }),
       });
-      if (!res.ok) throw new Error("Enrollment failed — please try again.");
+      if (!res.ok) throw new Error("Enrollment failed, please try again.");
       toast.success(`${property.nickname} is enrolled`);
       onChange();
     } catch (e) {
@@ -189,7 +189,7 @@ function EnrollPanel({
       <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-800 dark:text-amber-300">
         <li>
           A subscription of <strong>{monthly}</strong> applies per enrolled property, billed
-          until you unenroll. You can unenroll at any time — no long-term commitment.
+          until you unenroll. You can unenroll at any time, no long-term commitment.
         </li>
         <li>
           Each turnaround clean is billed at <strong>{per}</strong> (current rate; shown before
@@ -341,7 +341,7 @@ function PropertyCard({
           className="text-xs text-slate-500 underline-offset-2 hover:text-red-600 hover:underline"
           onClick={async () => {
             await authed(`/rentals/properties/${property.id}/unenroll`, { method: "POST" });
-            toast.success(`${property.nickname} unenrolled — billing and syncing stopped`);
+            toast.success(`${property.nickname} unenrolled, billing and syncing stopped`);
             onChange();
           }}
         >
@@ -443,7 +443,7 @@ function SourceRow({ source, authed, onChange }: { source: Source; authed: Authe
     try {
       const res = await authed(`/rentals/calendars/${source.id}/sync`, { method: "POST" });
       const data = (await res.json()) as { ok?: boolean; imported?: number; error?: string };
-      if (data.ok) toast.success(`Synced — ${data.imported ?? 0} turnover(s)`);
+      if (data.ok) toast.success(`Synced, ${data.imported ?? 0} turnover(s)`);
       else toast.error(data.error ?? "Sync failed");
       onChange();
     } finally {

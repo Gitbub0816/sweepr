@@ -114,7 +114,7 @@ export function MessageList({
                         <MailOpen className="h-3.5 w-3.5 shrink-0 text-slate-300" aria-hidden="true" />
                       ) : null}
                       <span className={`min-w-0 flex-1 truncate text-sm ${unread ? "font-semibold text-charcoal dark:text-white" : "text-slate-700 dark:text-slate-200"}`}>
-                        {m.direction === "outbound" ? `To: ${m.to_email ?? "—"}` : m.sender_name || m.sender_email}
+                        {m.direction === "outbound" ? `To: ${m.to_email ?? ", "}` : m.sender_name || m.sender_email}
                       </span>
                       <span className="shrink-0 text-xs text-slate-400">{relativeTime(m.created_at)}</span>
                     </div>

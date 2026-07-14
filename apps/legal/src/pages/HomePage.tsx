@@ -21,7 +21,7 @@ export function HomePage() {
       <header className="border-b border-slate-200 pb-8">
         <h1 className="text-3xl font-bold text-charcoal">Legal Documents</h1>
         <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-slate-600">
-          Everything that governs your relationship with Sweepr — our terms,
+          Everything that governs your relationship with Sweepr, our terms,
           your privacy rights, cleaner agreements, payments, safety, and more.
           We keep these documents clear and current. If you have questions,
           contact our support team.

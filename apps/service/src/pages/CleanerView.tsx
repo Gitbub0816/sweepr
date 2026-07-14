@@ -72,7 +72,7 @@ export function CleanerView() {
             <Truck className="h-4 w-4 text-seafoam-700" />
           </span>
           <div>
-            <p className="text-sm font-bold text-charcoal">Cleaner — {state.cleaner.name}</p>
+            <p className="text-sm font-bold text-charcoal">Cleaner, {state.cleaner.name}</p>
             <p className="text-xs text-slate-400 font-mono">{txId?.slice(0, 8)}</p>
           </div>
         </div>
@@ -145,7 +145,7 @@ export function CleanerView() {
 
         <div className="space-y-2">
           {state.dayStatus === "confirmed" && (
-            <ActionBtn icon={Navigation} label="Start Route — reveal address" onClick={() => act("start_route")} busy={busy} />
+            <ActionBtn icon={Navigation} label="Start Route, reveal address" onClick={() => act("start_route")} busy={busy} />
           )}
           {state.dayStatus === "en_route" && (
             <>
@@ -156,7 +156,7 @@ export function CleanerView() {
             </>
           )}
           {state.dayStatus === "arrived" && (
-            <ActionBtn icon={Play} label="Start Clean — reveal access code" onClick={() => act("start_clean")} busy={busy} />
+            <ActionBtn icon={Play} label="Start Clean, reveal access code" onClick={() => act("start_clean")} busy={busy} />
           )}
           {state.dayStatus === "in_progress" && (
             <>

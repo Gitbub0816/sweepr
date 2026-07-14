@@ -63,14 +63,14 @@ function esc(s: string): string {
 
 /** Sweepr brand palette for emails. Kept in one place so every template matches. */
 export const EMAIL_BRAND = {
-  accent: "#0d9488", // teal-600 — Sweepr primary
-  accentDark: "#0f766e", // teal-700 — button hover/border
-  ink: "#0f172a", // slate-900 — headings
-  body: "#475569", // slate-600 — paragraph text
-  muted: "#94a3b8", // slate-400 — footer text
+  accent: "#0d9488", // teal-600, Sweepr primary
+  accentDark: "#0f766e", // teal-700, button hover/border
+  ink: "#0f172a", // slate-900, headings
+  body: "#475569", // slate-600, paragraph text
+  muted: "#94a3b8", // slate-400, footer text
   pageBg: "#eef2f5", // page background behind the card
   cardBg: "#ffffff",
-  hairline: "#e2e8f0", // slate-200 — dividers
+  hairline: "#e2e8f0", // slate-200, dividers
   logo: "https://objects.getsweepr.com/site_assets/public/Sweepr-logo.png",
 } as const;
 

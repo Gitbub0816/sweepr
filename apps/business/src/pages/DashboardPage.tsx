@@ -70,19 +70,19 @@ export function DashboardPage() {
           <Card>
             <p className="text-sm font-medium text-slate-500">Properties</p>
             <p className="mt-1 text-3xl font-bold text-charcoal dark:text-white">
-              {me?.propertyCount ?? "—"}
+              {me?.propertyCount ?? ", "}
             </p>
           </Card>
           <Card>
             <p className="text-sm font-medium text-slate-500">Members</p>
             <p className="mt-1 text-3xl font-bold text-charcoal dark:text-white">
-              {me?.memberCount ?? "—"}
+              {me?.memberCount ?? ", "}
             </p>
           </Card>
           <Card>
             <p className="text-sm font-medium text-slate-500">Upcoming cleanings</p>
             <p className="mt-1 text-3xl font-bold text-charcoal dark:text-white">
-              {me?.upcomingBookings ?? "—"}
+              {me?.upcomingBookings ?? ", "}
             </p>
           </Card>
         </div>

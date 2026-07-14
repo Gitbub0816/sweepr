@@ -96,7 +96,7 @@ foundingRouter.get("/badge-options", async (c) => {
       color,
       previewUrl: founderBadgeUrl(color, firstName),
     })),
-    note: "You can only pick your badge once — it can never be changed.",
+    note: "You can only pick your badge once, it can never be changed.",
   });
 });
 

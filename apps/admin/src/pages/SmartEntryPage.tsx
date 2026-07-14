@@ -38,7 +38,7 @@ interface Config {
 }
 
 const TOGGLES: Array<{ key: keyof Config; label: string; hint: string }> = [
-  { key: "smartEntryEnabled", label: "Smart Entry enabled", hint: "Master switch — customer/cleaner Smart Entry flows." },
+  { key: "smartEntryEnabled", label: "Smart Entry enabled", hint: "Master switch, customer/cleaner Smart Entry flows." },
   { key: "sweeprPlusEnabled", label: "Sweepr+ enabled", hint: "Membership checkout + member discount." },
   { key: "manualCodeEnabled", label: "Manual codes", hint: "Customer-provided keypad codes / lockbox." },
   { key: "remoteUnlockEnabled", label: "Remote unlock", hint: "Server-triggered unlock/lock via Seam." },

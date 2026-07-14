@@ -182,7 +182,7 @@ export function AccessControlPage() {
 
               {detail.user.isSuper && (
                 <div className="mb-4 rounded-lg bg-purple-50 px-3 py-2 text-xs text-purple-700 dark:bg-purple-900/20 dark:text-purple-300">
-                  This user is a super admin and always has every permission — overrides don't apply.
+                  This user is a super admin and always has every permission, overrides don't apply.
                 </div>
               )}
 

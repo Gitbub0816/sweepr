@@ -64,7 +64,7 @@ function Root() {
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     {/* No `app` prop: @sweepr/ui's AppName union doesn't include "business"
-        yet — the boundary still renders a friendly fallback without it. */}
+        yet, the boundary still renders a friendly fallback without it. */}
     <ErrorBoundary>
       <Root />
     </ErrorBoundary>

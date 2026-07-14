@@ -206,7 +206,7 @@
       "satisfactionGuarantee": "만족 보장",
       "securedByStripe": "Stripe로 안전하게 보호됨",
       "subscription": "{{cadence}} 구독",
-      "subscriptionPrice": "청소 1회당 {{price}} — 매번 {{savings}} 절약",
+      "subscriptionPrice": "청소 1회당 {{price}}, 매번 {{savings}} 절약",
       "subtitle": "모든 가격은 추가 비용 없이 전부 포함되어 있습니다.",
       "total": "합계"
     },

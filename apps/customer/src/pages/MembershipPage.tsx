@@ -31,7 +31,7 @@ interface MembershipStatus {
 }
 
 const BENEFITS = [
-  { icon: KeyRound, text: "Sweepr Smart Entry on eligible cleanings — included" },
+  { icon: KeyRound, text: "Sweepr Smart Entry on eligible cleanings, included" },
   { icon: Percent, text: "Member discount on eligible cleaning subtotals" },
   { icon: Clock, text: "Priority access to newly opened booking times" },
   { icon: ShieldCheck, text: "Priority matching & dedicated member support" },

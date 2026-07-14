@@ -103,7 +103,7 @@ async function postSlackAlert(
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `${emoji} *Auto-Detected Incident* — ${severity.toUpperCase()}\n*${title}*\n${affectedUsers} users affected · ${totalOccurrences} occurrences`,
+            text: `${emoji} *Auto-Detected Incident*, ${severity.toUpperCase()}\n*${title}*\n${affectedUsers} users affected · ${totalOccurrences} occurrences`,
           },
         },
         {

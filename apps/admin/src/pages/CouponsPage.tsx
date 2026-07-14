@@ -145,7 +145,7 @@ export function CouponsPage() {
     const res = await authed("/admin/coupons/milestones/run", { method: "POST" });
     if (res.ok) {
       const d = (await res.json()) as { granted: number };
-      toast.success(`Milestones evaluated — ${d.granted} coupon(s) granted`);
+      toast.success(`Milestones evaluated, ${d.granted} coupon(s) granted`);
       await load();
     }
   }
@@ -293,7 +293,7 @@ export function CouponsPage() {
                 <tr key={cp.id} className="border-t border-slate-100 dark:border-slate-800">
                   <td className="py-1.5 font-mono text-xs">{cp.code}</td>
                   <td>{describe(cp)}{cp.theme ? <span className="ml-1 text-xs text-slate-400">({cp.theme})</span> : null}</td>
-                  <td className="text-slate-500">{cp.owner_email ?? cp.email ?? "—"}{!cp.owner_email && cp.email ? " (pending sign-up)" : ""}</td>
+                  <td className="text-slate-500">{cp.owner_email ?? cp.email ?? ", "}{!cp.owner_email && cp.email ? " (pending sign-up)" : ""}</td>
                   <td className="text-slate-500">{cp.source}{cp.source_ref ? `:${cp.source_ref}` : ""}</td>
                   <td>{cp.redemption_count}/{cp.max_redemptions}</td>
                   <td className="text-slate-500">{new Date(cp.expires_at).toLocaleDateString()}</td>

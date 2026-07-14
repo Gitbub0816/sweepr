@@ -280,9 +280,9 @@ function ScopeReviewSettingsPanel() {
       <div>
         <h3 className="mb-3 text-sm font-semibold text-charcoal dark:text-white">Fees</h3>
         <div className="grid grid-cols-3 gap-3">
-          <Input label="AAF — small ($)" type="number" value={values.feeSmall} onChange={(e) => set("feeSmall", e.target.value)} />
-          <Input label="AAF — medium ($)" type="number" value={values.feeMedium} onChange={(e) => set("feeMedium", e.target.value)} />
-          <Input label="AAF — large ($)" type="number" value={values.feeLarge} onChange={(e) => set("feeLarge", e.target.value)} />
+          <Input label="AAF, small ($)" type="number" value={values.feeSmall} onChange={(e) => set("feeSmall", e.target.value)} />
+          <Input label="AAF, medium ($)" type="number" value={values.feeMedium} onChange={(e) => set("feeMedium", e.target.value)} />
+          <Input label="AAF, large ($)" type="number" value={values.feeLarge} onChange={(e) => set("feeLarge", e.target.value)} />
           <Input label="Refusal fee min ($)" type="number" value={values.refusalMin} onChange={(e) => set("refusalMin", e.target.value)} />
           <Input label="Refusal fee max ($)" type="number" value={values.refusalMax} onChange={(e) => set("refusalMax", e.target.value)} />
           <Input label="Refusal fee (%)" type="number" value={values.refusalPct} onChange={(e) => set("refusalPct", e.target.value)} />

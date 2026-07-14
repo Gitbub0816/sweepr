@@ -59,7 +59,7 @@ export function getAnalyticsConsent(): ConsentState {
 export function setAnalyticsConsent(granted: boolean) {
   try {
     localStorage.setItem(CONSENT_KEY, granted ? 'granted' : 'denied')
-  } catch { /* storage unavailable — session-only choice */ }
+  } catch { /* storage unavailable, session-only choice */ }
   if (granted && !gpcDeclined()) {
     void startPosthog()
   } else if (_posthog) {

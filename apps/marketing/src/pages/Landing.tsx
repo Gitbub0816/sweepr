@@ -156,7 +156,7 @@ const pricingRows = [
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
 export default function Landing() {
-  useSeo({ title: 'Sweepr — Home cleaning, ordered like delivery', description: 'Book trusted, background-checked home cleaners in minutes. Transparent pricing shown before you book, real-time tracking, and a satisfaction guarantee.', canonical: "https://getsweepr.com/" });
+  useSeo({ title: 'Sweepr, Home cleaning, ordered like delivery', description: 'Book trusted, background-checked home cleaners in minutes. Transparent pricing shown before you book, real-time tracking, and a satisfaction guarantee.', canonical: "https://getsweepr.com/" });
   const { t, i18n } = useTranslation();
   const [pricingGated, setPricingGated] = useState(false);
 
@@ -371,7 +371,7 @@ export default function Landing() {
         <CoverageMapSection />
       </Suspense>
 
-      {/* How it works — collapsible explainer + customer-facing partners */}
+      {/* How it works, collapsible explainer + customer-facing partners */}
       <HowItWorksSection />
 
       {/* FAQ */}
@@ -399,7 +399,7 @@ export default function Landing() {
 
           <NewsletterSubscribe apiUrl={import.meta.env.VITE_API_URL ?? ""} className="mt-4" />
 
-          {/* Become a Sweepr — small footer section */}
+          {/* Become a Sweepr, small footer section */}
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-6 py-5 dark:border-slate-700 dark:bg-slate-900/60">
             <p className="text-sm font-semibold text-charcoal dark:text-white">{t("cleaner.title")}</p>
             <p className="mt-1 text-sm text-slate-500">

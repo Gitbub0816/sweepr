@@ -309,7 +309,7 @@ async function approveAdditionalAttention(
     bookingId: req.booking_id,
     adjustmentCents: amount,
     eventType: "additional_attention_fee",
-    reason: `Additional attention fee (${chosen})${input.note ? ` — ${input.note}` : ""}`,
+    reason: `Additional attention fee (${chosen})${input.note ? `, ${input.note}` : ""}`,
     source: "cleaner_request",
     approvedBy: input.adminId,
     scopeReviewRequestId: req.id,
@@ -417,7 +417,7 @@ async function approveRefusal(
     previousTotalCents: previousTotal,
     adjustmentCents: effectiveFee - previousTotal,
     newTotalCents: effectiveFee,
-    reason: `Service refusal fee${input.note ? ` — ${input.note}` : ""}${captured ? "" : " (capture pending — manual follow-up)"}${effectiveFee !== refusalFee ? ` (fee ${refusalFee} clamped to captured ${effectiveFee})` : ""}`,
+    reason: `Service refusal fee${input.note ? `, ${input.note}` : ""}${captured ? "" : " (capture pending, manual follow-up)"}${effectiveFee !== refusalFee ? ` (fee ${refusalFee} clamped to captured ${effectiveFee})` : ""}`,
     source: "cleaner_request",
     approvedBy: input.adminId,
     scopeReviewRequestId: req.id,
@@ -506,7 +506,7 @@ async function escalateCustomer(
         VALUES (
           ${booking.street}, ${booking.unit ?? ""}, ${booking.city}, ${booking.state}, ${booking.zip},
           ${booking.lat}, ${booking.lng}, ${key},
-          ${`Approved service refusal — customer suspended (booking ${booking.id})`},
+          ${`Approved service refusal, customer suspended (booking ${booking.id})`},
           ${booking.id}, ${req.customer_id}, ${adminId}
         )
         ON CONFLICT (normalized_key) DO NOTHING

@@ -84,7 +84,7 @@ const nav = [
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <AppShell brand="Cleaner" accent="Sweepr Pro" nav={nav} headerRight={<NavAuth />}>
+    <AppShell brand="Cleaner" nav={nav} headerRight={<NavAuth />}>
       {children}
     </AppShell>
   );
@@ -191,7 +191,7 @@ export default function App() {
       <Route path="/sign-up/continue" element={<ContinueSignUp />} />
       <Route path="/yardstik-simulate" element={<YardstikSimulatePage />} />
 
-      {/* Didit QR callback — phone lands here after completing verification */}
+      {/* Didit QR callback, phone lands here after completing verification */}
       <Route path="/verify-done" element={<VerifyDonePage />} />
 
       {/* Everything else is gated during prelaunch */}
@@ -218,7 +218,7 @@ export default function App() {
         }
       />
 
-      {/* Training (protected only — accessible during onboarding) */}
+      {/* Training (protected only, accessible during onboarding) */}
       <Route path="/training" element={<ProtectedRoute><TrainingPage /></ProtectedRoute>} />
       <Route path="/training/:moduleId" element={<ProtectedRoute><TrainingPage /></ProtectedRoute>} />
 
@@ -234,7 +234,7 @@ export default function App() {
       <Route path="/schedule" element={<Guarded jobsGated><SchedulePage /></Guarded>} />
       <Route path="/earnings" element={<Guarded><EarningsPage /></Guarded>} />
       <Route path="/performance" element={<Guarded><PerformancePage /></Guarded>} />
-      {/* Insurance enrollment charges the cleaner and links Stripe payouts —
+      {/* Insurance enrollment charges the cleaner and links Stripe payouts, 
           gate it behind approval so a pending applicant can't enrol/pay early. */}
       <Route path="/insurance" element={<Guarded jobsGated><InsurancePage /></Guarded>} />
       <Route path="/profile" element={<Guarded><ProfilePage /></Guarded>} />

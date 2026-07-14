@@ -142,12 +142,12 @@ async function mailersendSmsSend(env: Env, to: string, body: string): Promise<vo
   const apiKey = env.MAILERSEND_API_KEY;
   const from = env.MAILERSEND_SMS_FROM;
   if (!apiKey || !from) {
-    logger.info("sms: MailerSend SMS not configured — skipping send", { to: to.slice(-4) });
+    logger.info("sms: MailerSend SMS not configured, skipping send", { to: to.slice(-4) });
     return;
   }
   const e164 = toE164(to);
   if (!e164) {
-    logger.warn("sms: invalid phone number — skipping send", { to: to.slice(-4) });
+    logger.warn("sms: invalid phone number, skipping send", { to: to.slice(-4) });
     return;
   }
   const res = await fetch("https://api.mailersend.com/v1/sms", {

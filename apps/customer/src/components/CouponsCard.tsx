@@ -68,7 +68,7 @@ export function CouponsCard() {
     <Card>
       <h2 className="text-sm font-semibold text-charcoal dark:text-white">Your coupons</h2>
       <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-        Applied automatically to your next qualifying booking — nothing to enter.
+        Applied automatically to your next qualifying booking, nothing to enter.
       </p>
       <ul className="mt-3 space-y-2">
         {coupons.map((cp) => (

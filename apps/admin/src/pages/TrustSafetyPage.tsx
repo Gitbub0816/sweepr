@@ -122,11 +122,11 @@ function CustomersTab() {
   }
 
   const columns: Column<CustomerRow>[] = [
-    { header: "Name", cell: (r) => r.name ?? "—" },
-    { header: "Email", cell: (r) => r.email ?? "—" },
+    { header: "Name", cell: (r) => r.name ?? ", " },
+    { header: "Email", cell: (r) => r.email ?? ", " },
     { header: "Status", cell: (r) => <Badge variant={STATUS_VARIANT[r.accountStatus] ?? "default"}>{r.accountStatus}</Badge> },
-    { header: "Reason", cell: (r) => r.accountStatusReason ?? "—" },
-    { header: "Until", cell: (r) => (r.accountStatusUntil ? new Date(r.accountStatusUntil).toLocaleDateString() : "—") },
+    { header: "Reason", cell: (r) => r.accountStatusReason ?? ", " },
+    { header: "Until", cell: (r) => (r.accountStatusUntil ? new Date(r.accountStatusUntil).toLocaleDateString() : ", ") },
     { header: "", align: "right", cell: (r) => <Button size="sm" variant="secondary" onClick={() => openModal(r)}>Change status</Button> },
   ];
 
@@ -201,9 +201,9 @@ function GreylistTab() {
   const columns: Column<GreylistRow>[] = [
     { header: "Address", cell: (r) => [r.streetAddress, r.unit].filter(Boolean).join(", ") },
     { header: "City/State/Zip", cell: (r) => `${r.city}, ${r.state} ${r.zip}` },
-    { header: "Reason", cell: (r) => r.reason ?? "—" },
+    { header: "Reason", cell: (r) => r.reason ?? ", " },
     { header: "Added", cell: (r) => new Date(r.createdAt).toLocaleDateString() },
-    { header: "Expires", cell: (r) => (r.expiresAt ? new Date(r.expiresAt).toLocaleDateString() : "—") },
+    { header: "Expires", cell: (r) => (r.expiresAt ? new Date(r.expiresAt).toLocaleDateString() : ", ") },
     { header: "", align: "right", cell: (r) => <Button size="sm" variant="danger" onClick={() => setConfirmId(r.id)}>Remove</Button> },
   ];
 
@@ -278,8 +278,8 @@ function PrivilegesTab() {
     { header: "Cleaner", cell: (r) => r.name ?? r.cleanerId.slice(0, 8) },
     { header: "Additional attention", cell: (r) => <Badge variant={r.additionalAttentionEnabled ? "success" : "error"}>{r.additionalAttentionEnabled ? "enabled" : "disabled"}</Badge> },
     { header: "Refusal requests", cell: (r) => <Badge variant={r.refusalRequestEnabled ? "success" : "error"}>{r.refusalRequestEnabled ? "enabled" : "disabled"}</Badge> },
-    { header: "Reason", cell: (r) => r.disabledReason ?? "—" },
-    { header: "Until", cell: (r) => (r.disabledUntil ? new Date(r.disabledUntil).toLocaleDateString() : "—") },
+    { header: "Reason", cell: (r) => r.disabledReason ?? ", " },
+    { header: "Until", cell: (r) => (r.disabledUntil ? new Date(r.disabledUntil).toLocaleDateString() : ", ") },
     { header: "", align: "right", cell: (r) => <Button size="sm" variant="secondary" onClick={() => setConfirmId(r.cleanerId)}>Restore</Button> },
   ];
 

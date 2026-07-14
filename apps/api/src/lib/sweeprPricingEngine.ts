@@ -70,7 +70,7 @@ export interface SweeprAddOn {
 }
 
 export interface SweeprPriceResult {
-  customerPrice: number;              // cents — charge Stripe this
+  customerPrice: number;              // cents, charge Stripe this
   estimatedCleanerPayout: number;     // cents
   estimatedPlatformGross: number;     // cents
 

@@ -234,7 +234,7 @@ function CauseChain({ err, depth = 0 }: { err: ErrContextErr; depth?: number }) 
       <p className="text-xs font-semibold text-slate-600">
         {depth > 0 ? "Caused by: " : ""}
         {err.name ?? "Error"}
-        {err.message ? ` — ${err.message}` : ""}
+        {err.message ? `, ${err.message}` : ""}
       </p>
       {err.stack && (
         <pre className="mt-1.5 max-h-56 overflow-auto whitespace-pre rounded-lg bg-slate-950 p-3 text-[11px] leading-relaxed text-slate-300">

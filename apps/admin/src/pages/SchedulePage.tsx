@@ -182,7 +182,7 @@ export function SchedulePage() {
           })}
         </div>
         <p className="mt-2 text-xs text-slate-500">
-          <Zap className="mr-1 inline h-3 w-3" aria-hidden="true" />automation · <StickyNote className="mx-1 inline h-3 w-3" aria-hidden="true" />note — click a day to add, click an event to open. Automations run within ~15 minutes of their time.
+          <Zap className="mr-1 inline h-3 w-3" aria-hidden="true" />automation · <StickyNote className="mx-1 inline h-3 w-3" aria-hidden="true" />note, click a day to add, click an event to open. Automations run within ~15 minutes of their time.
         </p>
       </Card>
 

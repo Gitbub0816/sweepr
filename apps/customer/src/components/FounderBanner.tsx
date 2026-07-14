@@ -150,7 +150,7 @@ export function FounderBanner() {
             <p className="font-semibold">Thanks for being here from the start.</p>
             <p className="text-sm opacity-80">
               Founding Member since {status.sinceLabel}
-              {status.founderId ? ` · Founder #${status.founderId}` : ""} — early access &amp; priority support.
+              {status.founderId ? ` · Founder #${status.founderId}` : ""}, early access &amp; priority support.
             </p>
           </div>
           {!status.badgeColor ? (
@@ -172,7 +172,7 @@ export function FounderBanner() {
             <h2 className="mt-3 text-2xl font-bold text-slate-900 dark:text-white">Congratulations!</h2>
             <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
               You are officially one of Sweepr's Founding Members
-              {status.founderId ? ` — Founder #${status.founderId}` : ""}.
+              {status.founderId ? `, Founder #${status.founderId}` : ""}.
             </p>
             <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
               Thank you for believing in Sweepr from the beginning. Your Founding Member status and
@@ -195,7 +195,7 @@ export function FounderBanner() {
               Your badge carries your founder number and your initial. Pick one of five colors.
             </p>
             <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-center text-xs font-semibold text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-              You can only pick once — your badge can never be changed.
+              You can only pick once, your badge can never be changed.
             </p>
             <div className="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-5">
               {options.map((o) => (
@@ -217,7 +217,7 @@ export function FounderBanner() {
               ))}
             </div>
             <Button className="mt-6 w-full" onClick={confirmBadge} disabled={!selected || saving}>
-              {saving ? "Locking it in…" : selected ? `Lock in ${COLOR_LABELS[selected] ?? selected} — forever` : "Select a color"}
+              {saving ? "Locking it in…" : selected ? `Lock in ${COLOR_LABELS[selected] ?? selected}, forever` : "Select a color"}
             </Button>
           </div>
         </div>

@@ -278,7 +278,7 @@ const BROADCAST_CATEGORIES: Array<{
     value: "announcement",
     label: "Announcement",
     icon: <Megaphone className="h-4 w-4" />,
-    description: "General news — a big scrub's worth of info",
+    description: "General news, a big scrub's worth of info",
     tone: "We're thrilled to share something fresh off the mop…",
   },
   {
@@ -286,13 +286,13 @@ const BROADCAST_CATEGORIES: Array<{
     label: "Launch update",
     icon: <Sparkles className="h-4 w-4" />,
     description: "We're live! Area opening, app milestone",
-    tone: "Grab your bucket — we're officially open for business in…",
+    tone: "Grab your bucket, we're officially open for business in…",
   },
   {
     value: "feature",
     label: "Feature update",
     icon: <Star className="h-4 w-4" />,
-    description: "New product or app feature — shiny and clean",
+    description: "New product or app feature, shiny and clean",
     tone: "Something squeaky-new just dropped in the app…",
   },
   {
@@ -306,14 +306,14 @@ const BROADCAST_CATEGORIES: Array<{
     value: "offer",
     label: "Promo / offer",
     icon: <Tag className="h-4 w-4" />,
-    description: "Deal, discount, or referral — clean price",
+    description: "Deal, discount, or referral, clean price",
     tone: "Dirt-cheap deal (pun intended) just for you…",
   },
   {
     value: "operational",
     label: "Operational notice",
     icon: <Wrench className="h-4 w-4" />,
-    description: "Maintenance, service notice — boring but necessary",
+    description: "Maintenance, service notice, boring but necessary",
     tone: "We're doing a quick dusting of our systems…",
   },
 ];
@@ -322,8 +322,8 @@ type Audience = "newsletter" | "waitlist_customer" | "waitlist_cleaner" | "city"
 
 const AUDIENCE_LABELS: Record<Audience, string> = {
   newsletter: "Newsletter subscribers",
-  waitlist_customer: "Waitlist — customers",
-  waitlist_cleaner: "Waitlist — cleaners",
+  waitlist_customer: "Waitlist, customers",
+  waitlist_cleaner: "Waitlist, cleaners",
   city: "City update subscribers",
   all: "All lists (deduplicated)",
 };

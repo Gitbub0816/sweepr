@@ -103,7 +103,7 @@ export function calculateBookingPrice(
     petFee + heavyMessFee + suppliesFee + addonsTotal;
 
   const serviceFee = Math.round(subtotal * 0.08);
-  const tax = 0; // Tax calculation requires address — extend when service areas go live
+  const tax = 0; // Tax calculation requires address, extend when service areas go live
   const totalPrice = subtotal + serviceFee + tax;
 
   return {

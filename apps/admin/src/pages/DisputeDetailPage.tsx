@@ -91,7 +91,7 @@ export function DisputeDetailPage() {
     );
   }
 
-  const customer = [dispute.customer_first, dispute.customer_last].filter(Boolean).join(" ") || dispute.customer_email || "—";
+  const customer = [dispute.customer_first, dispute.customer_last].filter(Boolean).join(" ") || dispute.customer_email || ", ";
   const cleaner = [dispute.cleaner_first, dispute.cleaner_last].filter(Boolean).join(" ") || "Unassigned";
   const atStake = dispute.total_price ? dispute.total_price / 100 : 0;
 
@@ -137,8 +137,8 @@ export function DisputeDetailPage() {
               Booking summary
             </h3>
             <dl className="grid grid-cols-2 gap-3 text-sm">
-              <Detail label="Service" value={dispute.service_type ? SERVICE_LABELS[dispute.service_type as ServiceType] ?? dispute.service_type : "—"} />
-              <Detail label="Scheduled" value={dispute.scheduled_at ? formatDateTime(dispute.scheduled_at) : "—"} />
+              <Detail label="Service" value={dispute.service_type ? SERVICE_LABELS[dispute.service_type as ServiceType] ?? dispute.service_type : ", "} />
+              <Detail label="Scheduled" value={dispute.scheduled_at ? formatDateTime(dispute.scheduled_at) : ", "} />
               <Detail label="Customer" value={customer} />
               <Detail label="Cleaner" value={cleaner} />
               <Detail label="Price paid" value={formatCurrency(atStake)} />

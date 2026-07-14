@@ -191,7 +191,7 @@ export function PrelaunchGate({ type, apiUrl, children, forcePrelaunch = false }
         </div>
       </div>
 
-      {/* Invisible bypass trigger — triple-click or visit ?bypass=0123 */}
+      {/* Invisible bypass trigger, triple-click or visit ?bypass=0123 */}
       <button
         onClick={handleBypassClick}
         className="opacity-0 absolute bottom-2 right-2 h-8 w-8"

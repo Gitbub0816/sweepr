@@ -49,14 +49,14 @@ export function AIDisclosure() {
           (Anthropic) to help organize and summarize records. Any adverse or
           materially significant screening decision is made by a human reviewer
           following our Background Check Adjudication Policy and the FCRA
-          adverse-action process — the AI is a non-binding aid, never the decision.
+          adverse-action process, the AI is a non-binding aid, never the decision.
         </p>
       </Section>
 
       <Section id="human" title="2. Human Review">
         <p>
-          Legally or materially significant decisions — such as account deactivation,
-          application denial, or high-risk trust and safety actions — receive human
+          Legally or materially significant decisions, such as account deactivation,
+          application denial, or high-risk trust and safety actions, receive human
           review. Automated tools support, but do not solely determine, these
           outcomes.
         </p>

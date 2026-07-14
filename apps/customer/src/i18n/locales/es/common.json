@@ -154,7 +154,7 @@
       "notesPlaceholder": "Código de la puerta, estacionamiento, mascotas, áreas en las que enfocarse…",
       "continueToPayment": "Continuar al pago",
       "creatingBooking": "Creando reserva…",
-      "includesEverything": "Incluye todo — insumos, servicio, impuestos",
+      "includesEverything": "Incluye todo, insumos, servicio, impuestos",
       "firstClean": "Primera limpieza",
       "yourClean": "Tu limpieza",
       "rushBooking": "Reserva urgente",
@@ -207,7 +207,7 @@
       "payButton": "Pagar {{amount}}",
       "cardNotCharged": "No se cobrará a tu tarjeta hasta que un limpiador confirme tu limpieza. Cancela gratis hasta 24 horas antes de tu cita.",
       "subscription": "Suscripción {{cadence}}",
-      "subscriptionPrice": "{{price}} / limpieza — ahorra {{savings}} cada vez",
+      "subscriptionPrice": "{{price}} / limpieza, ahorra {{savings}} cada vez",
       "recurringCadence": "Recurrente {{cadence}}"
     },
     "package": {
@@ -374,7 +374,7 @@
       },
       "underReview": "Solicitud en revisión",
       "finishSetup": "Termina de configurar tu cuenta",
-      "reviewingApplication": "Estamos revisando tu solicitud — te enviaremos un correo cuando sea aprobada.",
+      "reviewingApplication": "Estamos revisando tu solicitud, te enviaremos un correo cuando sea aprobada.",
       "completeSteps": "Completa estos pasos para desbloquear el tablero de trabajos.",
       "onboarding": {
         "profile": "Perfil y servicios",
@@ -387,7 +387,7 @@
       "welcomeBack": "Bienvenido de nuevo, {{name}}",
       "upcomingJob": "Tienes {{count}} trabajo próximo",
       "upcomingJobs": "Tienes {{count}} trabajos próximos",
-      "noUpcomingJobs": "No tienes trabajos próximos — revisa el tablero de trabajos.",
+      "noUpcomingJobs": "No tienes trabajos próximos, revisa el tablero de trabajos.",
       "pro": "Pro",
       "stats": {
         "upcomingJobs": "Trabajos próximos",
@@ -416,7 +416,7 @@
       "description": "Acepta los trabajos que te convengan. La dirección completa se desbloquea al aceptar.",
       "lookingForJobs": "Buscando trabajos cerca de ti…",
       "noJobsTitle": "No hay trabajos disponibles por el momento",
-      "noJobsDesc": "Vuelve pronto — aparecen nuevas ofertas durante el día.",
+      "noJobsDesc": "Vuelve pronto, aparecen nuevas ofertas durante el día.",
       "youreOnline": "Estás en línea",
       "youreOffline": "Estás desconectado",
       "goOnlineToSeeJobs": "Conéctate para ver los trabajos disponibles cerca de ti.",

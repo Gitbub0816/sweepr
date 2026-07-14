@@ -24,6 +24,30 @@ import {
 const BUSINESS_WORDMARK =
   "https://objects.getsweepr.com/site_assets/public/Sweepr-biz-logo-transparent.png";
 
+const LEGAL_URL = "https://legal.getsweepr.com";
+/** Marks an in-flight OAuth hop so the return leg may auto-complete the
+ * ceremony. Clicking Google/Apple IS the explicit authentication action. */
+const SSO_MARKER_KEY = "sweepr_sso_tx";
+
+function GoogleMark() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+      <path fill="#4285F4" d="M23.5 12.27c0-.85-.08-1.66-.22-2.45H12v4.64h6.45a5.52 5.52 0 0 1-2.39 3.62v3h3.87c2.26-2.09 3.57-5.16 3.57-8.81Z" />
+      <path fill="#34A853" d="M12 24c3.24 0 5.96-1.07 7.93-2.91l-3.87-3c-1.07.72-2.44 1.15-4.06 1.15-3.12 0-5.77-2.11-6.71-4.95H1.29v3.09A12 12 0 0 0 12 24Z" />
+      <path fill="#FBBC05" d="M5.29 14.29a7.2 7.2 0 0 1 0-4.58V6.62H1.29a12 12 0 0 0 0 10.76l4-3.09Z" />
+      <path fill="#EA4335" d="M12 4.76c1.76 0 3.34.6 4.58 1.79l3.44-3.44C17.95 1.19 15.23 0 12 0A12 12 0 0 0 1.29 6.62l4 3.09C6.23 6.87 8.88 4.76 12 4.76Z" />
+    </svg>
+  );
+}
+
+function AppleMark() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden="true">
+      <path d="M16.36 12.76c.03 3.26 2.86 4.34 2.89 4.36-.02.08-.45 1.55-1.49 3.07-.9 1.31-1.83 2.61-3.3 2.64-1.44.03-1.91-.85-3.56-.85-1.65 0-2.17.82-3.53.88-1.42.05-2.5-1.42-3.4-2.72C2.11 17.46.71 12.6 2.6 9.33a5.27 5.27 0 0 1 4.45-2.7c1.39-.03 2.7.94 3.55.94.85 0 2.44-1.16 4.12-.99.7.03 2.66.28 3.92 2.13-.1.06-2.34 1.37-2.28 4.05ZM13.66 4.8c.75-.9 1.25-2.16 1.11-3.42-1.08.05-2.38.72-3.15 1.62-.69.8-1.3 2.08-1.13 3.3 1.2.1 2.42-.61 3.17-1.5Z" />
+    </svg>
+  );
+}
+
 type Phase =
   | { name: "loading" }
   | { name: "expired" }
@@ -55,6 +79,11 @@ function Shell({ children }: { children: React.ReactNode }) {
         <ShieldCheck className="h-3.5 w-3.5" />
         Secured by Sweepr central sign-in
       </p>
+      <nav aria-label="Legal" className="mt-2 flex items-center gap-4 text-xs text-slate-400">
+        <a href={`${LEGAL_URL}/terms`} target="_blank" rel="noopener noreferrer" className="hover:text-slate-600 hover:underline dark:hover:text-slate-200">Terms</a>
+        <a href={`${LEGAL_URL}/privacy`} target="_blank" rel="noopener noreferrer" className="hover:text-slate-600 hover:underline dark:hover:text-slate-200">Privacy</a>
+        <a href={LEGAL_URL} target="_blank" rel="noopener noreferrer" className="hover:text-slate-600 hover:underline dark:hover:text-slate-200">All legal documents</a>
+      </nav>
     </div>
   );
 }
@@ -126,6 +155,99 @@ export function LoginPage() {
     if (context) document.title = `Sign in to ${context.display_name}`;
   }, [context]);
 
+  /** Finish the ceremony with the Clerk session that exists right now. Used
+   * by both password sign-in and the OAuth return leg. */
+  const finishWithSession = useCallback(
+    async (ctx: TransactionContext) => {
+      if (!isValidHandle(tx)) return;
+      const token = await clerk.session?.getToken({ skipCache: true });
+      if (!token) {
+        setPhase({
+          name: "error",
+          context: ctx,
+          message: "We couldn't confirm your session. Please try again.",
+        });
+        return;
+      }
+      const completed = await completeTransaction(tx, token, ctx.completion_token);
+      if (completed.ok) {
+        window.location.replace(buildRedirectUrl(completed.result));
+        return;
+      }
+      if (completed.error === "reverification_required") {
+        setPhase({
+          name: "error",
+          context: ctx,
+          message: "For your security, please sign in again to continue.",
+        });
+      } else if (completed.error === "not_authorized_for_application") {
+        setPhase({
+          name: "error",
+          context: ctx,
+          message: `This account doesn't have access to ${ctx.display_name}.`,
+        });
+      } else {
+        setPhase({
+          name: "error",
+          context: ctx,
+          message: "Sign-in couldn't be completed. Please try again.",
+        });
+      }
+    },
+    [clerk, tx]
+  );
+
+  // OAuth return leg: Clerk just created a session via Google/Apple. The
+  // sessionStorage marker proves this browser started the hop for THIS
+  // transaction (clicking the provider button was the explicit action), so
+  // complete the ceremony without asking for a password.
+  const ssoCompleting = useRef(false);
+  useEffect(() => {
+    if (phase.name !== "ready" || !isValidHandle(tx)) return;
+    if (params.get("sso") !== "1" || ssoCompleting.current) return;
+    let marker: string | null = null;
+    try {
+      marker = sessionStorage.getItem(SSO_MARKER_KEY);
+      sessionStorage.removeItem(SSO_MARKER_KEY);
+    } catch {
+      /* storage unavailable: fall through to the password form */
+    }
+    if (marker !== tx || !clerk.session) return;
+    ssoCompleting.current = true;
+    setBusy(true);
+    void finishWithSession(phase.context).finally(() => setBusy(false));
+  }, [phase, params, tx, clerk.session, finishWithSession]);
+
+  /** Kick off Google/Apple. Any lingering session is ended first so the
+   * provider round-trip is a genuine fresh authentication. */
+  const signInWithProvider = useCallback(
+    async (strategy: "oauth_google" | "oauth_apple") => {
+      if (!context || !isValidHandle(tx) || busy) return;
+      setBusy(true);
+      try {
+        if (clerk.session) await clerk.signOut();
+        try {
+          sessionStorage.setItem(SSO_MARKER_KEY, tx);
+        } catch {
+          /* storage unavailable: return leg will show the password form */
+        }
+        await clerk.client?.signIn.authenticateWithRedirect({
+          strategy,
+          redirectUrl: `${window.location.origin}/login/sso-callback`,
+          redirectUrlComplete: `${window.location.origin}/login?tx=${encodeURIComponent(tx)}&sso=1`,
+        });
+      } catch {
+        setBusy(false);
+        setPhase({
+          name: "error",
+          context,
+          message: "That sign-in method isn't available right now. Please use your email and password.",
+        });
+      }
+    },
+    [busy, clerk, context, tx]
+  );
+
   const submit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
@@ -152,42 +274,7 @@ export function LoginPage() {
           return;
         }
         await clerk.setActive({ session: signIn.createdSessionId });
-
-        // Fresh token for the just-minted session (broker enforces iat ≤ 120s).
-        const token = await clerk.session?.getToken({ skipCache: true });
-        if (!token) {
-          setPhase({
-            name: "error",
-            context,
-            message: "We couldn't confirm your session. Please try again.",
-          });
-          return;
-        }
-
-        const completed = await completeTransaction(tx, token, context.completion_token);
-        if (completed.ok) {
-          window.location.replace(buildRedirectUrl(completed.result));
-          return;
-        }
-        if (completed.error === "reverification_required") {
-          setPhase({
-            name: "error",
-            context,
-            message: "For your security, please sign in again to continue.",
-          });
-        } else if (completed.error === "not_authorized_for_application") {
-          setPhase({
-            name: "error",
-            context,
-            message: `This account doesn't have access to ${context.display_name}.`,
-          });
-        } else {
-          setPhase({
-            name: "error",
-            context,
-            message: "Sign-in couldn't be completed. Please try again.",
-          });
-        }
+        await finishWithSession(context);
       } catch (err: unknown) {
         const clerkMessage =
           (err as { errors?: Array<{ message?: string }> })?.errors?.[0]?.message;
@@ -200,7 +287,7 @@ export function LoginPage() {
         setBusy(false);
       }
     },
-    [busy, clerk, context, identifier, password, tx]
+    [busy, clerk, context, identifier, password, tx, finishWithSession]
   );
 
   if (phase.name === "loading") {
@@ -249,6 +336,33 @@ export function LoginPage() {
         </div>
       )}
 
+      <div className="mt-6 flex flex-col gap-2.5">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void signInWithProvider("oauth_google")}
+          className="inline-flex h-11 items-center justify-center gap-2.5 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-charcoal transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-900"
+        >
+          <GoogleMark />
+          Continue with Google
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void signInWithProvider("oauth_apple")}
+          className="inline-flex h-11 items-center justify-center gap-2.5 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-charcoal transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-900"
+        >
+          <AppleMark />
+          Continue with Apple
+        </button>
+      </div>
+
+      <div className="mt-5 flex items-center gap-3" aria-hidden="true">
+        <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+        <span className="text-xs font-medium uppercase tracking-wider text-slate-400">or</span>
+        <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+      </div>
+
       <form
         id={formId}
         aria-label={`Sign in to ${context.display_name}`}
@@ -290,6 +404,28 @@ export function LoginPage() {
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : `Sign in to ${context.display_name}`}
         </button>
       </form>
+
+      <p className="mt-4 text-center text-xs leading-relaxed text-slate-500">
+        By continuing, you agree to Sweepr's{" "}
+        <a
+          href={`${LEGAL_URL}/terms`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-slate-600 underline underline-offset-2 hover:text-charcoal dark:text-slate-300 dark:hover:text-white"
+        >
+          Terms of Service
+        </a>{" "}
+        and acknowledge our{" "}
+        <a
+          href={`${LEGAL_URL}/privacy`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-slate-600 underline underline-offset-2 hover:text-charcoal dark:text-slate-300 dark:hover:text-white"
+        >
+          Privacy Policy
+        </a>
+        .
+      </p>
 
       <div className="mt-6 text-center">
         <a

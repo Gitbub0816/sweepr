@@ -280,7 +280,7 @@ export function SecurityEventsFeed({ authed }: { authed: Authed }) {
                     <td className="whitespace-nowrap px-4 py-2">
                       <button onClick={() => setDrawerIp(t.ip)} className="font-mono text-xs text-seafoam-700 underline-offset-2 hover:underline" aria-label={`Inspect ${t.ip}`}>{t.ip}</button>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-2 text-xs text-slate-600">{[t.city, t.country].filter(Boolean).join(", ") || "—"}</td>
+                    <td className="whitespace-nowrap px-4 py-2 text-xs text-slate-600">{[t.city, t.country].filter(Boolean).join(", ") || ", "}</td>
                     <td className="whitespace-nowrap px-4 py-2 text-xs font-semibold">{t.count}</td>
                     <td className="px-4 py-2 text-xs text-slate-600">{t.types.join(", ")}</td>
                     <td className="whitespace-nowrap px-4 py-2 text-xs text-slate-600">{new Date(t.lastSeen).toLocaleString()}</td>
@@ -342,7 +342,7 @@ export function SecurityEventsFeed({ authed }: { authed: Authed }) {
                     {e.ip ? (
                       <button onClick={() => setDrawerIp(e.ip)} className="whitespace-nowrap font-mono text-xs text-seafoam-700 underline-offset-2 hover:underline" aria-label={`Inspect ${e.ip}`}>{e.ip}</button>
                     ) : (
-                      <span className="font-mono text-xs text-slate-700 dark:text-slate-200">—</span>
+                      <span className="font-mono text-xs text-slate-700 dark:text-slate-200">, </span>
                     )}
                     {e.ip && blockedSet.has(e.ip) && (
                       <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-slate-800 px-1.5 py-0.5 text-[10px] font-bold text-white"><Ban className="h-2.5 w-2.5" /> blocked</span>
@@ -434,7 +434,7 @@ function BlocklistCard({
               <span className="font-mono text-xs font-semibold text-charcoal dark:text-white">{b.ip}</span>
               {b.expires_at && <Badge variant="warning">expires {new Date(b.expires_at).toLocaleString()}</Badge>}
               <span className="text-xs text-slate-500">{b.reason ?? "no reason recorded"}</span>
-              <span className="ml-auto whitespace-nowrap text-xs text-slate-400">{b.created_by ?? "—"} · {new Date(b.created_at).toLocaleString()}</span>
+              <span className="ml-auto whitespace-nowrap text-xs text-slate-400">{b.created_by ?? ", "} · {new Date(b.created_at).toLocaleString()}</span>
               <button onClick={() => void onUnblock(b)} className="whitespace-nowrap rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 dark:border-slate-700" aria-label={`Unblock ${b.ip}`}>Unblock</button>
             </li>
           ))}

@@ -228,22 +228,22 @@ export default function App() {
       <CookieConsent />
       <div id="main" tabIndex={-1} className="contents">
       <Routes>
-        {/* OAuth SSO callback — outside prelaunch gate, handles token exchange */}
+        {/* OAuth SSO callback, outside prelaunch gate, handles token exchange */}
         <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback continueSignUpUrl="/sign-up/continue" />} />
 
-        {/* Auth routes — outside gate so sign-in is always accessible */}
+        {/* Auth routes, outside gate so sign-in is always accessible */}
         <Route path="/sign-in" element={<SignInPage />} />
         <Route path="/sign-up" element={<SignUpPage />} />
         <Route path="/sign-up/continue" element={<ContinueSignUp />} />
 
-        {/* Onboarding — protected but outside prelaunch gate */}
+        {/* Onboarding, protected but outside prelaunch gate */}
         <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
 
         <Route element={<GateLayout />}>
           <Route path="/" element={<Navigate to="/home" replace />} />
           <Route path="/home" element={<Protected><Home /></Protected>} />
 
-          {/* Booking flow (no sidebar — focused funnel) — auth required */}
+          {/* Booking flow (no sidebar, focused funnel), auth required */}
           <Route element={<ProtectedRoute><BookingLayout /></ProtectedRoute>}>
             <Route path="/book" element={<Navigate to="/book/start" replace />} />
             <Route path="/book/start" element={<StartStep />} />
@@ -265,7 +265,7 @@ export default function App() {
             element={<ProtectedRoute><ConfirmedStep /></ProtectedRoute>}
           />
 
-          {/* Account area — auth required */}
+          {/* Account area, auth required */}
           <Route path="/bookings" element={<Protected><BookingsPage /></Protected>} />
           <Route path="/rentals" element={<Protected><RentalsPage /></Protected>} />
           <Route

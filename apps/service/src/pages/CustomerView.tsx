@@ -86,7 +86,7 @@ export function CustomerView() {
           <User className="h-4 w-4 text-violet-600" />
         </span>
         <div>
-          <p className="text-sm font-bold text-charcoal">Customer — {state.customer.name}</p>
+          <p className="text-sm font-bold text-charcoal">Customer, {state.customer.name}</p>
           <p className="text-xs text-slate-400 font-mono">{txId?.slice(0, 8)}</p>
         </div>
         {isActive && (

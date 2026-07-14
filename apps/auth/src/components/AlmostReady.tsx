@@ -28,7 +28,7 @@ export function AlmostReady() {
         </h1>
         <p className="mt-3 max-w-md text-base text-slate-500">
           One secure place to sign in to every Sweepr application. We&rsquo;re
-          putting on the finishing touches — check back soon.
+          putting on the finishing touches, check back soon.
         </p>
         <a
           href="https://getsweepr.com"

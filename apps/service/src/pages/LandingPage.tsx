@@ -71,7 +71,7 @@ export function LandingPage() {
               <SessionLink
                 icon={Truck}
                 role="Cleaner view"
-                subtitle="Jordan Smith — advances the state machine"
+                subtitle="Jordan Smith, advances the state machine"
                 color="seafoam"
                 href={`/u1/t/${session.txId}`}
                 onClick={() => navigate(`/u1/t/${session.txId}`)}
@@ -79,7 +79,7 @@ export function LandingPage() {
               <SessionLink
                 icon={User}
                 role="Customer view"
-                subtitle="Alex Rivera — watches live status"
+                subtitle="Alex Rivera, watches live status"
                 color="violet"
                 href={`/u2/t/${session.txId}`}
                 onClick={() => navigate(`/u2/t/${session.txId}`)}

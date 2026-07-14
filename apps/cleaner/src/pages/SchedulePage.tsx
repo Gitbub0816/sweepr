@@ -103,7 +103,7 @@ export function SchedulePage() {
     setAvailableNow(next);
     try {
       await authFetch("available-now", "POST", { available: next });
-      toast.success(next ? "You're available now — accepting same-day jobs" : "Available Now off");
+      toast.success(next ? "You're available now, accepting same-day jobs" : "Available Now off");
     } catch {
       setAvailableNow(!next);
       toast.error("Couldn't update availability.");

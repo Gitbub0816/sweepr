@@ -132,7 +132,7 @@ export function Home() {
         </div>
       )}
 
-      {/* Get a cleaning — two entry paths (no service types up front) */}
+      {/* Get a cleaning, two entry paths (no service types up front) */}
       <h2 className="mt-10 text-lg font-black text-charcoal dark:text-white">
         {t("home.getACleaning", { defaultValue: "Get a cleaning" })}
       </h2>
