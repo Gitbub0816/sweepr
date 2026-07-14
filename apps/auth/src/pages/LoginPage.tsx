@@ -77,7 +77,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       </div>
       <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-400">
         <ShieldCheck className="h-3.5 w-3.5" />
-        Secured by Sweepr central sign-in
+        Secured by Sweepr Identity Protection
       </p>
       <nav aria-label="Legal" className="mt-1.5 flex items-center gap-4 text-xs text-slate-400">
         <a href={`${LEGAL_URL}/terms`} target="_blank" rel="noopener noreferrer" className="hover:text-slate-600 hover:underline dark:hover:text-slate-200">Terms</a>

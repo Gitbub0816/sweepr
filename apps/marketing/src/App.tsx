@@ -20,6 +20,7 @@ import { PromoHost } from "@sweepr/ui";
 // what every marketing visitor hits first). Every other page is
 // code-split so its JS is only fetched when a visitor navigates there.
 const CleanWithUs = lazy(() => import("./pages/CleanWithUs"));
+const QuotePage = lazy(() => import("./pages/QuotePage"));
 const StatusPage = lazy(() => import("./pages/StatusPage"));
 const PrivacyRequestPage = lazy(() => import("./pages/PrivacyRequestPage"));
 const AccessibilityPage = lazy(() => import("./pages/AccessibilityPage"));
@@ -42,6 +43,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/clean-with-us" element={<CleanWithUs />} />
+          <Route path="/quote" element={<QuotePage />} />
           <Route path="/status" element={<StatusPage />} />
           <Route path="/privacy" element={<LegalRedirect slug="privacy" />} />
           <Route path="/privacy-request" element={<PrivacyRequestPage />} />

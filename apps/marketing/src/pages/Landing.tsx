@@ -83,6 +83,7 @@ export default function Landing() {
     { label: t("nav.howItWorks"), href: "#how" },
     { label: t("nav.services"), href: "#services" },
     { label: t("nav.pricing"), href: "#pricing" },
+    { label: t("nav.getQuote", "Get a quote"), href: "/quote" },
     { label: t("nav.faq"), href: "#faq" },
     { label: t("nav.becomeACleaner"), href: "/clean-with-us" },
   ];
@@ -165,7 +166,7 @@ export default function Landing() {
             {useCases.map((u) => (
               <Reveal key={u.key}>
                 <a
-                  href={customerUrl}
+                  href="/quote"
                   className="group grid gap-x-8 gap-y-2 border-b border-slate-200 py-7 transition-colors hover:bg-offwhite dark:border-slate-700 dark:hover:bg-slate-800/40 sm:grid-cols-[minmax(0,4fr)_minmax(0,7fr)_auto] sm:items-baseline sm:px-3"
                 >
                   <h3 className="text-xl font-extrabold tracking-tight text-charcoal dark:text-white">

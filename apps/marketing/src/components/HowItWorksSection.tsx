@@ -46,6 +46,14 @@ interface Partner {
   wordmarkDark?: boolean; // wordmark is light/white → needs a dark chip
 }
 
+const SWEEPR_IDENTITY: Partner = {
+  name: "Sweepr Identity Protection",
+  role: "Our own identity & session layer",
+  why: "Clerk verifies who you are; Sweepr's own identity layer then issues each app its own separate, short-lived session, so signing in to one Sweepr app never silently signs you in anywhere else.",
+  href: "https://legal.getsweepr.com/security-policy",
+  logo: "/brand/sweepr-logo.svg",
+  wordmark: "/brand/sweepr-logo.svg",
+};
 const CLERK: Partner = {
   name: "Clerk",
   role: "Sign-in & account security",
@@ -137,7 +145,7 @@ const STEPS: Step[] = [
       "Save addresses and cleaning preferences",
       "Return anytime to manage upcoming cleanings",
     ],
-    partners: [CLERK],
+    partners: [CLERK, SWEEPR_IDENTITY],
   },
   {
     icon: ClipboardCheck,
@@ -183,11 +191,24 @@ const STEPS: Step[] = [
     partners: [YARDSTIK, DIDIT],
   },
   {
+    icon: Navigation,
+    label: "Cleaner arrives",
+    eyebrow: "Clean day",
+    title: "Your cleaner heads your way",
+    body: "Your pro navigates to your door and checks in on arrival. You get arrival, progress, and completion notifications, and the work is documented with before-and-after photos.",
+    points: [
+      "Turn-by-turn navigation to your address",
+      "Check-in confirms the right person at the right home",
+      "Arrival, progress, and completion notifications",
+    ],
+    partners: [MAPBOX],
+  },
+  {
     icon: KeyRound,
     label: "Smart Entry",
     eyebrow: "Optional · Smart Entry, powered by Seam",
     title: "Let your cleaner in, securely",
-    body: "No need to wait at home. Smart Entry, powered by Seam, grants your cleaner temporary access: only during the approved window, only near your home, revoked when the job is done.",
+    body: "No need to wait at home. Once your cleaner arrives and checks in, Smart Entry, powered by Seam, grants temporary access: only during the approved window, only near your home, revoked when the job is done.",
     points: [
       "Smart-lock access powered by Seam",
       "Access gated by time, location, identity & check-in",
@@ -195,19 +216,6 @@ const STEPS: Step[] = [
     ],
     partners: [SEAM],
     paywall: "$5 per cleaning · included with Sweepr+",
-  },
-  {
-    icon: Navigation,
-    label: "Cleaner arrives",
-    eyebrow: "Clean day",
-    title: "Your cleaner arrives & cleans",
-    body: "Your pro navigates to your door, checks in, follows the exact scope you selected, and documents the work with before-and-after photos.",
-    points: [
-      "Turn-by-turn navigation to your address",
-      "Before-and-after photo documentation",
-      "Arrival, progress, and completion notifications",
-    ],
-    partners: [MAPBOX],
   },
   {
     icon: CreditCard,
