@@ -14,6 +14,14 @@ import { Navigation, ChevronRight, Clock } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
+/** Camera distance (meters) before a live position is known — wide enough to
+ *  show the destination while geocoding/routing settles. */
+const OVERVIEW_CAMERA_DISTANCE = 1500;
+/** Camera distance (meters) once actively navigating — tight, street-level,
+ *  tracking the driver the way Apple Maps' own turn-by-turn does, instead of
+ *  a wide overview of the whole route. */
+const NAV_CAMERA_DISTANCE = 400;
+
 interface Step {
   instruction: string;
   distanceM: number;
@@ -53,14 +61,19 @@ async function fetchRoute(
         const route = data.routes[0];
         resolve({
           totalDistanceM: route.distance,
-          totalDurationS: route.expectedTravelTime / 1000,
+          // expectedTravelTime is already in seconds; do not divide again.
+          totalDurationS: route.expectedTravelTime,
           path: route.path.map((c) => [c.longitude, c.latitude] as [number, number]),
-          steps: route.steps.map((s) => ({
-            instruction: s.instructions,
-            distanceM: s.distance,
-            durationS: 0,
-            coordinate: s.path?.[0] ? [s.path[0].longitude, s.path[0].latitude] : null,
-          })),
+          steps: route.steps
+            .map((s): Step => ({
+              instruction: s.instructions,
+              distanceM: s.distance,
+              durationS: 0,
+              coordinate: s.path?.[0] ? [s.path[0].longitude, s.path[0].latitude] : null,
+            }))
+            // MapKit's leading "depart" step usually carries no instruction
+            // text — drop it so the banner always shows a real maneuver.
+            .filter((s) => s.instruction && s.instruction.trim().length > 0),
         });
       }
     );
@@ -141,7 +154,7 @@ export function NavigationMap({ destination, currentLat, currentLng }: Navigatio
         if (!containerRef.current || mapRef.current) return;
         const map = new mapkit.Map(containerRef.current, {
           center: new mapkit.Coordinate(coords[1], coords[0]),
-          cameraDistance: 1500,
+          cameraDistance: OVERVIEW_CAMERA_DISTANCE,
           showsMapTypeControl: false,
         });
         mapRef.current = map;
@@ -183,6 +196,11 @@ export function NavigationMap({ destination, currentLat, currentLng }: Navigatio
         posMarkerRef.current.coordinate = coord;
       }
 
+      // Track the driver tightly, like Apple Maps' own turn-by-turn, instead
+      // of zooming out to fit the whole route on every update.
+      map.setCenterAnimated(coord, true);
+      map.cameraDistance = NAV_CAMERA_DISTANCE;
+
       // Throttle route fetches to every 30s
       const now = Date.now();
       if (now - lastFetchRef.current < 30_000 && routeRef.current) return;
@@ -201,10 +219,6 @@ export function NavigationMap({ destination, currentLat, currentLng }: Navigatio
         style: new mapkit.Style({ strokeColor: "#14b8a6", lineWidth: 5, lineJoin: "round", lineCap: "round" }),
       });
       map.addOverlay(routeOverlayRef.current);
-
-      // Fit map to route + both markers
-      const items = [posMarkerRef.current, destMarkerRef.current].filter(Boolean);
-      if (items.length) map.showItems(items, { animate: true, padding: new mapkit.Padding(60, 60, 60, 60) });
 
       // Determine current step based on proximity
       const closestStep = result.steps.findIndex((s) => {
