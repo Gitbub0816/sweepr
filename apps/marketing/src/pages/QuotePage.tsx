@@ -173,7 +173,7 @@ export function QuotePage() {
         </div>
       }
     >
-      <section className="mx-auto max-w-6xl px-4 pb-24 pt-14">
+      <section className="mx-auto max-w-6xl px-4 pb-36 pt-14 lg:pb-24">
         <div className="max-w-2xl">
           <h1 className="text-4xl font-black tracking-tight text-charcoal [text-wrap:balance] dark:text-white sm:text-5xl">
             See your price before you sign up
@@ -346,6 +346,25 @@ export function QuotePage() {
           </aside>
         </div>
       </section>
+
+      {/* Mobile live price bar: the number reacts where the thumb is. */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur dark:border-slate-700 dark:bg-slate-900/95 lg:hidden">
+        <div className="mx-auto flex max-w-xl items-center justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Estimated price
+            </p>
+            <p className="text-2xl font-black tracking-tight text-charcoal dark:text-white" aria-live="polite">
+              ${'{'}total.toFixed(0){'}'}
+            </p>
+          </div>
+          <a href={bookUrl}>
+            <Button>
+              Book now <ArrowRight aria-hidden="true" className="h-4 w-4" />
+            </Button>
+          </a>
+        </div>
+      </div>
     </MarketingShell>
   );
 }

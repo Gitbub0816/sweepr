@@ -18,7 +18,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 type IncidentStatus = "investigating" | "identified" | "monitoring" | "resolved";
 type IncidentSeverity = "minor" | "moderate" | "major" | "critical";
 type MaintenanceStatus = "scheduled" | "in_progress" | "completed" | "cancelled";
-type Tab = "incidents" | "maintenance" | "settings";
+type Tab = "incidents" | "maintenance";
 
 interface StatusUpdate {
   id: string;
@@ -233,7 +233,7 @@ export function StatusPage() {
 
   if (loading) {
     return (
-      <DashboardShell title="Status Management" description="Manage incidents, maintenance windows, and prelaunch settings">
+      <DashboardShell title="Status Management" description="Manage incidents and maintenance windows. Prelaunch gates moved to Settings.">
         <div className="space-y-6">
           <StatGridSkeleton count={4} />
           <CardListSkeleton rows={3} />
@@ -246,7 +246,7 @@ export function StatusPage() {
   const autoOpen = openIncidents.filter((i) => i.auto_detected);
 
   return (
-    <DashboardShell title="Status Management" description="Manage incidents, maintenance windows, and prelaunch settings">
+    <DashboardShell title="Status Management" description="Manage incidents and maintenance windows. Prelaunch gates moved to Settings.">
       <div className="space-y-6">
         {/* Auto-detection summary bar */}
         {autoOpen.length > 0 && (
@@ -260,7 +260,7 @@ export function StatusPage() {
 
         {/* Tab bar */}
         <div className="flex rounded-xl border border-slate-200 p-1 dark:border-slate-700 w-fit gap-1">
-          {(["incidents", "maintenance", "settings"] as Tab[]).map((t) => (
+          {(["incidents", "maintenance"] as Tab[]).map((t) => (
             <button key={t} type="button" onClick={() => setTab(t)}
               className={`rounded-lg px-4 py-2 text-sm font-medium capitalize transition ${tab === t ? "bg-seafoam-500 text-white shadow-sm" : "text-slate-500 hover:text-slate-700 dark:text-slate-400"}`}>
               {t}
@@ -485,29 +485,6 @@ export function StatusPage() {
           </div>
         )}
 
-        {/* ── Settings Tab ────────────────────────────────────────────── */}
-        {tab === "settings" && (
-          <Card>
-            <div className="p-6">
-              <h2 className="mb-4 text-base font-semibold text-charcoal dark:text-white">Prelaunch Settings</h2>
-              <div className="space-y-4">
-                {(
-                  [
-                    { key: "prelaunch_cleaner", label: "Cleaner app in prelaunch" },
-                    { key: "prelaunch_customer", label: "Customer app in prelaunch" },
-                  ] as { key: string; label: string }[]
-                ).map(({ key, label }) => (
-                  <label key={key} className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" checked={settings[key] === "true"}
-                      onChange={(e) => void patchSetting(key, e.target.checked ? "true" : "false")}
-                      className="h-4 w-4 rounded border-slate-300 text-seafoam-500 focus:ring-seafoam-400" />
-                    <span className="text-sm text-slate-700 dark:text-slate-300">{label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </Card>
-        )}
       </div>
     </DashboardShell>
   );

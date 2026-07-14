@@ -444,8 +444,75 @@ export function HowItWorksSection() {
             flow (no card, no overflow-hidden, no inner scrollbar), so nothing
             can ever be clipped. The detail panel is sticky alongside it. */}
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_26rem] lg:gap-12">
-          {/* ── The road ──────────────────────────────────────────────── */}
-          <div className="relative">
+          {/* ── Mobile stop strip ─────────────────────────────────── */}
+          <div className="lg:hidden">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                The route
+              </span>
+              <span className="text-[11px] font-bold text-slate-400">
+                Stop {active + 1} of {STEPS.length}
+              </span>
+            </div>
+            <div className="h-1 overflow-hidden rounded-full bg-seafoam-100 dark:bg-slate-700">
+              <span
+                className="block h-full rounded-full bg-seafoam-600 transition-all duration-500 ease-out"
+                style={{ width: `${((active + 1) / STEPS.length) * 100}%` }}
+              />
+            </div>
+            <div
+              role="tablist"
+              aria-label="Booking journey steps"
+              className="-mx-4 mt-3 flex snap-x snap-mandatory gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {STEPS.map((s2, i) => {
+                const Icon2 = s2.icon;
+                const isActive2 = i === active;
+                const isPassed2 = i < active;
+                return (
+                  <button
+                    key={s2.title}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive2}
+                    onClick={() => go(i)}
+                    className={`flex w-[5.4rem] shrink-0 snap-start flex-col items-center gap-1.5 rounded-2xl border px-2 py-3 transition-colors ${
+                      isActive2
+                        ? "border-seafoam-600 bg-seafoam-50 dark:border-seafoam-500 dark:bg-seafoam-900/25"
+                        : isPassed2
+                          ? "border-seafoam-200 bg-white dark:border-seafoam-800/60 dark:bg-slate-900"
+                          : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+                    }`}
+                  >
+                    <span
+                      className={`grid h-9 w-9 place-items-center rounded-xl ${
+                        isActive2
+                          ? "bg-seafoam-700 text-white"
+                          : isPassed2
+                            ? "bg-seafoam-600 text-white"
+                            : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300"
+                      }`}
+                    >
+                      <Icon2 className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                    <span
+                      className={`text-center text-[10px] font-extrabold leading-tight ${
+                        isActive2 ? "text-seafoam-800 dark:text-seafoam-300" : "text-slate-600 dark:text-slate-300"
+                      }`}
+                    >
+                      {s2.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ── The road (desktop) ─────────────────────────────────────
+              On phones the 1300px-tall map pushed the detail card a full
+              screen away, so below lg the road is replaced by a horizontal
+              snap strip of stops that drives the same detail card. */}
+          <div className="relative hidden lg:block">
             {/* Full-height road canvas — every stop always visible in the page. */}
             <div className="relative w-full" style={{ height: ROAD_PX }}>
             {/* route */}
@@ -703,7 +770,7 @@ export function HowItWorksSection() {
         </div>
 
         <p className="mt-4 text-center text-xs font-medium text-slate-500">
-          Tap any stop, or use Back and Next. The map centers each step for you.
+          Tap any stop, or use Back and Next.
         </p>
       </Reveal>
 

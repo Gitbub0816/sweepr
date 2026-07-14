@@ -23,6 +23,68 @@ interface PlatformSettings {
   taxRatePct: number;
 }
 
+function PrelaunchSettingsPanel() {
+  const { getToken } = useAuth();
+  const [settings, setSettings] = useState<Record<string, string | undefined>>({});
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    const bearer = await getToken();
+    const res = await fetch(`${API}/admin/status/settings`, {
+      headers: { Authorization: `Bearer ${bearer}` },
+    });
+    if (res.ok) setSettings(await res.json() as Record<string, string | undefined>);
+    else toast.error("Failed to load prelaunch settings");
+    setLoading(false);
+  }, [getToken]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  async function patch(key: string, value: string) {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+    const bearer = await getToken();
+    const res = await fetch(`${API}/admin/status/settings`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${bearer}` },
+      body: JSON.stringify({ key, value }),
+    });
+    if (!res.ok) {
+      toast.error("Failed to update setting");
+      void load();
+    }
+  }
+
+  return (
+    <Card className="max-w-lg space-y-4">
+      <h2 className="text-sm font-semibold text-charcoal dark:text-white">Prelaunch gates</h2>
+      <p className="text-sm text-gray-500">
+        While a gate is on, that app shows the prelaunch screen to everyone
+        without a bypass code. Flip it off to launch.
+      </p>
+      {loading ? (
+        <p className="text-sm text-slate-400">Loading…</p>
+      ) : (
+        <div className="space-y-3">
+          {([
+            { key: "prelaunch_customer", label: "Customer app in prelaunch" },
+            { key: "prelaunch_cleaner", label: "Cleaner app in prelaunch" },
+          ] as const).map(({ key, label }) => (
+            <label key={key} className="flex cursor-pointer items-center gap-3">
+              <input
+                type="checkbox"
+                checked={settings[key] === "true"}
+                onChange={(e) => void patch(key, e.target.checked ? "true" : "false")}
+                className="h-4 w-4 rounded border-slate-300 text-seafoam-500 focus:ring-seafoam-400"
+              />
+              <span className="text-sm text-slate-700 dark:text-slate-300">{label}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function AdminInvitePanel() {
   const { getToken } = useAuth();
   const [email, setEmail] = useState("");
@@ -335,6 +397,10 @@ export function SettingsPage() {
     <DashboardShell title="Settings" description="Platform-wide configuration.">
       <div className="space-y-6">
         <GeneralSettingsPanel />
+        <div>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-600">Launch</h2>
+          <PrelaunchSettingsPanel />
+        </div>
         <AdminInvitePanel />
         <div>
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-600">My account</h2>

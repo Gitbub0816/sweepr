@@ -16,7 +16,7 @@ import { LanguageSelector } from "../i18n/LanguageSelector";
 import { withLang } from "../i18n/languages";
 import { Reveal } from "../components/Reveal";
 import { HowItWorksSection } from "../components/HowItWorksSection";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import { lazy, Suspense } from "react";
 import { HeroScene } from "../components/HeroScene";
 import { QuoteCalculator } from "../components/QuoteCalculator";
@@ -137,10 +137,10 @@ export default function Landing() {
                 </Button>
               </div>
               {/* Proof, not adjectives. */}
-              <ul className="sweepr-fade-up sweepr-fade-up-d3 mt-10 flex max-w-xl flex-col gap-2 border-t border-slate-200 pt-5 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-400 sm:flex-row sm:gap-0 sm:divide-x sm:divide-slate-200 dark:sm:divide-slate-700">
-                <li className="sm:pr-5">Background-checked through Yardstik</li>
-                <li className="sm:px-5">The exact price, before you book</li>
-                <li className="sm:pl-5">No subscriptions required</li>
+              <ul className="sweepr-fade-up sweepr-fade-up-d3 mt-10 flex max-w-xl flex-col gap-2.5 border-t border-slate-200 pt-5 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-400 sm:flex-row sm:gap-0 sm:divide-x sm:divide-slate-200 dark:sm:divide-slate-700">
+                <li className="flex items-center gap-2.5 sm:gap-0 sm:pr-5"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-seafoam-100 text-seafoam-800 dark:bg-seafoam-900/40 dark:text-seafoam-300 sm:hidden"><Check aria-hidden="true" className="h-3 w-3" /></span>Background-checked through Yardstik</li>
+                <li className="flex items-center gap-2.5 sm:gap-0 sm:px-5"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-seafoam-100 text-seafoam-800 dark:bg-seafoam-900/40 dark:text-seafoam-300 sm:hidden"><Check aria-hidden="true" className="h-3 w-3" /></span>The exact price, before you book</li>
+                <li className="flex items-center gap-2.5 sm:gap-0 sm:pl-5"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-seafoam-100 text-seafoam-800 dark:bg-seafoam-900/40 dark:text-seafoam-300 sm:hidden"><Check aria-hidden="true" className="h-3 w-3" /></span>No subscriptions required</li>
               </ul>
             </div>
 
@@ -162,7 +162,34 @@ export default function Landing() {
               {t("useCases.subtitle", "Every home is different. Tell us what yours needs and we'll match the right cleaner to the job.")}
             </p>
           </Reveal>
-          <div className="mt-12 border-t border-slate-200 dark:border-slate-700">
+          {/* Mobile: swipeable editorial panels instead of stacked rows. */}
+          <div className="-mx-4 mt-10 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:hidden [&::-webkit-scrollbar]:hidden">
+            {useCases.map((u, i) => (
+              <a
+                key={u.key}
+                href="/quote"
+                className="flex w-[78%] shrink-0 snap-start flex-col justify-between rounded-2xl border border-slate-200 bg-offwhite p-5 dark:border-slate-700 dark:bg-slate-800/40"
+              >
+                <div>
+                  <span className="text-[11px] font-black tabular-nums text-slate-400">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <h3 className="mt-2 text-lg font-extrabold tracking-tight text-charcoal dark:text-white">
+                    {t(`useCases.${u.key}.name`)}
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+                    {t(`useCases.${u.key}.bio`)}
+                  </p>
+                </div>
+                <span className="mt-5 inline-flex items-center gap-1 text-sm font-bold text-seafoam-700 dark:text-seafoam-400">
+                  {t("useCases.cta", "Get started")}
+                  <ArrowRight aria-hidden="true" className="h-4 w-4" />
+                </span>
+              </a>
+            ))}
+          </div>
+
+          <div className="mt-12 hidden border-t border-slate-200 dark:border-slate-700 sm:block">
             {useCases.map((u) => (
               <Reveal key={u.key}>
                 <a
