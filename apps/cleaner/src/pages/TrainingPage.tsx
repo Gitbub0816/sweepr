@@ -305,7 +305,7 @@ function ModuleList({
           {summary.allRequiredComplete && (
             <div className="mt-5 flex items-center gap-2 rounded-xl bg-white/15 px-4 py-3 text-sm font-medium backdrop-blur">
               <Trophy className="h-5 w-5 shrink-0" />
-              Your background check is now unlocked. Great work!
+              Required training is done. Your background check step is now open.
             </div>
           )}
         </div>

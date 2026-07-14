@@ -343,7 +343,7 @@ function JobsTab() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error();
-      toast.success("Job accepted!");
+      toast.success("Job accepted. It's on your schedule.");
       reload();
     } catch { toast.error("Could not accept job."); }
     finally { setAccepting(null); }
@@ -745,11 +745,11 @@ function PerformanceTab() {
 
       {isNewCleaner ? (
         <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center space-y-2">
-          <div className="mx-auto w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center mb-3">
-            <Briefcase size={22} className="text-indigo-400" />
+          <div className="mx-auto w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
+            <Briefcase size={22} className="text-slate-500 dark:text-slate-400" />
           </div>
-          <p className="font-semibold text-slate-700">Complete your first job to unlock stats</p>
-          <p className="text-sm text-slate-600">Your completion rate, rating, and earnings breakdown will appear here once you're active.</p>
+          <p className="font-semibold text-slate-700 dark:text-slate-200">Stats appear after your first completed job</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400">Your completion rate, rating, and earnings breakdown will show up here.</p>
         </div>
       ) : (
         <>

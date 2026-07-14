@@ -165,8 +165,7 @@ function GetCleaningCard({
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-seafoam-300 dark:border-slate-700 dark:bg-slate-900"
-      style={{ borderLeft: "6px solid #14b8a6" }}
+      className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition-colors duration-200 ease-out hover:border-seafoam-400 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-seafoam-600"
     >
       <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-seafoam-50 text-seafoam-700 dark:bg-slate-800">
         <Icon className="h-6 w-6" />

@@ -180,7 +180,7 @@
       "ackDisclosure": "Your cleaner cannot change your price. If your home appears to exceed the selected scope, your cleaner may submit photos to Sweepr for review. Sweepr may approve an additional fee, modify the service scope, or cancel the booking where permitted by law."
     },
     "confirmed": {
-      "title": "You're booked!",
+      "title": "You're booked.",
       "cleanerAssigned": "A trusted cleaner has been assigned to your booking.",
       "findingCleaner": "We're finding your perfect cleaner. You'll be notified as soon as one is assigned.",
       "cleanerAssignedBadge": "Cleaner assigned",
@@ -241,7 +241,7 @@
       "title": "Add a little extra",
       "subtitle": "Optional services to round out your clean.",
       "includedInPackage": "Included in your selected package",
-      "forgotSomething": "Forgot something? Don't worry! You can add services anytime before your cleaner checks in."
+      "forgotSomething": "You can add services anytime before your cleaner checks in."
     }
   },
   "subscriptions": {
@@ -286,7 +286,7 @@
   "bookingDetail": {
     "reviewTitle": "Rate your clean",
     "howDidItGo": "How did {{name}} do?",
-    "thanksFeedback": "Thanks for your feedback!",
+    "thanksFeedback": "Thanks, your feedback was sent.",
     "submitReview": "Submit review",
     "submitting": "Submitting…",
     "noCleanerAssigned": "No cleaner assigned to this booking.",
@@ -310,7 +310,7 @@
       "custom": "Custom",
       "customAmount": "Custom tip amount",
       "sentTitle": "Tip sent",
-      "sentBody": "You tipped {{amount}}. Thank you!",
+      "sentBody": "You tipped {{amount}}. It goes to your cleaner in full.",
       "windowClosed": "The tipping window for this booking has closed.",
       "invalidAmount": "Please enter a tip between $1 and $500.",
       "error": "Could not send your tip. Please try again."
@@ -375,7 +375,7 @@
       "underReview": "Application under review",
       "finishSetup": "Finish setting up your account",
       "reviewingApplication": "We're reviewing your application, we'll email you when you're approved.",
-      "completeSteps": "Complete these steps to unlock the job board.",
+      "completeSteps": "Finish these steps to open the job board.",
       "onboarding": {
         "profile": "Profile & services",
         "training": "Training",
@@ -413,7 +413,7 @@
     },
     "jobs": {
       "title": "Job Board",
-      "description": "Accept the jobs that work for you. Full address unlocks on accept.",
+      "description": "Accept the jobs that work for you. The full address is shared when you accept.",
       "lookingForJobs": "Looking for jobs near you…",
       "noJobsTitle": "No jobs available right now",
       "noJobsDesc": "Check back soon, new offers appear throughout the day.",
@@ -465,7 +465,7 @@
       "nextLesson": "Next lesson",
       "takeQuiz": "Take the quiz",
       "quizPassed": "Quiz passed ✓",
-      "moduleComplete": "Module Complete!",
+      "moduleComplete": "Module complete",
       "notQuiteTitle": "Not quite there",
       "youPassed": "You passed {{title}}.",
       "needScore": "You need {{score}}% to pass.",

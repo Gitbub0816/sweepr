@@ -52,7 +52,7 @@ function JobsLocked() {
         <Lock className="h-6 w-6 text-slate-600" />
       </div>
       <h2 className="mt-4 text-lg font-bold text-charcoal dark:text-white">
-        Complete onboarding to unlock jobs
+        Finish onboarding to start taking jobs
       </h2>
       <p className="mt-1 max-w-sm text-sm text-slate-500">
         Finish your application and pass the background check to start accepting
