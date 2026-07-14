@@ -70,6 +70,7 @@ import { adminDebugRouter } from "./routes/adminDebug";
 import { itTicketsRouter } from "./routes/itTickets";
 import { itRouter } from "./routes/it";
 import { accountRouter } from "./routes/account";
+import { mapsRouter } from "./routes/maps";
 import { adminNotificationSettingsRouter } from "./routes/adminNotificationSettings";
 import { adminAlertsRouter } from "./routes/adminAlerts";
 import { slackRouter } from "./routes/slack";
@@ -360,6 +361,7 @@ app.use("/reviews", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "re
 app.use("/report/*", rateLimit({ limit: 20, windowMs: 15 * 60_000, keyPrefix: "report" , strict: true }));
 // Prelaunch bypass-code verification — tight IP bucket to blunt code guessing.
 app.use("/status/bypass", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "bypass", strict: true }));
+app.use("/maps/*", rateLimit({ limit: 240, windowMs: 15 * 60_000, keyPrefix: "maps" }));
 
 app.get("/", (c) => c.json({ name: "sweepr-api", status: "ok" }));
 app.get("/health", (c) => c.json({ ok: true }));
@@ -384,6 +386,7 @@ app.route("/admin/debug", adminDebugRouter);
 app.route("/it-tickets", itTicketsRouter);
 app.route("/it", itRouter);
 app.route("/account", accountRouter);
+app.route("/maps", mapsRouter);
 // Customer → Business bridge: initiation on the customer surface…
 app.route("/account/business-transition", customerTransitionRouter);
 // …and the Business-app workspace engine (requireApp("business") throughout).

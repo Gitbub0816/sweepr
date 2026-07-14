@@ -119,6 +119,12 @@ export interface Env {
   // STOP/START/HELP webhook is disabled until its signing secret is set.
   MAILERSEND_SMS_FROM?: string;
   MAILERSEND_SMS_INBOUND_SECRET?: string;
+  // Apple MapKit JS (server-side only — signs short-lived map auth tokens;
+  // the private key never reaches the browser). All three required together.
+  APPLE_MAPS_TEAM_ID?: string;
+  APPLE_MAPS_KEY_ID?: string;
+  /** Contents of the downloaded .p8 file, PEM (PKCS8) format, literal newlines. */
+  APPLE_MAPS_PRIVATE_KEY?: string;
 }
 
 export interface AuthUser {
