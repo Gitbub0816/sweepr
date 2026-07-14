@@ -211,12 +211,43 @@ adminAutomationRouter.post("/capture/:bookingId", async (c) => {
       throw new Error(`Cannot capture: PI status is '${pi.status}'`);
     }
 
-    const captured = await stripe.paymentIntents.capture(pi.id);
+    // Never capture more than was authorized or more than the DB-computed
+    // total (ledger adjustments can lower the total after authorization).
+    const target = Math.min(booking.total_price ?? pi.amount, pi.amount);
+
+    // Claim-then-act: insert the payments row as a 'capturing' claim BEFORE the
+    // Stripe call. payments.booking_id is unique, so a concurrent capture (this
+    // route racing the cron or a double-clicked admin) loses the claim and
+    // skips — exactly one capture attempt per booking.
+    const claim = await sql`
+      INSERT INTO payments (booking_id, stripe_payment_intent_id, amount, status)
+      VALUES (${bookingId}, ${pi.id}, ${target}, 'capturing')
+      ON CONFLICT (booking_id) DO NOTHING
+      RETURNING id
+    ` as { id: string }[];
+    if (!claim[0]) {
+      return { alreadyCaptured: true, paymentIntentId: pi.id, claimed: false };
+    }
+
+    let captured;
+    try {
+      captured = await stripe.paymentIntents.capture(
+        pi.id,
+        { amount_to_capture: target },
+        { idempotencyKey: `capture_${bookingId}` },
+      );
+    } catch (captureErr) {
+      // Release the claim so the capture cron (or a retry) can attempt it again.
+      await sql`
+        DELETE FROM payments WHERE booking_id = ${bookingId} AND status = 'capturing'
+      `;
+      throw captureErr;
+    }
 
     // Update payments table.
     await sql`
       UPDATE payments SET status = 'captured'
-      WHERE booking_id = ${bookingId}
+      WHERE booking_id = ${bookingId} AND status = 'capturing'
     `;
 
     // Mark capture queue item resolved.
@@ -231,11 +262,11 @@ adminAutomationRouter.post("/capture/:bookingId", async (c) => {
       actorClerkId,
       targetType: "booking",
       targetId: bookingId,
-      metadata: { paymentIntentId: pi.id, amount: captured.amount },
+      metadata: { paymentIntentId: pi.id, amount: captured.amount_received ?? target },
       timestamp: new Date().toISOString(),
     });
 
-    return { captured: true, paymentIntentId: pi.id, amount: captured.amount };
+    return { captured: true, paymentIntentId: pi.id, amount: captured.amount_received ?? target };
   });
 
   return c.json({ ok: true, result });
@@ -268,8 +299,33 @@ adminAutomationRouter.post("/capture-completed", async (c) => {
         const pi = await stripe.paymentIntents.retrieve(row.stripe_payment_intent_id);
         if (pi.status === "succeeded") { skipped++; continue; }
         if (pi.status !== "requires_capture") { skipped++; continue; }
-        await stripe.paymentIntents.capture(pi.id);
-        await sql`UPDATE payments SET status = 'captured' WHERE booking_id = ${row.id}`;
+        // Clamp to min(DB total, authorized) — never capture above either.
+        const target = Math.min(row.total_price ?? pi.amount, pi.amount);
+        // Claim-then-act (unique payments.booking_id) before the Stripe call so
+        // this batch can't race the capture cron or the single-capture route.
+        const claim = await sql`
+          INSERT INTO payments (booking_id, stripe_payment_intent_id, amount, status)
+          VALUES (${row.id}, ${pi.id}, ${target}, 'capturing')
+          ON CONFLICT (booking_id) DO NOTHING
+          RETURNING id
+        ` as { id: string }[];
+        if (!claim[0]) { skipped++; continue; }
+        try {
+          await stripe.paymentIntents.capture(
+            pi.id,
+            { amount_to_capture: target },
+            { idempotencyKey: `capture_${row.id}` },
+          );
+        } catch (captureErr) {
+          await sql`
+            DELETE FROM payments WHERE booking_id = ${row.id} AND status = 'capturing'
+          `;
+          throw captureErr;
+        }
+        await sql`
+          UPDATE payments SET status = 'captured'
+          WHERE booking_id = ${row.id} AND status = 'capturing'
+        `;
         captured++;
       } catch (err) {
         logger.error("batch capture failed", err, { bookingId: row.id });
@@ -311,17 +367,37 @@ adminAutomationRouter.post(
       if (!booking.stripe_connect_id) throw new Error("Cleaner has no Stripe Connect account");
       if (!booking.cleaner_payout) throw new Error("No payout amount on booking");
 
-      const existing = await sql`
-        SELECT id FROM payouts WHERE booking_id = ${bookingId} AND status = 'paid' LIMIT 1
+      // Claim-then-act BEFORE the Stripe call: flip the payout row to
+      // 'processing' with a conditional UPDATE so a concurrent/retried request
+      // (this route, /payments/release-payout, or the admin override in
+      // adminPayouts.ts — all share the blocked-status set) can't also transfer.
+      const claimed = await sql`
+        UPDATE payouts SET status = 'processing'
+        WHERE booking_id = ${bookingId} AND status NOT IN ('paid', 'processing', 'transferred')
+        RETURNING id
       ` as { id: string }[];
-      if (existing[0]) return { alreadyPaid: true };
+      if (!claimed[0]) return { alreadyPaid: true };
 
-      const transfer = await stripe.transfers.create({
-        amount: booking.cleaner_payout,
-        currency: "usd",
-        destination: booking.stripe_connect_id,
-        transfer_group: `booking_${bookingId}`,
-      });
+      let transfer;
+      try {
+        transfer = await stripe.transfers.create(
+          {
+            amount: booking.cleaner_payout,
+            currency: "usd",
+            destination: booking.stripe_connect_id,
+            transfer_group: `booking_${bookingId}`,
+            metadata: { type: "payout", booking_id: bookingId },
+          },
+          { idempotencyKey: `payout_${bookingId}` },
+        );
+      } catch (err) {
+        // Release the claim so a legitimate retry isn't permanently blocked.
+        await sql`
+          UPDATE payouts SET status = 'failed'
+          WHERE booking_id = ${bookingId} AND status = 'processing'
+        `;
+        throw err;
+      }
 
       await sql`
         UPDATE payouts SET status = 'paid', stripe_transfer_id = ${transfer.id}, paid_at = NOW()
@@ -387,12 +463,34 @@ adminAutomationRouter.post("/batch-payouts", async (c) => {
 
     for (const row of pending) {
       try {
-        const transfer = await stripe.transfers.create({
-          amount: row.amount,
-          currency: "usd",
-          destination: row.stripe_connect_id,
-          transfer_group: `booking_${row.booking_id}`,
-        });
+        // Claim-then-act: conditionally move pending → processing before the
+        // Stripe call so an overlapping batch run (or the single-release paths)
+        // can't double-transfer the same payout row.
+        const claimed = await sql`
+          UPDATE payouts SET status = 'processing'
+          WHERE id = ${row.id} AND status = 'pending'
+          RETURNING id
+        ` as { id: string }[];
+        if (!claimed[0]) continue;
+        let transfer;
+        try {
+          transfer = await stripe.transfers.create(
+            {
+              amount: row.amount,
+              currency: "usd",
+              destination: row.stripe_connect_id,
+              transfer_group: `booking_${row.booking_id}`,
+              metadata: { type: "payout", booking_id: row.booking_id },
+            },
+            { idempotencyKey: `payout_${row.booking_id}` },
+          );
+        } catch (transferErr) {
+          // Release the claim so a later run can retry this payout.
+          await sql`
+            UPDATE payouts SET status = 'failed' WHERE id = ${row.id} AND status = 'processing'
+          `;
+          throw transferErr;
+        }
         await sql`
           UPDATE payouts SET status = 'paid', stripe_transfer_id = ${transfer.id}, paid_at = NOW()
           WHERE id = ${row.id}
