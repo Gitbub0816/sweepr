@@ -16,7 +16,6 @@ import {
   ShieldCheck,
   KeyRound,
   Navigation,
-  Sparkles,
   CreditCard,
   Star,
   ChevronLeft,
@@ -50,7 +49,7 @@ interface Partner {
 const CLERK: Partner = {
   name: "Clerk",
   role: "Sign-in & account security",
-  why: "Bank-grade authentication trusted by thousands of companies, protected with modern security and multi-factor sign-in.",
+  why: "Authentication trusted by thousands of companies, with modern security and multi-factor sign-in.",
   href: "https://clerk.com",
   logo: "https://clerk.com/favicon.ico",
   wordmark: "https://clerk.com/v2/downloads/logotype-full-primary.svg",
@@ -74,14 +73,14 @@ const YARDSTIK: Partner = {
 const DIDIT: Partner = {
   name: "Didit",
   role: "Identity verification",
-  why: "Confirms every cleaner is a real, verified person via government-ID and biometric checks, so the pro at your door is exactly who they say they are.",
+  why: "Confirms every cleaner is a real, verified person via government-ID and biometric checks, so the person at your door is exactly who they say they are.",
   href: "https://didit.me",
   logo: "https://didit.me/favicon.ico",
 };
 const SEAM: Partner = {
   name: "Seam",
   role: "Smart-lock access, powered by Seam",
-  why: "Seam connects hundreds of supported smart locks so Sweepr can grant your cleaner temporary, booking-specific entry, gated by time, location, and identity, then revoked after the job.",
+  why: "Seam connects hundreds of supported smart locks so Sweepr can grant your cleaner temporary, booking-specific entry: gated by time, location, and identity, then revoked after the job.",
   href: "https://www.seam.co",
   logo: "https://www.seam.co/favicon.ico",
 };
@@ -142,7 +141,7 @@ const STEPS: Step[] = [
     label: "Quote & book",
     eyebrow: "Build your cleaning",
     title: "Get an upfront quote",
-    body: "Tell us about your home, choose the cleaning package that fits, and add only the extras you need. Your all-in price is shown before you confirm, no haggling, no callbacks.",
+    body: "Tell us about your home, choose the cleaning package that fits, and add only the extras you need. Your all-in price is shown before you confirm. No haggling, no callbacks.",
     points: [
       "Clear package scope before checkout",
       "Add-ons only appear when not already included",
@@ -150,14 +149,14 @@ const STEPS: Step[] = [
     ],
     partners: [],
     inHouseNote:
-      "Sweepr's pricing engine was built in-house over thousands of hours so your quote is fair, transparent, and final, every line calculated on our own servers, not guessed at.",
+      "Sweepr's pricing engine was built in-house over thousands of hours so your quote is fair, transparent, and final: every line calculated on our own servers, not guessed at.",
   },
   {
     icon: CalendarClock,
     label: "Pick a time",
     eyebrow: "Lock it in",
     title: "Choose a time that works",
-    body: "See real availability in your area and pick the slot that suits you. Confirm in a tap, reschedule or adjust add-ons right up until your cleaner checks in.",
+    body: "See real availability in your area and pick the slot that suits you. Confirm in a tap, and reschedule or adjust add-ons right up until your cleaner checks in.",
     points: [
       "Live availability for your neighborhood",
       "Flexible rescheduling before check-in",
@@ -165,7 +164,7 @@ const STEPS: Step[] = [
     ],
     partners: [],
     inHouseNote:
-      "Our scheduling and matching logic is 100% Sweepr, carefully tuned by our team so the right cleaner is offered the right job at the right time, near you.",
+      "Our scheduling and matching logic is 100% Sweepr, tuned by our team so the right cleaner is offered the right job at the right time, near you.",
   },
   {
     icon: ShieldCheck,
@@ -189,7 +188,7 @@ const STEPS: Step[] = [
     points: [
       "Smart-lock access powered by Seam",
       "Access gated by time, location, identity & check-in",
-      "Every unlock is logged and you're notified live, a code or lockbox works too",
+      "Every unlock is logged and you're notified live. A code or lockbox works too",
     ],
     partners: [SEAM],
     paywall: "$5 per cleaning · included with Sweepr+",
@@ -215,7 +214,7 @@ const STEPS: Step[] = [
     body: "You're charged only once the cleaning is complete, never before. Payments are handled securely by the platform trusted by millions of businesses worldwide.",
     points: [
       "Charged after service, from your saved method",
-      "Encrypted, card details never touch our servers",
+      "Encrypted: card details never touch our servers",
       "Clear receipt saved to your account",
     ],
     partners: [STRIPE],
@@ -225,7 +224,7 @@ const STEPS: Step[] = [
     label: "Tip & review",
     eyebrow: "Wrap up",
     title: "Tip & review",
-    body: "Loved your clean? Add an optional tip and leave a review right from your account, it goes straight to your cleaner and helps keep marketplace quality high.",
+    body: "Loved your clean? Add an optional tip and leave a review right from your account. It goes straight to your cleaner and helps keep marketplace quality high.",
     points: [
       "Optional tips go 100% to your cleaner",
       "Reviews shape who gets matched next",
@@ -418,14 +417,14 @@ export function HowItWorksSection() {
 
   return (
     <section id="how" className="mx-auto max-w-7xl px-4 py-20">
-      <Reveal className="text-center">
-        <p className="text-sm font-bold uppercase tracking-wide text-seafoam-700">How Sweepr works</p>
-        <h2 className="mt-2 text-3xl font-black text-charcoal dark:text-white sm:text-4xl">
-          Follow the path to a cleaner home
+      <Reveal className="max-w-2xl">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">How Sweepr works</p>
+        <h2 className="mt-3 text-3xl font-black tracking-tight text-charcoal [text-wrap:balance] dark:text-white sm:text-4xl">
+          Follow a booking, start to finish
         </h2>
-        <p className="mx-auto mt-3 max-w-xl text-slate-500">
-          A guided journey from booking to spotless, every stop shows exactly what
-          happens next, and the trusted partners behind the moments that matter.
+        <p className="mt-3 text-slate-600 dark:text-slate-400">
+          Eight stops between "book a cleaning" and a clean home. Each one shows
+          exactly what happens, and who handles it.
         </p>
       </Reveal>
 
@@ -436,12 +435,7 @@ export function HowItWorksSection() {
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_26rem] lg:gap-12">
           {/* ── The road ──────────────────────────────────────────────── */}
           <div className="relative">
-            <span className="absolute left-2 top-0 z-20 inline-flex items-center gap-2 rounded-xl border border-seafoam-600/20 bg-white/80 px-3 py-2 text-xs font-extrabold text-seafoam-800 shadow-sm backdrop-blur dark:bg-slate-800/80 dark:text-seafoam-300">
-              <Sparkles className="h-4 w-4" aria-hidden="true" />
-              Your cleaning journey
-            </span>
-
-            {/* Full-height road canvas, every stop always visible in the page. */}
+            {/* Full-height road canvas — every stop always visible in the page. */}
             <div className="relative w-full" style={{ height: ROAD_PX }}>
             {/* route */}
             <svg
@@ -620,10 +614,9 @@ export function HowItWorksSection() {
               </ul>
 
               {step.paywall && (
-                <span className="mt-4 inline-flex items-center gap-1.5 self-start rounded-full border border-seafoam-300 bg-seafoam-50 px-3 py-1 text-xs font-extrabold text-seafoam-800 dark:border-seafoam-700 dark:bg-seafoam-900/30 dark:text-seafoam-300">
-                  <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
+                <p className="mt-4 text-xs font-semibold text-slate-600 dark:text-slate-400">
                   {step.paywall}
-                </span>
+                </p>
               )}
 
               {/* partner tie-in / in-house */}
@@ -651,7 +644,7 @@ export function HowItWorksSection() {
                     </div>
                     <p className="mt-3 text-[13px] leading-relaxed text-slate-600 dark:text-slate-400">
                       {step.inHouseNote ??
-                        "The Sweepr development team has spent thousands of hours curating this part of the experience for you!"}
+                        "The Sweepr development team has spent thousands of hours building this part of the experience in-house."}
                     </p>
                   </div>
                 )}
@@ -698,9 +691,8 @@ export function HowItWorksSection() {
           </aside>
         </div>
 
-        <p className="mt-4 flex items-center justify-center gap-2 text-center text-xs font-semibold text-slate-500">
-          <Sparkles className="h-4 w-4 text-seafoam-700" aria-hidden="true" />
-          Tap any stop, or use Back / Next, the map glides to center each step.
+        <p className="mt-4 text-center text-xs font-medium text-slate-500">
+          Tap any stop, or use Back and Next. The map centers each step for you.
         </p>
       </Reveal>
 

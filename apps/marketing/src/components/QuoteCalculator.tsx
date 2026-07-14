@@ -11,7 +11,7 @@
 import { useMemo, useState } from "react";
 import { calculateQuote, formatCurrency, SERVICE_LABELS } from "@sweepr/utils";
 import type { ServiceType, HomeType } from "@sweepr/types";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { NewsletterSubscribe } from "@sweepr/ui";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
@@ -49,11 +49,6 @@ export function QuoteCalculator({ pricingGated = false }: { pricingGated?: boole
   if (pricingGated) {
     return (
       <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white/95 p-6 text-left shadow-2xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/95">
-        <div className="flex justify-center mb-4">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-seafoam-50 dark:bg-seafoam-900/30">
-            <Sparkles aria-hidden="true" className="w-6 h-6 text-seafoam-500" />
-          </div>
-        </div>
         <h2 className="text-lg font-black text-charcoal dark:text-white text-center">
           Pricing coming soon
         </h2>
@@ -69,7 +64,7 @@ export function QuoteCalculator({ pricingGated = false }: { pricingGated?: boole
 
   return (
     <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white/95 p-6 text-left shadow-2xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/95">
-      <p className="text-xs font-bold uppercase tracking-wide text-seafoam-700">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
         Instant quote
       </p>
       <h2 className="mt-1 text-xl font-black text-charcoal dark:text-white">
