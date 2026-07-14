@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { DashboardShell, Card, Button, Input, toast, getMapStyle, getMapboxToken, CardListSkeleton } from "@sweepr/ui";
+import { DashboardShell, Card, Button, Input, toast, getMapStyle, getMapboxToken, isDarkTheme, bindMapTheme, MAP_3D_PITCH, CardListSkeleton } from "@sweepr/ui";
 import { Plus, Trash2, MapPin } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
@@ -60,20 +60,16 @@ function AreaMap({ areas, requests }: { areas: ServiceArea[]; requests: CityRequ
 
   useEffect(() => {
     if (!containerRef.current || !TOKEN || mapRef.current) return;
-    const dark = document.documentElement.classList.contains("dark");
     mapboxgl.accessToken = TOKEN;
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: getMapStyle(dark).style,
+      style: getMapStyle(isDarkTheme()).style,
       center: [-122.15, 37.75],
       zoom: 7.5,
+      pitch: MAP_3D_PITCH,
     });
     mapRef.current = map;
-
-    map.on("style.load", () => {
-      map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
-      map.setConfigProperty("basemap", "colorTheme", dark ? "default" : "faded");
-    });
+    const unbindTheme = bindMapTheme(map);
 
     map.on("load", () => {
       const allAreas = areas.length > 0 ? areas : [
@@ -124,7 +120,7 @@ function AreaMap({ areas, requests }: { areas: ServiceArea[]; requests: CityRequ
       }
     });
 
-    return () => { map.remove(); mapRef.current = null; };
+    return () => { unbindTheme(); map.remove(); mapRef.current = null; };
   }, [areas, requests]);
 
   if (!TOKEN) return (

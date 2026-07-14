@@ -11,17 +11,7 @@
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { getMapStyle, getMapboxToken } from "@sweepr/ui";
-
-function isDarkTheme() {
-  if (typeof document !== "undefined" &&
-    document.documentElement.classList.contains("dark")) return true;
-  try {
-    return localStorage.getItem("theme") === "dark";
-  } catch {
-    return false;
-  }
-}
+import { getMapStyle, getMapboxToken, isDarkTheme, bindMapTheme, MAP_3D_PITCH } from "@sweepr/ui";
 
 const TOKEN = getMapboxToken();
 
@@ -38,28 +28,25 @@ export function AddressMapPreview({ lat, lng }: AddressMapPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
+  const themeUnbindRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!TOKEN || !containerRef.current) return;
     mapboxgl.accessToken = TOKEN;
 
-    const dark = isDarkTheme();
     if (!mapRef.current) {
       const map = new mapboxgl.Map({
         container: containerRef.current,
-        style: getMapStyle(dark).style,
+        style: getMapStyle(isDarkTheme()).style,
         center: [lng, lat],
         zoom: 14,
-        pitch: 45,
+        pitch: MAP_3D_PITCH,
         interactive: true,
         attributionControl: false,
       });
       mapRef.current = map;
+      themeUnbindRef.current = bindMapTheme(map);
       map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
-      map.on("style.load", () => {
-        map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
-      map.setConfigProperty("basemap", "colorTheme", dark ? "default" : "faded");
-      });
     } else {
       mapRef.current.setCenter([lng, lat]);
     }
@@ -74,30 +61,10 @@ export function AddressMapPreview({ lat, lng }: AddressMapPreviewProps) {
     };
   }, [lat, lng]);
 
-  // React to theme changes (class toggled on <html> or theme storage change).
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const apply = () => {
-      const map = mapRef.current;
-      if (!map) return;
-      const dark = isDarkTheme();
-      map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
-      map.setConfigProperty("basemap", "colorTheme", dark ? "default" : "faded");
-    };
-    const observer = new MutationObserver(apply);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-    window.addEventListener("storage", apply);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("storage", apply);
-    };
-  }, []);
-
   useEffect(() => {
     return () => {
+      themeUnbindRef.current?.();
+      themeUnbindRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
     };

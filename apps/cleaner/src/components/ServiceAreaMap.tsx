@@ -11,17 +11,7 @@
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { getMapStyle, getMapboxToken } from "@sweepr/ui";
-
-function isDarkTheme() {
-  if (typeof document !== "undefined" &&
-    document.documentElement.classList.contains("dark")) return true;
-  try {
-    return localStorage.getItem("theme") === "dark";
-  } catch {
-    return false;
-  }
-}
+import { getMapStyle, getMapboxToken, isDarkTheme, bindMapTheme, MAP_3D_PITCH } from "@sweepr/ui";
 
 const TOKEN = getMapboxToken();
 
@@ -59,26 +49,23 @@ export function ServiceAreaMap({ center, radiusMi }: ServiceAreaMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
+  const themeUnbindRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!TOKEN || !containerRef.current) return;
     mapboxgl.accessToken = TOKEN;
 
     if (!mapRef.current) {
-      const dark = isDarkTheme();
       const map = new mapboxgl.Map({
         container: containerRef.current,
-        style: getMapStyle(dark).style,
+        style: getMapStyle(isDarkTheme()).style,
         center,
         zoom: 9,
-        pitch: 30,
+        pitch: MAP_3D_PITCH,
         attributionControl: false,
       });
       mapRef.current = map;
-      map.on("style.load", () => {
-        map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
-      map.setConfigProperty("basemap", "colorTheme", dark ? "default" : "faded");
-      });
+      themeUnbindRef.current = bindMapTheme(map);
       map.on("load", () => {
         map.addSource("service-area", {
           type: "geojson",
@@ -120,30 +107,10 @@ export function ServiceAreaMap({ center, radiusMi }: ServiceAreaMapProps) {
     map.setCenter(center);
   }, [center, radiusMi]);
 
-  // React to theme changes.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const apply = () => {
-      const map = mapRef.current;
-      if (!map) return;
-      const dark = isDarkTheme();
-      map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
-      map.setConfigProperty("basemap", "colorTheme", dark ? "default" : "faded");
-    };
-    const observer = new MutationObserver(apply);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-    window.addEventListener("storage", apply);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("storage", apply);
-    };
-  }, []);
-
   useEffect(() => {
     return () => {
+      themeUnbindRef.current?.();
+      themeUnbindRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
     };

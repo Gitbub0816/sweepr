@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { getMapStyle, getMapboxToken, validateEmail } from "@sweepr/ui";
+import { getMapStyle, getMapboxToken, isDarkTheme, bindMapTheme, MAP_3D_PITCH, validateEmail } from "@sweepr/ui";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 const TOKEN = getMapboxToken();
@@ -48,21 +48,17 @@ function CoverageMap({ areas, pins }: { areas: ServiceArea[]; pins: Array<{ lat:
     if (!containerRef.current || !TOKEN) return;
     mapboxgl.accessToken = TOKEN;
 
-    const dark = document.documentElement.classList.contains("dark");
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: getMapStyle(dark).style,
+      style: getMapStyle(isDarkTheme()).style,
       center: [-121.95, 37.5],
       zoom: 7.8,
+      pitch: MAP_3D_PITCH,
       interactive: true,
       attributionControl: false,
     });
     mapRef.current = map;
-
-    map.on("style.load", () => {
-      map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
-      map.setConfigProperty("basemap", "colorTheme", dark ? "default" : "faded");
-    });
+    const unbindTheme = bindMapTheme(map);
 
     map.on("load", () => {
       // Draw each service area polygon with seafoam glow
@@ -185,7 +181,10 @@ function CoverageMap({ areas, pins }: { areas: ServiceArea[]; pins: Array<{ lat:
       }
     });
 
-    return () => map.remove();
+    return () => {
+      unbindTheme();
+      map.remove();
+    };
   }, [areas, pins]);
 
   if (!TOKEN) {

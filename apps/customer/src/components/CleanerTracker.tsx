@@ -11,13 +11,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { getMapStyle, getMapboxToken } from "@sweepr/ui";
+import { getMapStyle, getMapboxToken, isDarkTheme, bindMapTheme, MAP_3D_PITCH } from "@sweepr/ui";
 import { Clock, Navigation2 } from "lucide-react";
-
-function isDarkTheme() {
-  if (typeof document !== "undefined" && document.documentElement.classList.contains("dark")) return true;
-  try { return localStorage.getItem("theme") === "dark"; } catch { return false; }
-}
 
 const TOKEN = getMapboxToken();
 
@@ -107,20 +102,16 @@ export function CleanerTracker({ bookingId, token, apiUrl, destLat, destLng, day
     if (!TOKEN || !containerRef.current || mapRef.current) return;
     if (destLat == null || destLng == null) return;
     mapboxgl.accessToken = TOKEN;
-    const dark = isDarkTheme();
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: getMapStyle(dark).style,
+      style: getMapStyle(isDarkTheme()).style,
       center: [destLng, destLat],
       zoom: 13,
-      pitch: 30,
+      pitch: MAP_3D_PITCH,
       attributionControl: false,
     });
     mapRef.current = map;
-    map.on("style.load", () => {
-      map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
-      map.setConfigProperty("basemap", "colorTheme", dark ? "default" : "faded");
-    });
+    const unbindTheme = bindMapTheme(map);
 
     // Destination (home) marker
     const homeEl = document.createElement("div");
@@ -130,7 +121,7 @@ export function CleanerTracker({ bookingId, token, apiUrl, destLat, destLng, day
       .setPopup(new mapboxgl.Popup({ offset: 25 }).setText("Your home"))
       .addTo(map);
 
-    return () => {};
+    return () => unbindTheme();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -11,13 +11,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { getMapStyle, getMapboxToken } from "@sweepr/ui";
+import { getMapStyle, getMapboxToken, isDarkTheme, bindMapTheme, MAP_3D_PITCH } from "@sweepr/ui";
 import { Navigation, ChevronRight, Clock } from "lucide-react";
-
-function isDarkTheme() {
-  if (typeof document !== "undefined" && document.documentElement.classList.contains("dark")) return true;
-  try { return localStorage.getItem("theme") === "dark"; } catch { return false; }
-}
 
 const TOKEN = getMapboxToken();
 
@@ -121,21 +116,16 @@ export function NavigationMap({ destination, currentLat, currentLng }: Navigatio
   useEffect(() => {
     if (!TOKEN || !containerRef.current || mapRef.current) return;
     mapboxgl.accessToken = TOKEN;
-    const dark = isDarkTheme();
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: getMapStyle(dark).style,
+      style: getMapStyle(isDarkTheme()).style,
       zoom: 14,
       center: destCoords ?? [destination.lng, destination.lat],
-      pitch: 45,
+      pitch: MAP_3D_PITCH,
       attributionControl: false,
     });
     mapRef.current = map;
-
-    map.on("style.load", () => {
-      map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
-      map.setConfigProperty("basemap", "colorTheme", dark ? "default" : "faded");
-    });
+    const unbindTheme = bindMapTheme(map);
 
     map.on("load", () => {
       map.addSource("route", { type: "geojson", data: { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: [] } } });
@@ -163,7 +153,7 @@ export function NavigationMap({ destination, currentLat, currentLng }: Navigatio
       .setLngLat(destCoords ?? [destination.lng, destination.lat])
       .addTo(map);
 
-    return () => {};
+    return () => unbindTheme();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

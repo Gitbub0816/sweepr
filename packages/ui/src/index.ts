@@ -72,7 +72,7 @@ export * from "./hooks/useReducedMotion";
 // Lib
 export { SafeText, sanitizeText } from "./lib/sanitize";
 export { isValidEmail, validateEmail, validateText, validatePhone } from "./lib/validation";
-export { MAPBOX_STYLES, getMapStyle, getMapboxToken } from "./lib/mapStyles";
+export { MAPBOX_STYLES, MAP_3D_PITCH, getMapStyle, getMapboxToken, isDarkTheme, applyMapTheme, bindMapTheme } from "./lib/mapStyles";
 export { initAnalytics, track, identify, resetAnalytics } from "./lib/analytics";
 export {
   initCookieEngine,

@@ -11,17 +11,7 @@
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { getMapStyle, getMapboxToken } from "@sweepr/ui";
-
-function isDarkTheme() {
-  if (typeof document !== "undefined" &&
-    document.documentElement.classList.contains("dark")) return true;
-  try {
-    return localStorage.getItem("theme") === "dark";
-  } catch {
-    return false;
-  }
-}
+import { getMapStyle, getMapboxToken, isDarkTheme, bindMapTheme, MAP_3D_PITCH } from "@sweepr/ui";
 
 const TOKEN = getMapboxToken();
 
@@ -38,22 +28,19 @@ export function AdminMap({ center, label }: AdminMapProps) {
   useEffect(() => {
     if (!TOKEN || !containerRef.current) return;
     mapboxgl.accessToken = TOKEN;
+    let unbindTheme: (() => void) | null = null;
     if (!mapRef.current) {
-      const dark = isDarkTheme();
       const map = new mapboxgl.Map({
         container: containerRef.current,
-        style: getMapStyle(dark).style,
+        style: getMapStyle(isDarkTheme()).style,
         center,
         zoom: 11,
-        pitch: 30,
+        pitch: MAP_3D_PITCH,
         interactive: false,
         attributionControl: false,
       });
       mapRef.current = map;
-      map.on("style.load", () => {
-        map.setConfigProperty("basemap", "lightPreset", dark ? "dusk" : "day");
-      map.setConfigProperty("basemap", "colorTheme", dark ? "default" : "faded");
-      });
+      unbindTheme = bindMapTheme(map);
       new mapboxgl.Marker({ color: "#14b8a6" })
         .setLngLat(center)
         .addTo(map);
@@ -61,6 +48,7 @@ export function AdminMap({ center, label }: AdminMapProps) {
       mapRef.current.setCenter(center);
     }
     return () => {
+      unbindTheme?.();
       mapRef.current?.remove();
       mapRef.current = null;
     };
