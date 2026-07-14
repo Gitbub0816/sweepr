@@ -11,7 +11,7 @@
 import type { ReactNode } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { Navigate, useLocation } from "react-router-dom";
-import { LoadingState } from "@sweepr/ui";
+import { SweeprLoaderScreen } from "@sweepr/ui";
 
 function ClerkProtected({ children }: { children: ReactNode }) {
   const { isLoaded, isSignedIn } = useAuth();
@@ -19,9 +19,7 @@ function ClerkProtected({ children }: { children: ReactNode }) {
 
   if (!isLoaded) {
     return (
-      <div className="mx-auto max-w-md px-4 py-16">
-        <LoadingState rows={4} />
-      </div>
+      <SweeprLoaderScreen />
     );
   }
   if (!isSignedIn) {

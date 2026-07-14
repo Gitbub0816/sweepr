@@ -9,6 +9,7 @@
  */
 
 import { useState } from "react";
+import { SweeprLoader } from "@sweepr/ui";
 import { useUser } from "@clerk/clerk-react";
 import { ShieldCheck, ExternalLink, Clock, CheckCircle2, AlertCircle } from "lucide-react";
 import { Input, Button, Card } from "@sweepr/ui";
@@ -138,7 +139,7 @@ export function BackgroundCheckStep({ n, getToken, onComplete, trainingComplete 
     );
   }
 
-  if (phase.kind === "loading") return <div className="flex flex-col items-center gap-4 py-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-seafoam-400 border-t-transparent" /><p className="text-sm text-slate-500">Preparing your secure check…</p></div>;
+  if (phase.kind === "loading") return <div className="flex flex-col items-center gap-4 py-12"><SweeprLoader label="Preparing your secure check…" /></div>;
 
   if (phase.kind === "embedded") {
     return (

@@ -23,6 +23,7 @@
  */
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { SweeprLoader } from "@sweepr/ui";
 
 export const CENTRAL_AUTH_ENABLED = import.meta.env.VITE_CENTRAL_AUTH_ENABLED === "true";
 
@@ -46,7 +47,7 @@ function redirectToLogin(): void {
 function Splash() {
   return (
     <div className="grid min-h-screen place-items-center">
-      <p className="text-sm text-slate-500 dark:text-slate-400">Redirecting to sign-in…</p>
+      <SweeprLoader label="Redirecting to sign-in…" />
     </div>
   );
 }

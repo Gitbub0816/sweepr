@@ -326,7 +326,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 font-sans">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
-          <img src="/brand/sweepr-logo.png" className="h-14 w-auto" alt="Sweepr" />
+          <img src="/brand/sweepr-logo.svg" className="h-14 w-auto" alt="Sweepr" />
           <a href="https://getsweepr.com" className="text-sm text-slate-500 hover:text-seafoam-700 transition-colors">
             getsweepr.com
           </a>
@@ -400,7 +400,7 @@ export default function App() {
 
       <footer className="mt-12 border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-6">
-          <img src="/brand/sweepr-logo.png" className="h-10 w-auto opacity-60" alt="Sweepr" />
+          <img src="/brand/sweepr-logo.svg" className="h-10 w-auto opacity-60" alt="Sweepr" />
           <p className="text-xs text-slate-600">Copyright &copy; 2026&ndash;Present Sweepr, operated by ClearKey Solutions, LLC. All Rights Reserved.</p>
         </div>
       </footer>

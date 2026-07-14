@@ -23,7 +23,7 @@ const heights: Record<NonNullable<LegalLogoProps["size"]>, string> = {
 export function LegalLogo({ className, size = "sm" }: LegalLogoProps) {
   return (
     <img
-      src="/brand/sweepr-logo.png"
+      src="/brand/sweepr-logo.svg"
       alt="Sweepr"
       style={{ height: heights[size], width: "auto", objectFit: "contain" }}
       className={className}

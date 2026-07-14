@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { SweeprLoader } from "@sweepr/ui";
 import { useSeo } from "../lib/useSeo";
 import { CheckCircle2, AlertTriangle, XCircle, Clock, ChevronDown, ChevronUp } from "lucide-react";
 import { MarketingShell, SweeprLogo } from "@sweepr/ui";
@@ -155,7 +156,7 @@ export default function StatusPage() {
 
         {loading ? (
           <div role="status" aria-live="polite" className="mt-16 flex justify-center">
-            <div aria-hidden="true" className="h-8 w-8 animate-spin rounded-full border-4 border-seafoam-400 border-t-transparent motion-reduce:animate-none" />
+            <SweeprLoader />
             <span className="sr-only">Loading status…</span>
           </div>
         ) : (

@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useState, useCallback } from "react";
+import { SweeprLoader } from "@sweepr/ui";
 import { useParams, Link } from "react-router-dom";
 import {
   Navigation, MapPin, Play, Camera, CheckSquare, RotateCcw,
@@ -226,7 +227,7 @@ function InfoRow({ icon: Icon, label, value, muted }: { icon: typeof Clock; labe
 function Spinner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="h-8 w-8 rounded-full border-4 border-seafoam-400 border-t-transparent animate-spin" />
+      <SweeprLoader />
     </div>
   );
 }

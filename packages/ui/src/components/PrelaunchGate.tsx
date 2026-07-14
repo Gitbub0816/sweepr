@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { SweeprLoader } from "./SweeprLoader";
 import { SweeprLogo } from "../assets/SweeprLogo";
 import { WaitlistForm } from "./WaitlistForm";
 
@@ -126,7 +127,7 @@ export function PrelaunchGate({ type, apiUrl, children, forcePrelaunch = false }
   if (settings === null && !forcePrelaunch) {
     return (
       <div className="flex h-screen items-center justify-center bg-white">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-seafoam-400 border-t-transparent" />
+        <SweeprLoader />
       </div>
     );
   }

@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useState, useCallback } from "react";
+import { SweeprLoader } from "@sweepr/ui";
 import { useParams, Link } from "react-router-dom";
 import { User, MapPin, Clock, CheckCircle2, Navigation, Play, CheckSquare } from "lucide-react";
 import { getSession, type SessionState, type DayStatus } from "../api";
@@ -200,7 +201,7 @@ function DetailRow({ icon: Icon, label, value }: { icon: typeof Clock; label: st
 function Spinner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="h-8 w-8 rounded-full border-4 border-seafoam-400 border-t-transparent animate-spin" />
+      <SweeprLoader />
     </div>
   );
 }

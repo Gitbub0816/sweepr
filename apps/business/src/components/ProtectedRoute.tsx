@@ -10,7 +10,7 @@
 
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
-import { LoadingState } from "@sweepr/ui";
+import { SweeprLoaderScreen } from "@sweepr/ui";
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isLoaded, isSignedIn } = useAuth();
@@ -18,9 +18,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!isLoaded) {
     return (
-      <div className="mx-auto max-w-3xl p-6">
-        <LoadingState rows={4} />
-      </div>
+      <SweeprLoaderScreen />
     );
   }
   if (!isSignedIn) {
