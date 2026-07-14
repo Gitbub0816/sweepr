@@ -200,5 +200,40 @@
     "rejectNonEssential": "Reject non-essential",
     "savePreferences": "Save preferences",
     "managePreferences": "Manage preferences"
+  },
+  "useCases": {
+    "title": "See how Sweepr can work for you",
+    "subtitle": "Every home is different. Tell us what yours needs and we'll match the right cleaner to the job.",
+    "cta": "Get started",
+    "tidying": {
+      "name": "Simple tidying",
+      "bio": "The weekly reset: surfaces, floors, bathrooms, kitchen. The kind of clean that keeps a busy house feeling handled."
+    },
+    "deep": {
+      "name": "Deep clean",
+      "bio": "Inside the appliances, behind the furniture, the baseboards you've been avoiding. Best for a first visit or a seasonal reset."
+    },
+    "reorganizing": {
+      "name": "Reorganizing",
+      "bio": "Closets, pantries, garages, the room that became storage. Someone patient sorts it with you, not around you."
+    },
+    "rental": {
+      "name": "Short-term rentals",
+      "bio": "Airbnb and Vrbo turnovers on your booking calendar. Guest-ready every time, with photos to prove it."
+    },
+    "move": {
+      "name": "Move-in / move-out",
+      "bio": "Empty-home cleans that help you get the deposit back, or start fresh somewhere new without scrubbing someone else's history."
+    },
+    "recurring": {
+      "name": "Recurring care",
+      "bio": "Weekly, biweekly, or monthly with the same cleaner whenever we can. Skip or reschedule without a phone call."
+    }
+  },
+  "teamNote": {
+    "eyebrow": "From the team",
+    "quote": "We started Sweepr because hiring a cleaner shouldn't feel like a gamble. You should know who's coming, what it costs, and that someone stands behind the work.",
+    "body": "So that's what we built: verified people, exact prices, and payment only after the job is done. If something isn't right, a human on our team looks at it. That's the whole pitch.",
+    "signoff": "The Sweepr team"
   }
 }

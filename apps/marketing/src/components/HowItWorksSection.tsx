@@ -73,23 +73,26 @@ const YARDSTIK: Partner = {
 const DIDIT: Partner = {
   name: "Didit",
   role: "Identity verification",
-  why: "Confirms every cleaner is a real, verified person via government-ID and biometric checks, so the person at your door is exactly who they say they are.",
+  why: "Government-ID and biometric checks confirm the person at your door is who they say.",
   href: "https://didit.me",
   logo: "https://didit.me/favicon.ico",
 };
 const SEAM: Partner = {
   name: "Seam",
   role: "Smart-lock access, powered by Seam",
-  why: "Seam connects hundreds of supported smart locks so Sweepr can grant your cleaner temporary, booking-specific entry: gated by time, location, and identity, then revoked after the job.",
+  why: "Connects hundreds of smart locks so entry is gated by time, place, and identity, then revoked.",
   href: "https://www.seam.co",
   logo: "https://www.seam.co/favicon.ico",
 };
 const MAPBOX: Partner = {
   name: "Mapbox",
   role: "Cleaner navigation",
-  why: "Powers turn-by-turn navigation that guides your verified cleaner right to your door, so arrivals stay on time and on route.",
+  why: "Turn-by-turn navigation that keeps arrivals on time and on route.",
   href: "https://www.mapbox.com",
   logo: "https://www.mapbox.com/favicon.ico",
+  // Official combined lockup, self-hosted: Mapbox's terms require the icon and
+  // wordmark to be used together, never separately.
+  wordmark: "/partners/mapbox-logo-black.svg",
 };
 const POSTHOG: Partner = {
   name: "PostHog",
@@ -128,7 +131,7 @@ const STEPS: Step[] = [
     label: "Create account",
     eyebrow: "Start here",
     title: "Create your account",
-    body: "Set up your Sweepr profile in seconds so your bookings, home details, preferences, and receipts stay together in one secure place.",
+    body: "Create your profile in seconds. Bookings, home details, and receipts stay together in one secure place.",
     points: [
       "Fast sign-in with modern account security",
       "Save addresses and cleaning preferences",
@@ -141,7 +144,7 @@ const STEPS: Step[] = [
     label: "Quote & book",
     eyebrow: "Build your cleaning",
     title: "Get an upfront quote",
-    body: "Tell us about your home, choose the cleaning package that fits, and add only the extras you need. Your all-in price is shown before you confirm. No haggling, no callbacks.",
+    body: "Tell us about your home and pick the package that fits. Your all-in price shows before you confirm. No haggling, no callbacks.",
     points: [
       "Clear package scope before checkout",
       "Add-ons only appear when not already included",
@@ -156,7 +159,7 @@ const STEPS: Step[] = [
     label: "Pick a time",
     eyebrow: "Lock it in",
     title: "Choose a time that works",
-    body: "See real availability in your area and pick the slot that suits you. Confirm in a tap, and reschedule or adjust add-ons right up until your cleaner checks in.",
+    body: "Pick from real availability in your area. Confirm in a tap, and adjust right up until your cleaner checks in.",
     points: [
       "Live availability for your neighborhood",
       "Flexible rescheduling before check-in",
@@ -171,7 +174,7 @@ const STEPS: Step[] = [
     label: "Verified match",
     eyebrow: "Trust checkpoint",
     title: "We verify & match your cleaner",
-    body: "This is where trust is earned. Every eligible cleaner completes identity verification and an accredited background check before they can ever accept your job.",
+    body: "Every cleaner completes identity verification and an accredited background check before they can accept your job.",
     points: [
       "Government-ID and biometric identity verification",
       "FCRA-compliant background screening",
@@ -184,7 +187,7 @@ const STEPS: Step[] = [
     label: "Smart Entry",
     eyebrow: "Optional · Smart Entry, powered by Seam",
     title: "Let your cleaner in, securely",
-    body: "No need to wait at home. Connect a supported smart lock and Sweepr Smart Entry, powered by our smart-lock partner Seam, grants your assigned cleaner temporary, booking-specific access: only during the approved window, only near your home, and automatically revoked when the job is done.",
+    body: "No need to wait at home. Smart Entry, powered by Seam, grants your cleaner temporary access: only during the approved window, only near your home, revoked when the job is done.",
     points: [
       "Smart-lock access powered by Seam",
       "Access gated by time, location, identity & check-in",
@@ -198,7 +201,7 @@ const STEPS: Step[] = [
     label: "Cleaner arrives",
     eyebrow: "Clean day",
     title: "Your cleaner arrives & cleans",
-    body: "Your matched pro navigates straight to your door, checks in, follows the exact scope you selected, and documents progress with before-and-after photos so you stay informed, even when you're away.",
+    body: "Your pro navigates to your door, checks in, follows the exact scope you selected, and documents the work with before-and-after photos.",
     points: [
       "Turn-by-turn navigation to your address",
       "Before-and-after photo documentation",
@@ -211,7 +214,7 @@ const STEPS: Step[] = [
     label: "Pay after",
     eyebrow: "You're all set",
     title: "Pay only after the job",
-    body: "You're charged only once the cleaning is complete, never before. Payments are handled securely by the platform trusted by millions of businesses worldwide.",
+    body: "You're charged once the cleaning is complete, never before. Stripe handles the payment; your card details never touch our servers.",
     points: [
       "Charged after service, from your saved method",
       "Encrypted: card details never touch our servers",
@@ -224,7 +227,7 @@ const STEPS: Step[] = [
     label: "Tip & review",
     eyebrow: "Wrap up",
     title: "Tip & review",
-    body: "Loved your clean? Add an optional tip and leave a review right from your account. It goes straight to your cleaner and helps keep marketplace quality high.",
+    body: "Add an optional tip and a review from your account. The tip goes straight to your cleaner, in full.",
     points: [
       "Optional tips go 100% to your cleaner",
       "Reviews shape who gets matched next",
@@ -298,7 +301,7 @@ function WordmarkImg({ partner }: { partner: Partner }) {
         src={partner.wordmark}
         alt={`${partner.name} logo`}
         loading="lazy"
-        className="h-7 w-auto max-w-[150px] object-contain object-left"
+        className="h-6 w-auto max-w-[140px] object-contain object-left"
         onError={() => setFailed(true)}
       />
     </span>
@@ -311,11 +314,11 @@ function PartnerCard({ partner }: { partner: Partner }) {
       href={partner.href}
       target="_blank"
       rel="noopener noreferrer nofollow"
-      className="group flex flex-col gap-1.5 rounded-xl border border-slate-200 bg-white p-3 transition-colors hover:border-seafoam-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-seafoam-600"
+      className="group flex flex-col gap-1 rounded-xl border border-slate-200 bg-white p-2.5 transition-colors hover:border-seafoam-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-seafoam-600"
     >
       {partner.wordmark ? (
         <>
-          <span className="flex h-9 items-center">
+          <span className="flex h-8 items-center">
             <WordmarkImg partner={partner} />
           </span>
           <span className="text-[11px] font-semibold text-seafoam-700 dark:text-seafoam-300">
@@ -335,7 +338,7 @@ function PartnerCard({ partner }: { partner: Partner }) {
           </span>
         </span>
       )}
-      <span className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">{partner.why}</span>
+      <span className="text-[11px] leading-snug text-slate-500 dark:text-slate-400">{partner.why}</span>
     </a>
   );
 }
@@ -576,7 +579,7 @@ export function HowItWorksSection() {
             className="flex min-w-0 flex-col self-start overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900 lg:sticky lg:top-24 lg:max-h-[calc(100svh-7rem)]"
             aria-live="polite"
           >
-            <div className="border-b border-slate-200 px-7 pb-5 pt-7 dark:border-slate-700">
+            <div className="border-b border-slate-200 px-6 pb-4 pt-5 dark:border-slate-700">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-xs font-black uppercase tracking-wider text-seafoam-700 dark:text-seafoam-300">
                   {step.eyebrow}
@@ -585,7 +588,7 @@ export function HowItWorksSection() {
                   {active + 1} of {STEPS.length}
                 </span>
               </div>
-              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+              <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                 <span
                   className="block h-full rounded-full bg-seafoam-600 transition-all duration-500 ease-out"
                   style={{ width: `${((active + 1) / STEPS.length) * 100}%` }}
@@ -593,20 +596,20 @@ export function HowItWorksSection() {
               </div>
             </div>
 
-            <div key={swapKey} className="flex min-h-0 flex-1 flex-col overflow-y-auto px-7 pb-7 pt-6 [animation:sweepr-fadeswap_.34s_ease_both]">
-              <span className="grid h-14 w-14 place-items-center rounded-2xl border border-seafoam-100 bg-seafoam-50 text-seafoam-700 dark:border-slate-700 dark:bg-slate-800 dark:text-seafoam-300">
-                <StepIcon className="h-6 w-6" aria-hidden="true" />
+            <div key={swapKey} className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 pb-5 pt-4 [animation:sweepr-fadeswap_.34s_ease_both]">
+              <span className="grid h-11 w-11 place-items-center rounded-xl border border-seafoam-100 bg-seafoam-50 text-seafoam-700 dark:border-slate-700 dark:bg-slate-800 dark:text-seafoam-300">
+                <StepIcon className="h-5 w-5" aria-hidden="true" />
               </span>
-              <h3 className="mt-5 text-2xl font-black leading-tight tracking-tight text-charcoal dark:text-white">
+              <h3 className="mt-3 text-xl font-black leading-tight tracking-tight text-charcoal dark:text-white">
                 {step.title}
               </h3>
-              <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-400">{step.body}</p>
+              <p className="mt-2 text-[13px] leading-snug text-slate-600 dark:text-slate-400">{step.body}</p>
 
-              <ul className="mt-5 grid gap-2.5">
+              <ul className="mt-3.5 grid gap-1.5">
                 {step.points.map((pt) => (
-                  <li key={pt} className="flex items-start gap-2.5 text-[13px] font-semibold text-slate-700 dark:text-slate-300">
-                    <span className="mt-px grid h-5 w-5 shrink-0 place-items-center rounded-md bg-seafoam-100 text-seafoam-800 dark:bg-seafoam-900/40 dark:text-seafoam-300">
-                      <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                  <li key={pt} className="flex items-start gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    <span className="mt-px grid h-4 w-4 shrink-0 place-items-center rounded bg-seafoam-100 text-seafoam-800 dark:bg-seafoam-900/40 dark:text-seafoam-300">
+                      <Check className="h-3 w-3" aria-hidden="true" />
                     </span>
                     <span>{pt}</span>
                   </li>
@@ -614,35 +617,35 @@ export function HowItWorksSection() {
               </ul>
 
               {step.paywall && (
-                <p className="mt-4 text-xs font-semibold text-slate-600 dark:text-slate-400">
+                <p className="mt-3 text-xs font-semibold text-slate-600 dark:text-slate-400">
                   {step.paywall}
                 </p>
               )}
 
               {/* partner tie-in / in-house */}
-              <div className="pt-6">
+              <div className="pt-4">
                 {step.partners.length > 0 ? (
                   <>
-                    <p className="mb-2.5 text-[11px] font-black uppercase tracking-wider text-slate-400">
+                    <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
                       Powered by trusted partners
                     </p>
-                    <div className="grid gap-2.5">
+                    <div className="grid gap-2">
                       {step.partners.map((p) => (
                         <PartnerCard key={p.name} partner={p} />
                       ))}
                     </div>
                   </>
                 ) : (
-                  <div className="rounded-2xl border border-seafoam-200 bg-seafoam-50/60 p-4 dark:border-seafoam-800/50 dark:bg-seafoam-900/20">
+                  <div className="rounded-xl border border-seafoam-200 bg-seafoam-50/60 p-3 dark:border-seafoam-800/50 dark:bg-seafoam-900/20">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-11 items-center justify-center rounded-xl bg-white px-3 ring-1 ring-slate-200 dark:ring-slate-600">
+                      <span className="flex h-9 items-center justify-center rounded-lg bg-white px-2.5 ring-1 ring-slate-200 dark:ring-slate-600">
                         <SweeprLogo size="sm" className="h-6" />
                       </span>
                       <span className="text-xs font-black uppercase tracking-wider text-seafoam-700 dark:text-seafoam-300">
                         We handle this part
                       </span>
                     </div>
-                    <p className="mt-3 text-[13px] leading-relaxed text-slate-600 dark:text-slate-400">
+                    <p className="mt-2 text-xs leading-snug text-slate-600 dark:text-slate-400">
                       {step.inHouseNote ??
                         "The Sweepr development team has spent thousands of hours building this part of the experience in-house."}
                     </p>
@@ -652,7 +655,7 @@ export function HowItWorksSection() {
             </div>
 
             {/* controls */}
-            <div className="grid grid-cols-[3rem_1fr_3rem] gap-2.5 border-t border-slate-200 px-6 pb-6 pt-4 dark:border-slate-700">
+            <div className="grid grid-cols-[3rem_1fr_3rem] gap-2.5 border-t border-slate-200 px-6 pb-5 pt-3.5 dark:border-slate-700">
               <button
                 type="button"
                 onClick={() => go(active - 1)}

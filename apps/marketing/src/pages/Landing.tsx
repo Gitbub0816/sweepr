@@ -17,7 +17,6 @@ import { withLang } from "../i18n/languages";
 import { Reveal } from "../components/Reveal";
 import { HowItWorksSection } from "../components/HowItWorksSection";
 import { ArrowRight } from "lucide-react";
-import { formatCurrency } from "@sweepr/utils";
 import { lazy, Suspense } from "react";
 import { HeroScene } from "../components/HeroScene";
 import { QuoteCalculator } from "../components/QuoteCalculator";
@@ -35,57 +34,14 @@ const CUSTOMER_URL =
 const CLEANER_URL =
   (import.meta.env.VITE_CLEANER_URL || "https://clean.getsweepr.com") + "/sign-up";
 
-const services = [
-  {
-    nameKey: "services.standard" as const,
-    price: 89,
-    taglineKey: "services.standardTagline" as const,
-    descKey: "services.standardDesc" as const,
-    bestForKey: "services.standardBestFor" as const,
-  },
-  {
-    nameKey: "services.deep" as const,
-    price: 149,
-    taglineKey: "services.deepTagline" as const,
-    descKey: "services.deepDesc" as const,
-    bestForKey: "services.deepBestFor" as const,
-  },
-  {
-    nameKey: "services.apartment" as const,
-    price: 99,
-    taglineKey: "services.apartmentTagline" as const,
-    descKey: "services.apartmentDesc" as const,
-    bestForKey: "services.apartmentBestFor" as const,
-  },
-  {
-    nameKey: "services.moveIn" as const,
-    price: 179,
-    taglineKey: "services.moveInTagline" as const,
-    descKey: "services.moveInDesc" as const,
-    bestForKey: "services.moveInBestFor" as const,
-  },
-  {
-    nameKey: "services.moveOut" as const,
-    price: 199,
-    taglineKey: "services.moveOutTagline" as const,
-    descKey: "services.moveOutDesc" as const,
-    bestForKey: "services.moveOutBestFor" as const,
-  },
-  {
-    nameKey: "services.recurring" as const,
-    price: 79,
-    taglineKey: "services.recurringTagline" as const,
-    descKey: "services.recurringDesc" as const,
-    bestForKey: "services.recurringBestFor" as const,
-  },
-  {
-    nameKey: "services.addOns" as const,
-    price: 0,
-    taglineKey: "services.addOnsTagline" as const,
-    descKey: "services.addOnsDesc" as const,
-    bestForKey: "services.addOnsBestFor" as const,
-  },
-];
+const useCases = [
+  { key: "tidying" },
+  { key: "deep" },
+  { key: "reorganizing" },
+  { key: "rental" },
+  { key: "move" },
+  { key: "recurring" },
+] as const;
 
 const trust = [
   { titleKey: "trust.screenedTitle" as const, bodyKey: "trust.screenedBody" as const },
@@ -94,12 +50,6 @@ const trust = [
   { titleKey: "trust.guaranteeTitle" as const, bodyKey: "trust.guaranteeBody" as const },
 ];
 
-const pricingRows = [
-  { home: "Studio apartment", service: "Standard", price: 89 },
-  { home: "2 bed / 1 bath", service: "Standard", price: 154 },
-  { home: "3 bed / 2 bath", service: "Deep Clean", price: 259 },
-  { home: "4 bed / 3 bath house", service: "Move-Out", price: 384 },
-];
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
@@ -205,40 +155,29 @@ export default function Landing() {
         <section id="services" className="mx-auto max-w-6xl px-4 py-24">
           <Reveal className="max-w-2xl">
             <h2 className="text-3xl font-black tracking-tight text-charcoal [text-wrap:balance] dark:text-white sm:text-4xl">
-              {t("services.title")}
+              {t("useCases.title", "See how Sweepr can work for you")}
             </h2>
-            <p className="mt-3 text-slate-600 dark:text-slate-400">{t("services.subtitle")}</p>
+            <p className="mt-3 text-slate-600 dark:text-slate-400">
+              {t("useCases.subtitle", "Every home is different. Tell us what yours needs and we'll match the right cleaner to the job.")}
+            </p>
           </Reveal>
           <div className="mt-12 border-t border-slate-200 dark:border-slate-700">
-            {services.map((s) => (
-              <Reveal key={s.nameKey}>
+            {useCases.map((u) => (
+              <Reveal key={u.key}>
                 <a
                   href={customerUrl}
-                  className="group grid gap-x-8 gap-y-2 border-b border-slate-200 py-7 transition-colors hover:bg-offwhite dark:border-slate-700 dark:hover:bg-slate-800/40 sm:grid-cols-[minmax(0,5fr)_minmax(0,6fr)_auto] sm:items-baseline sm:px-3"
+                  className="group grid gap-x-8 gap-y-2 border-b border-slate-200 py-7 transition-colors hover:bg-offwhite dark:border-slate-700 dark:hover:bg-slate-800/40 sm:grid-cols-[minmax(0,4fr)_minmax(0,7fr)_auto] sm:items-baseline sm:px-3"
                 >
-                  <div>
-                    <h3 className="text-xl font-extrabold tracking-tight text-charcoal dark:text-white">
-                      {t(s.nameKey)}
-                    </h3>
-                    <p className="mt-1 text-sm font-medium text-seafoam-700 dark:text-seafoam-400">{t(s.taglineKey)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400">{t(s.descKey)}</p>
-                    <p className="mt-2 text-[13px] text-slate-500 dark:text-slate-500">{t(s.bestForKey)}</p>
-                  </div>
-                  <div className="flex items-baseline gap-4 sm:flex-col sm:items-end sm:gap-1.5">
-                    {s.price > 0 ? (
-                      <p className="whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
-                        from <span className="text-lg font-extrabold tabular-nums text-charcoal dark:text-white">{formatCurrency(s.price)}</span>
-                      </p>
-                    ) : (
-                      <p className="whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">priced per item</p>
-                    )}
-                    <span className="inline-flex items-center gap-1 whitespace-nowrap text-sm font-bold text-seafoam-700 dark:text-seafoam-400">
-                      {t("services.bookNow")}
-                      <ArrowRight aria-hidden="true" className="h-4 w-4 transition-transform duration-200 ease-out group-hover:translate-x-0.5" />
-                    </span>
-                  </div>
+                  <h3 className="text-xl font-extrabold tracking-tight text-charcoal dark:text-white">
+                    {t(`useCases.${u.key}.name`)}
+                  </h3>
+                  <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+                    {t(`useCases.${u.key}.bio`)}
+                  </p>
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap text-sm font-bold text-seafoam-700 dark:text-seafoam-400">
+                    {t("useCases.cta", "Get started")}
+                    <ArrowRight aria-hidden="true" className="h-4 w-4 transition-transform duration-200 ease-out group-hover:translate-x-0.5" />
+                  </span>
                 </a>
               </Reveal>
             ))}
@@ -301,25 +240,19 @@ export default function Landing() {
                   </Button>
                 </div>
               </Reveal>
-              <Reveal delayMs={80} className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-offwhite text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                    <tr>
-                      <th scope="col" className="px-5 py-3 font-medium">{t("pricing.colHome")}</th>
-                      <th scope="col" className="px-5 py-3 font-medium">{t("pricing.colService")}</th>
-                      <th scope="col" className="px-5 py-3 text-right font-medium">{t("pricing.colPrice")}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {pricingRows.map((r) => (
-                      <tr key={r.home} className="bg-white dark:bg-slate-900">
-                        <td className="px-5 py-3.5 text-charcoal dark:text-white">{r.home}</td>
-                        <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">{r.service}</td>
-                        <td className="px-5 py-3.5 text-right font-bold tabular-nums text-charcoal dark:text-white">{formatCurrency(r.price)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <Reveal delayMs={80}>
+                <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:divide-slate-800 dark:border-slate-700 dark:bg-slate-900">
+                  {[
+                    { title: t("pricing.point1Title", "Your quote is exact, not an estimate"), body: t("pricing.point1Body", "Answer a few questions about your home and see the full price before you confirm. That number doesn't change unless you change the job.") },
+                    { title: t("pricing.point2Title", "No subscriptions, no memberships required"), body: t("pricing.point2Body", "Book once or set a schedule. Either way you only pay for cleanings that happen.") },
+                    { title: t("pricing.point3Title", "Charged after the clean, never before"), body: t("pricing.point3Body", "Payment runs when the work is done. Tips are optional and go to your cleaner in full.") },
+                  ].map((row) => (
+                    <li key={row.title} className="px-6 py-5">
+                      <p className="font-bold text-charcoal dark:text-white">{row.title}</p>
+                      <p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-slate-400">{row.body}</p>
+                    </li>
+                  ))}
+                </ul>
               </Reveal>
             </div>
           )}
@@ -335,6 +268,23 @@ export default function Landing() {
       <HowItWorksSection />
 
       {/* ── FAQ ── */}
+      <section className="border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <div className="mx-auto max-w-3xl px-4 py-20">
+          <Reveal>
+            <p className="text-[11px] font-black uppercase tracking-wider text-seafoam-700 dark:text-seafoam-300">
+              {t("teamNote.eyebrow", "From the team")}
+            </p>
+            <blockquote className="mt-5 text-2xl font-bold leading-snug tracking-tight text-charcoal [text-wrap:balance] dark:text-white sm:text-3xl">
+              {t("teamNote.quote", "We started Sweepr because hiring a cleaner shouldn't feel like a gamble. You should know who's coming, what it costs, and that someone stands behind the work.")}
+            </blockquote>
+            <p className="mt-6 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+              {t("teamNote.body", "So that's what we built: verified people, exact prices, and payment only after the job is done. If something isn't right, a human on our team looks at it. That's the whole pitch.")}
+            </p>
+            <p className="mt-5 text-sm font-semibold text-charcoal dark:text-white">{t("teamNote.signoff", "The Sweepr team")}</p>
+          </Reveal>
+        </div>
+      </section>
+
       <section id="faq" className="mx-auto max-w-6xl px-4 py-24">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-16">
           <Reveal>
