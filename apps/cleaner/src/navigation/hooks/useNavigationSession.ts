@@ -14,15 +14,25 @@ import {
   DEFAULT_VEHICLE_MARKER_CONFIG,
   INITIAL_NAVIGATION_SESSION_STATE,
   type Coordinate,
+  type FilteredLocation,
   type NavigationCameraMode,
   type NavigationRoute,
   type NavigationSessionState,
   type NavigationTheme,
+  type RouteMatchResult,
   type VehicleMarkerConfig,
 } from "../types/navigation";
-import { bearingBetween } from "../routing/routeGeometry";
+import { bearingBetween, haversineDistanceMeters } from "../routing/routeGeometry";
 import { useMapKit } from "./useMapKit";
-import { useBrowserLocation } from "./useBrowserLocation";
+import { createBrowserLocationService } from "../location/browserLocationService";
+import { filterLocation } from "../location/locationFilter";
+import { matchLocationToRoute } from "../routing/routeMatcher";
+import { computeRouteProgress } from "../routing/routeProgress";
+import { evaluateOffRoute, createRerouteRateLimiter } from "../routing/reroutingController";
+import { evaluateArrival } from "../guidance/arrivalController";
+import { classifyAnnouncementStage, AnnouncementDeduper } from "../guidance/maneuverController";
+import { createVoiceGuidance } from "../guidance/voiceGuidance";
+import { createMapKitDirectionsService } from "../routing/mapKitDirectionsService";
 import { createRouteOverlayManager, type RouteOverlayManager } from "../map/routeOverlayManager";
 import { createDestinationAnnotation, type DestinationAnnotationHandle } from "../map/destinationAnnotation";
 import { createVehicleAnnotation, type VehicleAnnotationHandle } from "../map/vehicleAnnotation";
@@ -41,8 +51,7 @@ const STATE_COMMIT_THROTTLE_MS = 500;
 const STATIONARY_SPEED_THRESHOLD_MPS = 0.5;
 
 export interface UseNavigationSessionOptions {
-  route: NavigationRoute | null;
-  destination: Coordinate | null;
+  destination: { coordinate: Coordinate; label: string } | null;
   theme?: NavigationTheme;
   vehicleMarkerConfig?: VehicleMarkerConfig;
   /** Whether the browser Geolocation watch should be active. */
@@ -60,84 +69,94 @@ export interface UseNavigationSessionResult {
 }
 
 /**
- * The composing hook for the navigation screen: wires together the MapKit
- * map, browser geolocation, route overlays, destination + vehicle
- * annotations, and the imperative navigation camera. Owns
- * `NavigationSessionState` in React state for UI-relevant fields, but keeps
- * high-frequency fields (raw location, bearing, cumulative distance) in refs
- * and only commits them to React state at STATE_COMMIT_THROTTLE_MS cadence,
- * via a requestAnimationFrame loop, so the navigation screen doesn't
- * re-render on every GPS tick.
+ * The composing hook for the navigation screen. Wires together:
+ *  - the MapKit map, route overlays, destination + vehicle annotations, and
+ *    the imperative navigation camera (packages/ui `bindMapTheme` pattern),
+ *  - real browser geolocation via `createBrowserLocationService`,
+ *  - location filtering, MapKit-route calculation, route matching, progress,
+ *    off-route/rerouting, arrival detection, and voice guidance.
  *
- * Route matching / progress / rerouting / arrival detection are NOT computed
- * here — those come from the parallel agent's routing/guidance modules. This
- * hook currently uses the raw filtered location directly as the vehicle's
- * displayed position (documented below) until those modules are merged.
+ * Owns `NavigationSessionState` in React state for UI-relevant fields, but
+ * keeps high-frequency fields (raw location, bearing, cumulative distance,
+ * route-match state) in refs, only committing to React state at
+ * STATE_COMMIT_THROTTLE_MS cadence, so the navigation screen doesn't
+ * re-render on every GPS tick. Route calculation, atomic route replacement on
+ * reroute, and per-sample off-route/arrival hysteresis run on every fix
+ * regardless of the UI commit throttle, since they need every sample to
+ * count consecutive occurrences correctly.
  */
 export function useNavigationSession(options: UseNavigationSessionOptions): UseNavigationSessionResult {
-  const { route, destination, enabled } = options;
+  const { destination, enabled } = options;
   const theme = options.theme ?? DEFAULT_NAVIGATION_THEME;
   const vehicleConfig = options.vehicleMarkerConfig ?? DEFAULT_VEHICLE_MARKER_CONFIG;
 
-  const initialCenter = destination ?? { lat: 0, lng: 0 };
+  const initialCenter = destination?.coordinate ?? { lat: 0, lng: 0 };
   const { containerRef, status: mapStatus, handleRef } = useMapKit(initialCenter);
-  const { location, permissionState } = useBrowserLocation(enabled);
 
   const [state, setState] = useState<NavigationSessionState>(INITIAL_NAVIGATION_SESSION_STATE);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   const overlayManagerRef = useRef<RouteOverlayManager | null>(null);
   const destinationAnnotationRef = useRef<DestinationAnnotationHandle | null>(null);
   const vehicleAnnotationRef = useRef<VehicleAnnotationHandle | null>(null);
   const cameraRef = useRef<NavigationCameraHandle | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+  const locationServiceRef = useRef<ReturnType<typeof createBrowserLocationService> | null>(null);
+  const voiceGuidanceRef = useRef<ReturnType<typeof createVoiceGuidance> | null>(null);
+  const rerouteLimiterRef = useRef(createRerouteRateLimiter());
+  const announcementDeduperRef = useRef(new AnnouncementDeduper());
 
   const lastCoordinateRef = useRef<Coordinate | null>(null);
   const lastBearingRef = useRef(0);
   const lastStateCommitRef = useRef(0);
-  const rafIdRef = useRef<number | null>(null);
   const cameraModeRef = useRef<NavigationCameraMode>("following");
 
-  // --- Set up map-dependent objects once the map is ready and a route/dest exist.
+  const filteredLocationRef = useRef<FilteredLocation | null>(null);
+  const routeMatchRef = useRef<RouteMatchResult | null>(null);
+  const routeRef = useRef<NavigationRoute | null>(null);
+  const routeVersionRef = useRef(0);
+  const offRouteCountRef = useRef(0);
+  const arrivalCountRef = useRef(0);
+  const arrivedRef = useRef(false);
+  const requestingRouteRef = useRef(false);
+
+  // --- Set up map-dependent objects once the map is ready.
   useEffect(() => {
     const handle = handleRef.current;
     if (mapStatus !== "ready" || !handle) return;
 
     if (destination && !destinationAnnotationRef.current) {
-      destinationAnnotationRef.current = createDestinationAnnotation(handle.mapkit, handle.map, destination);
+      destinationAnnotationRef.current = createDestinationAnnotation(handle.mapkit, handle.map, destination.coordinate);
     }
     if (!vehicleAnnotationRef.current) {
-      const startCoordinate = lastCoordinateRef.current ?? destination ?? initialCenter;
+      const startCoordinate = lastCoordinateRef.current ?? destination?.coordinate ?? initialCenter;
       vehicleAnnotationRef.current = createVehicleAnnotation(handle.mapkit, startCoordinate, vehicleConfig);
       handle.map.addAnnotation(vehicleAnnotationRef.current.annotation);
     }
     if (!cameraRef.current) {
       cameraRef.current = createNavigationCamera(handle.map, handle.mapkit, theme);
     }
-    if (route && !overlayManagerRef.current) {
-      overlayManagerRef.current = createRouteOverlayManager({ map: handle.map, mapkit: handle.mapkit, route, theme });
-    } else if (route && overlayManagerRef.current) {
-      overlayManagerRef.current.setRoute(route);
+    if (!voiceGuidanceRef.current) {
+      voiceGuidanceRef.current = createVoiceGuidance();
     }
-
-    return () => {
-      // Cleanup happens in the unmount effect below, not here, since this
-      // effect legitimately re-runs when `route` changes.
-    };
-  }, [mapStatus, destination, route, theme, vehicleConfig, initialCenter, handleRef]);
+  }, [mapStatus, destination, theme, vehicleConfig, initialCenter, handleRef]);
 
   // --- Full teardown on unmount.
   useEffect(() => {
     return () => {
-      if (rafIdRef.current != null) cancelAnimationFrame(rafIdRef.current);
+      locationServiceRef.current?.stop();
       overlayManagerRef.current?.destroy();
       destinationAnnotationRef.current?.destroy();
       vehicleAnnotationRef.current?.destroy();
       cameraRef.current?.destroy();
+      voiceGuidanceRef.current?.destroy();
       wakeLockRef.current?.release().catch(() => {});
       overlayManagerRef.current = null;
       destinationAnnotationRef.current = null;
       vehicleAnnotationRef.current = null;
       cameraRef.current = null;
+      voiceGuidanceRef.current = null;
       wakeLockRef.current = null;
     };
   }, []);
@@ -170,6 +189,7 @@ export function useNavigationSession(options: UseNavigationSessionOptions): UseN
     acquire();
 
     const onVisibility = () => {
+      setState((prev) => ({ ...prev, documentVisible: document.visibilityState === "visible" }));
       if (document.visibilityState === "visible" && !wakeLockRef.current) {
         acquire();
       }
@@ -184,61 +204,241 @@ export function useNavigationSession(options: UseNavigationSessionOptions): UseN
     };
   }, [enabled]);
 
-  // --- Feed each new geolocation fix into refs + the imperative map layer.
+  /** Requests a fresh MapKit route from `origin` to `destination` and
+   *  installs it (initial route or an atomic reroute replacement — the route
+   *  overlay manager's `setRoute` swaps geometry without a destroy/recreate
+   *  flash). Guards against overlapping requests via `requestingRouteRef`. */
+  const requestRoute = useCallback(
+    async (origin: Coordinate, isReroute: boolean) => {
+      const handle = handleRef.current;
+      if (!handle || !destination || requestingRouteRef.current) return;
+      requestingRouteRef.current = true;
+      if (isReroute) {
+        rerouteLimiterRef.current.markRerouteStarted();
+        setState((prev) => ({ ...prev, status: "rerouting", isRerouting: true }));
+        voiceGuidanceRef.current?.announce("rerouting", null);
+      } else {
+        setState((prev) => ({ ...prev, status: "calculating-route" }));
+      }
+
+      try {
+        const directionsService = createMapKitDirectionsService(handle.mapkit);
+        const result = await directionsService.requestRoute(origin, destination.coordinate);
+        if (!result.routes.length) {
+          setState((prev) => ({ ...prev, status: isReroute ? "navigating" : "error" }));
+          return;
+        }
+        const [primary, ...alternates] = result.routes;
+        routeRef.current = primary;
+        routeVersionRef.current += 1;
+        routeMatchRef.current = null;
+        offRouteCountRef.current = 0;
+        announcementDeduperRef.current.reset();
+
+        if (!overlayManagerRef.current && handle) {
+          overlayManagerRef.current = createRouteOverlayManager({
+            map: handle.map,
+            mapkit: handle.mapkit,
+            route: primary,
+            theme,
+          });
+        } else {
+          overlayManagerRef.current?.setRoute(primary);
+        }
+        overlayManagerRef.current?.setAlternateRoutes(alternates);
+
+        setState((prev) => ({
+          ...prev,
+          status: "navigating",
+          route: primary,
+          alternateRoutes: alternates,
+          routeVersion: routeVersionRef.current,
+          offRouteState: "on-route",
+          isRerouting: false,
+        }));
+      } finally {
+        requestingRouteRef.current = false;
+        rerouteLimiterRef.current.markRerouteFinished();
+      }
+    },
+    [destination, handleRef, theme]
+  );
+
+  // --- Start the real browser geolocation watch once the map is ready.
   useEffect(() => {
-    if (!location) return;
+    if (!enabled || mapStatus !== "ready") return;
 
-    const prevCoordinate = lastCoordinateRef.current;
-    const bearing =
-      location.headingDegrees ??
-      (prevCoordinate ? bearingBetween(prevCoordinate, location.coordinate) : lastBearingRef.current);
+    const service = createBrowserLocationService();
+    locationServiceRef.current = service;
 
-    lastCoordinateRef.current = location.coordinate;
-    lastBearingRef.current = bearing;
+    service.getPermissionState().then((permissionState) => {
+      setState((prev) => ({ ...prev, permissionState }));
+    });
 
-    vehicleAnnotationRef.current?.setCoordinate(location.coordinate);
-    vehicleAnnotationRef.current?.setHeading(bearing);
+    setState((prev) => ({ ...prev, status: prev.route ? prev.status : "requesting-location" }));
 
-    const speed = location.speedMps ?? 0;
-    vehicleAnnotationRef.current?.setMoving(speed > STATIONARY_SPEED_THRESHOLD_MPS);
+    service.start(
+      (raw) => {
+        const previousFiltered = filteredLocationRef.current;
+        const filtered = filterLocation(raw, previousFiltered);
+        if (filtered.rejected) return; // keep using the last good state
+        filteredLocationRef.current = filtered;
 
-    // NOTE: cumulativeDistanceMeters is a placeholder (0) until the parallel
-    // agent's routeProgress.ts is merged and wired in here — route-matched
-    // progress driving the completed/active overlay split and camera
-    // look-ahead will replace this once available.
-    const cumulativeDistanceMeters = 0;
-    overlayManagerRef.current?.updateProgress(cumulativeDistanceMeters);
-    cameraRef.current?.update(location.coordinate, bearing, cumulativeDistanceMeters, speed);
+        const prevCoordinate = lastCoordinateRef.current;
+        const bearing =
+          filtered.headingDegrees ??
+          (prevCoordinate ? bearingBetween(prevCoordinate, filtered.coordinate) : lastBearingRef.current);
+        lastCoordinateRef.current = filtered.coordinate;
+        lastBearingRef.current = bearing;
 
-    const now = Date.now();
-    if (now - lastStateCommitRef.current >= STATE_COMMIT_THROTTLE_MS) {
-      lastStateCommitRef.current = now;
-      setState((prev) => ({
-        ...prev,
-        rawLocation: location,
-        filteredLocation: { ...location, rejected: false },
-        currentBearing: bearing,
-        lastReliableBearing: location.headingDegrees != null ? bearing : prev.lastReliableBearing,
-        permissionState,
-        gpsAccuracyMeters: location.accuracyMeters,
-        lastValidLocationTimestamp: location.timestamp,
-        route,
-      }));
-    }
-  }, [location, permissionState, route]);
+        const route = routeRef.current;
 
-  useEffect(() => {
-    setState((prev) => ({ ...prev, permissionState }));
-  }, [permissionState]);
+        // Kick off the initial route calculation from the first good fix.
+        if (!route && destination && !requestingRouteRef.current) {
+          requestRoute(filtered.coordinate, false);
+        }
+
+        let displayCoordinate = filtered.coordinate;
+        let cumulativeDistanceMeters = 0;
+
+        if (route) {
+          const match = matchLocationToRoute(filtered.coordinate, route, routeMatchRef.current, {
+            accuracyMeters: filtered.accuracyMeters,
+            headingDegrees: filtered.headingDegrees,
+            speedMps: filtered.speedMps,
+          });
+          routeMatchRef.current = match;
+
+          // Per product requirement: route-matched coordinates while
+          // confidently on route, filtered raw coordinates while off route.
+          displayCoordinate = match.matched ? match.coordinate : filtered.coordinate;
+          cumulativeDistanceMeters = match.cumulativeDistanceMeters;
+
+          const { state: offRouteState, consecutiveOffRouteCount } = evaluateOffRoute(
+            match,
+            filtered,
+            offRouteCountRef.current,
+            0
+          );
+          offRouteCountRef.current = consecutiveOffRouteCount;
+
+          if (
+            offRouteState === "confirmed-deviation" &&
+            !requestingRouteRef.current &&
+            rerouteLimiterRef.current.shouldReroute()
+          ) {
+            requestRoute(filtered.coordinate, true);
+          }
+
+          const progress = computeRouteProgress(route, cumulativeDistanceMeters);
+          const straightLineToDestMeters = destination
+            ? haversineDistanceMeters(filtered.coordinate, destination.coordinate)
+            : Infinity;
+          const arrival = evaluateArrival(
+            progress.distanceRemainingMeters,
+            straightLineToDestMeters,
+            filtered.speedMps,
+            arrivalCountRef.current
+          );
+          arrivalCountRef.current = arrival.nextConsecutiveCount;
+          if (arrival.arrived && !arrivedRef.current) {
+            arrivedRef.current = true;
+            locationServiceRef.current?.stop();
+            cameraRef.current?.setMode("arrival", { route, destination: destination?.coordinate });
+            cameraModeRef.current = "arrival";
+            voiceGuidanceRef.current?.announce("arrival", null);
+          }
+
+          if (!arrivedRef.current && stateRef.current.voiceGuidanceEnabled) {
+            const stage = classifyAnnouncementStage(progress.distanceToNextManeuverMeters);
+            if (stage) {
+              const key = { routeVersion: routeVersionRef.current, stepIndex: progress.currentStepIndex, stage };
+              if (!announcementDeduperRef.current.hasAnnounced(key)) {
+                announcementDeduperRef.current.markAnnounced(key);
+                voiceGuidanceRef.current?.announce(stage, route.steps[progress.currentStepIndex] ?? null);
+              }
+            }
+          }
+
+          overlayManagerRef.current?.updateProgress(cumulativeDistanceMeters);
+          if (!arrivedRef.current) {
+            cameraRef.current?.setMode(cameraModeRef.current, {
+              route,
+              destination: destination?.coordinate,
+            });
+          }
+
+          const now = Date.now();
+          if (now - lastStateCommitRef.current >= STATE_COMMIT_THROTTLE_MS) {
+            lastStateCommitRef.current = now;
+            setState((prev) => ({
+              ...prev,
+              status: arrivedRef.current ? "arrived" : prev.status === "calculating-route" ? prev.status : "navigating",
+              rawLocation: raw,
+              filteredLocation: filtered,
+              routeMatchedLocation: match,
+              currentBearing: bearing,
+              lastReliableBearing: filtered.headingDegrees != null ? bearing : prev.lastReliableBearing,
+              currentStepIndex: progress.currentStepIndex,
+              distanceToNextManeuverMeters: progress.distanceToNextManeuverMeters,
+              distanceTraveledMeters: progress.distanceTraveledMeters,
+              distanceRemainingMeters: progress.distanceRemainingMeters,
+              remainingDurationSeconds: progress.remainingDurationSeconds,
+              estimatedArrival: progress.estimatedArrival,
+              offRouteState,
+              gpsAccuracyMeters: filtered.accuracyMeters,
+              lastValidLocationTimestamp: filtered.timestamp,
+            }));
+          }
+        } else {
+          const now = Date.now();
+          if (now - lastStateCommitRef.current >= STATE_COMMIT_THROTTLE_MS) {
+            lastStateCommitRef.current = now;
+            setState((prev) => ({
+              ...prev,
+              rawLocation: raw,
+              filteredLocation: filtered,
+              currentBearing: bearing,
+              lastReliableBearing: filtered.headingDegrees != null ? bearing : prev.lastReliableBearing,
+              gpsAccuracyMeters: filtered.accuracyMeters,
+              lastValidLocationTimestamp: filtered.timestamp,
+            }));
+          }
+        }
+
+        vehicleAnnotationRef.current?.setCoordinate(displayCoordinate);
+        vehicleAnnotationRef.current?.setHeading(bearing);
+        const speed = filtered.speedMps ?? 0;
+        vehicleAnnotationRef.current?.setMoving(speed > STATIONARY_SPEED_THRESHOLD_MPS);
+        if (!arrivedRef.current) {
+          cameraRef.current?.update(displayCoordinate, bearing, cumulativeDistanceMeters, speed);
+        }
+      },
+      (err) => {
+        const permissionState = err.reason === "permission-denied" ? "denied" : err.reason === "unsupported" ? "unsupported" : stateRef.current.permissionState;
+        setState((prev) => ({
+          ...prev,
+          permissionState,
+          status: prev.route ? prev.status : "error",
+        }));
+      }
+    );
+
+    return () => {
+      service.stop();
+      locationServiceRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, mapStatus, destination, requestRoute]);
 
   const setCameraMode = useCallback((mode: NavigationCameraMode) => {
     cameraModeRef.current = mode;
     cameraRef.current?.setMode(mode, {
-      route: route ?? undefined,
-      destination: destination ?? undefined,
+      route: routeRef.current ?? undefined,
+      destination: destination?.coordinate ?? undefined,
     });
     setState((prev) => ({ ...prev, cameraMode: mode, userMovedMap: mode === "user-controlled" }));
-  }, [route, destination]);
+  }, [destination]);
 
   const resumeFollowing = useCallback(() => {
     cameraRef.current?.resume();
@@ -247,6 +447,8 @@ export function useNavigationSession(options: UseNavigationSessionOptions): UseN
   }, []);
 
   const setVoiceGuidanceEnabled = useCallback((value: boolean) => {
+    voiceGuidanceRef.current?.setMuted(!value);
+    if (!value) voiceGuidanceRef.current?.cancel();
     setState((prev) => ({ ...prev, voiceGuidanceEnabled: value }));
   }, []);
 

@@ -17,10 +17,9 @@ import { NavigationControls } from "./NavigationControls";
 import { ResumeNavigationButton } from "./ResumeNavigationButton";
 import { RouteOverviewButton } from "./RouteOverviewButton";
 import { NavigationPermissionNotice, type NavigationNoticeReason } from "./NavigationPermissionNotice";
-import type { Coordinate, NavigationRoute } from "../types/navigation";
+import type { Coordinate } from "../types/navigation";
 
 export interface NavigationScreenProps {
-  route: NavigationRoute | null;
   destination: { coordinate: Coordinate; label: string } | null;
   onEndNavigation(): void;
 }
@@ -47,14 +46,14 @@ function permissionReason(state: ReturnType<typeof useNavigationSession>["state"
  * home-indicator on mobile Safari and behind Chrome-Android's dynamic
  * toolbar.
  */
-export function NavigationScreen({ route, destination, onEndNavigation }: NavigationScreenProps) {
+export function NavigationScreen({ destination, onEndNavigation }: NavigationScreenProps) {
   const session = useNavigationSession({
-    route,
-    destination: destination?.coordinate ?? null,
+    destination,
     enabled: true,
   });
   const [showOverview, setShowOverview] = useState(false);
 
+  const route = session.state.route;
   const currentStep = route?.steps[session.state.currentStepIndex] ?? null;
   const nextStep = route?.steps[session.state.currentStepIndex + 1] ?? null;
   const mapsUrl = useMemo(() => appleMapsUrl(destination), [destination]);

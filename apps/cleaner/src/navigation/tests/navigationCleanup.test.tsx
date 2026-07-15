@@ -113,7 +113,6 @@ describe("navigation screen cleanup", () => {
   it("tears down the map, annotations, camera, and wake lock on unmount", async () => {
     const { unmount } = render(
       <NavigationScreen
-        route={null}
         destination={{ coordinate: { lat: 40, lng: -74 }, label: "123 Main St" }}
         onEndNavigation={vi.fn()}
       />

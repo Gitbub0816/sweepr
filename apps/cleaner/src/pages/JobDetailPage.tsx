@@ -19,6 +19,7 @@ import { useTranslation } from "react-i18next";
 import { DashboardShell, Card, Button, ErrorState, Skeleton, toast } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
 import { NavigationMap } from "@sweepr/ui";
+import { NavigationScreen } from "../navigation/components/NavigationScreen";
 import { ScopeReviewSection } from "../components/ScopeReviewSection";
 import { SmartEntryAccess } from "../components/SmartEntryAccess";
 
@@ -72,6 +73,7 @@ export function JobDetailPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [navigating, setNavigating] = useState(false);
   const watchRef = useRef<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [photoType, setPhotoType] = useState<"before" | "after" | "checkout">("before");
@@ -256,6 +258,7 @@ export function JobDetailPage() {
   const isCompleted = dayStatus === "completed";
 
   return (
+    <>
     <DashboardShell
       title={t(`serviceTypes.${job.service_type}`, { defaultValue: job.service_type })}
       description={`Job ${job.id.slice(0, 8).toUpperCase()}`}
@@ -338,15 +341,20 @@ export function JobDetailPage() {
           )}
 
           {dayStatus === "en_route" && job.address && job.address.lat != null && job.address.lng != null && (
-            <NavigationMap
-              destination={{
-                lat: job.address.lat,
-                lng: job.address.lng,
-                label: `${job.address.street}, ${job.address.city}, ${job.address.state} ${job.address.zip}`,
-              }}
-              currentLat={currentPos?.lat ?? null}
-              currentLng={currentPos?.lng ?? null}
-            />
+            <>
+              <NavigationMap
+                destination={{
+                  lat: job.address.lat,
+                  lng: job.address.lng,
+                  label: `${job.address.street}, ${job.address.city}, ${job.address.state} ${job.address.zip}`,
+                }}
+                currentLat={currentPos?.lat ?? null}
+                currentLng={currentPos?.lng ?? null}
+              />
+              <Button fullWidth variant="secondary" onClick={() => setNavigating(true)}>
+                <Navigation className="h-4 w-4 mr-2" /> Open turn-by-turn navigation
+              </Button>
+            </>
           )}
           {dayStatus === "en_route" && !job.address && (
             <div className="rounded-lg bg-seafoam-50 border border-seafoam-200 px-4 py-3 text-sm text-seafoam-700 flex items-center gap-2">
@@ -442,6 +450,19 @@ export function JobDetailPage() {
         }}
       />
     </DashboardShell>
+
+      {navigating && job.address && job.address.lat != null && job.address.lng != null && (
+        <div className="fixed inset-0 z-50">
+          <NavigationScreen
+            destination={{
+              coordinate: { lat: job.address.lat, lng: job.address.lng },
+              label: `${job.address.street}, ${job.address.city}, ${job.address.state} ${job.address.zip}`,
+            }}
+            onEndNavigation={() => setNavigating(false)}
+          />
+        </div>
+      )}
+    </>
   );
 }
 
