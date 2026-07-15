@@ -22,6 +22,7 @@
     "framer-motion": "^12.42.2",
     "i18next": "^26.3.4",
     "i18next-browser-languagedetector": "^8.2.1",
+    "lottie-web": "^5.13.0",
     "lucide-react": "^0.469.0",
     "posthog-js": "^1.398.0",
     "qrcode": "^1.5.4",
