@@ -86,20 +86,35 @@ export interface PayoutBreakdown {
   scheduledFor: Date;    // when to release
 }
 
+/**
+ * @param grossAmountCents Actual amount captured from the customer (already
+ *   net of any founding-customer discount).
+ * @param foundingCustomerDiscountCents Discount already applied at checkout,
+ *   if any (from bookings.founding_customer_discount_cents). The fee and
+ *   cleaner-payout math run as if the customer had paid full price — the
+ *   discount comes entirely out of Sweepr's platform fee, never the
+ *   cleaner's earnings — then the returned `grossAmount`/`platformFee` are
+ *   adjusted back down to what was actually collected.
+ */
 export function calculatePayout(
   grossAmountCents: number,
   settings: FeeSettings,
-  tierMultiplier = 1.0
+  tierMultiplier = 1.0,
+  foundingCustomerDiscountCents = 0
 ): PayoutBreakdown {
+  // Undiscounted gross — what the fee/cleaner-payout math is computed against,
+  // so a founding customer's discount never reduces the cleaner's earnings.
+  const undiscountedGross = grossAmountCents + foundingCustomerDiscountCents;
+
   let platformFee: number;
 
   if (settings.feeType === "percentage") {
-    platformFee = Math.round(grossAmountCents * (settings.feeValue / 100));
+    platformFee = Math.round(undiscountedGross * (settings.feeValue / 100));
   } else if (settings.feeType === "flat") {
     platformFee = settings.feeValue; // already in cents
   } else {
     // hybrid: percentage + flat
-    platformFee = Math.round(grossAmountCents * (settings.feeValue / 100)) + (settings.minimumPlatformFee ?? 0);
+    platformFee = Math.round(undiscountedGross * (settings.feeValue / 100)) + (settings.minimumPlatformFee ?? 0);
   }
 
   // Clamp to configured min/max
@@ -108,20 +123,24 @@ export function calculatePayout(
     platformFee = Math.min(platformFee, settings.maximumPlatformFee);
   }
 
-  const afterFee = grossAmountCents - platformFee;
+  const afterFee = undiscountedGross - platformFee;
   const reserveHold = Math.round(afterFee * (settings.reservePercentage / 100));
   const baseCleanerPayout = afterFee - reserveHold;
   const cleanerPayout = Math.round(baseCleanerPayout * tierMultiplier);
+
+  // Sweepr absorbs the entire founding-customer discount out of its own fee —
+  // never out of what's actually available to pay the cleaner.
+  const actualPlatformFee = Math.max(0, platformFee - foundingCustomerDiscountCents);
 
   const scheduledFor = new Date();
   scheduledFor.setDate(scheduledFor.getDate() + settings.payoutDelayDays);
 
   return {
     grossAmount: grossAmountCents,
-    platformFee,
+    platformFee: actualPlatformFee,
     reserveHold,
     cleanerPayout,
-    feeRate: platformFee / grossAmountCents,
+    feeRate: grossAmountCents > 0 ? actualPlatformFee / grossAmountCents : 0,
     scheduledFor,
   };
 }

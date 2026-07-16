@@ -36,6 +36,7 @@ import { calculateBookingPrice, getAddOnCatalogue } from "../lib/pricingEngine";
 import { resolveBookingPricing, storeQuoteSnapshot, type ResolvedPricing } from "../lib/resolvePricing";
 import { recordLedgerEntry, applyBookingPriceAdjustment } from "../lib/bookingLedger";
 import { autoApplyBestCoupon } from "../lib/coupons";
+import { foundingCustomerDiscountPct } from "../lib/foundingMember";
 import { applyMembershipDiscount } from "../lib/smartEntryBilling";
 import { revokeSmartEntry } from "../lib/smartEntry";
 import { normalizedGreylistKey } from "../lib/scopeReviewEngine";
@@ -302,6 +303,10 @@ interface AssembledPricing {
   emergencySurchargeCents: number;
   isEmergency: boolean;
   totalPrice: number;
+  /** Cents deducted from totalPrice for an active Founding Member customer
+   *  discount (0 otherwise). Snapshotted onto the booking row; never affects
+   *  cleaner payout — see payoutEngine.calculatePayout. */
+  foundingCustomerDiscountCents: number;
   lineItems: Array<{ label: string; cents: number }>;
   resolved: ResolvedPricing | null;
   roomPrice: Awaited<ReturnType<typeof roomConditionPricing>>;
@@ -318,6 +323,7 @@ async function computeBookingPricing(
   sql: ReturnType<typeof getDb>,
   input: CreateInput,
   now: Date = new Date(),
+  customerId: string | null = null,
 ): Promise<AssembledPricing> {
   const roomPrice = await roomConditionPricing(sql, input);
   const legacy = calculateBookingPrice(input);
@@ -354,7 +360,20 @@ async function computeBookingPricing(
     ? Math.round(baseTotalPrice * EMERGENCY_SURCHARGE_RATE)
     : 0;
 
-  const totalPrice = baseTotalPrice + levelSurchargeCents + emergencySurchargeCents;
+  const preDiscountTotal = baseTotalPrice + levelSurchargeCents + emergencySurchargeCents;
+
+  // Founding Member customers get a permanent, lifetime platform-fee discount
+  // (default 5%) on every booking total. Comes entirely out of Sweepr's fee —
+  // the cleaner's payout is computed from the pre-discount total at payout
+  // time (see payoutEngine.calculatePayout), never reduced by this.
+  let foundingCustomerDiscountCents = 0;
+  if (customerId) {
+    const discountPct = await foundingCustomerDiscountPct(sql, customerId);
+    if (discountPct > 0) {
+      foundingCustomerDiscountCents = Math.round(preDiscountTotal * (discountPct / 100));
+    }
+  }
+  const totalPrice = preDiscountTotal - foundingCustomerDiscountCents;
 
   const baseLineItems: Array<{ label: string; cents: number }> = roomPrice
     ? roomPrice.lineItems
@@ -365,6 +384,9 @@ async function computeBookingPricing(
     ...baseLineItems,
     ...(levelSurchargeCents > 0 ? [{ label: "Cleaning level surcharge", cents: levelSurchargeCents }] : []),
     ...(emergencySurchargeCents > 0 ? [{ label: "Rush fee", cents: emergencySurchargeCents }] : []),
+    ...(foundingCustomerDiscountCents > 0
+      ? [{ label: "Founding Member discount", cents: -foundingCustomerDiscountCents }]
+      : []),
   ];
 
   return {
@@ -379,6 +401,7 @@ async function computeBookingPricing(
     emergencySurchargeCents,
     isEmergency,
     totalPrice,
+    foundingCustomerDiscountCents,
     lineItems,
     resolved,
     roomPrice,
@@ -499,7 +522,7 @@ bookingsRouter.post(
   // Server-side price calculation — client values are never trusted. This is
   // the SAME assembler POST /quote uses, so the review-step preview and the
   // charge are identical (engine + level + emergency surcharges).
-  const p = await computeBookingPricing(sql, input);
+  const p = await computeBookingPricing(sql, input, new Date(), customer.id);
   const basePrice = p.basePrice;
   const addonsTotal = p.addonsTotal;
   const cleanerPayout = p.cleanerPayout;
@@ -531,7 +554,7 @@ bookingsRouter.post(
         sqft, home_type, scheduled_at, base_price, addons_total, service_fee,
         tax, total_price, notes, cleaning_level, cleaning_level_surcharge_cents,
         pricing_rule_id, pricing_rule_version, pricing_line_items_json, estimated_cleaner_payout_cents,
-        arrival_window_start, arrival_window_end
+        arrival_window_start, arrival_window_end, founding_customer_discount_cents
       ) VALUES (
         ${customer.id}, ${input.addressId ?? null}, 'booked', ${input.serviceType},
         ${input.bedrooms}, ${input.bathrooms}, ${input.sqft}, ${input.homeType},
@@ -541,7 +564,8 @@ bookingsRouter.post(
         ${input.cleaningLevel}, ${levelSurchargeCents},
         ${p.resolved ? p.resolved.ruleId : null}, ${p.resolved ? p.resolved.ruleVersion : null},
         ${lineItemsJson}, ${cleanerPayout},
-        ${input.arrivalWindowStart ?? null}, ${input.arrivalWindowEnd ?? null}
+        ${input.arrivalWindowStart ?? null}, ${input.arrivalWindowEnd ?? null},
+        ${p.foundingCustomerDiscountCents}
       ) RETURNING *
     `) as BookingRow[];
     created = rows[0];
@@ -587,6 +611,7 @@ bookingsRouter.post(
             total_price = ${totalPrice}, cleaning_level = ${input.cleaningLevel},
             cleaning_level_surcharge_cents = ${levelSurchargeCents},
             pricing_line_items_json = ${lineItemsJson},
+            founding_customer_discount_cents = ${p.foundingCustomerDiscountCents},
             notes = ${input.notes ?? null}, updated_at = NOW()
           WHERE id = ${existingRows[0].id}
           RETURNING *
@@ -729,7 +754,14 @@ bookingsRouter.post("/quote", zValidator("json", createSchema), async (c) => {
     );
   }
 
-  const p = await computeBookingPricing(sql, input);
+  // Resolve the caller's customer id (same lookup POST / uses) so a Founding
+  // Member's quote preview reflects their discount and matches what checkout
+  // will actually charge — never a guess made without their status.
+  const authUser = c.get("user");
+  const user = await getUserByClerkId(sql, authUser.clerkId);
+  const customer = user ? await getCustomerByUserId(sql, user.id) : null;
+
+  const p = await computeBookingPricing(sql, input, new Date(), customer?.id ?? null);
   return c.json({
     total: p.totalPrice / 100,
     price: {
@@ -737,6 +769,7 @@ bookingsRouter.post("/quote", zValidator("json", createSchema), async (c) => {
       levelSurchargeCents: p.levelSurchargeCents,
       emergencySurchargeCents: p.emergencySurchargeCents,
       isEmergency: p.isEmergency,
+      foundingCustomerDiscountCents: p.foundingCustomerDiscountCents,
       lineItems: p.lineItems,
       requiresCustomQuote: p.resolved?.breakdown.requires_custom_quote ?? false,
     },

@@ -35,6 +35,10 @@ export interface FoundingConfig {
   cleanerMaxMembers: number | null;
   customerMaxMembers: number | null;
   earningsBonusPct: number; // cleaner lifetime payout bonus
+  /** Customer lifetime platform-fee discount, applied to every booking total.
+   *  Absorbed entirely out of Sweepr's fee — never reduces the cleaner's
+   *  payout, which is computed as if the customer paid full price. */
+  customerDiscountPct: number;
   sinceLabel: string; // "Founding Member since 2026"
 }
 
@@ -46,6 +50,7 @@ const DEFAULTS: FoundingConfig = {
   cleanerMaxMembers: null,
   customerMaxMembers: null,
   earningsBonusPct: 5,
+  customerDiscountPct: 5,
   sinceLabel: "2026",
 };
 
@@ -77,6 +82,9 @@ export async function loadFoundingConfig(sql: Sql): Promise<FoundingConfig> {
       customerMaxMembers: parseIntOrNull(m["founding.customer_max_members"]),
       earningsBonusPct: m["founding.earnings_bonus_pct"]
         ? Number(m["founding.earnings_bonus_pct"]) || 5
+        : 5,
+      customerDiscountPct: m["founding.customer_discount_pct"]
+        ? Number(m["founding.customer_discount_pct"]) || 5
         : 5,
       sinceLabel: m["founding.since_label"] || "2026",
     };
@@ -427,5 +435,31 @@ export async function foundingPayoutMultiplier(
     return 1 + c.earningsBonusPct / 100;
   } catch {
     return 1;
+  }
+}
+
+/**
+ * Lifetime platform-fee discount percentage (0 if not an active member) for a
+ * customer: default 5%, applied to the booking total at checkout. This comes
+ * entirely out of Sweepr's fee — the cleaner's payout is computed as if the
+ * customer paid full price (see payoutEngine.calculatePayout's
+ * foundingCustomerDiscountCents parameter), never reduced by this discount.
+ */
+export async function foundingCustomerDiscountPct(
+  sql: Sql,
+  customerId: string,
+  cfg?: FoundingConfig,
+): Promise<number> {
+  try {
+    const rows = (await sql`
+      SELECT founding_member, founding_member_revoked
+        FROM customers WHERE id = ${customerId} LIMIT 1
+    `) as Array<{ founding_member: boolean; founding_member_revoked: boolean }>;
+    const active = rows[0]?.founding_member && !rows[0].founding_member_revoked;
+    if (!active) return 0;
+    const c = cfg ?? (await loadFoundingConfig(sql));
+    return c.customerDiscountPct;
+  } catch {
+    return 0;
   }
 }

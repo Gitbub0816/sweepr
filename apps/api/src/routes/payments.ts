@@ -277,6 +277,7 @@ paymentsRouter.post(
       booking.total_price,
       feeSettings,
       tierMultiplier * foundingMult,
+      booking.founding_customer_discount_cents ?? 0,
     );
 
     // Atomic lock BEFORE calling Stripe: claim the payout row first so a
