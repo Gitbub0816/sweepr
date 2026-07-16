@@ -196,6 +196,13 @@ export const DOCS: DocMeta[] = [
     version: "1.0.0",
   },
   {
+    slug: "founding-member-terms",
+    title: "Founding Member Program Terms",
+    description: "Perks, benefits, and terms for Founding Member customers and cleaning professionals: badges, earnings bonus, platform-fee discount, and good-standing requirements.",
+    category: "Platform Policies",
+    version: "1.0.0",
+  },
+  {
     slug: "community-guidelines",
     title: "Community Guidelines",
     description: "Behavior standards for everyone on Sweepr.",
