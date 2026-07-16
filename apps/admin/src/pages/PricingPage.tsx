@@ -15,6 +15,7 @@ import { DollarSign, Plus, Copy, RefreshCw, Calculator } from "lucide-react";
 import { DashboardShell, Card, Button, Badge, Select, Input, toast } from "@sweepr/ui";
 import { DataTable, type Column } from "../components/DataTable";
 import { CleaningPricingPanel } from "./CleaningPricingPage";
+import { ZipPricingPanel } from "./ZipPricingPanel";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
@@ -29,11 +30,14 @@ const PROP_STATUS: Record<string, "info" | "warning" | "success" | "error"> = {
   declined: "error", expired_declined: "error", cancelled: "error", revoked: "error",
 };
 
-type PricingTab = "rules" | "home-cleaning";
+type PricingTab = "rules" | "home-cleaning" | "zip-pricing";
+
+const VALID_TABS: PricingTab[] = ["rules", "home-cleaning", "zip-pricing"];
 
 export function PricingPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab: PricingTab = searchParams.get("tab") === "home-cleaning" ? "home-cleaning" : "rules";
+  const requestedTab = searchParams.get("tab");
+  const tab: PricingTab = VALID_TABS.includes(requestedTab as PricingTab) ? (requestedTab as PricingTab) : "rules";
 
   function setTab(next: PricingTab) {
     const params = new URLSearchParams(searchParams);
@@ -45,12 +49,13 @@ export function PricingPage() {
   return (
     <DashboardShell
       title="Pricing"
-      description="Algorithmic pricing rules, live simulator, and home-cleaning configuration."
+      description="Algorithmic pricing rules, live simulator, home-cleaning configuration, and ZIP-specific adjustments."
     >
       <div className="mb-4 flex gap-2 border-b border-slate-200 dark:border-slate-800">
         {([
           ["rules", "Rules & Simulator"],
           ["home-cleaning", "Home Cleaning"],
+          ["zip-pricing", "ZIP Pricing"],
         ] as [PricingTab, string][]).map(([key, label]) => (
           <button
             key={key}
@@ -66,7 +71,7 @@ export function PricingPage() {
         ))}
       </div>
 
-      {tab === "rules" ? <RulesSimulatorTab /> : <CleaningPricingPanel />}
+      {tab === "rules" ? <RulesSimulatorTab /> : tab === "home-cleaning" ? <CleaningPricingPanel /> : <ZipPricingPanel />}
     </DashboardShell>
   );
 }

@@ -37,6 +37,7 @@ import { resolveBookingPricing, storeQuoteSnapshot, type ResolvedPricing } from 
 import { recordLedgerEntry, applyBookingPriceAdjustment } from "../lib/bookingLedger";
 import { autoApplyBestCoupon } from "../lib/coupons";
 import { foundingCustomerDiscountPct } from "../lib/foundingMember";
+import { loadZipMultiplierPct } from "../lib/zipPricing";
 import { applyMembershipDiscount } from "../lib/smartEntryBilling";
 import { revokeSmartEntry } from "../lib/smartEntry";
 import { normalizedGreylistKey } from "../lib/scopeReviewEngine";
@@ -302,6 +303,11 @@ interface AssembledPricing {
   levelSurchargeCents: number;
   emergencySurchargeCents: number;
   isEmergency: boolean;
+  /** Cents added to (or, if negative, subtracted from) totalPrice for the
+   *  booking address's ZIP-specific pricing multiplier, if any is configured.
+   *  Flows through to the cleaner's payout proportionally — this is NOT a
+   *  fee-only adjustment. */
+  zipPricingAdjustmentCents: number;
   totalPrice: number;
   /** Cents deducted from totalPrice for an active Founding Member customer
    *  discount (0 otherwise). Snapshotted onto the booking row; never affects
@@ -324,6 +330,7 @@ async function computeBookingPricing(
   input: CreateInput,
   now: Date = new Date(),
   customerId: string | null = null,
+  zip: string | null = null,
 ): Promise<AssembledPricing> {
   const roomPrice = await roomConditionPricing(sql, input);
   const legacy = calculateBookingPrice(input);
@@ -360,7 +367,15 @@ async function computeBookingPricing(
     ? Math.round(baseTotalPrice * EMERGENCY_SURCHARGE_RATE)
     : 0;
 
-  const preDiscountTotal = baseTotalPrice + levelSurchargeCents + emergencySurchargeCents;
+  // ZIP-specific pricing multiplier: an admin-configured percentage (positive
+  // or negative) applied to the base total, the same mechanism as the level
+  // and rush-hour surcharges above — it adjusts the whole price, so it flows
+  // through proportionally to the cleaner's payout too, unlike the founding
+  // customer discount below (which is fee-only).
+  const zipMultiplierPct = await loadZipMultiplierPct(sql, zip);
+  const zipPricingAdjustmentCents = Math.round(baseTotalPrice * (zipMultiplierPct / 100));
+
+  const preDiscountTotal = baseTotalPrice + levelSurchargeCents + emergencySurchargeCents + zipPricingAdjustmentCents;
 
   // Founding Member customers get a permanent, lifetime platform-fee discount
   // (default 5%) on every booking total. Comes entirely out of Sweepr's fee —
@@ -384,6 +399,9 @@ async function computeBookingPricing(
     ...baseLineItems,
     ...(levelSurchargeCents > 0 ? [{ label: "Cleaning level surcharge", cents: levelSurchargeCents }] : []),
     ...(emergencySurchargeCents > 0 ? [{ label: "Rush fee", cents: emergencySurchargeCents }] : []),
+    ...(zipPricingAdjustmentCents !== 0
+      ? [{ label: "Area pricing adjustment", cents: zipPricingAdjustmentCents }]
+      : []),
     ...(foundingCustomerDiscountCents > 0
       ? [{ label: "Founding Member discount", cents: -foundingCustomerDiscountCents }]
       : []),
@@ -400,6 +418,7 @@ async function computeBookingPricing(
     levelSurchargeCents,
     emergencySurchargeCents,
     isEmergency,
+    zipPricingAdjustmentCents,
     totalPrice,
     foundingCustomerDiscountCents,
     lineItems,
@@ -469,7 +488,10 @@ bookingsRouter.post(
   }
 
   // Address greylist gate (unit-aware normalized key). Generic message — never
-  // reveal that an address is greylisted.
+  // reveal that an address is greylisted. Also resolves the address ZIP,
+  // server-side, for the ZIP-specific pricing multiplier below — never
+  // trusted from the client.
+  let resolvedZip: string | null = null;
   if (input.addressId) {
     // IDOR guard: the address MUST belong to this customer's user. Without this
     // a customer could book a cleaner to another user's address by guessing its
@@ -482,6 +504,7 @@ bookingsRouter.post(
       return c.json({ error: "invalid_address", message: "That address isn't on your account." }, 400);
     }
     const addr = addrRows[0];
+    resolvedZip = addr?.zip ?? null;
     if (addr?.street && addr?.zip) {
       const key = normalizedGreylistKey(addr.street, addr.unit, addr.zip);
       const greylisted = (await sql`
@@ -522,7 +545,7 @@ bookingsRouter.post(
   // Server-side price calculation — client values are never trusted. This is
   // the SAME assembler POST /quote uses, so the review-step preview and the
   // charge are identical (engine + level + emergency surcharges).
-  const p = await computeBookingPricing(sql, input, new Date(), customer.id);
+  const p = await computeBookingPricing(sql, input, new Date(), customer.id, resolvedZip);
   const basePrice = p.basePrice;
   const addonsTotal = p.addonsTotal;
   const cleanerPayout = p.cleanerPayout;
@@ -554,7 +577,8 @@ bookingsRouter.post(
         sqft, home_type, scheduled_at, base_price, addons_total, service_fee,
         tax, total_price, notes, cleaning_level, cleaning_level_surcharge_cents,
         pricing_rule_id, pricing_rule_version, pricing_line_items_json, estimated_cleaner_payout_cents,
-        arrival_window_start, arrival_window_end, founding_customer_discount_cents
+        arrival_window_start, arrival_window_end, founding_customer_discount_cents,
+        zip_pricing_adjustment_cents
       ) VALUES (
         ${customer.id}, ${input.addressId ?? null}, 'booked', ${input.serviceType},
         ${input.bedrooms}, ${input.bathrooms}, ${input.sqft}, ${input.homeType},
@@ -565,7 +589,8 @@ bookingsRouter.post(
         ${p.resolved ? p.resolved.ruleId : null}, ${p.resolved ? p.resolved.ruleVersion : null},
         ${lineItemsJson}, ${cleanerPayout},
         ${input.arrivalWindowStart ?? null}, ${input.arrivalWindowEnd ?? null},
-        ${p.foundingCustomerDiscountCents}
+        ${p.foundingCustomerDiscountCents},
+        ${p.zipPricingAdjustmentCents}
       ) RETURNING *
     `) as BookingRow[];
     created = rows[0];
@@ -612,6 +637,7 @@ bookingsRouter.post(
             cleaning_level_surcharge_cents = ${levelSurchargeCents},
             pricing_line_items_json = ${lineItemsJson},
             founding_customer_discount_cents = ${p.foundingCustomerDiscountCents},
+            zip_pricing_adjustment_cents = ${p.zipPricingAdjustmentCents},
             notes = ${input.notes ?? null}, updated_at = NOW()
           WHERE id = ${existingRows[0].id}
           RETURNING *
@@ -761,7 +787,17 @@ bookingsRouter.post("/quote", zValidator("json", createSchema), async (c) => {
   const user = await getUserByClerkId(sql, authUser.clerkId);
   const customer = user ? await getCustomerByUserId(sql, user.id) : null;
 
-  const p = await computeBookingPricing(sql, input, new Date(), customer?.id ?? null);
+  // Same IDOR-safe, user_id-scoped ZIP lookup POST / uses, so the quote
+  // preview reflects any area-specific pricing adjustment too.
+  let quoteZip: string | null = null;
+  if (input.addressId && user) {
+    const addrRows = (await sql`
+      SELECT zip FROM addresses WHERE id = ${input.addressId} AND user_id = ${user.id} LIMIT 1
+    `) as Array<{ zip: string | null }>;
+    quoteZip = addrRows[0]?.zip ?? null;
+  }
+
+  const p = await computeBookingPricing(sql, input, new Date(), customer?.id ?? null, quoteZip);
   return c.json({
     total: p.totalPrice / 100,
     price: {
@@ -769,6 +805,7 @@ bookingsRouter.post("/quote", zValidator("json", createSchema), async (c) => {
       levelSurchargeCents: p.levelSurchargeCents,
       emergencySurchargeCents: p.emergencySurchargeCents,
       isEmergency: p.isEmergency,
+      zipPricingAdjustmentCents: p.zipPricingAdjustmentCents,
       foundingCustomerDiscountCents: p.foundingCustomerDiscountCents,
       lineItems: p.lineItems,
       requiresCustomQuote: p.resolved?.breakdown.requires_custom_quote ?? false,

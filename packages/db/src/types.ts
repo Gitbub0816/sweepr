@@ -107,6 +107,7 @@ export interface BookingRow {
   arrival_window_start: string | null;
   arrival_window_end: string | null;
   founding_customer_discount_cents: number;
+  zip_pricing_adjustment_cents: number;
   created_at: string;
   updated_at: string;
 }
