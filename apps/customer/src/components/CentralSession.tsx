@@ -118,7 +118,11 @@ export function CentralSignOutButton() {
         } catch {
           /* cookie is expired server-side on best effort; proceed regardless */
         }
-        window.location.assign("/auth/login");
+        // Land on a signed-out destination — NOT /auth/login, which would
+        // immediately re-enter the login ceremony (and, if a central Clerk
+        // session is still live, pass it straight back through and sign the
+        // user right back in — i.e. "sign out doesn't work").
+        window.location.assign("https://getsweepr.com");
       }}
     >
       Sign out

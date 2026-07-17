@@ -96,6 +96,15 @@ function ExpiredState() {
 // We strip their card chrome so they sit inside our own Shell, and let the
 // session-watch effect below run the broker completion once Clerk is done.
 const clerkAppearance = {
+  variables: {
+    colorPrimary: "#14b8a6",
+    colorText: "#1c1a17",
+    colorBackground: "transparent",
+    colorInputBackground: "#ffffff",
+    borderRadius: "0.75rem",
+    fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+    fontSize: "0.95rem",
+  },
   elements: {
     rootBox: "w-full",
     cardBox: "w-full shadow-none border-0",
@@ -103,6 +112,10 @@ const clerkAppearance = {
     header: "hidden",
     footer: "hidden",
     logoBox: "hidden",
+    formButtonPrimary:
+      "bg-charcoal hover:bg-slate-800 text-white text-sm font-semibold normal-case rounded-xl h-10",
+    socialButtonsBlockButton: "rounded-xl border-slate-300 h-10",
+    formFieldInput: "rounded-xl border-slate-300",
   },
 } as const;
 
