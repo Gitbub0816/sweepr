@@ -198,7 +198,7 @@ export default function App() {
       <Route element={<GateLayout />}>
       {/* Auth */}
       <Route path="/sign-in" element={CENTRAL_AUTH_ENABLED ? <RedirectToCentralLogin /> : <SignInPage />} />
-      <Route path="/sign-up" element={<SignUpPage />} />
+      <Route path="/sign-up" element={CENTRAL_AUTH_ENABLED ? <RedirectToCentralLogin /> : <SignUpPage />} />
 
       {/* Onboarding (protected, but not onboarding-gated) */}
       <Route

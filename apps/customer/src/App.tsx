@@ -233,7 +233,7 @@ export default function App() {
 
         {/* Auth routes, outside gate so sign-in is always accessible */}
         <Route path="/sign-in" element={CENTRAL_AUTH_ENABLED ? <RedirectToCentralLogin /> : <SignInPage />} />
-        <Route path="/sign-up" element={<SignUpPage />} />
+        <Route path="/sign-up" element={CENTRAL_AUTH_ENABLED ? <RedirectToCentralLogin /> : <SignUpPage />} />
         <Route path="/sign-up/continue" element={<ContinueSignUp />} />
 
         {/* Onboarding, protected but outside prelaunch gate */}

@@ -43,12 +43,23 @@ export function NavAuth() {
     <div className="flex items-center gap-2">
       <Bell />
       <button
-        onClick={() => {
-          // Central mode: revoke the broker session cookie too, then leave.
+        onClick={async () => {
+          // Central mode: revoke the broker session cookie AND end the shared
+          // Clerk session — otherwise the broker would immediately pass you
+          // back in — then leave to the signed-out marketing site (NOT "/",
+          // which just re-enters the login ceremony).
           if (CENTRAL_AUTH_ENABLED) {
-            void fetch("/auth/logout", { method: "POST" }).finally(() =>
-              window.location.assign("/")
-            );
+            try {
+              await fetch("/auth/logout", { method: "POST" });
+            } catch {
+              /* revoke best-effort; still end the Clerk session below */
+            }
+            try {
+              await signOut();
+            } catch {
+              /* ignore */
+            }
+            window.location.assign("https://getsweepr.com");
             return;
           }
           void signOut(() => navigate("/sign-in"));
