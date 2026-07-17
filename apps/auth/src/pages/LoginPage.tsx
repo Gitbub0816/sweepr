@@ -228,11 +228,19 @@ export function LoginPage() {
   // Clearing the Clerk session never touches other apps' minted cookies.
   useEffect(() => {
     if (phase.name !== "ready" || !authLoaded || readyForAuth || clearing.current) return;
+    // Returning from a fresh authentication performed HERE — Clerk redirected
+    // back with ?authed=1. Skip the arrival precheck (which would sign us out
+    // and loop the form) and go straight to completion.
+    if (params.get("authed") === "1") {
+      setReadyForAuth(true);
+      return;
+    }
     if (!isSignedIn) {
       setReadyForAuth(true);
       return;
     }
     if (!isValidHandle(tx)) return;
+    if (typeof tx !== "string") return;
     clearing.current = true;
     const ctx = phase.context;
     void (async () => {
@@ -253,7 +261,7 @@ export function LoginPage() {
         clearing.current = false;
       });
     })();
-  }, [phase, authLoaded, isSignedIn, readyForAuth, clerk, getToken, tx]);
+  }, [phase, authLoaded, isSignedIn, readyForAuth, clerk, getToken, tx, params]);
 
   // Complete ONLY after a fresh authentication performed here (readyForAuth
   // means any pre-existing session was already cleared). Guarded to run once.
@@ -300,10 +308,14 @@ export function LoginPage() {
     }
   })();
 
-  // Keep the tx handle across any full-page hop Clerk performs (OAuth), so the
-  // return leg lands back on this exact ceremony and the session-watch
-  // completes it.
+  // Keep the tx handle across any full-page hop Clerk performs (OAuth / the
+  // post-auth redirect), so the return leg lands back on this exact ceremony.
   const returnUrl = `${window.location.origin}/login?tx=${encodeURIComponent(tx!)}`;
+  // Where Clerk sends the browser after a successful sign-in/sign-up HERE. The
+  // ?authed=1 marker tells the arrival effect to go straight to completion
+  // instead of re-running precheck (which would sign the fresh session back
+  // out and loop the form).
+  const authedUrl = `${returnUrl}&authed=1`;
 
   return (
     <Shell>
@@ -354,16 +366,16 @@ export function LoginPage() {
                 routing="virtual"
                 appearance={clerkAppearance}
                 signUpUrl={returnUrl}
-                forceRedirectUrl={returnUrl}
-                fallbackRedirectUrl={returnUrl}
+                forceRedirectUrl={authedUrl}
+                fallbackRedirectUrl={authedUrl}
               />
             ) : (
               <SignUp
                 routing="virtual"
                 appearance={clerkAppearance}
                 signInUrl={returnUrl}
-                forceRedirectUrl={returnUrl}
-                fallbackRedirectUrl={returnUrl}
+                forceRedirectUrl={authedUrl}
+                fallbackRedirectUrl={authedUrl}
               />
             )}
           </div>
