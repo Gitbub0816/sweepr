@@ -245,11 +245,13 @@ export function LoginPage() {
         }
       }
       // No existing session with this app → require an explicit ceremony.
-      await clerk.signOut().catch(() => {});
-      // Re-arm: signOut flips isSignedIn to false, so the effect re-runs and
-      // its !isSignedIn branch sets readyForAuth — guaranteeing the completion
-      // effect only ever fires for a fresh authentication performed here.
-      clearing.current = false;
+      // Reload back onto THIS login page (redirectUrl = current URL) so Clerk's
+      // default post-sign-out redirect (which would land on "/" → the auth
+      // app's marketing redirect) never fires. On reload isSignedIn is false,
+      // so the form renders and completion only fires for a fresh auth here.
+      await clerk.signOut({ redirectUrl: window.location.href }).catch(() => {
+        clearing.current = false;
+      });
     })();
   }, [phase, authLoaded, isSignedIn, readyForAuth, clerk, getToken, tx]);
 

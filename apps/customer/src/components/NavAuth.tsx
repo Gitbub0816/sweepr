@@ -65,12 +65,14 @@ export function NavAuth() {
             } catch {
               /* revoke best-effort; still end the Clerk session below */
             }
+            // Pass redirectUrl explicitly so Clerk goes to the signed-out
+            // marketing site — NOT the app's default afterSignOutUrl ("/sign-in"),
+            // which would re-enter the login ceremony and sign you right back in.
             try {
-              await signOut();
+              await signOut({ redirectUrl: "https://getsweepr.com" });
             } catch {
-              /* ignore */
+              window.location.assign("https://getsweepr.com");
             }
-            window.location.assign("https://getsweepr.com");
             return;
           }
           void signOut(() => navigate("/sign-in"));

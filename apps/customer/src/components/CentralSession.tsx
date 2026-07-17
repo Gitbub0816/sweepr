@@ -40,7 +40,11 @@ export function useCentralSession(): CentralSession | null {
 }
 
 function redirectToLogin(): void {
-  const returnTo = window.location.pathname + window.location.search;
+  const path = window.location.pathname;
+  // Never return to the auth entry routes themselves — that just re-enters the
+  // ceremony and loops (or dead-ends). Send those to a real destination.
+  const returnTo =
+    path === "/sign-in" || path === "/sign-up" ? "/" : path + window.location.search;
   window.location.assign(`/auth/login?return_to=${encodeURIComponent(returnTo)}`);
 }
 
