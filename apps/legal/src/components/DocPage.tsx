@@ -8,9 +8,17 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { Printer, AlertTriangle } from "lucide-react";
+import { Printer, AlertTriangle, FileDown, FileText } from "lucide-react";
+
+const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? "https://api.getsweepr.com";
+
+interface ArchivedVersion {
+  version: { version: string; attorneyName?: string | null; attorney_approved_at?: string | null };
+  documentUrl: string;
+  pdfUrl: string;
+}
 import { LAST_UPDATED, LEGAL_EMAIL, LEGAL_URL } from "../docs";
 import { TableOfContents, type TocItem } from "./TableOfContents";
 
@@ -77,6 +85,7 @@ export function DocPage({
 } & DocMetaProps) {
   const prefersReducedMotion = useReducedMotion();
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const [archived, setArchived] = useState<ArchivedVersion | null>(null);
 
   useEffect(() => {
     document.title = `${title}, Sweepr Legal`;
@@ -101,6 +110,19 @@ export function DocPage({
     // Move focus to the page heading on route change so keyboard/screen
     // reader users land on new content instead of staying on stale focus.
     headingRef.current?.focus();
+
+    // Offer downloads if a versioned snapshot has been archived for this doc.
+    setArchived(null);
+    let cancelled = false;
+    fetch(`${API_URL}/legal-archive/${slug}/current`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d: ArchivedVersion) => {
+        if (!cancelled) setArchived(d);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [title, intro, version, effectiveDate]);
 
   return (
@@ -146,12 +168,32 @@ export function DocPage({
               {intro}
             </p>
           )}
-          <button
-            onClick={() => window.print()}
-            className="no-print mt-4 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
-          >
-            <Printer className="h-4 w-4" /> Print
-          </button>
+          <div className="no-print mt-4 flex flex-wrap gap-2">
+            <button
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+            >
+              <Printer className="h-4 w-4" /> Print
+            </button>
+            {archived && (
+              <>
+                <a
+                  href={archived.pdfUrl}
+                  download
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+                >
+                  <FileDown className="h-4 w-4" /> Download PDF
+                </a>
+                <a
+                  href={archived.documentUrl}
+                  download
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+                >
+                  <FileText className="h-4 w-4" /> Download HTML
+                </a>
+              </>
+            )}
+          </div>
         </header>
         <div className="divide-y divide-slate-100">{children}</div>
       </article>

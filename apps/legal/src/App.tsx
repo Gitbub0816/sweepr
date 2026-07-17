@@ -52,6 +52,7 @@ import { LegalUpdatesPolicy } from "./pages/LegalUpdatesPolicy";
 import { CopyrightPolicy } from "./pages/CopyrightPolicy";
 import { VulnerabilityDisclosurePolicy } from "./pages/VulnerabilityDisclosurePolicy";
 import { LawEnforcementRequests } from "./pages/LawEnforcementRequests";
+import { AttorneyPortal } from "./pages/AttorneyPortal";
 
 export default function App() {
   const { pathname } = useLocation();
@@ -59,6 +60,10 @@ export default function App() {
   // The SMS opt-in page renders standalone — website styling, no legal shell
   // (the shell's .legal-content wrapper forces the Ubuntu Mono standard).
   if (pathname === "/sms/consent") return <SMSConsentPolicy />;
+
+  // The external attorney review portal renders standalone (its own chrome,
+  // no legal shell) and manages its own routing under /attorney.
+  if (pathname === "/attorney" || pathname.startsWith("/attorney/")) return <AttorneyPortal />;
 
   return (
     <LegalShell>

@@ -4,6 +4,8 @@
 
 User-agent: *
 Allow: /
+# The external attorney review portal is private (magic-link gated).
+Disallow: /attorney
 
 User-agent: Googlebot
 Allow: /

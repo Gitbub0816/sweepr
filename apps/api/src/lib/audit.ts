@@ -59,7 +59,9 @@ export type AuditAction =
   | "workspace.invite_revoked"
   | "workspace.invite_accepted"
   | "workspace.transition_created"
-  | "workspace.transition_completed";
+  | "workspace.transition_completed"
+  | "legal.attorney_edit"
+  | "legal.attorney_approve";
 
 export interface AuditEntry {
   action: AuditAction;

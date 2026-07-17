@@ -60,6 +60,10 @@ preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
 # R2_PUBLIC_URL             (value: https://objects.getsweepr.com)
 # R2_LEGAL_ACCESS_KEY_ID    (R2 API token for sweepr-legal bucket — PUT only)
 # R2_LEGAL_SECRET_ACCESS_KEY
+# LEGAL_ATTORNEY_SESSION_SECRET  (optional HMAC key for the external attorney
+#                              review-portal session tokens; generate with
+#                              openssl rand -hex 32. Falls back to a
+#                              DATABASE_URL-derived key when unset.)
 # YARDSTIK_API_KEY          (omit for mock mode)
 # YARDSTIK_ACCOUNT_PACKAGE_ID
 # YARDSTIK_API_URL          (optional — defaults to https://api.yardstik.com; set to

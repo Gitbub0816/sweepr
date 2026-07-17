@@ -69,6 +69,9 @@ export interface Env {
   ADMIN_URL?: string;
   R2_LEGAL_ACCESS_KEY_ID: string;
   R2_LEGAL_SECRET_ACCESS_KEY: string;
+  /** HMAC signing key for external reviewing-attorney portal sessions.
+   *  Optional — falls back to a key derived from DATABASE_URL when unset. */
+  LEGAL_ATTORNEY_SESSION_SECRET?: string;
   ACCESS_CODE_ENCRYPTION_KEY?: string;
   // Smart Entry — Seam smart-lock provider (server-side only). When unset,
   // Smart Entry falls back to manual/scheduled codes only (no remote unlock).
