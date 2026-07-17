@@ -121,11 +121,14 @@ const clerkAppearance = {
 
 /** The central sign-in ceremony.
  *
- * Authentication is delegated ENTIRELY to Clerk (one central instance). Once
- * Clerk establishes a session, the broker mints the target app's own isolated
- * session and redirects there — so signing into one app never silently signs
- * you into the others. A fresh token (getToken skipCache) is always minted at
- * completion, satisfying the broker's token-freshness rule. */
+ * Authentication is delegated ENTIRELY to Clerk (one central instance), but
+ * each app is ISOLATED: signing into one app must NEVER silently sign you into
+ * the others. The central Clerk session is treated as ephemeral — cleared on
+ * arrival — so a login for THIS app requires its own explicit authentication.
+ * Only after that fresh authentication does the broker mint the target app's
+ * own session and redirect. (Clearing the Clerk session never touches other
+ * apps' already-minted session cookies, so they stay signed in.) A fresh token
+ * (getToken skipCache) is minted at completion for the broker's freshness rule. */
 export function LoginPage() {
   const [params] = useSearchParams();
   const tx = params.get("tx");
@@ -134,7 +137,11 @@ export function LoginPage() {
 
   const [phase, setPhase] = useState<Phase>({ name: "loading" });
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
+  // Gate: true once any lingering central session has been cleared, so the
+  // completion effect only ever fires for an authentication performed HERE.
+  const [readyForAuth, setReadyForAuth] = useState(false);
   const loadedFor = useRef<string | null>(null);
+  const clearing = useRef(false);
   const completing = useRef(false);
 
   const loadContext = useCallback(async () => {
@@ -212,17 +219,30 @@ export function LoginPage() {
     [getToken, tx]
   );
 
-  // Once Clerk has an active session — whether the user just authenticated via
-  // the embedded component, or a central session already existed — pass it to
-  // the target app. Guarded so it only runs once per ceremony.
+  // On arrival, clear any lingering central session so a login for THIS app
+  // requires its own explicit authentication — a session for one app must
+  // never silently grant another. This does not affect other apps' minted
+  // session cookies, only the ephemeral Clerk session used during a ceremony.
   useEffect(() => {
-    if (phase.name !== "ready") return;
-    if (!authLoaded || !isSignedIn || completing.current) return;
+    if (phase.name !== "ready" || !authLoaded || readyForAuth || clearing.current) return;
+    if (isSignedIn) {
+      clearing.current = true;
+      void clerk.signOut().finally(() => setReadyForAuth(true));
+    } else {
+      setReadyForAuth(true);
+    }
+  }, [phase, authLoaded, isSignedIn, readyForAuth, clerk]);
+
+  // Complete ONLY after a fresh authentication performed here (readyForAuth
+  // means any pre-existing session was already cleared). Guarded to run once.
+  useEffect(() => {
+    if (phase.name !== "ready" || !readyForAuth) return;
+    if (!isSignedIn || completing.current) return;
     completing.current = true;
     const ctx = phase.context;
     setPhase({ name: "completing", context: ctx });
     void finishWithSession(ctx);
-  }, [phase, authLoaded, isSignedIn, finishWithSession]);
+  }, [phase, readyForAuth, isSignedIn, finishWithSession]);
 
   if (phase.name === "loading" || !authLoaded) {
     return (
@@ -297,25 +317,34 @@ export function LoginPage() {
         </div>
       )}
 
-      <div className="mt-5">
-        {mode === "sign-in" ? (
-          <SignIn
-            routing="virtual"
-            appearance={clerkAppearance}
-            signUpUrl={returnUrl}
-            forceRedirectUrl={returnUrl}
-            fallbackRedirectUrl={returnUrl}
-          />
-        ) : (
-          <SignUp
-            routing="virtual"
-            appearance={clerkAppearance}
-            signInUrl={returnUrl}
-            forceRedirectUrl={returnUrl}
-            fallbackRedirectUrl={returnUrl}
-          />
-        )}
-      </div>
+      {/* Render the auth form only after any lingering central session has
+          been cleared, so it never auto-completes from another app's session. */}
+      {!readyForAuth ? (
+        <div className="mt-6 flex flex-col items-center py-8 text-slate-400">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span className="mt-3 text-sm">Preparing secure sign-in…</span>
+        </div>
+      ) : (
+        <>
+          <div className="mt-5">
+            {mode === "sign-in" ? (
+              <SignIn
+                routing="virtual"
+                appearance={clerkAppearance}
+                signUpUrl={returnUrl}
+                forceRedirectUrl={returnUrl}
+                fallbackRedirectUrl={returnUrl}
+              />
+            ) : (
+              <SignUp
+                routing="virtual"
+                appearance={clerkAppearance}
+                signInUrl={returnUrl}
+                forceRedirectUrl={returnUrl}
+                fallbackRedirectUrl={returnUrl}
+              />
+            )}
+          </div>
 
       <div className="mt-4 text-center text-sm text-slate-500">
         {mode === "sign-in" ? (
@@ -342,6 +371,8 @@ export function LoginPage() {
           </>
         )}
       </div>
+        </>
+      )}
 
       <p className="mt-3 text-center text-[11px] leading-relaxed text-slate-500">
         By continuing, you agree to Sweepr's{" "}
