@@ -1,0 +1,12 @@
+# Sweepr for Cleaners
+
+> clean.getsweepr.com (and dashboard.getsweepr.com) is Sweepr's app for
+> professional cleaners: jobs, schedule, earnings, and training. Almost all
+> of it requires a signed-in cleaner account; the public surface is the
+> cleaner sign-up (recruiting) page.
+
+## Key pages
+
+- [Become a cleaner](https://clean.getsweepr.com/sign-up): Apply to become a Sweepr cleaner.
+- [Sign in](https://clean.getsweepr.com/sign-in): Sign in to an existing cleaner account.
+- [Sweepr marketing site](https://getsweepr.com/clean-with-us): How to apply and start earning as a Sweepr cleaner.

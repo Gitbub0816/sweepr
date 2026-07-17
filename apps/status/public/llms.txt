@@ -1,0 +1,10 @@
+# Sweepr Status
+
+> Live uptime and incident history for Sweepr, a home-cleaning marketplace
+> operated by ClearKey Solutions, LLC. Use this page to check current system
+> status or look up past incidents.
+
+## Key pages
+
+- [Status](https://status.getsweepr.com/): Current uptime and incident history.
+- [Sweepr marketing site](https://getsweepr.com/): Book a cleaning, see pricing and FAQ.

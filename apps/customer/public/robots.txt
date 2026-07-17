@@ -1,7 +1,40 @@
+# Sweepr customer app — https://app.getsweepr.com
+# Almost entirely behind sign-in; only the sign-in/sign-up entry is public.
+
 User-agent: *
 Allow: /$
+Allow: /sign-in
+Allow: /sign-up
 Disallow: /book
 Disallow: /bookings
 Disallow: /profile
 Disallow: /payment-methods
 Disallow: /subscriptions
+Disallow: /rentals
+Disallow: /membership
+Disallow: /account
+Disallow: /business
+Disallow: /onboarding
+
+User-agent: GPTBot
+Allow: /$
+Allow: /sign-in
+Allow: /sign-up
+Disallow: /book
+Disallow: /bookings
+
+User-agent: ClaudeBot
+Allow: /$
+Allow: /sign-in
+Allow: /sign-up
+Disallow: /book
+Disallow: /bookings
+
+User-agent: PerplexityBot
+Allow: /$
+Allow: /sign-in
+Allow: /sign-up
+Disallow: /book
+Disallow: /bookings
+
+Sitemap: https://app.getsweepr.com/sitemap.xml

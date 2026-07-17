@@ -1,0 +1,11 @@
+# Sweepr — Day-of-Service Demo
+
+> A live demo of what a Sweepr customer sees on the day of their booked
+> cleaning: real-time cleaner location tracking, arrival windows, and job
+> status updates. Part of Sweepr, a home-cleaning marketplace operated by
+> ClearKey Solutions, LLC.
+
+## Key pages
+
+- [Demo](https://service.getsweepr.com/): Interactive day-of-service tracking demo.
+- [Sweepr marketing site](https://getsweepr.com/): Book a cleaning, see pricing and FAQ.

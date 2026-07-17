@@ -94,6 +94,7 @@ import { adminSettingsRouter } from "./routes/adminSettings";
 import { adminTrustRouter } from "./routes/adminTrust";
 import { adminPricingConfigRouter } from "./routes/adminPricingConfig";
 import { adminZipPricingRouter } from "./routes/adminZipPricing";
+import { legalArchiveRouter } from "./routes/legalArchive";
 import { AppError, toSafeError } from "./lib/errors";
 import { logger, redact } from "./lib/logger";
 import {
@@ -470,6 +471,7 @@ app.route("/admin/settings", adminSettingsRouter);
 app.route("/admin-trust", adminTrustRouter);
 app.route("/admin-pricing-config", adminPricingConfigRouter);
 app.route("/admin/zip-pricing", adminZipPricingRouter);
+app.route("/legal-archive", legalArchiveRouter);
 app.route("/webhooks/mailersend", mailersendWebhookRouter);
 app.route("/unsubscribe", unsubscribeRouter);
 app.route("/privacy", privacyPublicRouter);

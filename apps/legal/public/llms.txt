@@ -1,0 +1,67 @@
+# Sweepr Legal Documents
+
+> Official legal documents for Sweepr (operated by ClearKey Solutions, LLC),
+> a home-cleaning marketplace connecting customers with background-checked
+> independent cleaners in the United States.
+
+## Core
+
+- [Terms of Service](https://legal.getsweepr.com/terms): Terms of Service.
+- [Privacy Policy](https://legal.getsweepr.com/privacy): Privacy Policy.
+- [End User License Agreement](https://legal.getsweepr.com/eula): End User License Agreement.
+- [Dispute Resolution](https://legal.getsweepr.com/dispute-resolution): Dispute Resolution.
+- [Accessibility Statement](https://legal.getsweepr.com/accessibility): Accessibility Statement.
+- [Electronic Communications & E-Sign Consent](https://legal.getsweepr.com/e-sign): Electronic Communications & E-Sign Consent.
+
+## Customers
+
+- [Customer Agreement](https://legal.getsweepr.com/customer-agreement): Customer Agreement.
+- [Service Scope Policy](https://legal.getsweepr.com/service-scope): Service Scope Policy.
+- [Refund & Cancellation Policy](https://legal.getsweepr.com/refund-policy): Refund & Cancellation Policy.
+- [Damage Claims Policy](https://legal.getsweepr.com/damage-claims): Damage Claims Policy.
+- [Subscription Terms](https://legal.getsweepr.com/subscription-terms): Subscription Terms.
+- [Smart Entry & Sweepr+ Terms](https://legal.getsweepr.com/smart-entry-membership): Smart Entry & Sweepr+ Terms.
+
+## Cleaners
+
+- [Cleaner Platform Agreement](https://legal.getsweepr.com/cleaner-agreement): Cleaner Platform Agreement.
+- [Independent Contractor Agreement](https://legal.getsweepr.com/contractor-agreement): Independent Contractor Agreement.
+- [Background Check Disclosure](https://legal.getsweepr.com/background-check-disclosure): Background Check Disclosure.
+- [Background Check Authorization](https://legal.getsweepr.com/background-check-authorization): Background Check Authorization.
+- [Background Check Adverse Action Policy](https://legal.getsweepr.com/background-check-adverse-action): Background Check Adverse Action Policy.
+
+## Payments & Tax
+
+- [Payment Services Terms](https://legal.getsweepr.com/payment-terms): Payment Services Terms.
+- [Platform Fee Policy](https://legal.getsweepr.com/platform-fee-policy): Platform Fee Policy.
+- [Tax Reporting Policy](https://legal.getsweepr.com/tax-reporting): Tax Reporting Policy.
+
+## Trust & Safety
+
+- [Trust & Safety Policy](https://legal.getsweepr.com/trust-safety): Trust & Safety Policy.
+- [Background Check Adjudication Policy](https://legal.getsweepr.com/background-check-adjudication): Background Check Adjudication Policy.
+- [Community Guidelines](https://legal.getsweepr.com/community-guidelines): Community Guidelines.
+- [Review Policy](https://legal.getsweepr.com/reviews): Review Policy.
+- [Acceptable Use Policy](https://legal.getsweepr.com/acceptable-use): Acceptable Use Policy.
+- [Insurance & Protection Policy](https://legal.getsweepr.com/insurance-protection): Insurance & Protection Policy.
+
+## Platform Policies
+
+- [Promotions & Coupons Terms](https://legal.getsweepr.com/promotions-coupons-terms): Promotions & Coupons Terms.
+- [Founding Member Program Terms](https://legal.getsweepr.com/founding-member-terms): Founding Member Program Terms.
+- [SMS Policy](https://legal.getsweepr.com/sms-policy): SMS Policy.
+- [SMS Consent](https://legal.getsweepr.com/sms/consent): SMS Consent.
+- [Legal Updates Policy](https://legal.getsweepr.com/legal-updates): Legal Updates Policy.
+- [Copyright / DMCA Policy](https://legal.getsweepr.com/copyright): Copyright / DMCA Policy.
+- [Vulnerability Disclosure](https://legal.getsweepr.com/vulnerability-disclosure): Vulnerability Disclosure.
+- [Law Enforcement Requests](https://legal.getsweepr.com/law-enforcement): Law Enforcement Requests.
+
+## Privacy & Data
+
+- [California Notice at Collection](https://legal.getsweepr.com/privacy-notice-at-collection): California Notice at Collection.
+- [Cookie Policy](https://legal.getsweepr.com/cookie-policy): Cookie Policy.
+- [Subprocessors](https://legal.getsweepr.com/subprocessors): Subprocessors.
+- [Data Processing Addendum](https://legal.getsweepr.com/dpa): Data Processing Addendum.
+- [Security Policy](https://legal.getsweepr.com/security): Security Policy.
+- [AI Disclosure](https://legal.getsweepr.com/ai-disclosure): AI Disclosure.
+

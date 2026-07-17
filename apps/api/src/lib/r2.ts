@@ -112,6 +112,67 @@ export async function createPresignedUploadUrl(
   return { uploadUrl, storageKey: objectKey, contentType: signedContentType };
 }
 
+/**
+ * Direct server-side PUT to R2 (no presigning/round-trip to a client) —
+ * used for content the Worker itself generates and owns, like the legal
+ * document archive snapshots. Signs a standard SigV4 request and sends it.
+ */
+export async function putObjectR2(
+  cfg: R2Config,
+  objectKey: string,
+  body: string | ArrayBuffer,
+  contentType: string,
+): Promise<void> {
+  const now = new Date();
+  const datestamp = now.toISOString().slice(0, 10).replace(/-/g, "");
+  const amzdate = `${datestamp}T${now.toISOString().slice(11, 19).replace(/:/g, "")}Z`;
+  const endpoint = `https://${cfg.accountId}.r2.cloudflarestorage.com`;
+  const host = `${cfg.accountId}.r2.cloudflarestorage.com`;
+  const credentialScope = `${datestamp}/${REGION}/${SERVICE}/aws4_request`;
+
+  const bodyBytes: Uint8Array = typeof body === "string" ? new TextEncoder().encode(body) : new Uint8Array(body);
+  const payloadHash = toHex(await crypto.subtle.digest("SHA-256", bodyBytes));
+
+  const canonicalHeaders =
+    `content-type:${contentType}\nhost:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzdate}\n`;
+  const signedHeaders = "content-type;host;x-amz-content-sha256;x-amz-date";
+
+  const canonicalRequest = [
+    "PUT",
+    `/${cfg.bucket}/${objectKey}`,
+    "",
+    canonicalHeaders,
+    signedHeaders,
+    payloadHash,
+  ].join("\n");
+
+  const stringToSign = [
+    ALGORITHM,
+    amzdate,
+    credentialScope,
+    await sha256hex(canonicalRequest),
+  ].join("\n");
+
+  const key = await signingKey(cfg.secretAccessKey, datestamp);
+  const sig = toHex(await hmac(key, stringToSign));
+  const authorization =
+    `${ALGORITHM} Credential=${cfg.accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${sig}`;
+
+  const res = await fetch(`${endpoint}/${cfg.bucket}/${objectKey}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": contentType,
+      "X-Amz-Content-Sha256": payloadHash,
+      "X-Amz-Date": amzdate,
+      Authorization: authorization,
+    },
+    body: bodyBytes,
+  });
+  if (!res.ok) {
+    throw new Error(`R2 PUT failed for ${objectKey}: ${res.status} ${await res.text()}`);
+  }
+}
+
 export function r2PublicUrl(cfg: R2Config, storageKey: string): string {
   return `${cfg.publicUrlBase}/${storageKey}`;
 }

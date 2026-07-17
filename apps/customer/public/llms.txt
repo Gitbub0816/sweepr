@@ -1,0 +1,13 @@
+# Sweepr Customer App
+
+> app.getsweepr.com is Sweepr's customer booking app. Almost all of it
+> requires a signed-in account; the public surface is limited to sign-in and
+> sign-up. For an overview of Sweepr and how booking works, see the
+> marketing site.
+
+## Key pages
+
+- [Sign up](https://app.getsweepr.com/sign-up): Create a Sweepr customer account.
+- [Sign in](https://app.getsweepr.com/sign-in): Sign in to an existing account.
+- [Sweepr marketing site](https://getsweepr.com/): Book a cleaning, see pricing and FAQ.
+- [Sweepr for Business](https://business.getsweepr.com/): Manage cleanings across multiple properties.

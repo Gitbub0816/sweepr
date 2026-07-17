@@ -58,6 +58,7 @@ import { CleanersPage } from "./pages/CleanersPage";
 import { ApplicationsPage } from "./pages/ApplicationsPage";
 import { ApplicationDetailPage } from "./pages/ApplicationDetailPage";
 import { PricingPage } from "./pages/PricingPage";
+import { LegalArchivePage } from "./pages/LegalArchivePage";
 import { DisputesPage } from "./pages/DisputesPage";
 import { DisputeDetailPage } from "./pages/DisputeDetailPage";
 import { PayoutsPage } from "./pages/PayoutsPage";
@@ -136,6 +137,7 @@ const navGroups = [
     items: [
       { to: "/trust-safety", label: "Trust & Safety", icon: ShieldBan },
       { to: "/security", label: "Security", icon: ShieldAlert },
+      { to: "/legal-archive", label: "Legal Archive", icon: FileText },
     ],
   },
   {
@@ -256,6 +258,7 @@ export default function App() {
         element={<Guarded><ApplicationDetailPage /></Guarded>}
       />
       <Route path="/pricing" element={<Guarded><PricingPage /></Guarded>} />
+      <Route path="/legal-archive" element={<Guarded><LegalArchivePage /></Guarded>} />
       <Route path="/cleaning-pricing" element={<Navigate to="/pricing?tab=home-cleaning" replace />} />
       <Route path="/pricing/rules/:id" element={<Guarded><PricingRulePage /></Guarded>} />
       <Route path="/pricing/approvals/:id" element={<Guarded><PricingApprovalDetailPage /></Guarded>} />

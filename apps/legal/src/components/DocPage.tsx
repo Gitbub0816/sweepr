@@ -11,8 +11,39 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Printer, AlertTriangle } from "lucide-react";
-import { LAST_UPDATED, LEGAL_EMAIL } from "../docs";
+import { LAST_UPDATED, LEGAL_EMAIL, LEGAL_URL } from "../docs";
 import { TableOfContents, type TocItem } from "./TableOfContents";
+
+function setMetaTag(attr: "name" | "property", key: string, content: string) {
+  let el = document.head.querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`);
+  if (!el) {
+    el = document.createElement("meta");
+    el.setAttribute(attr, key);
+    document.head.appendChild(el);
+  }
+  el.setAttribute("content", content);
+}
+
+function setCanonical(url: string) {
+  let el = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+  if (!el) {
+    el = document.createElement("link");
+    el.setAttribute("rel", "canonical");
+    document.head.appendChild(el);
+  }
+  el.setAttribute("href", url);
+}
+
+function setJsonLd(id: string, data: unknown) {
+  let el = document.getElementById(id) as HTMLScriptElement | null;
+  if (!el) {
+    el = document.createElement("script");
+    el.id = id;
+    el.type = "application/ld+json";
+    document.head.appendChild(el);
+  }
+  el.textContent = JSON.stringify(data);
+}
 
 export interface DocMetaProps {
   /** Document version, e.g. "1.0". */
@@ -49,10 +80,28 @@ export function DocPage({
 
   useEffect(() => {
     document.title = `${title}, Sweepr Legal`;
+    const slug = window.location.pathname.replace(/^\//, "");
+    const url = `${LEGAL_URL}/${slug}`;
+    const description = intro ?? `${title} — Sweepr's official legal document.`;
+    setMetaTag("name", "description", description);
+    setMetaTag("property", "og:title", `${title}, Sweepr Legal`);
+    setMetaTag("property", "og:description", description);
+    setMetaTag("property", "og:url", url);
+    setCanonical(url);
+    setJsonLd("doc-jsonld", {
+      "@context": "https://schema.org",
+      "@type": "DigitalDocument",
+      name: title,
+      url,
+      description,
+      version,
+      dateModified: effectiveDate ?? LAST_UPDATED,
+      publisher: { "@type": "Organization", name: "Sweepr", url: "https://getsweepr.com/" },
+    });
     // Move focus to the page heading on route change so keyboard/screen
     // reader users land on new content instead of staying on stale focus.
     headingRef.current?.focus();
-  }, [title]);
+  }, [title, intro, version, effectiveDate]);
 
   return (
     <motion.div

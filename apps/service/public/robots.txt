@@ -1,0 +1,18 @@
+# Sweepr day-of-service demo — https://service.getsweepr.com
+
+User-agent: *
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+Sitemap: https://service.getsweepr.com/sitemap.xml

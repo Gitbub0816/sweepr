@@ -1,7 +1,39 @@
+# Sweepr cleaner app — https://clean.getsweepr.com
+# Almost entirely behind sign-in; sign-up (cleaner recruiting) is the public entry.
+
 User-agent: *
-Allow: /$
-Disallow: /book
-Disallow: /bookings
-Disallow: /profile
-Disallow: /payment-methods
-Disallow: /subscriptions
+Allow: /sign-up
+Allow: /sign-in
+Disallow: /$
+Disallow: /jobs
+Disallow: /schedule
+Disallow: /earnings
+Disallow: /performance
+Disallow: /insurance
+Disallow: /training
+Disallow: /courses
+Disallow: /onboarding
+Disallow: /pending
+
+User-agent: GPTBot
+Allow: /sign-up
+Allow: /sign-in
+Disallow: /jobs
+Disallow: /schedule
+Disallow: /earnings
+
+User-agent: ClaudeBot
+Allow: /sign-up
+Allow: /sign-in
+Disallow: /jobs
+Disallow: /schedule
+Disallow: /earnings
+
+User-agent: PerplexityBot
+Allow: /sign-up
+Allow: /sign-in
+Disallow: /jobs
+Disallow: /schedule
+Disallow: /earnings
+
+Sitemap: https://clean.getsweepr.com/sitemap.xml
