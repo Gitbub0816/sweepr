@@ -94,6 +94,50 @@ export async function completeTransaction(
   }
 }
 
+export type PrecheckResult =
+  | { passThrough: true; result: CompletionResult }
+  | { passThrough: false };
+
+/**
+ * Ask the broker whether the current Clerk identity may be passed straight
+ * through to THIS app — allowed only when an active session for this app
+ * already exists (never a fresh grant to a new app). On pass-through the
+ * broker has already claimed the transaction and returns the redirect; on
+ * anything else the transaction is untouched and the caller must sign in.
+ */
+export async function precheckTransaction(
+  tx: string,
+  clerkToken: string,
+  completionToken: string
+): Promise<PrecheckResult> {
+  try {
+    const res = await fetch(
+      `${BROKER_URL}/v1/auth/transactions/${encodeURIComponent(tx)}/precheck`,
+      {
+        method: "POST",
+        cache: "no-store",
+        credentials: "omit",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clerk_token: clerkToken, completion_token: completionToken }),
+      }
+    );
+    if (!res.ok) return { passThrough: false };
+    const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (body.pass_through === true && typeof body.redirect === "string") {
+      return {
+        passThrough: true,
+        result: {
+          redirect: body.redirect,
+          return_path: typeof body.return_path === "string" ? body.return_path : "/",
+        },
+      };
+    }
+    return { passThrough: false };
+  } catch {
+    return { passThrough: false };
+  }
+}
+
 /** Build the final redirect. The broker's `redirect` already carries the
  * one-time code and CSRF state; the ONLY thing we may append is the return
  * path as `rp`, and only when it is a safe relative path (the app callback

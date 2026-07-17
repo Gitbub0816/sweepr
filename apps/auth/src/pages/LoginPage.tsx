@@ -18,6 +18,7 @@ import {
   completeTransaction,
   fetchTransactionContext,
   isValidHandle,
+  precheckTransaction,
   type TransactionContext,
 } from "../broker";
 
@@ -219,19 +220,38 @@ export function LoginPage() {
     [getToken, tx]
   );
 
-  // On arrival, clear any lingering central session so a login for THIS app
-  // requires its own explicit authentication — a session for one app must
-  // never silently grant another. This does not affect other apps' minted
-  // session cookies, only the ephemeral Clerk session used during a ceremony.
+  // On arrival with a live central session, ask the broker whether this
+  // identity may be passed straight through to THIS app — which it allows ONLY
+  // when an active session for this app already exists. If so, redirect. If
+  // not, the central session is ephemeral for this ceremony: clear it and
+  // require an explicit sign-in (a session with one app never grants another).
+  // Clearing the Clerk session never touches other apps' minted cookies.
   useEffect(() => {
     if (phase.name !== "ready" || !authLoaded || readyForAuth || clearing.current) return;
-    if (isSignedIn) {
-      clearing.current = true;
-      void clerk.signOut().finally(() => setReadyForAuth(true));
-    } else {
+    if (!isSignedIn) {
       setReadyForAuth(true);
+      return;
     }
-  }, [phase, authLoaded, isSignedIn, readyForAuth, clerk]);
+    if (!isValidHandle(tx)) return;
+    clearing.current = true;
+    const ctx = phase.context;
+    void (async () => {
+      const token = await getToken().catch(() => null);
+      if (token) {
+        const pre = await precheckTransaction(tx, token, ctx.completion_token);
+        if (pre.passThrough) {
+          window.location.replace(buildRedirectUrl(pre.result));
+          return;
+        }
+      }
+      // No existing session with this app → require an explicit ceremony.
+      await clerk.signOut().catch(() => {});
+      // Re-arm: signOut flips isSignedIn to false, so the effect re-runs and
+      // its !isSignedIn branch sets readyForAuth — guaranteeing the completion
+      // effect only ever fires for a fresh authentication performed here.
+      clearing.current = false;
+    })();
+  }, [phase, authLoaded, isSignedIn, readyForAuth, clerk, getToken, tx]);
 
   // Complete ONLY after a fresh authentication performed here (readyForAuth
   // means any pre-existing session was already cleared). Guarded to run once.

@@ -186,6 +186,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "/v1/auth/transactions/:tx/complete",
             post(complete_transaction),
         )
+        .route(
+            "/v1/auth/transactions/:tx/precheck",
+            post(precheck_transaction),
+        )
         .route("/v1/auth/exchange", post(exchange))
         .route("/v1/auth/introspect", post(introspect))
         .route("/v1/auth/logout", post(logout_app))
@@ -644,6 +648,163 @@ async fn complete_transaction(
         StatusCode::OK,
         no_store(),
         Json(json!({
+            "redirect": format!("{}?code={code}&state={state_val}", def.callback_uri),
+            "return_path": return_path,
+        })),
+    )
+        .into_response()
+}
+
+// ── Pass-through: sign into an app you ALREADY have a session with ────────────
+//
+// A live central Clerk session must NOT silently authenticate a brand-new app
+// — that needs an explicit, fresh ceremony (complete_transaction). But if you
+// already hold an active session for THIS app, re-entering it is not a new
+// grant. This endpoint allows exactly that and nothing more: verify the Clerk
+// identity (signature only — freshness deliberately NOT required), confirm an
+// active app_session for (principal, app) exists, and only then claim the
+// transaction and issue the one-time code. With no such session it leaves the
+// transaction untouched and reports pass_through=false, so the frontend falls
+// back to an explicit sign-in. Signing into `customer` therefore never passes
+// you through to `business` or `cleaner` — you have no session with those.
+async fn precheck_transaction(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    Path(tx): Path<String>,
+    Json(body): Json<CompleteTransaction>,
+) -> Response {
+    let (ip_hash, _) = ip_ua_hashes(&state, &headers);
+    if !rate_limit(&state, "precheck", &ip_hash, 60, 60).await {
+        return fail(StatusCode::TOO_MANY_REQUESTS, "rate_limited");
+    }
+    let deny = || (StatusCode::OK, no_store(), Json(json!({ "pass_through": false }))).into_response();
+
+    // Read the pending transaction WITHOUT consuming it.
+    let row = sqlx::query(
+        "SELECT id, app_id FROM auth_login_transactions
+         WHERE handle_digest = $1 AND status = 'pending' AND expires_at > NOW()",
+    )
+    .bind(crypto::digest(&tx))
+    .fetch_optional(&state.pool)
+    .await;
+    let Ok(Some(row)) = row else {
+        return fail(StatusCode::NOT_FOUND, "transaction_invalid_or_expired");
+    };
+    let tx_id: Uuid = row.get("id");
+    let app_id = match AppId::parse(row.get::<String, _>("app_id").as_str()) {
+        Some(a) => a,
+        None => return fail(StatusCode::INTERNAL_SERVER_ERROR, "server_error"),
+    };
+    if app(app_id).auth_instance != state.cfg.deployment {
+        return fail(StatusCode::FORBIDDEN, "wrong_auth_instance");
+    }
+
+    // Verify the Clerk identity — signature/issuer only. Freshness is NOT
+    // required: pass-through is for a session you already hold.
+    let jwks = match jwt::fetch_jwks(&state.http, &state.cfg.clerk_issuer).await {
+        Ok(j) => j,
+        Err(_) => return fail(StatusCode::BAD_GATEWAY, "identity_provider_unavailable"),
+    };
+    let now = now_epoch();
+    let claims =
+        match jwt::verify_rs256(&body.clerk_token, &jwks, &state.cfg.clerk_issuer, None, now) {
+            Ok(c) => c,
+            Err(_) => return deny(),
+        };
+
+    // Resolve the principal; any denial (or brand-new user with no row) means
+    // no prior session is possible → no pass-through.
+    let principal_id = match authorize(&state, app_id, &claims).await {
+        Ok(Some(p)) => p,
+        _ => return deny(),
+    };
+
+    // The gate: an ACTIVE session for THIS app must already exist.
+    let existing = sqlx::query(
+        "SELECT 1 FROM app_sessions
+         WHERE principal_user_id = $1 AND app_id = $2
+           AND revoked_at IS NULL AND expires_at > NOW() LIMIT 1",
+    )
+    .bind(principal_id)
+    .bind(app_id.as_str())
+    .fetch_optional(&state.pool)
+    .await;
+    if !matches!(existing, Ok(Some(_))) {
+        return deny();
+    }
+
+    // Pass through: claim the tx (single completion, bound to the completion
+    // token) and issue the one-time code — exactly as complete_transaction.
+    let claimed = sqlx::query(
+        "UPDATE auth_login_transactions
+         SET status = 'authenticated'
+         WHERE handle_digest = $1 AND nonce_digest = $2
+           AND status = 'pending' AND expires_at > NOW()
+         RETURNING id",
+    )
+    .bind(crypto::digest(&tx))
+    .bind(crypto::digest(&body.completion_token))
+    .fetch_optional(&state.pool)
+    .await;
+    if !matches!(claimed, Ok(Some(_))) {
+        return fail(StatusCode::BAD_REQUEST, "transaction_invalid");
+    }
+
+    let code = crypto::random_token();
+    let ins = sqlx::query(
+        "INSERT INTO auth_authorization_codes
+           (transaction_id, code_digest, app_id, auth_instance, principal_user_id,
+            clerk_user_id, callback_uri, pkce_challenge, expires_at)
+         SELECT id, $2, app_id, auth_instance, $3, $4, callback_uri, pkce_challenge,
+                NOW() + make_interval(secs => $5)
+         FROM auth_login_transactions WHERE id = $1",
+    )
+    .bind(tx_id)
+    .bind(crypto::digest(&code))
+    .bind(principal_id)
+    .bind(&claims.sub)
+    .bind(CODE_TTL_SECONDS as f64)
+    .execute(&state.pool)
+    .await;
+    if ins.is_err() {
+        return fail(StatusCode::INTERNAL_SERVER_ERROR, "server_error");
+    }
+    let _ = sqlx::query(
+        "UPDATE auth_login_transactions SET clerk_user_id = $2, principal_user_id = $3 WHERE id = $1",
+    )
+    .bind(tx_id)
+    .bind(&claims.sub)
+    .bind(principal_id)
+    .execute(&state.pool)
+    .await;
+
+    audit(
+        &state,
+        "auth.passthrough.issued",
+        Some(app_id),
+        json!({}),
+        &ip_hash,
+    )
+    .await;
+
+    let def = app(app_id);
+    let tx_row =
+        sqlx::query("SELECT state_value, return_path FROM auth_login_transactions WHERE id = $1")
+            .bind(tx_id)
+            .fetch_one(&state.pool)
+            .await;
+    let (state_val, return_path) = match tx_row {
+        Ok(r) => (
+            r.get::<String, _>("state_value"),
+            r.get::<String, _>("return_path"),
+        ),
+        Err(_) => return fail(StatusCode::INTERNAL_SERVER_ERROR, "server_error"),
+    };
+    (
+        StatusCode::OK,
+        no_store(),
+        Json(json!({
+            "pass_through": true,
             "redirect": format!("{}?code={code}&state={state_val}", def.callback_uri),
             "return_path": return_path,
         })),
