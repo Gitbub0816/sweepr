@@ -263,16 +263,22 @@ export function LoginPage() {
     })();
   }, [phase, authLoaded, isSignedIn, readyForAuth, clerk, getToken, tx, params]);
 
-  // Complete ONLY after a fresh authentication performed here (readyForAuth
-  // means any pre-existing session was already cleared). Guarded to run once.
+  // Complete ONLY on the post-authentication reload (?authed=1). Clerk's
+  // <SignIn> flips isSignedIn true IN-SPA the instant credentials are accepted,
+  // *before* it performs its forceRedirectUrl reload — if we completed then, we
+  // would consume the transaction (pending→authenticated) and the reload's
+  // context fetch would 404 ("nothing to sign in to here"). Gating on ?authed=1
+  // means completion runs once, on the reloaded page, against a still-pending
+  // transaction with a freshly-rotated completion token.
   useEffect(() => {
     if (phase.name !== "ready" || !readyForAuth) return;
+    if (params.get("authed") !== "1") return;
     if (!isSignedIn || completing.current) return;
     completing.current = true;
     const ctx = phase.context;
     setPhase({ name: "completing", context: ctx });
     void finishWithSession(ctx);
-  }, [phase, readyForAuth, isSignedIn, finishWithSession]);
+  }, [phase, readyForAuth, isSignedIn, finishWithSession, params]);
 
   if (phase.name === "loading" || !authLoaded) {
     return (
