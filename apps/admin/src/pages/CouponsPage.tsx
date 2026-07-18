@@ -169,16 +169,18 @@ export function CouponsPage({ embedded = false }: { embedded?: boolean }) {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-center gap-3">
-        <TicketPercent className="h-6 w-6 text-seafoam-600" />
-        <div>
-          <h1 className="text-2xl font-bold">Coupons</h1>
-          <p className="text-sm text-slate-500">
-            Silent perks: they sit on the account and apply automatically to the next qualifying booking.
-            Sign-up required to claim; 180-day maximum validity.
-          </p>
-        </div>
-      </header>
+      {!embedded && (
+        <header className="flex items-center gap-3">
+          <TicketPercent className="h-6 w-6 text-seafoam-600" />
+          <div>
+            <h1 className="text-2xl font-bold">Coupons</h1>
+            <p className="text-sm text-slate-500">
+              Silent perks: they sit on the account and apply automatically to the next qualifying booking.
+              Sign-up required to claim; 180-day maximum validity.
+            </p>
+          </div>
+        </header>
+      )}
 
       {/* Manual / themed grant */}
       <Card className="space-y-3 p-4">
@@ -236,7 +238,7 @@ export function CouponsPage({ embedded = false }: { embedded?: boolean }) {
       <Card className="space-y-3 p-4">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold">Milestone rules</h3>
-          <Button size="sm" variant="secondary" onClick={runMilestones}><Play className="mr-1 h-4 w-4" />Evaluate now</Button>
+          <Button size="sm" variant="secondary" onClick={() => setConfirmEvaluate(true)}><Play className="mr-1 h-4 w-4" />Evaluate now</Button>
         </div>
         <div className="grid grid-cols-2 gap-2 md:grid-cols-6">
           <label className="text-xs">Rule key
@@ -261,11 +263,17 @@ export function CouponsPage({ embedded = false }: { embedded?: boolean }) {
           <label className="text-xs">Coupon
             <select value={mCKind} onChange={(e) => setMCKind(e.target.value as typeof mCKind)}
               className="mt-1 w-full rounded-md border border-slate-200 bg-transparent px-2 py-1.5 text-sm dark:border-slate-700">
-              <option value="percent_off">% off</option><option value="amount_off">$ off (cents)</option><option value="free_addon">Free add-on</option>
+              <option value="percent_off">% off</option><option value="amount_off">$ off</option><option value="free_addon">Free add-on</option>
             </select>
           </label>
           <div className="flex items-end gap-2">
-            {mCKind !== "free_addon" ? (
+            {mCKind === "amount_off" ? (
+              <div className="relative w-24">
+                <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-slate-400">$</span>
+                <input type="text" inputMode="decimal" value={mCValue} onChange={(e) => setMCValue(e.target.value)}
+                  className="w-full rounded-md border border-slate-200 bg-transparent py-1.5 pl-6 pr-2 text-sm dark:border-slate-700 dark:text-white" />
+              </div>
+            ) : mCKind === "percent_off" ? (
               <Input type="number" value={mCValue} onChange={(e) => setMCValue(e.target.value)} className="w-20" />
             ) : null}
             <Button size="sm" onClick={addRule}>Add</Button>
@@ -279,7 +287,7 @@ export function CouponsPage({ embedded = false }: { embedded?: boolean }) {
             {rules.map((r) => (
               <tr key={r.id} className="border-t border-slate-100 dark:border-slate-800">
                 <td className="py-1.5">{r.label} <span className="text-xs text-slate-400">({r.rule_key})</span></td>
-                <td className="text-slate-500">{r.kind}</td>
+                <td className="text-slate-500">{MILESTONE_KIND_LABEL[r.kind] ?? r.kind}</td>
                 <td>{r.threshold}</td>
                 <td>{r.awarded}</td>
                 <td>
@@ -328,6 +336,19 @@ export function CouponsPage({ embedded = false }: { embedded?: boolean }) {
           </table>
         </div>
       </Card>
+
+      <Modal
+        open={confirmEvaluate}
+        onOpenChange={(o) => !o && setConfirmEvaluate(false)}
+        title="Evaluate milestone rules now?"
+        description="This checks every active milestone rule against current counts and mints coupons for any newly-crossed thresholds. Granted coupons cannot be un-granted."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmEvaluate(false)}>Cancel</Button>
+            <Button onClick={() => { setConfirmEvaluate(false); void runMilestones(); }}>Evaluate now</Button>
+          </>
+        }
+      />
     </div>
   );
 }
