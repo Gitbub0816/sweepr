@@ -355,7 +355,7 @@ export function QuotePage() {
               Estimated price
             </p>
             <p className="text-2xl font-black tracking-tight text-charcoal dark:text-white" aria-live="polite">
-              ${'{'}total.toFixed(0){'}'}
+              ${total.toFixed(0)}
             </p>
           </div>
           <a href={bookUrl}>

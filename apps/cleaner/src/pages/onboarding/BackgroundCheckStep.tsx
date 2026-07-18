@@ -48,6 +48,20 @@ export function BackgroundCheckStep({ n, getToken, onComplete, trainingComplete 
   const [completing, setCompleting] = useState(false);
   const email = user?.primaryEmailAddress?.emailAddress ?? "";
 
+  /** Warm DNS+TLS to the Yardstik origins before/as the iframe mounts — the
+   * hosted page's 3-5s boot is mostly its own SPA, but shaving the connection
+   * setup for the document and its API calls is free. Safe to call twice. */
+  function preconnect(origins: string[]) {
+    for (const origin of origins) {
+      if (!origin || document.querySelector(`link[rel="preconnect"][href="${origin}"]`)) continue;
+      const link = document.createElement("link");
+      link.rel = "preconnect";
+      link.href = origin;
+      link.crossOrigin = "anonymous";
+      document.head.appendChild(link);
+    }
+  }
+
   /** Gate: the Adjudication Policy must be acknowledged before the check starts. */
   async function ensureAcknowledged(): Promise<boolean> {
     try {
@@ -97,6 +111,11 @@ export function BackgroundCheckStep({ n, getToken, onComplete, trainingComplete 
       // (Yardstik blocks a duplicate within 30 days). The server reconciles the
       // existing report and returns its status — show that instead of an iframe.
       if (data.invitationUrl && data.expiresAt) {
+        try {
+          const applyOrigin = new URL(data.invitationUrl).origin;
+          // The apply page's own origin plus the API host it XHRs against.
+          preconnect([applyOrigin, applyOrigin.replace("//app.", "//api."), applyOrigin.replace("//apply.", "//api.")]);
+        } catch { /* best-effort */ }
         setPhase({ kind: "embedded", invitationUrl: data.invitationUrl, expiresAt: data.expiresAt });
       } else {
         setPhase({ kind: "waiting", status: data.status ?? "pending" });
@@ -186,7 +205,9 @@ export function BackgroundCheckStep({ n, getToken, onComplete, trainingComplete 
           <iframe
             src={phase.invitationUrl}
             title="Background check, powered by Yardstik"
-            className="h-[640px] w-full"
+            // Fill the viewport (minus our header/footer chrome) so the form
+            // needs as little double-scrolling as possible on mobile.
+            className="w-full h-[max(560px,calc(100dvh-14rem))]"
             allow="camera; microphone"
             sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-top-navigation-by-user-activation"
             onLoad={() => { setIframeLoaded(true); void pollStatus(); }}

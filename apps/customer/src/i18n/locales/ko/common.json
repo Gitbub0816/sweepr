@@ -98,7 +98,8 @@
       "label": "주소, 도시, 또는 우편번호",
       "placeholder": "예: 123 Main St, Austin TX, 또는 94541",
       "outOfAreaTitle": "아직 해당 지역에서 서비스를 제공하지 않습니다.",
-      "outOfAreaBody": "Sweepr는 현재 CA, TX, FL, NY, WA, CO에서 이용 가능합니다. 이메일을 남겨주시면 근처에서 서비스가 시작되는 즉시 알려드리겠습니다."
+      "outOfAreaBody": "Sweepr는 현재 {{areas}} 지역에서 서비스 중입니다. 이메일을 남겨주시면 근처에서 서비스가 시작되는 즉시 알려드리겠습니다.",
+      "outOfAreaFallbackAreas": "샌프란시스코 베이 지역"
     },
     "home": {
       "title": "주거 환경을 알려주세요",

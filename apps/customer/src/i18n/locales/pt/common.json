@@ -98,7 +98,8 @@
       "label": "Endereço, cidade ou CEP",
       "placeholder": "Ex.: Rua das Flores, 123, São Paulo, ou 01310-100",
       "outOfAreaTitle": "Ainda não estamos na sua região.",
-      "outOfAreaBody": "O Sweepr está disponível atualmente em CA, TX, FL, NY, WA e CO. Deixe seu e-mail e avisaremos assim que chegarmos perto de você."
+      "outOfAreaBody": "O Sweepr está atendendo atualmente em {{areas}}. Deixe seu e-mail e avisaremos assim que chegarmos perto de você.",
+      "outOfAreaFallbackAreas": "a área da Baía de São Francisco"
     },
     "home": {
       "title": "Conte-nos sobre sua casa",

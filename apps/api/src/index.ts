@@ -37,6 +37,7 @@ import { smsInboundRouter } from "./routes/smsInbound";
 import { localeRouter } from "./routes/locale";
 import { smsOptInRouter } from "./routes/smsOptIn";
 import { statusRouter } from "./routes/status";
+import { serviceAreaCheckRouter } from "./routes/serviceAreaCheck";
 import { statusAdminRouter } from "./routes/admin/statusAdmin";
 import { adminInviteRouter } from "./routes/adminInvite";
 import { adminPermissionsRouter } from "./routes/adminPermissions";
@@ -421,6 +422,7 @@ app.route("/sms", smsOptInRouter);
 // Public IP-based initial-language suggestion.
 app.route("/locale", localeRouter);
 app.route("/status", statusRouter);
+app.route("/service-areas", serviceAreaCheckRouter);
 app.route("/admin/status", statusAdminRouter);
 app.route("/admin/invites", adminInviteRouter);
 app.route("/admin/permissions", adminPermissionsRouter);

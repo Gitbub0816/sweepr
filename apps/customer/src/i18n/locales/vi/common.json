@@ -98,7 +98,8 @@
       "label": "Địa chỉ, thành phố hoặc mã ZIP",
       "placeholder": "Ví dụ: 123 Main St, Austin TX, hoặc 94541",
       "outOfAreaTitle": "Chúng tôi chưa phục vụ khu vực của bạn.",
-      "outOfAreaBody": "Sweepr hiện đang hoạt động tại CA, TX, FL, NY, WA và CO. Hãy để lại email của bạn và chúng tôi sẽ thông báo khi chúng tôi ra mắt tại khu vực của bạn."
+      "outOfAreaBody": "Sweepr hiện đang phục vụ tại {{areas}}. Hãy để lại email của bạn và chúng tôi sẽ thông báo khi chúng tôi ra mắt tại khu vực của bạn.",
+      "outOfAreaFallbackAreas": "Vùng Vịnh San Francisco"
     },
     "home": {
       "title": "Cho chúng tôi biết về ngôi nhà của bạn",

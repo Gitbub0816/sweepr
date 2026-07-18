@@ -98,7 +98,8 @@
       "label": "العنوان أو المدينة أو الرمز البريدي",
       "placeholder": "مثال: 123 Main St, Austin TX أو 94541",
       "outOfAreaTitle": "لم نصل إلى منطقتك بعد.",
-      "outOfAreaBody": "Sweepr متاح حاليًا في CA وTX وFL وNY وWA وCO. اترك بريدك الإلكتروني وسنُخطرك فور إطلاق الخدمة بالقرب منك."
+      "outOfAreaBody": "تتوفر خدمة Sweepr حاليًا في {{areas}}. اترك بريدك الإلكتروني وسنخبرك فور إطلاق خدمتنا بالقرب منك.",
+      "outOfAreaFallbackAreas": "منطقة خليج سان فرانسيسكو"
     },
     "home": {
       "title": "أخبرنا عن منزلك",

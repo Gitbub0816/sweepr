@@ -98,7 +98,8 @@
       "label": "Address, city, or ZIP code",
       "placeholder": "e.g. 123 Main St, Austin TX, or 94541",
       "outOfAreaTitle": "We're not in your area yet.",
-      "outOfAreaBody": "Sweepr is currently available in CA, TX, FL, NY, WA and CO. Leave us your email and we'll notify you the moment we launch near you."
+      "outOfAreaBody": "Sweepr is currently serving {{areas}}. Leave us your email and we'll notify you the moment we launch near you.",
+      "outOfAreaFallbackAreas": "the San Francisco Bay Area"
     },
     "home": {
       "title": "Tell us about your home",

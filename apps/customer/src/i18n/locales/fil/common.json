@@ -98,7 +98,8 @@
       "label": "Address, city, o ZIP code",
       "placeholder": "hal. 123 Main St, Austin TX, o 94541",
       "outOfAreaTitle": "Hindi pa kami available sa area mo.",
-      "outOfAreaBody": "Available ang Sweepr sa CA, TX, FL, NY, WA at CO sa ngayon. Iwan mo ang email mo at sasabihan ka namin pagdating namin diyan."
+      "outOfAreaBody": "Kasalukuyang naglilingkod ang Sweepr sa {{areas}}. Iwan mo ang email mo at sasabihan ka namin pagdating namin diyan.",
+      "outOfAreaFallbackAreas": "San Francisco Bay Area"
     },
     "home": {
       "title": "Kwentuhan mo kami tungkol sa bahay mo",

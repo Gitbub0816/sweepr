@@ -98,7 +98,8 @@
       "label": "Dirección, ciudad o código postal",
       "placeholder": "ej. 123 Main St, Austin TX, o 94541",
       "outOfAreaTitle": "Aún no estamos en tu área.",
-      "outOfAreaBody": "Sweepr está disponible actualmente en CA, TX, FL, NY, WA y CO. Déjanos tu correo electrónico y te avisaremos en cuanto lleguemos a tu zona."
+      "outOfAreaBody": "Sweepr está disponible actualmente en {{areas}}. Déjanos tu correo electrónico y te avisaremos en cuanto lleguemos a tu zona.",
+      "outOfAreaFallbackAreas": "el Área de la Bahía de San Francisco"
     },
     "home": {
       "title": "Cuéntanos sobre tu hogar",

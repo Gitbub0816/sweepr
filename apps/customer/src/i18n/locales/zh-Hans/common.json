@@ -98,7 +98,8 @@
       "label": "地址、城市或邮政编码",
       "placeholder": "例如：123 Main St、Austin TX 或 94541",
       "outOfAreaTitle": "我们尚未覆盖您所在的区域。",
-      "outOfAreaBody": "Sweepr 目前在 CA、TX、FL、NY、WA 和 CO 提供服务。请留下您的邮箱，我们将在覆盖您所在区域时第一时间通知您。"
+      "outOfAreaBody": "Sweepr 目前服务于{{areas}}。留下您的邮箱，我们将在您附近上线时第一时间通知您。",
+      "outOfAreaFallbackAreas": "旧金山湾区"
     },
     "home": {
       "title": "告诉我们您的家庭情况",

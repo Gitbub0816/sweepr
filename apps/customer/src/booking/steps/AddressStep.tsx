@@ -41,7 +41,27 @@ interface SavedAddress {
   propertyType: string;
 }
 
-const SERVICE_AREA_STATES = ["CA", "TX", "FL", "NY", "WA", "CO"];
+/**
+ * Availability comes from the live `service_areas` polygons via the public
+ * check endpoint — never a hardcoded state/city list (that once rejected a
+ * Hayward, CA address while claiming we served six states). Fail OPEN: if the
+ * check can't run, accept the address and let checkout validate.
+ */
+async function checkServiceArea(
+  lat: number,
+  lng: number,
+): Promise<{ available: boolean; liveAreas: string[] }> {
+  try {
+    const res = await fetch(
+      `${API_URL}/service-areas/check?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`,
+    );
+    if (!res.ok) return { available: true, liveAreas: [] };
+    const d = (await res.json()) as { available?: boolean; liveAreas?: string[] };
+    return { available: d.available !== false, liveAreas: d.liveAreas ?? [] };
+  } catch {
+    return { available: true, liveAreas: [] };
+  }
+}
 
 const US_STATE_ABBREVS: Record<string, string> = {
   Alabama: "AL", Alaska: "AK", Arizona: "AZ", Arkansas: "AR",
@@ -159,6 +179,7 @@ export function AddressStep() {
   );
   const [suggestions, setSuggestions] = useState<GeoFeature[]>([]);
   const [outOfArea, setOutOfArea] = useState(false);
+  const [liveAreas, setLiveAreas] = useState<string[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -231,20 +252,28 @@ export function AddressStep() {
     debounceRef.current = setTimeout(() => fetchSuggestions(value), 200);
   }
 
-  function handleSelect(f: GeoFeature) {
+  async function handleSelect(f: GeoFeature) {
     userEditedRef.current = false;
     setShowDropdown(false);
     setSuggestions([]);
     const parsed = parseFeature(f);
     if (!parsed) return;
 
-    const inArea = SERVICE_AREA_STATES.includes(parsed.state.toUpperCase());
-    setOutOfArea(!inArea);
-
     setQuery(f.label);
 
-    if (!inArea) return;
-    setAddress(parsed);
+    // No coordinates from the picker → nothing to test against; fail open.
+    if (parsed.lat == null || parsed.lng == null) {
+      setOutOfArea(false);
+      setAddress(parsed);
+      return;
+    }
+
+    setLoading(true);
+    const { available, liveAreas } = await checkServiceArea(parsed.lat, parsed.lng);
+    setLoading(false);
+    setLiveAreas(liveAreas);
+    setOutOfArea(!available);
+    if (available) setAddress(parsed);
   }
 
   return (
@@ -344,7 +373,14 @@ export function AddressStep() {
       {outOfArea && (
         <div role="alert" className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           <p className="font-bold">{t("booking.address.outOfAreaTitle")}</p>
-          <p className="mt-1">{t("booking.address.outOfAreaBody")}</p>
+          <p className="mt-1">
+            {t("booking.address.outOfAreaBody", {
+              areas:
+                liveAreas.length > 0
+                  ? liveAreas.join(", ")
+                  : t("booking.address.outOfAreaFallbackAreas"),
+            })}
+          </p>
         </div>
       )}
 
