@@ -9,7 +9,6 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { motion, useReducedMotion } from "framer-motion";
 import { Printer, AlertTriangle, FileDown, FileText } from "lucide-react";
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? "https://api.getsweepr.com";
@@ -83,7 +82,6 @@ export function DocPage({
   toc: TocItem[];
   children: ReactNode;
 } & DocMetaProps) {
-  const prefersReducedMotion = useReducedMotion();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [archived, setArchived] = useState<ArchivedVersion | null>(null);
 
@@ -126,12 +124,7 @@ export function DocPage({
   }, [title, intro, version, effectiveDate]);
 
   return (
-    <motion.div
-      initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: prefersReducedMotion ? 0 : 0.3 }}
-      className="legal-doc flex flex-col gap-10 lg:flex-row"
-    >
+    <div className="legal-doc sweepr-fade-up flex flex-col gap-10 lg:flex-row">
       <article className="min-w-0 flex-1">
         <header className="border-b border-slate-200 pb-6">
           <h1
@@ -201,6 +194,6 @@ export function DocPage({
       <div className="hidden w-56 shrink-0 lg:block">
         <TableOfContents items={toc} />
       </div>
-    </motion.div>
+    </div>
   );
 }

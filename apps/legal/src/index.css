@@ -15,7 +15,7 @@
   --legal-font: "Ubuntu Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
     Consolas, "Liberation Mono", "Courier New", monospace;
   font-family: var(--legal-font);
-  color: #1a1a2e;
+  color: #1c1a17;
   background: #ffffff;
 }
 
@@ -112,4 +112,40 @@ body {
 @supports (-webkit-touch-callout: none) {
   /* iOS momentum scrolling for a native feel in scroll containers. */
   body { -webkit-overflow-scrolling: touch; }
+}
+
+/* ─── Above-the-fold entrance (plain CSS, no JS) ───────────────────────────
+   Replaces framer-motion's fade/slide-in for DocPage and HomePage so pages
+   render and animate immediately with zero JS-driven animation, keeping
+   framer-motion out of the legal app entirely. Ported from apps/marketing's
+   src/index.css. */
+@keyframes sweepr-fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.sweepr-fade-up {
+  animation: sweepr-fade-up 0.25s cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+.sweepr-fade-up-d1 { animation-delay: 0.06s; }
+.sweepr-fade-up-d2 { animation-delay: 0.12s; }
+.sweepr-fade-up-d3 { animation-delay: 0.18s; }
+.sweepr-fade-up-d4 { animation-delay: 0.12s; }
+@media (prefers-reduced-motion: reduce) {
+  .sweepr-fade-up { animation: none; opacity: 1; transform: none; }
+}
+
+/* ─── Below-the-fold scroll reveal (used by <Reveal>) ──────────────────────
+   Replaces framer-motion's `whileInView` for the document list further down
+   the homepage. Toggled via a small IntersectionObserver in Reveal.tsx. */
+.sweepr-reveal {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.25s cubic-bezier(0.23, 1, 0.32, 1), transform 0.25s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.sweepr-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sweepr-reveal { transition: none; opacity: 1; transform: none; }
 }

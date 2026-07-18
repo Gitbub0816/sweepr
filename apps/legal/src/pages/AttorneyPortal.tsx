@@ -15,6 +15,8 @@
  * staff admin app — this is one reviewer, not a platform operator.
  */
 import { useCallback, useEffect, useState } from "react";
+import { Button, Card, Input, Textarea } from "@sweepr/ui";
+import { ArrowLeft, CheckCircle2 } from "lucide-react";
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? "https://api.getsweepr.com";
 const SESSION_KEY = "sweepr_attorney_session";
@@ -99,8 +101,8 @@ export function AttorneyPortal() {
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>{children}</div>
+    <div className="flex min-h-screen justify-center bg-slate-50 px-5 py-12">
+      <Card className="h-fit w-full max-w-[480px] p-7">{children}</Card>
     </div>
   );
 }
@@ -126,28 +128,27 @@ function LoginView() {
 
   return (
     <Centered>
-      <h1 style={styles.h1}>Legal Review Portal</h1>
-      <p style={styles.muted}>
+      <h1 className="mb-2 text-xl font-bold text-charcoal">Legal Review Portal</h1>
+      <p className="mb-4 text-sm leading-relaxed text-slate-500">
         Sign in to view, edit, and approve Sweepr legal documents. Enter your registered email
         and we'll send you a secure single-use link.
       </p>
       {sent ? (
-        <p style={styles.notice}>
+        <p className="text-sm text-seafoam-700">
           If that email is registered, a sign-in link is on its way. It expires in 30 minutes.
         </p>
       ) : (
-        <>
-          <input
-            style={styles.input}
+        <div className="flex flex-col gap-3">
+          <Input
             type="email"
             placeholder="you@lawfirm.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <button style={styles.button} disabled={busy || !email} onClick={request}>
+          <Button fullWidth disabled={busy || !email} loading={busy} onClick={request}>
             {busy ? "Sending…" : "Send sign-in link"}
-          </button>
-        </>
+          </Button>
+        </div>
       )}
     </Centered>
   );
@@ -195,12 +196,12 @@ function PortalView({
   }
 
   return (
-    <div style={styles.page}>
-      <div style={{ ...styles.card, maxWidth: 860 }}>
-        <div style={styles.headerRow}>
+    <div className="flex min-h-screen justify-center bg-slate-50 px-5 py-12">
+      <Card className="h-fit w-full max-w-[860px] p-7">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 style={styles.h1}>Legal Review Portal</h1>
-            <p style={styles.muted}>
+            <h1 className="mb-2 text-xl font-bold text-charcoal">Legal Review Portal</h1>
+            <p className="text-sm leading-relaxed text-slate-500">
               {attorney.fullName}
               {attorney.title ? `, ${attorney.title}` : ""}
               {attorney.firmName ? ` · ${attorney.firmName}` : ""}
@@ -208,55 +209,62 @@ function PortalView({
               {attorney.barState ? ` (${attorney.barState})` : ""}
             </p>
           </div>
-          <button style={styles.linkBtn} onClick={onSignOut}>
+          <Button variant="ghost" size="sm" onClick={onSignOut}>
             Sign out
-          </button>
+          </Button>
         </div>
 
         {loading ? (
-          <p style={styles.muted}>Loading documents…</p>
+          <p className="mt-6 text-sm text-slate-500">Loading documents…</p>
         ) : docs.length === 0 ? (
-          <p style={styles.muted}>
+          <p className="mt-6 text-sm leading-relaxed text-slate-500">
             No archived documents are available yet. Once a document version is published to the
             archive it will appear here for review.
           </p>
         ) : (
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <th style={styles.th}>Document</th>
-                <th style={styles.th}>Category</th>
-                <th style={styles.th}>Version</th>
-                <th style={styles.th}>Status</th>
-                <th style={styles.th}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {docs.map((d) => (
-                <tr key={d.slug}>
-                  <td style={styles.td}>{d.title}</td>
-                  <td style={styles.td}>{d.category}</td>
-                  <td style={styles.td}>{d.version}</td>
-                  <td style={styles.td}>
-                    {d.attorney_approved_at ? (
-                      <span style={styles.approved}>✓ Approved</span>
-                    ) : d.edited_html_at ? (
-                      <span style={styles.edited}>Edited, pending approval</span>
-                    ) : (
-                      <span style={styles.muted}>Not reviewed</span>
-                    )}
-                  </td>
-                  <td style={styles.td}>
-                    <button style={styles.linkBtn} onClick={() => setActive(d.slug)}>
-                      Review
-                    </button>
-                  </td>
+          <div className="mt-6 overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr>
+                  <th className="border-b-2 border-slate-200 px-2.5 py-2 text-left font-medium text-slate-500">Document</th>
+                  <th className="border-b-2 border-slate-200 px-2.5 py-2 text-left font-medium text-slate-500">Category</th>
+                  <th className="border-b-2 border-slate-200 px-2.5 py-2 text-left font-medium text-slate-500">Version</th>
+                  <th className="border-b-2 border-slate-200 px-2.5 py-2 text-left font-medium text-slate-500">Status</th>
+                  <th className="border-b-2 border-slate-200 px-2.5 py-2 text-left font-medium text-slate-500"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {docs.map((d) => (
+                  <tr key={d.slug}>
+                    <td className="border-b border-slate-100 px-2.5 py-2.5 text-charcoal">{d.title}</td>
+                    <td className="border-b border-slate-100 px-2.5 py-2.5 text-slate-600">{d.category}</td>
+                    <td className="border-b border-slate-100 px-2.5 py-2.5 text-slate-600">{d.version}</td>
+                    <td className="border-b border-slate-100 px-2.5 py-2.5">
+                      {d.attorney_approved_at ? (
+                        <span className="inline-flex items-center gap-1 font-semibold text-seafoam-700">
+                          <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" /> Approved
+                        </span>
+                      ) : d.edited_html_at ? (
+                        <span className="font-medium text-amber-700">Edited, pending approval</span>
+                      ) : (
+                        <span className="text-slate-500">Not reviewed</span>
+                      )}
+                    </td>
+                    <td className="border-b border-slate-100 px-2.5 py-2.5">
+                      <button
+                        onClick={() => setActive(d.slug)}
+                        className="text-sm font-medium text-seafoam-700 underline hover:text-seafoam-800"
+                      >
+                        Review
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
@@ -306,112 +314,40 @@ function DocEditor({ slug, session, onBack }: { slug: string; session: string; o
   };
 
   return (
-    <div style={styles.page}>
-      <div style={{ ...styles.card, maxWidth: 980 }}>
-        <div style={styles.headerRow}>
-          <h1 style={styles.h1}>Review: {slug}</h1>
-          <button style={styles.linkBtn} onClick={onBack}>
-            ← Back
-          </button>
+    <div className="flex min-h-screen justify-center bg-slate-50 px-5 py-12">
+      <Card className="h-fit w-full max-w-[980px] p-7">
+        <div className="flex items-start justify-between gap-4">
+          <h1 className="text-xl font-bold text-charcoal">Review: {slug}</h1>
+          <Button variant="ghost" size="sm" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back
+          </Button>
         </div>
-        <p style={styles.muted}>
+        <p className="mt-2 text-sm leading-relaxed text-slate-500">
           Edit the archived document's HTML below. Saving stores your edited snapshot; approving
           records your name and bar number against this version.
         </p>
         {loading ? (
-          <p style={styles.muted}>Loading document…</p>
+          <p className="mt-4 text-sm text-slate-500">Loading document…</p>
         ) : (
           <>
-            <textarea
-              style={styles.textarea}
+            <Textarea
+              className="mt-4 min-h-[460px] font-mono text-[13px] leading-relaxed"
               value={html}
               onChange={(e) => setHtml(e.target.value)}
               spellCheck={false}
             />
-            <div style={{ display: "flex", gap: 12, marginTop: 12, alignItems: "center" }}>
-              <button style={styles.button} disabled={busy} onClick={save}>
+            <div className="mt-3 flex items-center gap-3">
+              <Button variant="secondary" disabled={busy} onClick={save}>
                 Save edits
-              </button>
-              <button style={{ ...styles.button, background: "#0f766e" }} disabled={busy} onClick={approve}>
+              </Button>
+              <Button disabled={busy} onClick={approve}>
                 Approve document
-              </button>
-              {msg && <span style={styles.notice}>{msg}</span>}
+              </Button>
+              {msg && <span className="text-sm text-seafoam-700">{msg}</span>}
             </div>
           </>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  page: {
-    minHeight: "100vh",
-    background: "#f8fafc",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "flex-start",
-    padding: "48px 20px",
-    fontFamily: "'Ubuntu Mono', ui-monospace, monospace",
-    color: "#1c1a17",
-  },
-  card: {
-    width: "100%",
-    maxWidth: 480,
-    background: "#ffffff",
-    border: "1px solid #e2e8f0",
-    borderRadius: 12,
-    padding: 28,
-    boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-  },
-  headerRow: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 },
-  h1: { fontSize: 22, fontWeight: 700, margin: "0 0 8px" },
-  muted: { color: "#64748b", fontSize: 14, lineHeight: 1.6, margin: "0 0 16px" },
-  notice: { color: "#0f766e", fontSize: 14 },
-  input: {
-    width: "100%",
-    padding: "12px 14px",
-    border: "1px solid #cbd5e1",
-    borderRadius: 8,
-    fontSize: 15,
-    marginBottom: 12,
-    boxSizing: "border-box",
-    fontFamily: "inherit",
-  },
-  textarea: {
-    width: "100%",
-    minHeight: 460,
-    padding: 14,
-    border: "1px solid #cbd5e1",
-    borderRadius: 8,
-    fontSize: 13,
-    lineHeight: 1.5,
-    boxSizing: "border-box",
-    fontFamily: "ui-monospace, monospace",
-  },
-  button: {
-    padding: "11px 22px",
-    background: "#14b8a6",
-    color: "#fff",
-    border: "none",
-    borderRadius: 8,
-    fontSize: 15,
-    fontWeight: 600,
-    cursor: "pointer",
-    fontFamily: "inherit",
-  },
-  linkBtn: {
-    background: "none",
-    border: "none",
-    color: "#0f766e",
-    fontSize: 14,
-    cursor: "pointer",
-    textDecoration: "underline",
-    fontFamily: "inherit",
-  },
-  table: { width: "100%", borderCollapse: "collapse", fontSize: 14 },
-  th: { textAlign: "left", padding: "8px 10px", borderBottom: "2px solid #e2e8f0", color: "#64748b" },
-  td: { padding: "10px", borderBottom: "1px solid #f1f5f9" },
-  approved: { color: "#0f766e", fontWeight: 600 },
-  edited: { color: "#b45309" },
-};

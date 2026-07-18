@@ -83,8 +83,8 @@ export function CustomerView() {
     <div className="min-h-screen bg-slate-50">
       {/* Top bar */}
       <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100">
-          <User className="h-4 w-4 text-violet-600" />
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100">
+          <User className="h-4 w-4 text-slate-600" />
         </span>
         <div>
           <p className="text-sm font-bold text-charcoal">Customer, {state.customer.name}</p>

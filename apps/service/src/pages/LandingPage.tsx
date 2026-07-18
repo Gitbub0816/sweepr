@@ -37,9 +37,9 @@ export function LandingPage() {
       <div className="w-full max-w-lg space-y-6">
         {/* Header */}
         <div className="text-center">
-          <div className="inline-flex items-center gap-2 rounded-full bg-seafoam-100 px-4 py-1.5 text-sm font-semibold text-seafoam-700 mb-4">
-            <FlaskConical className="h-4 w-4" /> Day-of-Service Demo
-          </div>
+          <p className="mb-3 flex items-center justify-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-seafoam-700">
+            <FlaskConical className="h-3.5 w-3.5" aria-hidden="true" /> Day-of-Service Demo
+          </p>
           <h1 className="text-2xl font-bold text-charcoal">Test the service flow</h1>
           <p className="mt-2 text-sm text-slate-500">
             Creates a sandboxed session with fake personas. Open the cleaner and
@@ -80,7 +80,7 @@ export function LandingPage() {
                 icon={User}
                 role="Customer view"
                 subtitle="Alex Rivera, watches live status"
-                color="violet"
+                color="slate"
                 href={`/u2/t/${session.txId}`}
                 onClick={() => navigate(`/u2/t/${session.txId}`)}
               />
@@ -113,13 +113,13 @@ function SessionLink({
   icon: typeof Truck;
   role: string;
   subtitle: string;
-  color: "seafoam" | "violet";
+  color: "seafoam" | "slate";
   href: string;
   onClick: () => void;
 }) {
   const cls = color === "seafoam"
     ? "bg-seafoam-50 text-seafoam-700"
-    : "bg-violet-50 text-violet-600";
+    : "bg-slate-100 text-slate-600";
   return (
     <div className="flex items-center gap-4 px-5 py-4">
       <span className={`flex h-10 w-10 items-center justify-center rounded-lg shrink-0 ${cls}`}>

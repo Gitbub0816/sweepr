@@ -9,16 +9,16 @@
  */
 
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
-import { FileText, ArrowRight } from "lucide-react";
-import { docsByCategory, LAST_UPDATED } from "../docs";
+import { ArrowRight } from "lucide-react";
+import { docsByCategory } from "../docs";
+import { Reveal } from "../components/Reveal";
 
 export function HomePage() {
   const groups = docsByCategory();
 
   return (
     <div>
-      <header className="border-b border-slate-200 pb-8">
+      <header className="sweepr-fade-up border-b border-slate-200 pb-8">
         <h1 className="text-3xl font-bold text-charcoal">Legal Documents</h1>
         <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-slate-600">
           Everything that governs your relationship with Sweepr, our terms,
@@ -28,46 +28,30 @@ export function HomePage() {
         </p>
       </header>
 
-      {groups.map((group) => (
-        <section key={group.category} className="mt-10">
-          <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
+      {groups.map((group, i) => (
+        <Reveal key={group.category} delayMs={Math.min(i, 3) * 40} className="mt-10">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
             {group.category}
           </h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {group.docs.map((doc, i) => (
-              <motion.div
+          <div className="divide-y divide-slate-200 overflow-hidden rounded-2xl border border-slate-200">
+            {group.docs.map((doc) => (
+              <Link
                 key={doc.slug}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.03 }}
+                to={`/${doc.slug}`}
+                className="group flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-seafoam-50/60 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-seafoam-600"
               >
-                <Link
-                  to={`/${doc.slug}`}
-                  className="group flex h-full flex-col rounded-2xl border border-slate-200 p-5 transition-all hover:border-seafoam-300 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-seafoam-600"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-seafoam-50 text-seafoam-700"
-                  >
-                    <FileText className="h-5 w-5" />
-                  </span>
-                  <h3 className="text-lg font-semibold text-charcoal">
-                    {doc.title}
-                  </h3>
-                  <p className="mt-1 flex-1 text-sm text-slate-500">
-                    {doc.description}
-                  </p>
-                  <span className="mt-4 flex items-center justify-between text-sm">
-                    <span className="text-slate-500">Updated {LAST_UPDATED}</span>
-                    <span className="flex items-center gap-1 font-medium text-seafoam-700 group-hover:gap-2">
-                      Read <ArrowRight className="h-4 w-4 transition-all" />
-                    </span>
-                  </span>
-                </Link>
-              </motion.div>
+                <div className="min-w-0">
+                  <h3 className="text-base font-semibold text-charcoal">{doc.title}</h3>
+                  <p className="mt-0.5 truncate text-sm text-slate-500">{doc.description}</p>
+                </div>
+                <ArrowRight
+                  aria-hidden="true"
+                  className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-seafoam-700"
+                />
+              </Link>
             ))}
           </div>
-        </section>
+        </Reveal>
       ))}
     </div>
   );

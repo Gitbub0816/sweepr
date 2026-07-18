@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useState, useRef } from "react";
+import { Wrench, Calendar } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
@@ -69,16 +70,16 @@ interface ComponentStatus {
 }
 
 const STATUS_COLORS: Record<IncidentStatus, string> = {
-  investigating: "bg-yellow-100 text-yellow-800 border border-yellow-200",
-  identified: "bg-orange-100 text-orange-800 border border-orange-200",
-  monitoring: "bg-blue-100 text-blue-800 border border-blue-200",
-  resolved: "bg-green-100 text-green-800 border border-green-200",
+  investigating: "bg-amber-100 text-amber-800 border border-amber-200",
+  identified: "bg-amber-100 text-amber-800 border border-amber-200",
+  monitoring: "bg-seafoam-100 text-seafoam-800 border border-seafoam-200",
+  resolved: "bg-seafoam-100 text-seafoam-800 border border-seafoam-200",
 };
 
 const SEVERITY_COLORS: Record<IncidentSeverity, string> = {
   minor: "bg-slate-100 text-slate-700 border border-slate-200",
-  moderate: "bg-yellow-100 text-yellow-800 border border-yellow-200",
-  major: "bg-orange-100 text-orange-800 border border-orange-200",
+  moderate: "bg-amber-100 text-amber-800 border border-amber-200",
+  major: "bg-amber-200 text-amber-900 border border-amber-300",
   critical: "bg-red-100 text-red-800 border border-red-200",
 };
 
@@ -213,7 +214,13 @@ function MaintenanceCard({ window: w }: { window: MaintenanceWindow }) {
   return (
     <div className={`rounded-xl border p-5 ${isNow ? "border-yellow-200 bg-yellow-50" : "border-blue-100 bg-blue-50"}`}>
       <div className="flex items-start gap-3">
-        <span className="text-lg" aria-label={isNow ? "Maintenance in progress" : "Scheduled maintenance"}>{isNow ? "🔧" : "🗓"}</span>
+        <span
+          className={`flex h-5 w-5 shrink-0 items-center justify-center ${isNow ? "text-amber-600" : "text-seafoam-700"}`}
+          role="img"
+          aria-label={isNow ? "Maintenance in progress" : "Scheduled maintenance"}
+        >
+          {isNow ? <Wrench className="h-4 w-4" aria-hidden="true" /> : <Calendar className="h-4 w-4" aria-hidden="true" />}
+        </span>
         <div>
           <p className="text-sm font-semibold text-charcoal">{w.title}</p>
           {w.description && <p className="text-xs text-slate-600 mt-0.5">{w.description}</p>}
@@ -335,8 +342,8 @@ export default function App() {
 
       <main className="mx-auto max-w-3xl px-4 py-10">
         {isPrelaunch && (
-          <div className="mb-8 rounded-xl border border-purple-100 bg-purple-50 px-6 py-4 text-center">
-            <p className="text-sm font-semibold text-purple-700">Sweepr is coming soon. Follow along below.</p>
+          <div className="mb-8 rounded-xl border border-seafoam-100 bg-seafoam-50 px-6 py-4 text-center">
+            <p className="text-sm font-semibold text-seafoam-700">Sweepr is coming soon. Follow along below.</p>
           </div>
         )}
 
