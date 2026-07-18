@@ -1,0 +1,19 @@
+# UI committee — auth ceremony rebuild spec (opus)
+ROOT CAUSE of truncation: Clerk prebuilt card has internal min-width ~400px + padding; Shell max-w-md(448) - p-6(48) = 400px → overflow clips strings. Appearance vars cannot fix. Headless rewrite required.
+KEY ASSET: repo already ships headless pattern in apps/customer/src/components/{SignInPage,SignUpPage,authHelpers}.tsx (inputCls, ErrorBox, SubmitButton, Divider, Field, OAuthButton) — mirror it.
+F1 prebuilt overflows shell (LoginPage.tsx:55 + 419-467) — delete <SignIn>/<SignUp>, own markup all w-full.
+F2 40-line appearance object (102-143) fighting a black box — remove.
+F3 zero motion. F4 contrast: slate-400 at :58,:62 → slate-600; slate-500 subheads ok-ish bump. F5 focus ring seafoam-400/20 too faint → /40; unify index.css:41 (#14b8a6 stray teal). F6 OAuth on TOP w/ divider (customer convention). F7 mode toggle → segmented control. F8 gradient backdrop (:53 + AlmostReady.tsx:18) → flat offwhite + one soft seafoam radial. F9 need forgot-password + TOTP 2FA. F10 shadow-sm → shadow-xl (customer uses it), tint charcoal.
+SPEC: card max-w-[400px] w-full rounded-2xl p-6 sm:p-8 shadow-xl. Wordmark → heading → context → OAuth pair → Divider("or") → view body. OTP = 6 cells flex gap-2 flex-1 min-w-0 h-12 text-center.
+State machines: view=signIn|signUp|reset; stage=form|code|second_factor.
+- password: signIn.create({identifier,password}) → complete→setActive; needs_second_factor→2FA.
+- email code: signIn.create({identifier}) → find email_code factor → prepareFirstFactor({strategy:"email_code",emailAddressId}) → attemptFirstFactor.
+- OAuth: signIn.authenticateWithRedirect({strategy:"oauth_google"|"oauth_apple", redirectUrl:`${origin}/login/sso-callback?tx=…`, redirectUrlComplete:authedUrl}) (route exists App.tsx:31).
+- 2FA: attemptSecondFactor({strategy:"totp",code}); SMS needs prepareSecondFactor first.
+- signup: signUp.create({emailAddress,password,firstName,lastName}) → prepareEmailAddressVerification({strategy:"email_code"}) → attemptEmailAddressVerification; if !complete && missingFields → signUp.update(patch) (mirror SignUpPage.tsx:127-135).
+- forgot: signIn.create({strategy:"reset_password_email_code",identifier}) → attemptFirstFactor({strategy:"reset_password_email_code",code,password}).
+- CEREMONY: after every setActive({session:createdSessionId}) do window.location.assign(authedUrl) (full reload, NOT navigate) so ?authed=1 completion effect (:295-303) fires. Keep tx in returnUrl/authedUrl (:392-397).
+Error copy: form_identifier_not_found→"We couldn't find an account for that email. Create one instead."; form_password_incorrect→"That password doesn't match. Try again or reset it."; form_identifier_exists→"That email already has an account. Sign in instead."; form_code_incorrect/verification_failed→"That code isn't right. Check it and re-enter."; verification_expired→"That code expired. Send a new one."; form_param_format_invalid→"Enter a valid email address."; form_password_pwned→"That password appeared in a breach. Choose another."; too_many_requests→"Too many attempts. Wait a moment, then try again."; captcha_invalid→"We couldn't verify you're human. Refresh and retry."; fallback→"Something went wrong. Please try again."
+Motion (ease cubic-bezier(0.23,1,0.32,1)): card entrance opacity+y8 200ms stagger 40ms; step crossfade + blur(2px) 180ms; focus 150ms; press active:scale-[0.98] 120ms; OTP auto-advance/paste-fill/auto-submit, error shake ±4px×3 320ms; success crossfade into "Signing you in" spinner then assign. prefers-reduced-motion → crossfade only.
+KEEP UNCHANGED: loadContext/fetchTransactionContext, Phase machine, arrival precheck+signOut effect (251-286), ?authed=1 gating + completion effect (295-303), finishWithSession (201-243), Shell/ExpiredState/spinner renders, Wordmark, legal+cancel links.
+TOP 3: kill prebuilt; preserve ceremony (assign after setActive); contrast+OAuth-top+motion.
