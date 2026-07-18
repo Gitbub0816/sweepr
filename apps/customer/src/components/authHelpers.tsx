@@ -15,7 +15,7 @@ export const inputCls =
 
 export function ErrorBox({ message }: { message: string }) {
   return (
-    <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">
+    <p role="alert" aria-live="assertive" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">
       {message}
     </p>
   );
@@ -26,9 +26,15 @@ export function SubmitButton({ loading, disabled, label }: { loading: boolean; d
     <button
       type="submit"
       disabled={loading || disabled}
-      className="flex w-full items-center justify-center gap-2 rounded-xl bg-seafoam-700 py-3 text-sm font-semibold text-white shadow-md shadow-seafoam-500/30 transition hover:bg-seafoam-800 disabled:opacity-60"
+      aria-busy={loading}
+      className="flex w-full items-center justify-center gap-2 rounded-xl bg-seafoam-700 py-3 text-sm font-semibold text-white shadow-md shadow-seafoam-500/30 transition hover:bg-seafoam-800 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-seafoam-400 focus-visible:ring-offset-2"
     >
-      {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+      {loading && (
+        <span aria-live="polite" className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" focusable="false" />
+          <span className="sr-only">Loading…</span>
+        </span>
+      )}
       {label}
     </button>
   );

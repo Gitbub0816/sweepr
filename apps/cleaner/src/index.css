@@ -52,6 +52,42 @@ body {
   pointer-events: none;
 }
 
+/* ─── Progress-stepper active pulse (JobDetailPage) ─────────────────────────
+   One-time scale pulse fired only when a step circle newly becomes active —
+   see pulseStepIdx in JobDetailPage.tsx. Finite (not infinite), so it settles
+   back to a flat state after a single play. */
+@keyframes step-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+.animate-step-pulse {
+  animation: step-pulse 300ms ease-out;
+}
+
+/* ─── "Available Now" toggle-on pulse (SchedulePage) ────────────────────────
+   Finite pulse (2 iterations @ 1.2s) that plays once right after the toggle
+   is switched on, then settles to a static highlighted state — never an
+   infinite/ambient pulse. */
+@keyframes pulse-once {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.animate-pulse-once {
+  animation: pulse-once 1.2s cubic-bezier(0.4, 0, 0.6, 1) 2;
+}
+
+/* ─── Job-offer countdown urgency (JobCard) ──────────────────────────────────
+   Gentle, bounded pulse — only ever active in the final <30s of an offer
+   countdown, so it naturally ends when the offer is accepted/passed/expires. */
+@keyframes urgent-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.animate-urgent-pulse {
+  animation: urgent-pulse 1s ease-in-out infinite;
+}
+
 /* ─── Reduced motion ─────────────────────────────────────────────────────────
    WCAG 2.3.3 / prefers-reduced-motion: neutralize custom keyframe animations
    (confetti, spinners, pulses) for users who have asked the OS to minimize

@@ -15,10 +15,16 @@ import { useAppToken } from "@/lib/appToken";
 import { MapPin, Plus, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Input, loadMapkit } from "@sweepr/ui";
+import { cn } from "@sweepr/utils";
 import type { Address } from "@sweepr/types";
 import { useBookingStore } from "../../store/booking";
 import { StepShell } from "../StepShell";
 import { AddressMapPreview } from "../../components/AddressMapPreview";
+import {
+  SELECTABLE_OPTION_BASE,
+  SELECTABLE_OPTION_SELECTED,
+  SELECTABLE_OPTION_UNSELECTED,
+} from "../../lib/selectableOption";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -259,12 +265,13 @@ export function AddressStep() {
               <button
                 key={a.id}
                 type="button"
+                aria-pressed={selected}
                 onClick={() => chooseSaved(a)}
-                className={`flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition ${
-                  selected
-                    ? "border-seafoam-500 ring-2 ring-seafoam-400"
-                    : "border-slate-200 hover:border-seafoam-300 dark:border-slate-700"
-                }`}
+                className={cn(
+                  SELECTABLE_OPTION_BASE,
+                  "flex w-full items-center gap-3 rounded-2xl p-4 text-left",
+                  selected ? SELECTABLE_OPTION_SELECTED : SELECTABLE_OPTION_UNSELECTED
+                )}
               >
                 <MapPin className="h-4 w-4 shrink-0 text-seafoam-500" />
                 <div className="flex-1">

@@ -57,10 +57,6 @@ export const CLEANING_LEVELS: CleaningLevelInfo[] = [
   },
 ];
 
-export function getCleaningLevelInfo(level: CleaningLevel): CleaningLevelInfo | undefined {
-  return CLEANING_LEVELS.find((l) => l.key === level);
-}
-
 export interface PackageScope {
   included: string[];
   excluded: string[];
@@ -148,10 +144,6 @@ export const PACKAGE_SCOPES: Partial<Record<ServiceType, PackageScope>> = {
     banner: "🏡 Great for Maintenance",
   },
 };
-
-export function getPackageScope(serviceType: ServiceType): PackageScope | undefined {
-  return PACKAGE_SCOPES[serviceType];
-}
 
 // ---------------------------------------------------------------------------
 // Add-on / package overlap

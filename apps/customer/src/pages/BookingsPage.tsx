@@ -9,7 +9,7 @@
  */
 
 import { Link, useNavigate } from "react-router-dom";
-import { CalendarClock, ChevronRight, RotateCcw } from "lucide-react";
+import { CalendarClock, ChevronRight, RotateCcw, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   DashboardShell,
@@ -69,22 +69,7 @@ function Section({
   const navigate = useNavigate();
   const rebookFrom = useBookingStore((s) => s.rebookFrom);
 
-  const broom = (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-12 w-12 text-seafoam-500"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M19.4 4.6 14 10" />
-      <path d="M11 9 4 16c-1.2 1.2-1.2 3 0 4.2 1.2 1.2 3 1.2 4.2 0L15 13" />
-      <path d="m9 19 6-6" />
-    </svg>
-  );
+  const emptyIcon = <Sparkles className="h-12 w-12 text-seafoam-500" aria-hidden="true" />;
 
   return (
     <div className="space-y-3">
@@ -92,7 +77,7 @@ function Section({
       {bookings.length === 0 ? (
         empty ? null : (
           <EmptyState
-            icon={broom}
+            icon={emptyIcon}
             title={t("bookings.noBookingsTitle")}
             description={t("bookings.noBookingsDesc")}
             action={

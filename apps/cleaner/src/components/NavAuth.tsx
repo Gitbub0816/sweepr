@@ -12,6 +12,7 @@ import { useClerk, useUser } from "@clerk/clerk-react";
 import { CENTRAL_AUTH_ENABLED } from "./CentralSession";
 import { LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { NotificationBell } from "@sweepr/ui";
 import { useNotifications } from "../hooks/useNotifications";
 
@@ -34,6 +35,7 @@ export function NavAuth() {
   const { signOut } = useClerk();
   const { isSignedIn } = useUser();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   if (!CLERK_ENABLED) return <Bell />;
 
@@ -69,7 +71,7 @@ export function NavAuth() {
         className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-white"
       >
         <LogOut className="h-3.5 w-3.5" />
-        Sign out
+        {t("auth.signOut")}
       </button>
     </div>
   );

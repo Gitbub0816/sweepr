@@ -10,6 +10,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Heart, Check } from "lucide-react";
+import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
@@ -132,9 +133,14 @@ export function TipCard({
     return (
       <Card className="bg-seafoam-50 dark:bg-seafoam-900/20">
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-seafoam-600 text-white">
+          <motion.span
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 200, damping: 14 }}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-seafoam-600 text-white"
+          >
             <Check className="h-5 w-5" />
-          </span>
+          </motion.span>
           <div>
             <h2 className="text-sm font-semibold text-charcoal dark:text-white">
               {t("bookingDetail.tip.sentTitle")}

@@ -40,14 +40,14 @@ import {
   Slack,
   GitPullRequest,
   ShieldAlert,
-  Radio,
   Inbox,
   ScanEye,
   ShieldBan,
-  CalendarDays,
   Megaphone,
   Award,
-  TicketPercent,
+  Gavel,
+  CalendarClock,
+  DoorOpen,
 } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -88,13 +88,9 @@ import { ApprovalDetailPage } from "./pages/ApprovalDetailPage";
 import { PricingRulePage } from "./pages/PricingRulePage";
 import { PricingApprovalDetailPage } from "./pages/PricingApprovalDetailPage";
 import { SecurityPage } from "./pages/SecurityPage";
-import { BroadcastsPage } from "./pages/BroadcastsPage";
-import { SchedulePage } from "./pages/SchedulePage";
 import { PromotionsPage } from "./pages/PromotionsPage";
 import { FoundingMembersPage } from "./pages/FoundingMembersPage";
-import { CouponsPage } from "./pages/CouponsPage";
 import { SmartEntryPage } from "./pages/SmartEntryPage";
-import { NewsletterPage } from "./pages/NewsletterPage";
 import { MailPage } from "./pages/MailPage";
 import { ScopeReviewPage } from "./pages/ScopeReviewPage";
 import { ScopeReviewDetailPage } from "./pages/ScopeReviewDetailPage";
@@ -102,26 +98,26 @@ import { TrustSafetyPage } from "./pages/TrustSafetyPage";
 
 const navGroups = [
   {
-    label: "Overview",
+    label: "Operations",
     items: [
       { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
-      { to: "/observability", label: "Observability", icon: Telescope },
-      { to: "/errors", label: "Errors", icon: Bug },
-      { to: "/status", label: "Status", icon: Activity },
+      { to: "/jobs", label: "Jobs", icon: Briefcase },
+      { to: "/scope-review", label: "Scope Review", icon: ScanEye },
+      { to: "/disputes", label: "Disputes", icon: AlertTriangle },
+      { to: "/service-areas", label: "Service Areas", icon: Map },
+      { to: "/smart-entry", label: "Smart Entry", icon: DoorOpen },
     ],
   },
   {
-    label: "Operations",
+    label: "People",
     items: [
-      { to: "/jobs", label: "Jobs", icon: Briefcase },
       { to: "/customers", label: "Customers", icon: Users },
       { to: "/cleaners", label: "Cleaners", icon: Sparkles },
       { to: "/applications", label: "Applications", icon: FileText },
-      { to: "/approvals", label: "Approvals", icon: GitPullRequest },
-      { to: "/scope-review", label: "Scope Review", icon: ScanEye },
-      { to: "/service-areas", label: "Service Areas", icon: Map },
+      { to: "/insurance", label: "Insurance", icon: ShieldCheck },
       { to: "/founding-members", label: "Founding Members", icon: Award },
-      { to: "/disputes", label: "Disputes", icon: AlertTriangle },
+      { to: "/training", label: "Training", icon: GraduationCap },
+      { to: "/courses", label: "Course Builder", icon: MonitorPlay },
     ],
   },
   {
@@ -129,7 +125,16 @@ const navGroups = [
     items: [
       { to: "/pricing", label: "Pricing", icon: DollarSign },
       { to: "/payouts", label: "Payouts", icon: Wallet },
-      { to: "/insurance", label: "Insurance", icon: ShieldCheck },
+      { to: "/promotions", label: "Promotions", icon: Megaphone },
+    ],
+  },
+  {
+    label: "Comms",
+    items: [
+      { to: "/email", label: "Email", icon: Mail },
+      { to: "/mail", label: "Mail", icon: Inbox },
+      { to: "/notifications", label: "Notifications", icon: BellRing },
+      { to: "/slack", label: "Slack", icon: Slack },
     ],
   },
   {
@@ -137,37 +142,19 @@ const navGroups = [
     items: [
       { to: "/trust-safety", label: "Trust & Safety", icon: ShieldBan },
       { to: "/security", label: "Security", icon: ShieldAlert },
-      { to: "/legal-archive", label: "Legal Archive", icon: FileText },
+      { to: "/approvals", label: "Approvals", icon: GitPullRequest },
+      { to: "/legal-archive", label: "Legal Archive", icon: Gavel },
     ],
   },
   {
-    label: "Comms",
+    label: "Platform",
     items: [
-      { to: "/schedule", label: "Schedule", icon: CalendarDays },
-      { to: "/promotions", label: "Promotions", icon: Megaphone },
-      { to: "/coupons", label: "Coupons", icon: TicketPercent },
-      { to: "/smart-entry", label: "Smart Entry", icon: KeyRound },
-      { to: "/mail", label: "Mail", icon: Inbox },
-      { to: "/email", label: "Email", icon: Mail },
-      { to: "/broadcasts", label: "Broadcasts", icon: Radio },
-      { to: "/newsletter", label: "Newsletter", icon: Mail },
-      { to: "/notifications", label: "Notifications", icon: BellRing },
-      { to: "/slack", label: "Slack", icon: Slack },
-    ],
-  },
-  {
-    label: "Learning",
-    items: [
-      { to: "/training", label: "Training", icon: GraduationCap },
-      { to: "/courses", label: "Course Builder", icon: MonitorPlay },
-    ],
-  },
-  {
-    label: "System",
-    items: [
+      { to: "/observability", label: "Observability", icon: Telescope },
+      { to: "/errors", label: "Errors", icon: Bug },
+      { to: "/events", label: "Events", icon: CalendarClock },
+      { to: "/status", label: "Status", icon: Activity },
       { to: "/it-portal", label: "IT Portal", icon: LifeBuoy },
       { to: "/automation", label: "Automation", icon: Zap },
-      { to: "/events", label: "Events", icon: Activity },
       { to: "/admins", label: "Admin Team", icon: Users2 },
       { to: "/access-control", label: "Access Control", icon: KeyRound },
       { to: "/settings", label: "Settings", icon: Settings },
@@ -285,13 +272,15 @@ export default function App() {
         }
       />
       <Route path="/email" element={<Guarded><EmailPage /></Guarded>} />
-      <Route path="/broadcasts" element={<Guarded><BroadcastsPage /></Guarded>} />
-      <Route path="/schedule" element={<Guarded><SchedulePage /></Guarded>} />
+      {/* Broadcasts & Newsletter now live as tabs of /email (owned by their real pages). */}
+      <Route path="/broadcasts" element={<Navigate to="/email?tab=broadcasts" replace />} />
+      <Route path="/newsletter" element={<Navigate to="/email?tab=newsletter" replace />} />
+      {/* Schedule folds into Automation; Coupons folds into Promotions. */}
+      <Route path="/schedule" element={<Navigate to="/automation?tab=schedule" replace />} />
       <Route path="/promotions" element={<Guarded><PromotionsPage /></Guarded>} />
-      <Route path="/coupons" element={<Guarded><CouponsPage /></Guarded>} />
+      <Route path="/coupons" element={<Navigate to="/promotions?tab=coupons" replace />} />
       <Route path="/smart-entry" element={<Guarded><SmartEntryPage /></Guarded>} />
       <Route path="/founding-members" element={<Guarded><FoundingMembersPage /></Guarded>} />
-      <Route path="/newsletter" element={<Guarded><NewsletterPage /></Guarded>} />
       <Route path="/mail" element={<Guarded><MailPage /></Guarded>} />
       <Route path="/observability" element={<Guarded><ObservabilityPage /></Guarded>} />
       <Route path="/errors" element={<Guarded><ErrorsPage /></Guarded>} />

@@ -42,6 +42,16 @@ export function FoundingMemberBadge({
       )}
       aria-label={`Founding Member${founderId ? ` number ${founderId}` : ""}`}
     >
+      {/* Gold sheen: a single gleam that sweeps across on hover. Reuses the
+          shared `sweep` motion as a one-pass `sheen` (never loops), and is
+          clipped to its own rounded layer so it can't spill onto the tooltip
+          below. Hover-capable pointers only; suppressed under reduced motion. */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 overflow-hidden rounded-full"
+      >
+        <span className="absolute inset-0 -translate-x-full bg-[linear-gradient(115deg,transparent_38%,rgba(255,255,255,0.55)_50%,transparent_62%)] motion-reduce:hidden dark:bg-[linear-gradient(115deg,transparent_38%,rgba(255,255,255,0.28)_50%,transparent_62%)] [@media(hover:hover)]:group-hover:animate-sheen" />
+      </span>
       <span aria-hidden>🏅</span>
       <span>Founding Member</span>
       {founderId ? (

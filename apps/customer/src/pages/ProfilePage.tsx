@@ -89,38 +89,48 @@ export function ProfilePage() {
 
   return (
     <DashboardShell title={t("profile.title")} description={t("profile.description")}>
-      <div className="max-w-lg space-y-6">
-        <Card className="flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-seafoam-700 text-xl font-bold text-white">
-            {user?.imageUrl ? <img src={user.imageUrl} alt="" className="h-full w-full object-cover" /> : initials}
+      <div className="max-w-lg space-y-8">
+        <section className="space-y-6">
+          <h2 className="text-sm font-semibold text-slate-500">Account</h2>
+
+          <Card className="flex items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-seafoam-700 text-xl font-bold text-white">
+              {user?.imageUrl ? <img src={user.imageUrl} alt="" className="h-full w-full object-cover" /> : initials}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-charcoal dark:text-white">
+                {[user?.firstName, user?.lastName].filter(Boolean).join(" ") || t("profile.yourAccount")}
+              </p>
+              <p className="truncate text-sm text-slate-500">{email || ", "}</p>
+            </div>
+          </Card>
+
+          <ContactSettings />
+
+          <AddressBook />
+
+          <SmsConsentSettings />
+
+          <Card className="space-y-3">
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{t("settings.language")}</p>
+            <LanguageSelector />
+          </Card>
+
+          <AccountPrivacy
+            apiUrl={API_URL}
+            getToken={getToken}
+            email={email}
+            onAccountDeleted={() => signOut(() => { window.location.href = "/"; })}
+          />
+        </section>
+
+        <section className="space-y-3 rounded-3xl bg-slate-50/70 p-4 dark:bg-slate-900/30">
+          <h2 className="text-sm font-semibold text-slate-500">Offers</h2>
+          <div className="space-y-3">
+            <CouponsCard />
+            <BusinessUpsellCard />
           </div>
-          <div className="min-w-0">
-            <p className="truncate font-semibold text-charcoal dark:text-white">
-              {[user?.firstName, user?.lastName].filter(Boolean).join(" ") || t("profile.yourAccount")}
-            </p>
-            <p className="truncate text-sm text-slate-500">{email || ", "}</p>
-          </div>
-        </Card>
-
-        <ContactSettings />
-
-        <AddressBook />
-
-        <SmsConsentSettings />
-
-        <Card className="space-y-3">
-          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{t("settings.language")}</p>
-          <LanguageSelector />
-        </Card>
-
-        <CouponsCard />
-        <BusinessUpsellCard />
-        <AccountPrivacy
-          apiUrl={API_URL}
-          getToken={getToken}
-          email={email}
-          onAccountDeleted={() => signOut(() => { window.location.href = "/"; })}
-        />
+        </section>
       </div>
     </DashboardShell>
   );

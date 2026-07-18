@@ -14,15 +14,19 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { AnimatePresence, motion } from "framer-motion";
 import { LanguageSelector } from "../i18n/LanguageSelector";
 import {
   DashboardShell,
   StatCard,
   Badge,
+  StatusBadge,
   Button,
   Card,
   toast,
+  useReducedMotion,
 } from "@sweepr/ui";
+import type { JobStatus } from "@sweepr/types";
 import {
   Briefcase,
   CalendarDays,
@@ -127,6 +131,7 @@ interface OnboardingProgress {
 
 function OnboardingChecklist({ status }: { status: string | undefined }) {
   const { t } = useTranslation();
+  const reducedMotion = useReducedMotion();
   const { data: progress, loading: progressLoading } =
     useApi<OnboardingProgress>("/cleaners/onboarding-progress");
   const { data: training } = useApi<{ summary: { totalPassed: number; totalRequired: number } }>(
@@ -186,7 +191,12 @@ function OnboardingChecklist({ status }: { status: string | undefined }) {
       {status !== "pending_review" && (
         <>
           <div className="mt-4 h-2 rounded-full bg-amber-100 overflow-hidden">
-            <div className="h-full rounded-full bg-amber-500 transition-all" style={{ width: `${pct}%` }} />
+            <motion.div
+              className="h-full rounded-full bg-amber-500"
+              initial={{ width: 0 }}
+              animate={{ width: `${pct}%` }}
+              transition={reducedMotion ? { duration: 0 } : { duration: 0.7, ease: "easeOut" }}
+            />
           </div>
           <div className="mt-4 space-y-2">
             {steps.map((s) => (
@@ -195,11 +205,33 @@ function OnboardingChecklist({ status }: { status: string | undefined }) {
                 href={s.step === -1 ? "/training" : s.step === -2 ? "/insurance" : `/onboarding?step=${s.step}`}
                 className="flex items-center gap-3 rounded-lg bg-white/70 px-3 py-2.5 hover:bg-white transition-colors"
               >
-                {s.done ? (
-                  <CheckCircle2 size={18} className="text-green-600 flex-shrink-0" />
-                ) : (
-                  <Clock size={18} className="text-amber-400 flex-shrink-0" />
-                )}
+                <span className="relative flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center">
+                  <AnimatePresence mode="wait" initial={false}>
+                    {s.done ? (
+                      <motion.span
+                        key="done"
+                        className="absolute inset-0 flex items-center justify-center"
+                        initial={reducedMotion ? false : { scale: 0.5, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={reducedMotion ? { opacity: 0 } : { scale: 0.5, opacity: 0 }}
+                        transition={reducedMotion ? { duration: 0 } : { duration: 0.2, ease: "easeOut" }}
+                      >
+                        <CheckCircle2 size={18} className="text-green-600" />
+                      </motion.span>
+                    ) : (
+                      <motion.span
+                        key="pending"
+                        className="absolute inset-0 flex items-center justify-center"
+                        initial={reducedMotion ? false : { scale: 0.5, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={reducedMotion ? { opacity: 0 } : { scale: 0.5, opacity: 0 }}
+                        transition={reducedMotion ? { duration: 0 } : { duration: 0.2, ease: "easeOut" }}
+                      >
+                        <Clock size={18} className="text-amber-400" />
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-800">{s.label}</p>
                   <p className="text-xs text-slate-500">{s.desc}</p>
@@ -238,9 +270,9 @@ function OverviewTab() {
       <OnboardingChecklist status={status} />
 
       {/* Welcome */}
-      <div className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 p-6 text-white">
+      <div className="rounded-xl bg-gradient-to-r from-seafoam-600 to-teal-700 p-6 text-white">
         <h2 className="text-xl font-semibold">{t("cleaner.dashboard.welcomeBack", { name: user?.firstName ?? t("cleaner.dashboard.pro") })}</h2>
-        <p className="text-indigo-100 text-sm mt-1">
+        <p className="text-seafoam-100 text-sm mt-1">
           {data.upcomingJobs > 0
             ? data.upcomingJobs === 1 ? t("cleaner.dashboard.upcomingJob", { count: data.upcomingJobs }) : t("cleaner.dashboard.upcomingJobs", { count: data.upcomingJobs })
             : t("cleaner.dashboard.noUpcomingJobs")}
@@ -248,7 +280,7 @@ function OverviewTab() {
         <div className="mt-3 flex items-center gap-2">
           <Badge variant="info">{data.tier ? data.tier.charAt(0).toUpperCase() + data.tier.slice(1) : "Standard"} {t("cleaner.dashboard.pro")}</Badge>
           {data.rating > 0 && (
-            <span className="flex items-center gap-1 text-sm text-indigo-100">
+            <span className="flex items-center gap-1 text-sm text-seafoam-100">
               <Star size={14} className="fill-yellow-300 text-yellow-300" />
               {Number(data.rating).toFixed(1)} ({data.reviewCount} reviews)
             </span>
@@ -266,20 +298,20 @@ function OverviewTab() {
 
       {/* Next Job Card */}
       {data.nextJobAt && (
-        <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-5 flex items-start gap-4">
-          <div className="rounded-full bg-indigo-100 p-2.5">
-            <MapPin size={18} className="text-indigo-600" />
+        <div className="rounded-xl border border-seafoam-100 bg-seafoam-50 p-5 flex items-start gap-4">
+          <div className="rounded-full bg-seafoam-100 p-2.5">
+            <MapPin size={18} className="text-seafoam-700" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-indigo-800">{t("cleaner.dashboard.nextJob")}</p>
-            <p className="text-sm text-indigo-700">
+            <p className="text-sm font-semibold text-seafoam-800">{t("cleaner.dashboard.nextJob")}</p>
+            <p className="text-sm text-seafoam-700">
               {new Date(data.nextJobAt).toLocaleString()}
             </p>
             {data.nextJobAddress && (
-              <p className="text-xs text-indigo-500 mt-0.5">{data.nextJobAddress}</p>
+              <p className="text-xs text-seafoam-600 mt-0.5">{data.nextJobAddress}</p>
             )}
           </div>
-          <a href="/jobs" className="text-indigo-600 text-xs font-medium flex items-center gap-1">
+          <a href="/jobs" className="text-seafoam-700 text-xs font-medium flex items-center gap-1">
             View <ChevronRight size={12} />
           </a>
         </div>
@@ -308,7 +340,7 @@ function OverviewTab() {
 
 interface JobRow {
   id: string;
-  status: string;
+  status: JobStatus;
   day_status: string | null;
   service_type: string;
   scheduled_at: string;
@@ -319,14 +351,6 @@ interface JobRow {
   bedrooms: number;
   bathrooms: number;
 }
-
-const STATUS_COLOR: Record<string, string> = {
-  confirmed: "bg-green-100 text-green-800",
-  offered_to_cleaner: "bg-yellow-100 text-yellow-800",
-  cleaner_accepted: "bg-blue-100 text-blue-800",
-  completed: "bg-slate-100 text-slate-600",
-  cancelled_by_cleaner: "bg-red-100 text-red-700",
-};
 
 function JobsTab() {
   const { getToken } = useAppToken();
@@ -356,7 +380,7 @@ function JobsTab() {
   if (jobs.length === 0) {
     return (
       <div className="text-center py-16 text-slate-600 text-sm">
-        No jobs yet. <a href="/jobs" className="text-indigo-600 underline">Browse the job board</a>
+        No jobs yet. <a href="/jobs" className="text-seafoam-700 underline">Browse the job board</a>
       </div>
     );
   }
@@ -371,9 +395,7 @@ function JobsTab() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-medium capitalize">{job.service_type.replace(/_/g, " ")} Clean</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLOR[job.status] ?? "bg-slate-100 text-slate-600"}`}>
-                {job.status.replace(/_/g, " ")}
-              </span>
+              <StatusBadge status={job.status} />
             </div>
             <p className="text-sm text-slate-500 mt-0.5">
               {new Date(job.scheduled_at).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
@@ -390,7 +412,7 @@ function JobsTab() {
               </Button>
             )}
             {job.status === "confirmed" && (
-              <a href={`/jobs/${job.id}`} className="text-xs text-indigo-600 font-medium mt-2 block">
+              <a href={`/jobs/${job.id}`} className="text-xs text-seafoam-700 font-medium mt-2 block">
                 View Job
               </a>
             )}
@@ -507,7 +529,7 @@ function ScheduleTab() {
                 className="flex-shrink-0"
               >
                 {slot.active
-                  ? <ToggleRight size={24} className="text-indigo-600" />
+                  ? <ToggleRight size={24} className="text-seafoam-700" />
                   : <ToggleLeft size={24} className="text-slate-600" />}
               </button>
               <span className="w-10 text-sm font-medium text-slate-700">{DAYS[i]}</span>
@@ -700,25 +722,26 @@ function PerformanceTab() {
   return (
     <div className="space-y-6">
       {/* Tier / hero card */}
-      <div className="rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-violet-50 p-6">
-        <div className="flex items-center justify-between mb-1">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-seafoam-500 via-seafoam-600 to-teal-700 p-6 text-white shadow-lg">
+        <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+        <div className="relative flex items-center justify-between mb-1">
           <div>
-            <p className="text-xs text-indigo-500 font-medium uppercase tracking-wide">Tier</p>
-            <p className="text-2xl font-bold text-indigo-800 capitalize">{data.tier}</p>
+            <p className="text-xs text-seafoam-50 font-medium uppercase tracking-wide">Tier</p>
+            <p className="text-2xl font-bold capitalize">{data.tier}</p>
           </div>
-          <div className="rounded-full bg-indigo-100 p-3">
-            <Star size={20} className="text-indigo-600 fill-indigo-200" />
+          <div className="rounded-full bg-white/20 p-3 backdrop-blur">
+            <Star size={20} className="fill-white/30" />
           </div>
         </div>
         {data.nextTier && (
-          <>
-            <div className="h-2 rounded-full bg-indigo-100 overflow-hidden mt-3">
-              <div className="h-full rounded-full bg-indigo-500 transition-all" style={{ width: `${Math.min(data.tierProgress, 100)}%` }} />
+          <div className="relative">
+            <div className="h-2 rounded-full bg-white/25 overflow-hidden mt-3">
+              <div className="h-full rounded-full bg-white transition-all" style={{ width: `${Math.min(data.tierProgress, 100)}%` }} />
             </div>
-            <p className="text-xs text-indigo-500 mt-1.5">
+            <p className="text-xs text-seafoam-50 mt-1.5">
               {data.tierProgress.toFixed(0)}% towards <span className="font-medium capitalize">{data.nextTier}</span>
             </p>
-          </>
+          </div>
         )}
       </div>
 
@@ -726,10 +749,10 @@ function PerformanceTab() {
       <div className="rounded-xl border border-slate-200 p-5 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-slate-800 flex items-center gap-2"><TrendingUp size={16} /> Jobs Milestone</h3>
-          <span className="text-sm font-bold text-indigo-600">{totalJobs} / {nextMilestone}</span>
+          <span className="text-sm font-bold text-seafoam-700">{totalJobs} / {nextMilestone}</span>
         </div>
         <div className="h-3 rounded-full bg-slate-100 overflow-hidden">
-          <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all" style={{ width: `${milestoneProgress}%` }} />
+          <div className="h-full rounded-full bg-gradient-to-r from-seafoam-600 to-teal-700 transition-all" style={{ width: `${milestoneProgress}%` }} />
         </div>
         <div className="flex justify-between text-xs text-slate-600">
           <span>{prevMilestone} jobs</span>
@@ -737,7 +760,7 @@ function PerformanceTab() {
         </div>
         <div className="flex gap-2 flex-wrap mt-1">
           {JOB_MILESTONES.map((m) => (
-            <div key={m} className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${totalJobs >= m ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-medium" : "border-slate-200 text-slate-600"}`}>
+            <div key={m} className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${totalJobs >= m ? "bg-seafoam-50 border-seafoam-200 text-seafoam-700 font-medium" : "border-slate-200 text-slate-600"}`}>
               {totalJobs >= m ? <CheckCircle2 size={10} /> : null}{m}
             </div>
           ))}
@@ -897,7 +920,7 @@ function SettingsTab() {
                 onClick={() => toggleServiceType(st)}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                   form.preferred_service_types.includes(st)
-                    ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                    ? "border-seafoam-500 bg-seafoam-50 text-seafoam-700"
                     : "border-slate-200 text-slate-500 hover:border-slate-300"
                 }`}
               >
@@ -911,7 +934,7 @@ function SettingsTab() {
           <span className="text-sm text-slate-700">{t("cleaner.dashboard.acceptLastMinute")}</span>
           <button onClick={() => toggle("accepts_last_minute")}>
             {form.accepts_last_minute
-              ? <ToggleRight size={24} className="text-indigo-600" />
+              ? <ToggleRight size={24} className="text-seafoam-700" />
               : <ToggleLeft size={24} className="text-slate-600" />}
           </button>
         </div>
@@ -931,7 +954,7 @@ function SettingsTab() {
             <span className="text-sm text-slate-700">{label}</span>
             <button onClick={() => toggle(key)}>
               {form[key]
-                ? <ToggleRight size={24} className="text-indigo-600" />
+                ? <ToggleRight size={24} className="text-seafoam-700" />
                 : <ToggleLeft size={24} className="text-slate-600" />}
             </button>
           </div>
@@ -987,7 +1010,7 @@ export function DashboardPage() {
               className={[
                 "flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
                 tab === tabItem.id
-                  ? "border-indigo-600 text-indigo-700"
+                  ? "border-seafoam-700 text-seafoam-700"
                   : "border-transparent text-slate-500 hover:text-slate-700",
               ].join(" ")}
             >

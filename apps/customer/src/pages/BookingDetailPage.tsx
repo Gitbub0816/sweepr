@@ -142,9 +142,19 @@ function ReviewModal({
       }
     >
       {submitted ? (
-        <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-          {t("bookingDetail.thanksFeedback")}
-        </p>
+        <div className="flex flex-col items-center gap-3 py-6 text-center">
+          <motion.span
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 200, damping: 14 }}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-seafoam-600 text-white"
+          >
+            <Check className="h-5 w-5" />
+          </motion.span>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            {t("bookingDetail.thanksFeedback")}
+          </p>
+        </div>
       ) : (
         <div className="space-y-5">
           <div
@@ -297,10 +307,10 @@ export function BookingDetailPage() {
           {isActive && (
             <span
               role="status"
-              className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300"
+              className="inline-flex items-center gap-1.5 rounded-full bg-seafoam-50 px-3 py-1 text-xs font-medium text-seafoam-700 dark:bg-seafoam-900/30 dark:text-seafoam-300"
             >
               <motion.span
-                className="h-2 w-2 rounded-full bg-green-500"
+                className="h-2 w-2 rounded-full bg-seafoam-500"
                 animate={{ opacity: [1, 0.3, 1] }}
                 transition={{ repeat: Infinity, duration: 1.4 }}
               />

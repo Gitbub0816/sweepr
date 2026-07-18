@@ -20,7 +20,7 @@ interface Subscriber {
   created_at: string;
 }
 
-export function NewsletterPage() {
+export function NewsletterPage({ embedded = false }: { embedded?: boolean }) {
   const { getToken } = useAuth();
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [loadingSubs, setLoadingSubs] = useState(true);
@@ -78,12 +78,8 @@ export function NewsletterPage() {
     }
   }
 
-  return (
-    <DashboardShell
-      title="Newsletter"
-      description="Compose and send emails to all newsletter subscribers."
-    >
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+  const body = (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Sidebar */}
         <div className="lg:col-span-1 space-y-4">
           <Card className="p-5">
@@ -165,7 +161,16 @@ export function NewsletterPage() {
             </div>
           </Card>
         </div>
-      </div>
+    </div>
+  );
+
+  if (embedded) return body;
+  return (
+    <DashboardShell
+      title="Newsletter"
+      description="Compose and send emails to all newsletter subscribers."
+    >
+      {body}
     </DashboardShell>
   );
 }

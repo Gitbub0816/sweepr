@@ -35,10 +35,12 @@ export function Modal({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm data-[state=open]:animate-[fade-in_0.2s_ease-out]" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm data-[state=open]:animate-[fade-in_0.2s_ease-out] data-[state=closed]:animate-fade-out" />
         <Dialog.Content
           className={cn(
-            "fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-xl focus:outline-none dark:bg-slate-900",
+            // origin-center: a modal is not anchored to a trigger, so it scales
+            // from its own center rather than a corner.
+            "fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 origin-center rounded-2xl bg-white p-6 shadow-xl focus:outline-none data-[state=open]:animate-modal-in data-[state=closed]:animate-modal-out dark:bg-slate-900",
             className
           )}
         >

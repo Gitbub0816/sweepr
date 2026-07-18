@@ -9,29 +9,37 @@
  */
 
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
 import { DashboardShell, Card, Button, Input, toast } from "@sweepr/ui";
-import { Send, Newspaper, Pencil, Inbox, ChevronRight, Users, Building2, Globe, Sparkles, Megaphone, Wrench, Star, Tag, AlertCircle, Upload, Image as ImageIcon, Type, AlignLeft, Minus, Bold, Italic, Link2, List } from "lucide-react";
+import { Send, Newspaper, Pencil, Type, AlignLeft, Minus, Link2, Image as ImageIcon, List } from "lucide-react";
+import { BroadcastsPage } from "./BroadcastsPage";
+import { NewsletterPage } from "./NewsletterPage";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
-// ─── Tab routing ──────────────────────────────────────────────────────────────
+// ─── Tab routing (query param, mirrors PricingPage) ─────────────────────────────
 
 const TABS = [
   { id: "compose",    label: "Compose",    icon: Pencil },
   { id: "broadcasts", label: "Broadcasts", icon: Send },
   { id: "newsletter", label: "Newsletter", icon: Newspaper },
-  { id: "inbox",      label: "Inbox",      icon: Inbox },
 ] as const;
 type TabId = typeof TABS[number]["id"];
 
 function useEmailTab(): [TabId, (t: TabId) => void] {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const hash = location.hash.replace("#", "") as TabId;
-  const active: TabId = TABS.some(t => t.id === hash) ? hash : "compose";
-  return [active, (t) => navigate({ hash: t })];
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requested = searchParams.get("tab");
+  const active: TabId = TABS.some((t) => t.id === requested) ? (requested as TabId) : "compose";
+  return [
+    active,
+    (t) => {
+      const params = new URLSearchParams(searchParams);
+      if (t === "compose") params.delete("tab");
+      else params.set("tab", t);
+      setSearchParams(params, { replace: true });
+    },
+  ];
 }
 
 // ─── Sub-tab shell ─────────────────────────────────────────────────────────────
@@ -54,7 +62,7 @@ function SubTabs({ active, onChange }: { active: TabId; onChange: (t: TabId) => 
   );
 }
 
-// ─── Compose (email builder) ──────────────────────────────────────────────────
+// ─── Compose (one-off branded email builder) ────────────────────────────────────
 
 type BlockType = "heading" | "text" | "card" | "divider" | "button" | "image";
 
@@ -106,7 +114,7 @@ function buildHtml(subject: string, sectionLabel: string, blocks: Block[]): stri
     <div style="max-width:660px;margin:0 auto;padding:32px 18px;">
       <div style="background:#ffffff;border:1px solid #d8dde3;border-radius:14px;overflow:hidden;">
         <div style="padding:28px 30px 12px;text-align:center;">
-          <img src="https://raw.githubusercontent.com/Gitbub0816/sweepr/main/packages/ui/src/assets/Sweepr-logo.png" alt="Sweepr" width="240" style="display:block;margin:0 auto;width:100%;max-width:240px;height:auto;border:0;" />
+          <img src="https://objects.getsweepr.com/site_assets/public/Sweepr-logo.png" alt="Sweepr" width="240" style="display:block;margin:0 auto;width:100%;max-width:240px;height:auto;border:0;" />
         </div>
         <div style="padding:18px 34px 36px;">
           ${sectionLabel ? `<p style="margin:0 0 12px;color:#4d6572;font-weight:700;font-size:12px;letter-spacing:.12em;text-transform:uppercase;">${esc(sectionLabel)}</p>` : ""}
@@ -130,11 +138,11 @@ function BlockEditor({ block, onChange, onRemove }: { block: Block; onChange: (b
   return (
     <div className="group relative rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wide text-slate-600">{block.type}</span>
+        <span className="text-xs font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400">{block.type}</span>
         <button onClick={onRemove} className="text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition">Remove</button>
       </div>
       {block.type === "divider" ? (
-        <div className="border-t border-slate-300 my-2" />
+        <div className="border-t border-slate-300 my-2 dark:border-slate-600" />
       ) : block.type === "button" ? (
         <div className="flex gap-2">
           <input className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white" placeholder="Button label"
@@ -194,7 +202,7 @@ function ComposeTab() {
         body: JSON.stringify({ to: toEmail, from_label: fromLabel, subject, html }),
       });
       if (!res.ok) throw new Error("Send failed");
-      toast.success("Email sent!");
+      toast.success("Email sent.");
       setToEmail(""); setSubject(""); setBlocks([{ id: uid(), type: "heading", content: "" }, { id: uid(), type: "text", content: "" }]);
     } catch {
       toast.error("Failed to send email.");
@@ -253,280 +261,12 @@ function ComposeTab() {
             />
           </Card>
         ) : (
-          <Card className="p-8 text-center text-slate-600">
+          <Card className="p-8 text-center text-slate-600 dark:text-slate-400">
             <Pencil className="mx-auto mb-3 h-8 w-8 opacity-30" />
             <p className="text-sm">Click "Preview HTML" to see a live render of your email.</p>
           </Card>
         )}
       </div>
-    </div>
-  );
-}
-
-// ─── Broadcasts tab ────────────────────────────────────────────────────────────
-
-type BroadcastCategory = "announcement" | "launch" | "feature" | "area" | "offer" | "operational";
-
-const BROADCAST_CATEGORIES: Array<{
-  value: BroadcastCategory;
-  label: string;
-  icon: React.ReactNode;
-  description: string;
-  tone: string;
-}> = [
-  {
-    value: "announcement",
-    label: "Announcement",
-    icon: <Megaphone className="h-4 w-4" />,
-    description: "General news, a big scrub's worth of info",
-    tone: "We're thrilled to share something fresh off the mop…",
-  },
-  {
-    value: "launch",
-    label: "Launch update",
-    icon: <Sparkles className="h-4 w-4" />,
-    description: "We're live! Area opening, app milestone",
-    tone: "Grab your bucket, we're officially open for business in…",
-  },
-  {
-    value: "feature",
-    label: "Feature update",
-    icon: <Star className="h-4 w-4" />,
-    description: "New product or app feature, shiny and clean",
-    tone: "Something squeaky-new just dropped in the app…",
-  },
-  {
-    value: "area",
-    label: "New service area",
-    icon: <Globe className="h-4 w-4" />,
-    description: "New city or coverage expansion",
-    tone: "Sweepr is sweeping into a new neighborhood…",
-  },
-  {
-    value: "offer",
-    label: "Promo / offer",
-    icon: <Tag className="h-4 w-4" />,
-    description: "Deal, discount, or referral, clean price",
-    tone: "Dirt-cheap deal (pun intended) just for you…",
-  },
-  {
-    value: "operational",
-    label: "Operational notice",
-    icon: <Wrench className="h-4 w-4" />,
-    description: "Maintenance, service notice, boring but necessary",
-    tone: "We're doing a quick dusting of our systems…",
-  },
-];
-
-type Audience = "newsletter" | "waitlist_customer" | "waitlist_cleaner" | "city" | "all";
-
-const AUDIENCE_LABELS: Record<Audience, string> = {
-  newsletter: "Newsletter subscribers",
-  waitlist_customer: "Waitlist, customers",
-  waitlist_cleaner: "Waitlist, cleaners",
-  city: "City update subscribers",
-  all: "All lists (deduplicated)",
-};
-
-interface BroadcastSend {
-  id: string;
-  audience: string;
-  broadcast_type: string;
-  area_slug: string | null;
-  subject: string;
-  sent_count: number;
-  sent_by: string;
-  created_at: string;
-}
-
-function BroadcastsTab() {
-  const { getToken } = useAuth();
-  const [tab, setTab] = useState<"compose" | "history">("compose");
-  const [category, setCategory] = useState<BroadcastCategory>("announcement");
-  const [audience, setAudience] = useState<Audience>("newsletter");
-  const [areaSlug, setAreaSlug] = useState("");
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
-  const [sending, setSending] = useState(false);
-  const [history, setHistory] = useState<BroadcastSend[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
-
-  const selectedCategory = BROADCAST_CATEGORIES.find(c => c.value === category)!;
-
-  async function loadHistory() {
-    setLoadingHistory(true);
-    try {
-      const token = await getToken();
-      const res = await fetch(`${API}/admin/broadcasts`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) setHistory(((await res.json()) as { sends: BroadcastSend[] }).sends);
-    } catch { /* ignore */ } finally { setLoadingHistory(false); }
-  }
-
-  async function handleSend() {
-    if (!subject || !body) { toast.error("Subject and body are required."); return; }
-    if (audience === "city" && !areaSlug) { toast.error("Area slug is required for city broadcasts."); return; }
-    setSending(true);
-    try {
-      const token = await getToken();
-      const res = await fetch(`${API}/admin/broadcasts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ broadcast_type: category, audience, area_slug: areaSlug || null, subject, body }),
-      });
-      if (!res.ok) throw new Error("Failed");
-      toast.success("Broadcast sent!");
-      setSubject(""); setBody(""); setAreaSlug("");
-    } catch { toast.error("Failed to send broadcast."); } finally { setSending(false); }
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex gap-2">
-        <button onClick={() => setTab("compose")} className={`px-4 py-2 text-sm font-medium rounded-lg transition ${tab === "compose" ? "bg-seafoam-500 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"}`}>Compose</button>
-        <button onClick={() => { setTab("history"); void loadHistory(); }} className={`px-4 py-2 text-sm font-medium rounded-lg transition ${tab === "history" ? "bg-seafoam-500 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"}`}>History</button>
-      </div>
-
-      {tab === "compose" && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Category picker */}
-          <Card className="p-5 space-y-3">
-            <h3 className="text-sm font-semibold text-charcoal dark:text-white">Broadcast type</h3>
-            <div className="space-y-2">
-              {BROADCAST_CATEGORIES.map(c => (
-                <button key={c.value} onClick={() => setCategory(c.value)}
-                  className={`w-full flex items-start gap-3 rounded-xl border p-3 text-left transition ${category === c.value ? "border-seafoam-400 bg-seafoam-50 dark:bg-seafoam-900/20" : "border-slate-200 hover:border-slate-300 dark:border-slate-700"}`}>
-                  <span className={`mt-0.5 ${category === c.value ? "text-seafoam-700" : "text-slate-600"}`}>{c.icon}</span>
-                  <div>
-                    <p className="text-sm font-medium text-charcoal dark:text-white">{c.label}</p>
-                    <p className="text-xs text-slate-500">{c.description}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </Card>
-
-          {/* Message */}
-          <div className="lg:col-span-2 space-y-4">
-            <Card className="p-5 space-y-4">
-              <div className="rounded-lg bg-seafoam-50 border border-seafoam-200 px-4 py-3 dark:bg-seafoam-900/20 dark:border-seafoam-800/40">
-                <p className="text-xs font-medium text-seafoam-700 dark:text-seafoam-400">Tone suggestion</p>
-                <p className="mt-0.5 text-sm italic text-seafoam-800 dark:text-seafoam-300">"{selectedCategory.tone}"</p>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-charcoal dark:text-white">Audience</label>
-                <select value={audience} onChange={e => setAudience(e.target.value as Audience)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-white">
-                  {(Object.entries(AUDIENCE_LABELS) as [Audience, string][]).map(([v, l]) => (
-                    <option key={v} value={v}>{l}</option>
-                  ))}
-                </select>
-              </div>
-              {audience === "city" && (
-                <Input label="Area slug" value={areaSlug} onChange={e => setAreaSlug(e.target.value)} placeholder="e.g. los-angeles" />
-              )}
-              <Input label="Subject line" value={subject} onChange={e => setSubject(e.target.value)} placeholder="Subject" />
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-charcoal dark:text-white">Body</label>
-                <textarea rows={8} value={body} onChange={e => setBody(e.target.value)} placeholder="Write your message… keep it clean. 🧹"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-white resize-none" />
-              </div>
-            </Card>
-            <Button onClick={() => void handleSend()} disabled={sending} className="w-full">
-              <Send className="mr-2 h-4 w-4" />
-              {sending ? "Sending…" : "Send broadcast"}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {tab === "history" && (
-        <Card className="divide-y divide-slate-100 dark:divide-slate-800">
-          {loadingHistory && <p className="p-6 text-center text-sm text-slate-500">Loading…</p>}
-          {!loadingHistory && history.length === 0 && <p className="p-6 text-center text-sm text-slate-500">No broadcasts sent yet.</p>}
-          {history.map(b => (
-            <div key={b.id} className="flex items-center justify-between px-5 py-4">
-              <div>
-                <p className="text-sm font-medium text-charcoal dark:text-white">{b.subject}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{b.broadcast_type} · {AUDIENCE_LABELS[b.audience as Audience] ?? b.audience} · {b.sent_count} sent</p>
-              </div>
-              <p className="text-xs text-slate-600">{new Date(b.created_at).toLocaleDateString()}</p>
-            </div>
-          ))}
-        </Card>
-      )}
-    </div>
-  );
-}
-
-// ─── Newsletter tab ────────────────────────────────────────────────────────────
-
-interface Subscriber { id: string; email: string; created_at: string; status: string; }
-
-function NewsletterTab() {
-  const { getToken } = useAuth();
-  const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState("");
-  const [count, setCount] = useState<number | null>(null);
-
-  async function load() {
-    setLoading(true);
-    try {
-      const token = await getToken();
-      const res = await fetch(`${API}/admin/newsletter/subscribers`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) {
-        const data = await res.json() as { subscribers: Subscriber[]; count: number };
-        setSubscribers(data.subscribers ?? []);
-        setCount(data.count ?? data.subscribers?.length ?? 0);
-      }
-    } catch { /* ignore */ } finally { setLoading(false); }
-  }
-
-  const filtered = search ? subscribers.filter(s => s.email.toLowerCase().includes(search.toLowerCase())) : subscribers;
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-semibold text-charcoal dark:text-white">Newsletter subscribers</h3>
-          {count !== null && <p className="text-xs text-slate-500 mt-0.5">{count.toLocaleString()} total</p>}
-        </div>
-        <Button variant="secondary" onClick={() => void load()} disabled={loading}>{loading ? "Loading…" : "Load subscribers"}</Button>
-      </div>
-      {subscribers.length > 0 && (
-        <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by email…" />
-      )}
-      {filtered.length > 0 && (
-        <Card className="divide-y divide-slate-100 dark:divide-slate-800 max-h-[500px] overflow-y-auto">
-          {filtered.map(s => (
-            <div key={s.id} className="flex items-center justify-between px-5 py-3">
-              <p className="text-sm text-charcoal dark:text-white">{s.email}</p>
-              <div className="flex items-center gap-3">
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${s.status === "active" ? "bg-seafoam-100 text-seafoam-700" : "bg-slate-100 text-slate-500"}`}>{s.status}</span>
-                <p className="text-xs text-slate-600">{new Date(s.created_at).toLocaleDateString()}</p>
-              </div>
-            </div>
-          ))}
-        </Card>
-      )}
-    </div>
-  );
-}
-
-// ─── Inbox tab (placeholder) ───────────────────────────────────────────────────
-
-function InboxTab() {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
-      <Inbox className="mx-auto mb-4 h-12 w-12 text-slate-300 dark:text-slate-600" />
-      <h3 className="text-base font-semibold text-charcoal dark:text-white">Inbox coming soon</h3>
-      <p className="mt-2 max-w-sm text-sm text-slate-500">
-        The proprietary inbox will display inbound emails routed through your MailerSend addresses.
-        It will show emails per sender address based on your permission scope.
-      </p>
-      <p className="mt-3 text-xs text-slate-600">
-        Configure inbound routes in MailerSend → connect your addresses to see messages here.
-      </p>
     </div>
   );
 }
@@ -537,12 +277,11 @@ export function EmailPage() {
   const [activeTab, setActiveTab] = useEmailTab();
 
   return (
-    <DashboardShell title="Email" description="Compose, broadcast, newsletter, and inbox">
+    <DashboardShell title="Email" description="Compose one-off emails, send broadcasts, and manage the newsletter.">
       <SubTabs active={activeTab} onChange={setActiveTab} />
       {activeTab === "compose"    && <ComposeTab />}
-      {activeTab === "broadcasts" && <BroadcastsTab />}
-      {activeTab === "newsletter" && <NewsletterTab />}
-      {activeTab === "inbox"      && <InboxTab />}
+      {activeTab === "broadcasts" && <BroadcastsPage embedded />}
+      {activeTab === "newsletter" && <NewsletterPage embedded />}
     </DashboardShell>
   );
 }

@@ -9,11 +9,12 @@
  */
 
 import { useEffect, useState, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { CreditCard } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
 import { useAppToken } from "@/lib/appToken";
 import { useTranslation } from "react-i18next";
-import { DashboardShell, Card, Badge, EmptyState, toast } from "@sweepr/ui";
+import { DashboardShell, Card, Badge, Button, EmptyState, toast } from "@sweepr/ui";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -69,6 +70,11 @@ export function PaymentMethodsPage() {
           icon={<CreditCard className="h-10 w-10 text-slate-300" />}
           title={t("payment.noCardsTitle")}
           description={t("payment.noCardsDesc")}
+          action={
+            <Link to="/book/address">
+              <Button>{t("bookings.bookACleaning")}</Button>
+            </Link>
+          }
         />
       ) : (
         <div className="space-y-3">

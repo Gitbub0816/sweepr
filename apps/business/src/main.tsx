@@ -61,11 +61,15 @@ function Root() {
   );
 }
 
+// Fall back to the production API in prod builds so error reporting still
+// works when VITE_API_URL is missing from the build environment.
+const API_URL =
+  (import.meta.env.VITE_API_URL as string | undefined) ||
+  (import.meta.env.PROD ? "https://api.getsweepr.com" : "");
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    {/* No `app` prop: @sweepr/ui's AppName union doesn't include "business"
-        yet, the boundary still renders a friendly fallback without it. */}
-    <ErrorBoundary>
+    <ErrorBoundary app="business" apiUrl={API_URL} variant="literal">
       <Root />
     </ErrorBoundary>
   </React.StrictMode>

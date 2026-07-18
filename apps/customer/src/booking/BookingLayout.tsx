@@ -85,13 +85,13 @@ export function BookingLayout() {
 
       <main className="mx-auto grid max-w-5xl gap-8 px-4 py-8 lg:grid-cols-[1fr_320px]">
         <div className="overflow-hidden">
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="popLayout">
             <motion.div
               key={location.pathname}
               initial={{ opacity: 0, x: 40 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -40 }}
-              transition={{ duration: 0.25 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
               className="motion-reduce:transition-none"
             >
               <Outlet />

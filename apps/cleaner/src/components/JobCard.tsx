@@ -34,6 +34,41 @@ function fmt(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+/** Radial countdown ring for the offer-expiry timer. Purely a state
+ *  indicator (time remaining, urgency under 30s) — not decorative. */
+function ExpiryRing({ remaining, total }: { remaining: number; total: number }) {
+  const pct = total > 0 ? Math.max(0, Math.min(1, remaining / total)) : 0;
+  const urgent = remaining <= 30;
+  const radius = 14;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference * (1 - pct);
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "relative flex h-9 w-9 shrink-0 items-center justify-center",
+        urgent && "animate-urgent-pulse"
+      )}
+    >
+      <svg viewBox="0 0 36 36" className="h-9 w-9 -rotate-90">
+        <circle
+          cx="18" cy="18" r={radius} strokeWidth="3" fill="none"
+          className="stroke-slate-200 dark:stroke-slate-700"
+        />
+        <circle
+          cx="18" cy="18" r={radius} strokeWidth="3" fill="none" strokeLinecap="round"
+          className={cn(
+            "transition-[stroke-dashoffset] duration-[950ms] ease-linear",
+            urgent ? "stroke-red-500" : "stroke-seafoam-500"
+          )}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+        />
+      </svg>
+    </span>
+  );
+}
+
 export function JobCard({
   job,
   accepted,
@@ -146,14 +181,17 @@ export function JobCard({
         </div>
       ) : (
         <>
-          <p
-            className={cn(
-              "text-center text-xs font-medium",
-              remaining <= 30 ? "text-red-500" : "text-slate-600"
-            )}
-          >
-            Offer expires in {fmt(remaining)}
-          </p>
+          <div className="flex items-center justify-center gap-2.5">
+            <ExpiryRing remaining={remaining} total={expiresInSec} />
+            <p
+              className={cn(
+                "text-xs font-medium",
+                remaining <= 30 ? "text-red-500" : "text-slate-600"
+              )}
+            >
+              Offer expires in {fmt(remaining)}
+            </p>
+          </div>
           <div className="flex gap-3">
             <Button variant="ghost" fullWidth onClick={handlePass}>
               {t("cleaner.jobs.decline")}

@@ -18,6 +18,12 @@ import { SweeprCalendar } from "@sweepr/ui";
 import { cn } from "@sweepr/utils";
 import { useBookingStore } from "../../store/booking";
 import { StepShell } from "../StepShell";
+import {
+  SELECTABLE_OPTION_BASE,
+  SELECTABLE_OPTION_SELECTED,
+  SELECTABLE_OPTION_UNSELECTED,
+  SELECTABLE_OPTION_DISABLED,
+} from "../../lib/selectableOption";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8787";
 
@@ -194,13 +200,11 @@ export function ScheduleStep() {
                     onClick={() => onSelectWindow(slot)}
                     title={!slot.available ? t("booking.schedule.noCleanersAvailable", { defaultValue: "No cleaners available" }) : undefined}
                     className={cn(
-                      "flex flex-col items-center justify-center gap-0.5 rounded-xl border px-3 py-3 text-center text-sm font-medium transition-colors",
-                      !slot.available &&
-                        "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-600",
-                      slot.available && active &&
-                        "border-seafoam-400 bg-seafoam-50 text-seafoam-700 ring-2 ring-seafoam-400 dark:bg-seafoam-900/20 dark:text-seafoam-300",
-                      slot.available && !active &&
-                        "border-slate-200 bg-white text-charcoal hover:border-seafoam-300 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                      SELECTABLE_OPTION_BASE,
+                      "flex flex-col items-center justify-center gap-0.5 rounded-xl px-3 py-3 text-center text-sm font-medium",
+                      !slot.available && SELECTABLE_OPTION_DISABLED,
+                      slot.available && active && SELECTABLE_OPTION_SELECTED,
+                      slot.available && !active && SELECTABLE_OPTION_UNSELECTED
                     )}
                   >
                     <span>{slot.label}</span>
@@ -296,12 +300,13 @@ export function ScheduleStep() {
               return (
                 <button
                   key={c.value}
+                  type="button"
+                  aria-pressed={active}
                   onClick={() => setSubscription(true, c.value)}
                   className={cn(
-                    "rounded-xl border p-3 text-center transition-colors",
-                    active
-                      ? "border-seafoam-400 bg-seafoam-50 dark:bg-seafoam-900/20"
-                      : "border-slate-200 hover:border-seafoam-300 dark:border-slate-700"
+                    SELECTABLE_OPTION_BASE,
+                    "rounded-xl p-3 text-center",
+                    active ? SELECTABLE_OPTION_SELECTED : SELECTABLE_OPTION_UNSELECTED
                   )}
                 >
                   <p className="text-sm font-semibold text-charcoal dark:text-white">

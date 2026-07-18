@@ -12,19 +12,30 @@ import type { ReactNode } from "react";
 import { Inbox, AlertCircle } from "lucide-react";
 import { cn } from "@sweepr/utils";
 
+// Shared skeleton sheen: a highlight sweeping across a 200%-wide gradient at a
+// calm 1.5s linear cadence. Replaces animate-pulse — a slower, warmer read that
+// signals "loading" without the throb. Reduced-motion drops the sweep to a
+// static gradient (handled in the shared preset).
+const SHIMMER =
+  "animate-shimmer bg-gradient-to-r from-slate-100 via-slate-200/70 to-slate-100 bg-[length:200%_100%] dark:from-slate-800 dark:via-slate-700/70 dark:to-slate-800";
+
 export function EmptyState({
   icon,
   title,
+  body,
   description,
   action,
   className,
 }: {
   icon?: ReactNode;
   title: string;
+  /** Supporting copy under the title. `description` is a legacy alias. */
+  body?: string;
   description?: string;
   action?: ReactNode;
   className?: string;
 }) {
+  const supporting = body ?? description;
   return (
     <div
       className={cn(
@@ -38,8 +49,8 @@ export function EmptyState({
       <h3 className="text-base font-semibold text-charcoal dark:text-white">
         {title}
       </h3>
-      {description && (
-        <p className="mt-1 max-w-sm text-sm text-slate-500">{description}</p>
+      {supporting && (
+        <p className="mt-1 max-w-sm text-sm text-slate-500">{supporting}</p>
       )}
       {action && <div className="mt-4">{action}</div>}
     </div>
@@ -81,7 +92,7 @@ export function LoadingState({
       {Array.from({ length: rows }).map((_, i) => (
         <div
           key={i}
-          className="h-16 w-full animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800"
+          className={cn("h-16 w-full rounded-2xl", SHIMMER)}
         />
       ))}
     </div>
@@ -89,14 +100,7 @@ export function LoadingState({
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return (
-    <div
-      className={cn(
-        "animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800",
-        className
-      )}
-    />
-  );
+  return <div className={cn("rounded-lg", SHIMMER, className)} />;
 }
 
 /**

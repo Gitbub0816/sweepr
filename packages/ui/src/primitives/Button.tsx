@@ -56,7 +56,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       ref={ref}
       disabled={disabled || loading}
       className={cn(
-        "inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-seafoam-400 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none",
+        "inline-flex items-center justify-center whitespace-nowrap font-medium transition-[transform,background-color,box-shadow] duration-press ease-out-quart [@media(hover:hover)]:active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-seafoam-400 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none",
         variants[variant],
         sizes[size],
         fullWidth && "w-full",

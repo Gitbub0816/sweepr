@@ -8,7 +8,7 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { useAppToken } from "@/lib/appToken";
 import { useTranslation } from "react-i18next";
@@ -67,6 +67,23 @@ export function SchedulePage() {
   const [slots, setSlots] = useState<CalendarSlot[]>([]);
   const [availableNow, setAvailableNow] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  // Fires a single, finite pulse right when "Available Now" is switched on,
+  // then settles to a static highlighted state — never an ambient/infinite
+  // pulse (that was the original bug: `animate-pulse` looped forever).
+  const [justToggledOn, setJustToggledOn] = useState(false);
+  const pulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pulseTimerRef.current) clearTimeout(pulseTimerRef.current);
+    };
+  }, []);
+
+  function firePulse() {
+    if (pulseTimerRef.current) clearTimeout(pulseTimerRef.current);
+    setJustToggledOn(true);
+    pulseTimerRef.current = setTimeout(() => setJustToggledOn(false), 2400);
+  }
 
   const load = useCallback(async () => {
     try {
@@ -102,11 +119,14 @@ export function SchedulePage() {
   const toggleAvailableNow = async () => {
     const next = !availableNow;
     setAvailableNow(next);
+    if (next) firePulse();
+    else setJustToggledOn(false);
     try {
       await authFetch("available-now", "POST", { available: next });
       toast.success(next ? "You're available now, accepting same-day jobs" : "Available Now off");
     } catch {
       setAvailableNow(!next);
+      setJustToggledOn(false);
       toast.error("Couldn't update availability.");
     }
   };
@@ -139,7 +159,7 @@ export function SchedulePage() {
         className={cn(
           "mb-5 flex w-full items-center justify-between rounded-2xl border p-5 text-left transition-all",
           availableNow
-            ? "animate-pulse border-amber-400 bg-amber-50 dark:bg-amber-900/20"
+            ? cn("border-amber-400 bg-amber-50 dark:bg-amber-900/20", justToggledOn && "animate-pulse-once")
             : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
         )}
       >
@@ -206,11 +226,13 @@ export function SchedulePage() {
         onCreate={async ({ type, daysOfWeek, startTime, endTime, date }) => {
           if (type === "available_now") {
             setAvailableNow(true);
+            firePulse();
             try {
               await authFetch("available-now", "POST", { available: true });
               toast.success("You're available now");
             } catch {
               setAvailableNow(false);
+              setJustToggledOn(false);
               toast.error("Couldn't update availability.");
             }
             return;

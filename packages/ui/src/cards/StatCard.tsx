@@ -11,16 +11,23 @@
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@sweepr/utils";
 import { Card } from "../primitives/Card";
+import { CountUp } from "../primitives/CountUp";
 
 export function StatCard({
   label,
   value,
+  countTo,
+  format,
   icon: Icon,
   delta,
   deltaPositive,
 }: {
   label: string;
   value: string;
+  /** Opt-in: tween the value up to this number on mount/update. */
+  countTo?: number;
+  /** Formatter for the counted number (e.g. currency). */
+  format?: (n: number) => string;
   icon?: LucideIcon;
   delta?: string;
   deltaPositive?: boolean;
@@ -36,7 +43,7 @@ export function StatCard({
         )}
       </div>
       <p className="mt-2 text-2xl font-bold text-charcoal dark:text-white">
-        {value}
+        {countTo != null ? <CountUp value={countTo} format={format} /> : value}
       </p>
       {delta && (
         <p

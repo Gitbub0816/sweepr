@@ -9,15 +9,32 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
+import { Modal, Button as UIButton } from "@sweepr/ui";
 import { AssignmentConfigCard } from "../components/AssignmentConfigCard";
+import { SchedulePage } from "./SchedulePage";
 import {
   Zap, Users, CreditCard, Wallet, Bell, AlertTriangle,
-  RefreshCw, Play, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp,
+  RefreshCw, Play, CheckCircle2, XCircle, ChevronDown, ChevronUp,
 } from "lucide-react";
 
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
+
+/** Jobs that move real money — gated behind a confirm dialog before running. */
+const CONFIRM_JOBS: Record<string, { title: string; body: string; confirmLabel: string }> = {
+  "capture-completed": {
+    title: "Run batch payment capture?",
+    body: "This captures every uncaptured payment for completed bookings via Stripe. It moves real money and cannot be undone.",
+    confirmLabel: "Capture payments",
+  },
+  "batch-payouts": {
+    title: "Run batch payouts?",
+    body: "This releases all pending cleaner payouts via Stripe Connect transfers. It moves real money and cannot be undone.",
+    confirmLabel: "Release payouts",
+  },
+};
 
 interface Dashboard {
   pendingAssignments: number;
@@ -56,11 +73,11 @@ interface QueueEntry {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    completed: "bg-emerald-100 text-emerald-700",
-    failed: "bg-red-100 text-red-700",
-    running: "bg-amber-100 text-amber-700",
+    completed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+    failed: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+    running: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
   };
-  return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${map[status] ?? "bg-slate-100 text-slate-500"}`}>{status}</span>;
+  return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${map[status] ?? "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"}`}>{status}</span>;
 }
 
 function StatCard({
@@ -93,12 +110,28 @@ function StatCard({
 
 export function AutomationPage() {
   const { getToken } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get("tab") === "schedule" ? "schedule" : "engine";
+  const setTab = (next: "engine" | "schedule") => {
+    const params = new URLSearchParams(searchParams);
+    if (next === "engine") params.delete("tab");
+    else params.set("tab", next);
+    setSearchParams(params, { replace: true });
+  };
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [queue, setQueue] = useState<QueueEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState<Record<string, boolean>>({});
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  // Pending confirmation for a money-moving job (capture / payouts).
+  const [confirmJob, setConfirmJob] = useState<{ endpoint: string; label: string } | null>(null);
+
+  /** Route a job through a confirm dialog if it moves money; otherwise run it. */
+  function requestJob(endpoint: string, label: string) {
+    if (CONFIRM_JOBS[endpoint]) setConfirmJob({ endpoint, label });
+    else void runJob(endpoint, label);
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -166,20 +199,20 @@ export function AutomationPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <StatCard icon={Users} label="Pending assignments" value={dashboard?.pendingAssignments ?? ", "}
           color={dashboard?.pendingAssignments ? "amber" : "green"}
-          onRun={() => runJob("expire-offers", "Expire offers")} running={running["expire-offers"]} />
+          onRun={() => requestJob("expire-offers", "Expire offers")} running={running["expire-offers"]} />
         <StatCard icon={CreditCard} label="Uncaptured payments" value={dashboard?.pendingCaptures ?? ", "}
           color={dashboard?.pendingCaptures ? "amber" : "green"}
-          onRun={() => runJob("capture-completed", "Batch capture")} running={running["capture-completed"]} />
+          onRun={() => requestJob("capture-completed", "Batch capture")} running={running["capture-completed"]} />
         <StatCard icon={Wallet} label="Pending payouts" value={dashboard?.pendingPayouts ?? ", "}
           sub={dashboard?.pendingPayoutsCents ? `$${(dashboard.pendingPayoutsCents / 100).toFixed(2)} total` : undefined}
           color={dashboard?.pendingPayouts ? "blue" : "green"}
-          onRun={() => runJob("batch-payouts", "Batch payouts")} running={running["batch-payouts"]} />
+          onRun={() => requestJob("batch-payouts", "Batch payouts")} running={running["batch-payouts"]} />
         <StatCard icon={Bell} label="Reminders due" value={dashboard?.remindersDue ?? ", "}
           color={dashboard?.remindersDue ? "amber" : "green"}
-          onRun={() => runJob("send-reminders", "Send reminders")} running={running["send-reminders"]} />
+          onRun={() => requestJob("send-reminders", "Send reminders")} running={running["send-reminders"]} />
         <StatCard icon={AlertTriangle} label="Possible no-shows" value={dashboard?.possibleNoshows ?? ", "}
           color={dashboard?.possibleNoshows ? "red" : "green"}
-          onRun={() => runJob("noshow-check", "No-show check")} running={running["noshow-check"]} />
+          onRun={() => requestJob("noshow-check", "No-show check")} running={running["noshow-check"]} />
         <StatCard icon={Zap} label="Cron interval" value="15 min" sub="Configured in wrangler.toml" />
       </div>
 

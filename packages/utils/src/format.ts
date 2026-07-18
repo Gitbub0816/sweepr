@@ -34,13 +34,6 @@ export function formatDateTime(iso: string): string {
   });
 }
 
-export function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
 export function initials(first: string, last: string): string {
   return `${(first ?? "").charAt(0)}${(last ?? "").charAt(0)}`.toUpperCase();
 }

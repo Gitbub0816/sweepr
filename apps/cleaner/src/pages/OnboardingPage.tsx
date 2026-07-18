@@ -51,6 +51,7 @@ import {
   type AuthorizedRepValue,
 } from "./onboarding/AuthorizedRepStep";
 import { BackgroundCheckStep } from "./onboarding/BackgroundCheckStep";
+import { Confetti } from "./TrainingPage";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 const FORCE_PRELAUNCH = import.meta.env.VITE_PRELAUNCH_FORCE === "true";
@@ -256,6 +257,7 @@ export function OnboardingPage() {
   const [diditStatus, setDiditStatus] = useState<StatusFlow>("idle");
   const [diditUrl, setDiditUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [trainingComplete, setTrainingComplete] = useState(false);
 
   // Check training completion status when reaching the background check step
@@ -512,7 +514,10 @@ export function OnboardingPage() {
         unsafeMetadata: { cleanerStatus: "pending_review" },
       });
       if (user) clearDraft(user.id);
-      toast.success("Application submitted!");
+      // Show an in-page success moment (checkmark + confetti) before handing
+      // off to /pending, instead of a toast that competes with it.
+      setSubmitted(true);
+      await new Promise((resolve) => setTimeout(resolve, reduced ? 0 : 700));
       navigate("/pending");
     } catch {
       toast.error("Something went wrong submitting your application.");
@@ -708,6 +713,24 @@ export function OnboardingPage() {
           )}
         </div>
       </div>
+
+      {submitted && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/90 backdrop-blur-sm dark:bg-slate-950/90">
+          <Confetti />
+          <motion.div
+            initial={reduced ? false : { scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={reduced ? { duration: 0 } : { type: "spring", duration: 0.5, bounce: 0.2 }}
+            className="flex flex-col items-center gap-3 px-6 text-center"
+          >
+            <span className="flex h-20 w-20 items-center justify-center rounded-full bg-seafoam-100 text-seafoam-700 dark:bg-seafoam-900/30 dark:text-seafoam-300">
+              <CheckCircle2 className="h-10 w-10" />
+            </span>
+            <p className="text-lg font-bold text-charcoal dark:text-white">Application submitted!</p>
+            <p className="text-sm text-slate-500">We'll review it and get back to you.</p>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

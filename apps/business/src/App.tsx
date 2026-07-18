@@ -17,6 +17,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import {
   CENTRAL_AUTH_ENABLED,
   CentralSignOutButton,
+  RedirectToCentralLogin,
   SessionProvider,
 } from "./components/CentralSession";
 import { SignInPage } from "./pages/SignInPage";
@@ -52,12 +53,6 @@ function Protected({ children }: { children: React.ReactNode }) {
       </AppShell>
     </Gate>
   );
-}
-
-/** Central-auth mode has no in-app sign-in page — the BFF owns the ceremony. */
-function RedirectToCentralLogin() {
-  window.location.assign("/auth/login");
-  return null;
 }
 
 export default function App() {

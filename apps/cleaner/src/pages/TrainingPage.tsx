@@ -114,7 +114,7 @@ function statusBadge(progress: ModuleProgress | null, t: (key: string) => string
   return <Badge variant="default">{progress.status}</Badge>;
 }
 
-function Confetti() {
+export function Confetti() {
   const pieces = useMemo(() => {
     const colors = ["#14b8a6", "#0d9488", "#f59e0b", "#fbbf24", "#38bdf8", "#a78bfa"];
     return Array.from({ length: 60 }, (_, i) => ({

@@ -10,9 +10,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useAuth, useClerk, SignIn, SignUp } from "@clerk/clerk-react";
+import { useAuth, useClerk } from "@clerk/clerk-react";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { SweeprLogo, ThemeToggle } from "@sweepr/ui";
+import { AuthForm } from "../components/AuthForm";
 import {
   buildRedirectUrl,
   completeTransaction,
@@ -50,19 +51,23 @@ function Wordmark({ appId, displayName }: { appId: string; displayName: string }
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative flex min-h-svh flex-col items-center justify-center bg-gradient-to-br from-slate-100 via-offwhite to-seafoam-50 px-4 py-4 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+    <div className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden bg-offwhite px-4 py-4 dark:bg-charcoal">
+      {/* One soft seafoam radial over a flat surface — no competing gradients. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute left-1/2 top-[-15%] h-[60vh] w-[90vw] max-w-[720px] -translate-x-1/2 rounded-full bg-seafoam-400/10 blur-[110px] dark:bg-seafoam-500/[0.06]" />
+      </div>
       <div className="absolute right-4 top-4"><ThemeToggle /></div>
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="relative w-full max-w-[400px] rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-charcoal/10 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/40 sm:p-8">
         {children}
       </div>
-      <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-400">
+      <p className="mt-4 flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
         <ShieldCheck className="h-3.5 w-3.5" />
         Secured by Sweepr Identity Protection
       </p>
-      <nav aria-label="Legal" className="mt-1.5 flex items-center gap-4 text-xs text-slate-400">
-        <a href={`${LEGAL_URL}/terms`} target="_blank" rel="noopener noreferrer" className="hover:text-slate-600 hover:underline dark:hover:text-slate-200">Terms</a>
-        <a href={`${LEGAL_URL}/privacy`} target="_blank" rel="noopener noreferrer" className="hover:text-slate-600 hover:underline dark:hover:text-slate-200">Privacy</a>
-        <a href={LEGAL_URL} target="_blank" rel="noopener noreferrer" className="hover:text-slate-600 hover:underline dark:hover:text-slate-200">All legal documents</a>
+      <nav aria-label="Legal" className="mt-1.5 flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400">
+        <a href={`${LEGAL_URL}/terms`} target="_blank" rel="noopener noreferrer" className="hover:text-charcoal hover:underline dark:hover:text-white">Terms</a>
+        <a href={`${LEGAL_URL}/privacy`} target="_blank" rel="noopener noreferrer" className="hover:text-charcoal hover:underline dark:hover:text-white">Privacy</a>
+        <a href={LEGAL_URL} target="_blank" rel="noopener noreferrer" className="hover:text-charcoal hover:underline dark:hover:text-white">All legal documents</a>
       </nav>
     </div>
   );
@@ -76,7 +81,7 @@ function ExpiredState() {
         <h1 className="mt-6 text-xl font-bold text-charcoal dark:text-white">
           There's nothing to sign in to here
         </h1>
-        <p className="mt-2 text-sm text-slate-500">
+        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
           This page only works when a Sweepr app sends you here to sign in, and
           each visit is valid for just a few minutes. Head back to the app you
           were using and choose Sign in again.
@@ -91,56 +96,6 @@ function ExpiredState() {
     </Shell>
   );
 }
-
-// Clerk's prebuilt components carry the full authentication surface (email
-// code, password, OAuth, 2FA, and — on sign-up — the required first/last name).
-// We strip their card chrome so they sit inside our own Shell, and let the
-// session-watch effect below run the broker completion once Clerk is done.
-// Sweepr-brand Clerk's prebuilt <SignIn>/<SignUp> so it reads as native app UI
-// (seafoam accents, charcoal primary button, Inter, rounded-xl) rather than
-// stock Clerk. Header/footer/badge are hidden — our Shell supplies the brand.
-const clerkAppearance = {
-  layout: { socialButtonsPlacement: "bottom", logoPlacement: "none" },
-  variables: {
-    colorPrimary: "#0f766e",
-    colorText: "#1c1a17",
-    colorTextSecondary: "#64748b",
-    colorBackground: "transparent",
-    colorInputBackground: "#ffffff",
-    colorInputText: "#1c1a17",
-    colorDanger: "#dc2626",
-    borderRadius: "0.75rem",
-    fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
-    fontSize: "0.95rem",
-    spacingUnit: "0.9rem",
-  },
-  elements: {
-    rootBox: "w-full",
-    cardBox: "w-full shadow-none border-0",
-    card: "shadow-none border-0 bg-transparent p-0",
-    header: "hidden",
-    footer: "hidden",
-    logoBox: "hidden",
-    // Clerk's "Secured by Clerk" badge and dev-mode banner — off-brand.
-    footerAction: "hidden",
-    badge: "hidden",
-    formFieldLabel: "text-sm font-medium text-slate-700 dark:text-slate-300",
-    formFieldInput:
-      "rounded-xl border border-slate-300 bg-white px-3 py-2 text-base text-charcoal shadow-sm focus:border-seafoam-500 focus:ring-2 focus:ring-seafoam-400/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white",
-    // Match @sweepr/ui <Button variant="primary"> exactly — seafoam, not black.
-    formButtonPrimary:
-      "bg-seafoam-700 hover:bg-seafoam-800 active:bg-seafoam-900 text-white text-sm font-medium normal-case rounded-xl h-11 shadow-sm shadow-seafoam-500/20 transition-colors",
-    // Match <Button variant="secondary">.
-    socialButtonsBlockButton:
-      "rounded-xl border border-slate-200 bg-white h-11 text-charcoal font-medium hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700",
-    dividerLine: "bg-slate-200 dark:bg-slate-700",
-    dividerText: "text-xs font-medium uppercase tracking-wider text-slate-400",
-    formFieldInputShowPasswordButton: "text-slate-500 hover:text-charcoal",
-    identityPreviewEditButton: "text-seafoam-700",
-    formResendCodeLink: "text-seafoam-700 font-medium",
-    otpCodeFieldInput: "rounded-xl border-slate-300",
-  },
-} as const;
 
 /** The central sign-in ceremony.
  *
@@ -159,7 +114,6 @@ export function LoginPage() {
   const clerk = useClerk();
 
   const [phase, setPhase] = useState<Phase>({ name: "loading" });
-  const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   // Gate: true once any lingering central session has been cleared, so the
   // completion effect only ever fires for an authentication performed HERE.
   const [readyForAuth, setReadyForAuth] = useState(false);
@@ -305,7 +259,7 @@ export function LoginPage() {
   if (phase.name === "loading" || !authLoaded) {
     return (
       <Shell>
-        <div className="flex flex-col items-center py-10 text-slate-400">
+        <div className="flex flex-col items-center py-10 text-slate-500">
           <Loader2 className="h-6 w-6 animate-spin" />
           <span className="mt-3 text-sm">Preparing secure sign-in…</span>
         </div>
@@ -320,7 +274,7 @@ export function LoginPage() {
   if (phase.name === "completing") {
     return (
       <Shell>
-        <div className="flex flex-col items-center py-10 text-slate-400">
+        <div className="flex flex-col items-center py-10 text-slate-500">
           <Loader2 className="h-6 w-6 animate-spin" />
           <span className="mt-3 text-sm">Signing you in to {context.display_name}…</span>
         </div>
@@ -365,13 +319,13 @@ export function LoginPage() {
 
   // Post-authentication reload (?authed=1): the user is already signed in and
   // the completion effect is about to finish the ceremony. NEVER render the
-  // sign-in form here — Clerk's <SignIn> would see the live session and fire
-  // its own redirect, racing our completion and consuming the transaction
-  // (which produces the "nothing to sign in to here" 404). Just show a spinner.
+  // sign-in form here — a live session plus a mounted form could race our
+  // completion and consume the transaction (which produces the "nothing to
+  // sign in to here" 404). Just show a spinner.
   if (params.get("authed") === "1") {
     return (
       <Shell>
-        <div className="flex flex-col items-center py-10 text-slate-400">
+        <div className="flex flex-col items-center py-10 text-slate-500">
           <Loader2 className="h-6 w-6 animate-spin" />
           <span className="mt-3 text-sm">Signing you in to {context.display_name}…</span>
         </div>
@@ -395,6 +349,9 @@ export function LoginPage() {
   // instead of re-running precheck (which would sign the fresh session back
   // out and loop the form).
   const authedUrl = `${returnUrl}&authed=1`;
+  // OAuth leaves and returns via Clerk's callback route; carry tx so the return
+  // leg lands back on this ceremony, then Clerk forwards to redirectUrlComplete.
+  const ssoCallbackUrl = `${window.location.origin}/login/sso-callback?tx=${encodeURIComponent(tx!)}`;
 
   return (
     <Shell>
@@ -403,70 +360,24 @@ export function LoginPage() {
         <h1 className="mt-4 text-xl font-bold text-charcoal dark:text-white">
           {context.heading}
         </h1>
-        <p className="mt-1.5 text-sm text-slate-500">
-          You are signing in to <span className="font-semibold">{context.display_name}</span>{" "}
-          at <span className="font-mono text-slate-600 dark:text-slate-300">{hostname}</span>
+        <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-400">
+          You are signing in to <span className="font-semibold text-charcoal dark:text-white">{context.display_name}</span>{" "}
+          at <span className="font-mono text-charcoal dark:text-slate-200">{hostname}</span>
         </p>
       </div>
 
       {/* Render the auth form only after any lingering central session has
           been cleared, so it never auto-completes from another app's session. */}
       {!readyForAuth ? (
-        <div className="mt-6 flex flex-col items-center py-8 text-slate-400">
+        <div className="mt-6 flex flex-col items-center py-8 text-slate-500">
           <Loader2 className="h-6 w-6 animate-spin" />
           <span className="mt-3 text-sm">Preparing secure sign-in…</span>
         </div>
       ) : (
-        <>
-          <div className="mt-5">
-            {mode === "sign-in" ? (
-              <SignIn
-                routing="virtual"
-                appearance={clerkAppearance}
-                signUpUrl={returnUrl}
-                forceRedirectUrl={authedUrl}
-                fallbackRedirectUrl={authedUrl}
-              />
-            ) : (
-              <SignUp
-                routing="virtual"
-                appearance={clerkAppearance}
-                signInUrl={returnUrl}
-                forceRedirectUrl={authedUrl}
-                fallbackRedirectUrl={authedUrl}
-              />
-            )}
-          </div>
-
-      <div className="mt-4 text-center text-sm text-slate-500">
-        {mode === "sign-in" ? (
-          <>
-            New to Sweepr?{" "}
-            <button
-              type="button"
-              onClick={() => setMode("sign-up")}
-              className="font-medium text-seafoam-700 hover:underline dark:text-seafoam-400"
-            >
-              Create an account
-            </button>
-          </>
-        ) : (
-          <>
-            Already have an account?{" "}
-            <button
-              type="button"
-              onClick={() => setMode("sign-in")}
-              className="font-medium text-seafoam-700 hover:underline dark:text-seafoam-400"
-            >
-              Sign in
-            </button>
-          </>
-        )}
-      </div>
-        </>
+        <AuthForm context={context} ssoCallbackUrl={ssoCallbackUrl} authedUrl={authedUrl} />
       )}
 
-      <p className="mt-3 text-center text-[11px] leading-relaxed text-slate-500">
+      <p className="mt-4 text-center text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">
         By continuing, you agree to Sweepr's{" "}
         <a href={`${LEGAL_URL}/terms`} target="_blank" rel="noopener noreferrer" className="font-medium text-slate-600 underline underline-offset-2 hover:text-charcoal dark:text-slate-300 dark:hover:text-white">Terms of Service</a>{" "}
         and acknowledge our{" "}
@@ -477,7 +388,7 @@ export function LoginPage() {
         <a
           href={context.cancel_url}
           onClick={() => { if (clerk.session) void clerk.signOut(); }}
-          className="text-sm font-medium text-slate-500 underline-offset-4 hover:text-charcoal hover:underline dark:hover:text-white"
+          className="text-sm font-medium text-slate-600 underline-offset-4 hover:text-charcoal hover:underline dark:text-slate-400 dark:hover:text-white"
         >
           Cancel and return to {hostname}
         </a>

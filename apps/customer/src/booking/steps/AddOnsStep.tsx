@@ -15,6 +15,12 @@ import { useTranslation } from "react-i18next";
 import { ADD_ONS, isAddOnIncludedInPackage, cn } from "@sweepr/utils";
 import { useBookingStore } from "../../store/booking";
 import { StepShell } from "../StepShell";
+import {
+  SELECTABLE_OPTION_BASE,
+  SELECTABLE_OPTION_SELECTED,
+  SELECTABLE_OPTION_UNSELECTED,
+  SELECTABLE_OPTION_DISABLED,
+} from "../../lib/selectableOption";
 
 export function AddOnsStep() {
   const { t } = useTranslation();
@@ -48,12 +54,13 @@ export function AddOnsStep() {
               onClick={() => !included && toggleAddOn(addOn.key)}
               aria-pressed={isSelected}
               className={cn(
-                "flex items-start gap-3 rounded-xl border p-4 text-left transition-all",
+                SELECTABLE_OPTION_BASE,
+                "flex items-start gap-3 rounded-xl p-4 text-left",
                 included
-                  ? "cursor-not-allowed border-slate-200 bg-slate-50 opacity-80 dark:border-slate-700 dark:bg-slate-800/40"
+                  ? cn(SELECTABLE_OPTION_DISABLED, "opacity-80")
                   : isSelected
-                    ? "border-seafoam-400 bg-seafoam-50 ring-1 ring-seafoam-400 dark:bg-seafoam-900/20"
-                    : "border-slate-200 bg-white hover:border-seafoam-300 dark:border-slate-700 dark:bg-slate-900"
+                    ? SELECTABLE_OPTION_SELECTED
+                    : SELECTABLE_OPTION_UNSELECTED
               )}
             >
               <span

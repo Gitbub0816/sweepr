@@ -9,7 +9,7 @@
  */
 
 /**
- * Shared helpers for the Sweepr Sweepr BFF (Cloudflare Pages Functions).
+ * Shared helpers for the Sweepr Customer BFF (Cloudflare Pages Functions).
  *
  * The BFF is the ONLY holder of broker credentials and session tokens on this
  * origin: the browser sees host-only HttpOnly cookies and JSON booleans, never

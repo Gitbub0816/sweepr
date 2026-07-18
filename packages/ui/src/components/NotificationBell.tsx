@@ -51,6 +51,21 @@ export function NotificationBell({
   const ref = useRef<HTMLDivElement>(null);
   const unread = notifications.filter((n) => !n.read).length;
 
+  // One-shot halo when a new unread notification arrives (count ticks up). Not
+  // a persistent indicator — it fires once and settles, so the bell doesn't
+  // become an infinite-loop attention magnet.
+  const prevUnread = useRef(unread);
+  const [ping, setPing] = useState(false);
+  useEffect(() => {
+    if (unread > prevUnread.current) {
+      setPing(true);
+      const t = setTimeout(() => setPing(false), 900);
+      prevUnread.current = unread;
+      return () => clearTimeout(t);
+    }
+    prevUnread.current = unread;
+  }, [unread]);
+
   useEffect(() => {
     if (!open) return;
     const onClick = (e: MouseEvent) => {
@@ -96,6 +111,12 @@ export function NotificationBell({
           className="inline-flex h-9 max-w-56 items-center gap-2 rounded-full border border-seafoam-200 bg-seafoam-50 pl-2.5 pr-3 text-seafoam-800 transition-colors hover:bg-seafoam-100 dark:border-seafoam-800/60 dark:bg-seafoam-900/30 dark:text-seafoam-200 dark:hover:bg-seafoam-900/50"
         >
           <span className="relative inline-flex shrink-0">
+            {ping && (
+              <span
+                aria-hidden
+                className="absolute -inset-1.5 rounded-full bg-seafoam-400/40 animate-ping-soft motion-reduce:hidden"
+              />
+            )}
             <Bell className="h-4 w-4" />
             {unread > 1 && (
               <span className="absolute -right-2 -top-2 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-seafoam-700 px-1 text-[9px] font-bold text-white">

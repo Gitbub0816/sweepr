@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { useAppToken } from "@/lib/appToken";
-import { Card, Button, Input, toast } from "@sweepr/ui";
+import { Card, Button, Input, Modal, toast } from "@sweepr/ui";
 import { MapPin, Home, KeyRound, Trash2, Plus, Star } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -37,6 +37,8 @@ export function AddressBook() {
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [adding, setAdding] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<SavedAddress | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const authed = useCallback(
     async (path: string, init?: RequestInit) => {
@@ -66,6 +68,18 @@ export function AddressBook() {
   async function remove(id: string) {
     await authed(`/customer-profile/addresses/${id}`, { method: "DELETE" });
     refresh();
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await remove(deleteTarget.id);
+      toast.success("Address deleted");
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
   }
 
   return (
@@ -107,7 +121,11 @@ export function AddressBook() {
                       Set default
                     </button>
                   )}
-                  <button className="ml-auto text-slate-400 hover:text-red-500" onClick={() => remove(a.id)} aria-label="Delete address">
+                  <button
+                    className="ml-auto text-slate-400 transition-transform hover:text-red-500 active:scale-95"
+                    onClick={() => setDeleteTarget(a)}
+                    aria-label="Delete address"
+                  >
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
@@ -118,22 +136,49 @@ export function AddressBook() {
       )}
 
       {adding && <AddAddressForm authed={authed} onDone={() => { setAdding(false); refresh(); }} onCancel={() => setAdding(false)} />}
+
+      <Modal
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title="Delete this address?"
+        description={
+          deleteTarget
+            ? `${[deleteTarget.label, deleteTarget.line1].filter(Boolean).join(" · ")} will be removed from your saved addresses. This can't be undone.`
+            : undefined
+        }
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="danger" onClick={confirmDelete} loading={deleting}>Delete</Button>
+          </>
+        }
+      />
     </Card>
   );
 }
 
 function TypeToggle({ value, onChange }: { value: "home" | "short_term_rental"; onChange: (v: "home" | "short_term_rental") => void }) {
+  const optionCls = (active: boolean) =>
+    `flex items-center gap-1 px-2 py-1 transition-colors duration-150 ease-out active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100 ${
+      active
+        ? "bg-seafoam-50 text-seafoam-700 dark:bg-seafoam-900/20 dark:text-seafoam-300"
+        : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+    }`;
   return (
     <div className="inline-flex overflow-hidden rounded-lg border border-slate-200 text-xs dark:border-slate-700">
       <button
+        type="button"
+        aria-pressed={value === "home"}
         onClick={() => onChange("home")}
-        className={`flex items-center gap-1 px-2 py-1 ${value === "home" ? "bg-seafoam-600 text-white" : "text-slate-600 dark:text-slate-300"}`}
+        className={optionCls(value === "home")}
       >
         <Home className="h-3 w-3" /> Home
       </button>
       <button
+        type="button"
+        aria-pressed={value === "short_term_rental"}
         onClick={() => onChange("short_term_rental")}
-        className={`flex items-center gap-1 px-2 py-1 ${value === "short_term_rental" ? "bg-seafoam-600 text-white" : "text-slate-600 dark:text-slate-300"}`}
+        className={optionCls(value === "short_term_rental")}
       >
         <KeyRound className="h-3 w-3" /> Rental
       </button>

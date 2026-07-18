@@ -62,7 +62,7 @@ const TYPE_BADGE: Record<BroadcastType, string> = {
   operational:  "bg-slate-100 text-slate-600",
 };
 
-export function BroadcastsPage() {
+export function BroadcastsPage({ embedded = false }: { embedded?: boolean }) {
   const { getToken } = useAuth();
   const [counts, setCounts] = useState<Counts | null>(null);
   const [history, setHistory] = useState<BroadcastSend[]>([]);
@@ -136,8 +136,8 @@ export function BroadcastsPage() {
     }
   }
 
-  return (
-    <DashboardShell title="Broadcasts" description="Send targeted updates to any subscriber list.">
+  const body = (
+    <>
       <div className="flex border-b border-slate-200 mb-6">
         {(["compose", "history"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
@@ -289,6 +289,13 @@ export function BroadcastsPage() {
           })}
         </div>
       )}
+    </>
+  );
+
+  if (embedded) return body;
+  return (
+    <DashboardShell title="Broadcasts" description="Send targeted updates to any subscriber list.">
+      {body}
     </DashboardShell>
   );
 }

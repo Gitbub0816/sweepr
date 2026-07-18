@@ -54,7 +54,7 @@ export function Home() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       <h1 className="text-3xl font-black text-charcoal dark:text-white">
-        {t(greetingKey)}! 👋
+        {t(greetingKey)}
       </h1>
       <p className="mt-1 text-slate-500">{t("home.readyForSpotless")}</p>
 
@@ -165,7 +165,7 @@ function GetCleaningCard({
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition-colors duration-200 ease-out hover:border-seafoam-400 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-seafoam-600"
+      className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition-[border-color,transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:border-seafoam-400 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-seafoam-600"
     >
       <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-seafoam-50 text-seafoam-700 dark:bg-slate-800">
         <Icon className="h-6 w-6" />

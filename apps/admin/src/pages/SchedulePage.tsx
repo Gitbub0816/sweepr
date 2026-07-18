@@ -61,7 +61,7 @@ function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export function SchedulePage() {
+export function SchedulePage({ embedded = false }: { embedded?: boolean }) {
   const authed = useAuthedFetch();
   const [month, setMonth] = useState(() => { const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0); return d; });
   const [events, setEvents] = useState<ScheduledEvent[]>([]);
@@ -130,10 +130,14 @@ export function SchedulePage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <CalendarDays className="h-6 w-6 text-seafoam-700 dark:text-seafoam-400" aria-hidden="true" />
-          <h1 className="text-xl font-bold text-charcoal dark:text-white">Schedule</h1>
-        </div>
+        {embedded ? (
+          <div />
+        ) : (
+          <div className="flex items-center gap-3">
+            <CalendarDays className="h-6 w-6 text-seafoam-700 dark:text-seafoam-400" aria-hidden="true" />
+            <h1 className="text-xl font-bold text-charcoal dark:text-white">Schedule</h1>
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="secondary" onClick={() => setImportOpen(true)}><Upload className="mr-1 h-4 w-4" aria-hidden="true" />Import ICS</Button>
           <Button variant="secondary" onClick={() => void exportIcs()}><Download className="mr-1 h-4 w-4" aria-hidden="true" />Export ICS</Button>

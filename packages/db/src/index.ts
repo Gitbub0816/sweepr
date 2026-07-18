@@ -31,32 +31,6 @@ export function createClient(connectionString: string): NeonQueryFunction<false,
 
 export type Sql = NeonQueryFunction<false, false>;
 
-/**
- * Run multiple queries as a single atomic Postgres transaction over HTTP.
- *
- * `Sql` (== `NeonQueryFunction<false, false>`) already exposes `.transaction()`
- * from the underlying `@neondatabase/serverless` driver — this is a thin,
- * typed wrapper so call sites don't need to know that detail. Pass an array
- * of *unawaited* `sql\`...\`` tagged-template calls; they run together in one
- * BEGIN/COMMIT round-trip and either all apply or none do.
- *
- * Use this when a set of statements must be all-or-nothing (e.g. an insert
- * plus a dependent status update). For a single check-then-write, prefer a
- * single conditional `UPDATE ... WHERE <precondition> RETURNING` instead —
- * it's one round trip and needs no transaction at all.
- *
- * We deliberately do NOT switch to the websocket `Pool` driver to get
- * interactive (multi-round-trip) transactions — that would break the
- * stateless-per-request connection model this Worker relies on. This array
- * form transaction is the HTTP driver's non-interactive equivalent.
- */
-export function transact(
-  sql: Sql,
-  queries: Parameters<Sql["transaction"]>[0],
-): ReturnType<Sql["transaction"]> {
-  return sql.transaction(queries);
-}
-
 // ---------------------------------------------------------------------------
 // Query helpers
 // ---------------------------------------------------------------------------

@@ -74,7 +74,6 @@ import { MembershipPage } from "./pages/MembershipPage";
 import { PaymentMethodsPage } from "./pages/PaymentMethodsPage";
 import { BusinessPage } from "./pages/BusinessPage";
 import { Home } from "./pages/Home";
-import { ErrorBoundary } from "./components/ErrorBoundary";
 import { OfflineIndicator } from "./components/OfflineIndicator";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { CENTRAL_AUTH_ENABLED, SessionProvider, RedirectToCentralLogin } from "./components/CentralSession";
@@ -223,7 +222,7 @@ function GateLayout() {
 
 export default function App() {
   return (
-    <ErrorBoundary>
+    <>
       <SkipToMainContent />
       <LanguagePersistence />
       <OfflineIndicator />
@@ -292,6 +291,6 @@ export default function App() {
         </Route>
       </Routes>
       </div>
-    </ErrorBoundary>
+    </>
   );
 }

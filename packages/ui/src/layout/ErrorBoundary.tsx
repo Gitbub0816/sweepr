@@ -11,7 +11,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
 export type ErrorVariant = "playful" | "literal";
-export type AppName = "admin" | "customer" | "cleaner" | "marketing" | "service" | "legal" | "status";
+export type AppName = "admin" | "customer" | "cleaner" | "marketing" | "service" | "legal" | "status" | "business" | "auth";
 
 interface ReportOpts {
   app?: AppName;

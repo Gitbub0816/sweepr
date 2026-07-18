@@ -10,6 +10,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
   MapPin, Home, Clock, Navigation, Play, CheckSquare, Camera,
   ArrowRight, ShieldCheck, Lock, AlertTriangle,
@@ -17,12 +18,13 @@ import {
 import { useAuth } from "@clerk/clerk-react";
 import { useAppToken } from "@/lib/appToken";
 import { useTranslation } from "react-i18next";
-import { DashboardShell, Card, Button, ErrorState, Skeleton, toast } from "@sweepr/ui";
+import { DashboardShell, Card, Button, ErrorState, Skeleton, toast, useReducedMotion } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
 import { NavigationMap } from "@sweepr/ui";
 import { NavigationScreen } from "../navigation/components/NavigationScreen";
 import { ScopeReviewSection } from "../components/ScopeReviewSection";
 import { SmartEntryAccess } from "../components/SmartEntryAccess";
+import { Confetti } from "./TrainingPage";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 
@@ -79,6 +81,34 @@ export function JobDetailPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [photoType, setPhotoType] = useState<"before" | "after" | "checkout">("before");
   const [currentPos, setCurrentPos] = useState<{ lat: number; lng: number } | null>(null);
+  const reducedMotion = useReducedMotion();
+
+  // Tracks the step index so the circle that just BECAME active can get a
+  // one-time pulse (not a permanent animation) — see pulseStepIdx below.
+  const currentDayStatus = (job?.day_status ?? "confirmed") as DayStatus;
+  const currentStepIdx = STEP_ORDER.indexOf(currentDayStatus);
+  const prevStepIdxRef = useRef(currentStepIdx);
+  const [pulseStepIdx, setPulseStepIdx] = useState<number | null>(null);
+  useEffect(() => {
+    if (prevStepIdxRef.current !== currentStepIdx) {
+      prevStepIdxRef.current = currentStepIdx;
+      setPulseStepIdx(currentStepIdx);
+      const timer = setTimeout(() => setPulseStepIdx(null), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [currentStepIdx]);
+
+  // Celebrate only the transition INTO "completed" during this page view —
+  // never replay confetti for a job that was already completed on load.
+  const prevDayStatusRef = useRef<DayStatus | null>(null);
+  const [justCompleted, setJustCompleted] = useState(false);
+  useEffect(() => {
+    const current = job?.day_status ?? null;
+    if (prevDayStatusRef.current && prevDayStatusRef.current !== "completed" && current === "completed") {
+      setJustCompleted(true);
+    }
+    prevDayStatusRef.current = current;
+  }, [job?.day_status]);
 
   const authFetch = useCallback(
     async (path: string, opts: RequestInit = {}) => {
@@ -285,7 +315,7 @@ export function JobDetailPage() {
                         : active
                         ? "bg-seafoam-700 text-white"
                         : "bg-slate-200 text-slate-600"
-                    }`}
+                    } ${active && pulseStepIdx === i ? "animate-step-pulse" : ""}`}
                   >
                     {done ? "✓" : i + 1}
                   </div>
@@ -413,7 +443,15 @@ export function JobDetailPage() {
 
       {isCompleted && (
         <Card className="flex items-center gap-3 bg-emerald-50 border-emerald-200 p-4">
-          <ShieldCheck className="h-8 w-8 text-emerald-500 shrink-0" />
+          {justCompleted && <Confetti />}
+          <motion.div
+            initial={reducedMotion ? false : { scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={reducedMotion ? { duration: 0 } : { type: "spring", duration: 0.5, bounce: 0.2 }}
+            className="shrink-0"
+          >
+            <ShieldCheck className="h-8 w-8 text-emerald-500" />
+          </motion.div>
           <div>
             <p className="font-semibold text-emerald-800">Job completed!</p>
             <p className="text-sm text-emerald-700">Payment will be released after checkout review.</p>

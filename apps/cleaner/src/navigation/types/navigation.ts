@@ -209,26 +209,3 @@ export interface VoiceAnnouncementKey {
   stepIndex: number;
   stage: VoiceAnnouncementStage;
 }
-
-/** A single simulated GPS sample fed into the same pipeline real geolocation
- *  updates go through — see simulation/navigationSimulator.ts. */
-export interface SimulatedLocationSample {
-  coordinate: Coordinate;
-  headingDegrees: number | null;
-  speedMps: number;
-  accuracyMeters: number;
-  timestamp: number;
-}
-
-export type SimulationScenario =
-  | "normal-progress"
-  | "highway-speed"
-  | "urban-driving"
-  | "stop-and-resume"
-  | "wrong-turn"
-  | "off-route"
-  | "reroute"
-  | "poor-accuracy"
-  | "parallel-road"
-  | "gps-jump"
-  | "arrival";

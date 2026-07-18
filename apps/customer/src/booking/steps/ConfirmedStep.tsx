@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, MapPin, CalendarClock, UserCheck, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button, Card } from "@sweepr/ui";
@@ -60,26 +60,42 @@ export function ConfirmedStep() {
         </p>
 
         {/* Cleaner assignment status */}
-        <div className={`mt-6 flex items-center justify-center gap-3 rounded-2xl px-5 py-4 ${
+        <div className={`mt-6 flex items-center justify-center gap-3 overflow-hidden rounded-2xl px-5 py-4 ${
           cleanerAssigned
             ? "bg-seafoam-50 dark:bg-seafoam-900/20"
             : "bg-amber-50 dark:bg-amber-900/20"
         }`}>
-          {cleanerAssigned ? (
-            <>
-              <UserCheck className="h-5 w-5 text-seafoam-700" />
-              <span className="text-sm font-semibold text-seafoam-800 dark:text-seafoam-200">
-                {t("booking.confirmed.cleanerAssignedBadge")}
-              </span>
-            </>
-          ) : (
-            <>
-              <Clock className="h-5 w-5 text-amber-600 animate-pulse" />
-              <span className="text-sm font-semibold text-amber-800 dark:text-amber-200">
-                {t("booking.confirmed.matchingCleaner")}
-              </span>
-            </>
-          )}
+          <AnimatePresence mode="wait">
+            {cleanerAssigned ? (
+              <motion.div
+                key="assigned"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.18 }}
+                className="flex items-center gap-3 motion-reduce:transition-none"
+              >
+                <UserCheck className="h-5 w-5 text-seafoam-700" />
+                <span className="text-sm font-semibold text-seafoam-800 dark:text-seafoam-200">
+                  {t("booking.confirmed.cleanerAssignedBadge")}
+                </span>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="matching"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.18 }}
+                className="flex items-center gap-3 motion-reduce:transition-none"
+              >
+                <Clock className="h-5 w-5 text-amber-600 animate-pulse" />
+                <span className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+                  {t("booking.confirmed.matchingCleaner")}
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {(serviceType || dbBooking) && (scheduledFor || dbBooking) && (
