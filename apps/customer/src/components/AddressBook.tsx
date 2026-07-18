@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { Card, Button, Input, toast } from "@sweepr/ui";
 import { MapPin, Home, KeyRound, Trash2, Plus, Star } from "lucide-react";
 
@@ -32,7 +33,7 @@ interface SavedAddress {
  * which one when more than one exists.
  */
 export function AddressBook() {
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [adding, setAdding] = useState(false);
   const [loading, setLoading] = useState(true);

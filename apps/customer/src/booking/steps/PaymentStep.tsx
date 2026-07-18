@@ -21,6 +21,7 @@ import {
   useElements,
 } from "@stripe/react-stripe-js";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { Button, Card, toast, SweeprLogo } from "@sweepr/ui";
 import { formatCurrency, recurringDisplayPrice, calculateQuote } from "@sweepr/utils";
 import { useBookingStore } from "../../store/booking";
@@ -304,7 +305,7 @@ function DemoCheckout({ total }: { total: number }) {
 export function PaymentStep() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const serviceType = useBookingStore((s) => s.serviceType);
   const home = useBookingStore((s) => s.home);
   const addOnKeys = useBookingStore((s) => s.addOnKeys);

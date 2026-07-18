@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { Button, Card } from "@sweepr/ui";
 import { formatDateTime } from "@sweepr/utils";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { useBookingStore } from "../../store/booking";
 import { fetchBooking } from "../../data/bookings";
 import type { Booking } from "@sweepr/types";
@@ -23,7 +24,7 @@ import type { Booking } from "@sweepr/types";
 export function ConfirmedStep() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const state = useBookingStore();
   const { address, serviceType, scheduledFor, bookingId, reset } = state;
   const [dbBooking, setDbBooking] = useState<Booking | null>(null);

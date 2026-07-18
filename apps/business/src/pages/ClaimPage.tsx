@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { KeyRound, CheckCircle2 } from "lucide-react";
 import { Button, LoadingState, ErrorState } from "@sweepr/ui";
 import { AuthLayout } from "../components/AuthLayout";
@@ -27,7 +28,8 @@ export function ClaimPage() {
   const [params] = useSearchParams();
   const token = params.get("token") ?? "";
   const navigate = useNavigate();
-  const { isLoaded, isSignedIn, getToken } = useAuth();
+  const { isLoaded, isSignedIn } = useAuth();
+  const { getToken } = useAppToken();
   const [status, setStatus] = useState<ClaimStatus>("idle");
   const [error, setError] = useState("");
   const started = useRef(false);

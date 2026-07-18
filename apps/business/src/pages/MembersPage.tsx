@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { Users, Mail, X } from "lucide-react";
 import { Card, Button, LoadingState, EmptyState, ErrorState, toast } from "@sweepr/ui";
 import { apiFetch, asList } from "../lib/api";
@@ -37,7 +38,7 @@ function memberName(m: Member): string {
 }
 
 export function MembersPage() {
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const [members, setMembers] = useState<Member[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");

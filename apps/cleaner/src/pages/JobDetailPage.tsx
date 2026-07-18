@@ -15,6 +15,7 @@ import {
   ArrowRight, ShieldCheck, Lock, AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { useTranslation } from "react-i18next";
 import { DashboardShell, Card, Button, ErrorState, Skeleton, toast } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
@@ -68,7 +69,7 @@ const STEP_ORDER: DayStatus[] = [
 export function JobDetailPage() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const [job, setJob] = useState<JobLive | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);

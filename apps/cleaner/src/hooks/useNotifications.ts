@@ -10,6 +10,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import type { NotificationItem } from "@sweepr/ui";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -37,7 +38,8 @@ async function fetchNotifications(getToken: GetToken): Promise<NotificationItem[
 
 export function useNotifications() {
   const qc = useQueryClient();
-  const { getToken, isSignedIn } = useAuth();
+  const { isSignedIn } = useAuth();
+  const { getToken } = useAppToken();
   const key = ["notifications"];
 
   const { data = [] } = useQuery({

@@ -10,6 +10,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { Card, Input, Button, toast, loadMapkit } from "@sweepr/ui";
 import { MapPin } from "lucide-react";
 import { ServiceAreaMap } from "./ServiceAreaMap";
@@ -46,7 +47,7 @@ const DEFAULT_CENTER: [number, number] = [-98.5795, 39.8283];
  * radius. Distinct from (and smaller than) the company-wide coverage area.
  */
 export function ServiceAreaSection() {
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const [center, setCenter] = useState<[number, number]>(DEFAULT_CENTER);
   const [radius, setRadius] = useState(15);
   const [address, setAddress] = useState("");

@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@sweepr/utils";
 import { useAuth, useUser } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { FounderBanner } from "../components/FounderBanner";
 
 const API = import.meta.env.VITE_API_URL ?? "";
@@ -54,7 +55,7 @@ const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 // ─── API hook ─────────────────────────────────────────────────────────────────
 
 function useApi<T>(path: string, enabled = true) {
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -328,7 +329,7 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 function JobsTab() {
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const { data, loading, reload } = useApi<{ jobs: JobRow[] }>("/cleaner-dashboard/my-jobs");
   const [accepting, setAccepting] = useState<string | null>(null);
 
@@ -417,7 +418,7 @@ interface BlockedDate {
 
 function ScheduleTab() {
   const { t } = useTranslation();
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const { data: avail, loading: loadingAvail, reload: reloadAvail } =
     useApi<{ slots: AvailabilitySlot[] }>("/cleaner-dashboard/availability");
   const { data: blocked, loading: loadingBlocked, reload: reloadBlocked } =
@@ -582,7 +583,7 @@ interface EarningSummary {
 
 function EarningsTab() {
   const { t } = useTranslation();
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const { data, loading } = useApi<EarningSummary>("/cleaner-dashboard/earnings");
   const [connecting, setConnecting] = useState(false);
 
@@ -818,7 +819,7 @@ interface CleanerSettings {
 
 function SettingsTab() {
   const { t } = useTranslation();
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const { data, loading, error } = useApi<CleanerSettings>("/cleaner-dashboard/settings");
   const [form, setForm] = useState<CleanerSettings | null>(null);
   const [saving, setSaving] = useState(false);

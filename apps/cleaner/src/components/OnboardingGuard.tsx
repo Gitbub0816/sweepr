@@ -10,6 +10,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { useUser, useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { Clock, Lock } from "lucide-react";
 import { LoadingState, ThemeToggle } from "@sweepr/ui";
 
@@ -70,7 +71,7 @@ function JobsLocked() {
 
 function GuardInner({ children, jobsGated }: { children: ReactNode; jobsGated: boolean }) {
   const { isLoaded, user } = useUser();
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
 
   // Clerk publicMetadata is a cache that can lag the DB (e.g. an admin approves
   // a cleaner but the metadata sync is delayed/missed). For job-gated routes we

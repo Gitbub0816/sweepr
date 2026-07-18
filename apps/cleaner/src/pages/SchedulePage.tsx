@@ -10,6 +10,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { useTranslation } from "react-i18next";
 import {
   DashboardShell,
@@ -62,7 +63,7 @@ function apiSlotToCalendar(s: ApiSlot): CalendarSlot | null {
 
 export function SchedulePage() {
   const { t } = useTranslation();
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const [slots, setSlots] = useState<CalendarSlot[]>([]);
   const [availableNow, setAvailableNow] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);

@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth, useUser, useClerk } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { useTranslation } from "react-i18next";
 import { DashboardShell, Card, AccountPrivacy, SMSOptIn, toast } from "@sweepr/ui";
 import { CouponsCard } from "../components/CouponsCard";
@@ -22,7 +23,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 /** SMS consent toggle backed by PATCH /customer-profile (TCPA audit-logged server-side). */
 function SmsConsentSettings() {
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const [consent, setConsent] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -77,7 +78,7 @@ function SmsConsentSettings() {
 export function ProfilePage() {
   const { t } = useTranslation();
   const { user } = useUser();
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const { signOut } = useClerk();
 
   const email = user?.primaryEmailAddress?.emailAddress ?? "";

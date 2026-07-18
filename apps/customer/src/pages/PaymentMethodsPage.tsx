@@ -11,6 +11,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { CreditCard } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { useTranslation } from "react-i18next";
 import { DashboardShell, Card, Badge, EmptyState, toast } from "@sweepr/ui";
 
@@ -27,7 +28,7 @@ interface Method {
 
 export function PaymentMethodsPage() {
   const { t } = useTranslation();
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const [methods, setMethods] = useState<Method[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);

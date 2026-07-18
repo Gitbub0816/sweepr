@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAuth, useUser } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { Building2 } from "lucide-react";
 import { Card, LoadingState, EmptyState } from "@sweepr/ui";
 import { apiFetch } from "../lib/api";
@@ -23,7 +24,7 @@ interface WorkspaceMe {
 }
 
 export function DashboardPage() {
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const { user } = useUser();
   const [me, setMe] = useState<WorkspaceMe | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "unavailable">("loading");

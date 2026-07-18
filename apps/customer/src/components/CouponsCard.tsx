@@ -17,6 +17,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { Card } from "@sweepr/ui";
 
 const API = import.meta.env.VITE_API_URL ?? "";
@@ -42,7 +43,7 @@ const THEME_EMOJI: Record<string, string> = {
 };
 
 export function CouponsCard() {
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loaded, setLoaded] = useState(false);
 

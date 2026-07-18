@@ -88,6 +88,10 @@ preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
 # CLERK_CLEANER_SECRET_KEY   (sk_live_… of the dedicated cleaner Clerk app, once cleaners are split
 #                            out of the shared primary instance; unset = cleaners use CLERK_SECRET_KEY)
 # CLERK_CLEANER_WEBHOOK_SECRET (whsec_… of the dedicated cleaner Clerk app's webhook)
+# API_BROKER_TOKEN_SECRET   (central-auth mode: shared HMAC secret the app BFFs use to mint short-lived
+#                            API tokens after introspecting the broker session; MUST equal the value the
+#                            deploy.yml sync-central-auth job puts on the Pages projects. Any long random
+#                            string. Unset = broker-issued API tokens are rejected, Clerk tokens still work)
 # SLACK_CLIENT_ID           (Slack app → Basic Information → App Credentials)
 # SLACK_CLIENT_SECRET       (Slack app → Basic Information → App Credentials)
 # SLACK_SIGNING_SECRET      (Slack app → Basic Information → App Credentials; verifies inbound webhooks)

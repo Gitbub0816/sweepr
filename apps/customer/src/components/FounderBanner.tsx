@@ -20,6 +20,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { Button, FoundingMemberBadge } from "@sweepr/ui";
 
 const API = import.meta.env.VITE_API_URL ?? "";
@@ -49,7 +50,7 @@ const COLOR_LABELS: Record<string, string> = {
 };
 
 export function FounderBanner() {
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const [status, setStatus] = useState<FoundingStatus | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
   const [showPicker, setShowPicker] = useState(false);

@@ -66,6 +66,76 @@ function unsafeIssuer(token: string): string {
 }
 
 /**
+ * Issuer stamped on the short-lived API tokens the per-app BFF mints in
+ * central-auth mode (after it introspects the broker session it holds). A
+ * forged issuer only selects this HMAC path, which then fails signature
+ * verification against API_BROKER_TOKEN_SECRET — routing, not trust.
+ */
+const BFF_TOKEN_ISS = "https://broker.getsweepr.com/bff";
+
+interface BffClaims {
+  sub: string; // primary-instance Clerk user id (== users.clerk_id)
+  app: AuthApplication;
+  principal_user_id?: string | null;
+}
+
+function b64urlToBytes(s: string): Uint8Array {
+  const b64 = s.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(s.length / 4) * 4, "=");
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+/**
+ * Verify a BFF-minted HS256 API token. Returns the claims only when the
+ * signature validates against the shared secret AND the token is unexpired and
+ * carries the expected issuer. Fails closed on any anomaly (no secret, bad
+ * shape, bad sig, expired).
+ */
+async function verifyBffToken(token: string, secret: string | undefined): Promise<BffClaims | null> {
+  if (!secret) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [h, p, sig] = parts;
+  try {
+    const header = JSON.parse(new TextDecoder().decode(b64urlToBytes(h))) as { alg?: string };
+    if (header.alg !== "HS256") return null;
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"],
+    );
+    const ok = await crypto.subtle.verify(
+      "HMAC",
+      key,
+      b64urlToBytes(sig),
+      new TextEncoder().encode(`${h}.${p}`),
+    );
+    if (!ok) return null;
+    const payload = JSON.parse(new TextDecoder().decode(b64urlToBytes(p))) as {
+      iss?: string;
+      sub?: string;
+      app?: string;
+      principal_user_id?: string | null;
+      exp?: number;
+    };
+    if (payload.iss !== BFF_TOKEN_ISS) return null;
+    if (typeof payload.exp !== "number" || payload.exp * 1000 < Date.now()) return null;
+    if (!payload.sub || !payload.app) return null;
+    return {
+      sub: payload.sub,
+      app: payload.app as AuthApplication,
+      principal_user_id: payload.principal_user_id ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Verifies the Clerk session JWT from the Authorization header and attaches
  * the user to the request context. Returns 401 when missing/invalid.
  *
@@ -89,33 +159,54 @@ export const requireAuth = createMiddleware<AppBindings>(async (c, next) => {
 
   let clerkId: string;
   let email: string | undefined;
+  let authApp: AuthApplication;
 
   const adminKey = c.env.CLERK_ADMIN_SECRET_KEY;
   const iss = unsafeIssuer(token);
-  // Config-driven issuer routing across the four Clerk applications
-  // (customer/business/cleaner/admin). Falls back to the primary key for
-  // unknown issuers, matching the pre-multi-app behavior.
-  const resolved = resolveAuthApp(iss, c.env);
-  if (!resolved) {
-    // Issuer routes to an app whose secret key isn't provisioned yet — the
-    // boundary is dark, so no token from it can ever be valid.
-    captureFromContext(c, "auth_failure", "low", { reason: "unconfigured_auth_application" });
-    return c.json({ error: "Invalid token" }, 401);
-  }
-  const isAdminIssuer = resolved.app === "admin";
 
-  try {
-    const payload = await verifyToken(token, { secretKey: resolved.secretKey });
-    clerkId = payload.sub;
-    email = (payload as { email?: string }).email;
-  } catch {
-    // Malformed/invalid/expired Bearer token — a real signal (unlike a
-    // merely-missing token, which is just an unauthenticated probe). Record
-    // it so repeated failures against this endpoint show up in the security
-    // console and can trip the brute-force escalation.
-    captureFromContext(c, "auth_failure", "low", { reason: "invalid_or_expired_token" });
-    return c.json({ error: "Invalid token" }, 401);
+  // Central-auth path: a token minted by the app's BFF after it introspected
+  // the broker session it holds. Clerk still proved WHO (the BFF only mints
+  // after a valid broker session, which only exists after a Clerk sign-in the
+  // broker admitted); this token just conveys that verdict to the API. It
+  // carries the primary-instance Clerk user id as `sub`, so the rest of this
+  // middleware (which keys off clerkId) behaves identically to the Clerk path.
+  if (iss === BFF_TOKEN_ISS) {
+    const claims = await verifyBffToken(token, c.env.API_BROKER_TOKEN_SECRET);
+    if (!claims) {
+      captureFromContext(c, "auth_failure", "low", { reason: "invalid_or_expired_broker_token" });
+      return c.json({ error: "Invalid token" }, 401);
+    }
+    clerkId = claims.sub;
+    email = undefined;
+    authApp = claims.app;
+  } else {
+    // Config-driven issuer routing across the four Clerk applications
+    // (customer/business/cleaner/admin). Falls back to the primary key for
+    // unknown issuers, matching the pre-multi-app behavior.
+    const resolved = resolveAuthApp(iss, c.env);
+    if (!resolved) {
+      // Issuer routes to an app whose secret key isn't provisioned yet — the
+      // boundary is dark, so no token from it can ever be valid.
+      captureFromContext(c, "auth_failure", "low", { reason: "unconfigured_auth_application" });
+      return c.json({ error: "Invalid token" }, 401);
+    }
+    authApp = resolved.app;
+
+    try {
+      const payload = await verifyToken(token, { secretKey: resolved.secretKey });
+      clerkId = payload.sub;
+      email = (payload as { email?: string }).email;
+    } catch {
+      // Malformed/invalid/expired Bearer token — a real signal (unlike a
+      // merely-missing token, which is just an unauthenticated probe). Record
+      // it so repeated failures against this endpoint show up in the security
+      // console and can trip the brute-force escalation.
+      captureFromContext(c, "auth_failure", "low", { reason: "invalid_or_expired_token" });
+      return c.json({ error: "Invalid token" }, 401);
+    }
   }
+
+  const isAdminIssuer = authApp === "admin";
 
   // Raw per-app Clerk user id (payload.sub) BEFORE any admin email mapping —
   // this keys the auth_identities row for the session's application silo.
@@ -147,7 +238,7 @@ export const requireAuth = createMiddleware<AppBindings>(async (c, next) => {
   }
 
   c.set("user", { clerkId, email });
-  c.set("authApp", resolved.app);
+  c.set("authApp", authApp);
   c.set("providerUserId", providerUserId);
 
   // Lazily sync the user row — non-fatal if it fails (e.g. DB temporarily down).

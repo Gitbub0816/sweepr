@@ -11,6 +11,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { ChevronLeft, ChevronRight, BookOpen, CheckCircle2 } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
@@ -43,7 +44,7 @@ export function CourseViewerPage() {
 // ─── Library ──────────────────────────────────────────────────────────────────
 
 function CourseLibrary() {
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const navigate = useNavigate();
   const [courses, setCourses] = useState<CourseSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,7 +92,7 @@ function CourseLibrary() {
 // ─── Player ───────────────────────────────────────────────────────────────────
 
 function CoursePlayer({ courseId }: { courseId: string }) {
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [versionId, setVersionId] = useState("");

@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Radio, WifiOff } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { useTranslation } from "react-i18next";
 import { DashboardShell, EmptyState, toast, useReducedMotion } from "@sweepr/ui";
 import type { ServiceType } from "@sweepr/types";
@@ -71,7 +72,7 @@ export function JobsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const reduced = useReducedMotion();
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const [online, setOnline] = useState(true);
   const [jobs, setJobs] = useState<AvailableJob[]>([]);
   const [loading, setLoading] = useState(true);

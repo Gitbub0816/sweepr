@@ -12,6 +12,7 @@ import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Shield, ShieldCheck, ShieldAlert, Upload, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { DashboardShell, Card, Button, toast } from "@sweepr/ui";
 import { cn } from "@sweepr/utils";
 
@@ -50,7 +51,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export function InsurancePage() {
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const [record, setRecord] = useState<InsuranceRecord | null>(null);
   const [stripeConnected, setStripeConnected] = useState(false);
   const [consentSigned, setConsentSigned] = useState(false);

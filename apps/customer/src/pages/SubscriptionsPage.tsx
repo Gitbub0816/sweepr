@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { Card, Button, Badge, toast, CardListSkeleton } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 
@@ -29,7 +30,7 @@ interface SubRow {
 
 export function SubscriptionsPage() {
   const { t } = useTranslation();
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const [subs, setSubs] = useState<SubRow[]>([]);
   const [loading, setLoading] = useState(true);
 

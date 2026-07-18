@@ -11,6 +11,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { Zap, Repeat, Clock, AlertCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SweeprCalendar } from "@sweepr/ui";
@@ -53,7 +54,7 @@ export function ScheduleStep() {
     setSubscription,
   } = useBookingStore();
 
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
 
   const [pickedDate, setPickedDate] = useState<Date | null>(
     scheduledAt ? new Date(scheduledAt) : null

@@ -11,6 +11,7 @@
 import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { useCallback, useEffect, useRef } from "react";
 import { AuthenticateWithRedirectCallback, useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { useTranslation } from "react-i18next";
 import { ContinueSignUp } from "./components/ContinueSignUp";
 import {
@@ -30,14 +31,16 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 /** Floating "Report a problem" — shown on every authenticated cleaner flow. */
 function ReportProblemMount() {
-  const { isSignedIn, getToken } = useAuth();
+  const { isSignedIn } = useAuth();
+  const { getToken } = useAppToken();
   if (!isSignedIn) return null;
   return <ReportProblem app="cleaner" apiUrl={API_URL} getToken={getToken} />;
 }
 
 /** Site-wide promotion widget host (cleaner audience — e.g. Founding Member). */
 function PromoHostMount() {
-  const { isSignedIn, getToken } = useAuth();
+  const { isSignedIn } = useAuth();
+  const { getToken } = useAppToken();
   return (
     <PromoHost
       apiBase={API_URL}
@@ -125,7 +128,8 @@ function GateLayout() {
  * silently 404'd — fixed here).
  */
 function LanguagePersistence() {
-  const { isSignedIn, isLoaded, getToken } = useAuth();
+  const { isSignedIn, isLoaded } = useAuth();
+  const { getToken } = useAppToken();
   const { i18n } = useTranslation();
   const lastSynced = useRef<string | null>(null);
 

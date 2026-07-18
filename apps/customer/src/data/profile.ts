@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import type { Address, HomeType } from "@sweepr/types";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -30,7 +31,8 @@ export interface ProfileData {
 }
 
 export function useCustomerProfile() {
-  const { getToken, isSignedIn } = useAuth();
+  const { isSignedIn } = useAuth();
+  const { getToken } = useAppToken();
   const [data, setData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
 

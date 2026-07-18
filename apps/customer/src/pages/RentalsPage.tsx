@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { CalendarClock, Plus, RefreshCw, Trash2, CheckCircle2, AlertCircle } from "lucide-react";
 import { DashboardShell, Card, Button, Input, EmptyState, toast } from "@sweepr/ui";
 import type { CalendarProvider } from "@sweepr/types";
@@ -57,7 +58,7 @@ const PROVIDERS: { value: CalendarProvider; label: string; help: string }[] = [
 ];
 
 export function RentalsPage() {
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const [pricing, setPricing] = useState<{ monthlyFee: number; perTurnaround: number } | null>(null);
   const [properties, setProperties] = useState<Property[]>([]);
   const [sources, setSources] = useState<Source[]>([]);

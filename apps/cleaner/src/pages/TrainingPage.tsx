@@ -11,6 +11,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { useTranslation } from "react-i18next";
 import {
   GraduationCap,
@@ -869,7 +870,7 @@ export function TrainingPage() {
   const { t } = useTranslation();
   const { moduleId: urlModuleId } = useParams<{ moduleId: string }>();
   const navigate = useNavigate();
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
 
   const [view, setView] = useState<View>("list");
   const [modules, setModules] = useState<TrainingModule[]>([]);

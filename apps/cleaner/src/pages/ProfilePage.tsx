@@ -10,6 +10,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAuth, useUser, useClerk } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { useTranslation } from "react-i18next";
 import { BadgeCheck, ShieldCheck, Star } from "lucide-react";
 import {
@@ -40,7 +41,7 @@ function statusBadge(ok: boolean, pending: boolean, t: (key: string) => string) 
 export function ProfilePage() {
   const { t } = useTranslation();
   const { user } = useUser();
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const { signOut } = useClerk();
   const [cleaner, setCleaner] = useState<Cleaner | null>(null);
   const [bio, setBio] = useState("");

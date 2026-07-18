@@ -13,6 +13,7 @@ import { KeyRound, Check, Sparkles, ShieldCheck, Clock, Percent } from "lucide-r
 import { Card, Button, Badge, toast } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 
@@ -39,7 +40,7 @@ const BENEFITS = [
 ];
 
 export function MembershipPage() {
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const [status, setStatus] = useState<MembershipStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);

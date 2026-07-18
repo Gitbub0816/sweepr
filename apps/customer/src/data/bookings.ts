@@ -14,6 +14,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import type { Booking, JobStatus, ServiceType, HomeType } from "@sweepr/types";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -91,7 +92,8 @@ export function toBooking(r: BookingRow): Booking {
 
 /** Fetch the current customer's bookings. */
 export function useBookings() {
-  const { getToken, isSignedIn } = useAuth();
+  const { isSignedIn } = useAuth();
+  const { getToken } = useAppToken();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
 

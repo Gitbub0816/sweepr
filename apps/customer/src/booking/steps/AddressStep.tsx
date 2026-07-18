@@ -11,6 +11,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { MapPin, Plus, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Input, loadMapkit } from "@sweepr/ui";
@@ -99,7 +100,7 @@ function parseFeature(f: GeoFeature): Address | null {
 export function AddressStep() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const address = useBookingStore((s) => s.address);
   const setAddress = useBookingStore((s) => s.setAddress);
   const intent = useBookingStore((s) => s.intent);

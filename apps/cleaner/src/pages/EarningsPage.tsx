@@ -11,6 +11,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Wallet, TrendingUp, BarChart3, DollarSign, Building2, ArrowRight, Gift } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { useTranslation } from "react-i18next";
 import { DashboardShell, StatCard, Card, Button, toast } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
@@ -33,7 +34,7 @@ interface EarningSummary {
 
 export function EarningsPage() {
   const { t } = useTranslation();
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const [data, setData] = useState<EarningSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);

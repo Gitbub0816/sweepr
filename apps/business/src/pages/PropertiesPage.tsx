@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { Home as HomeIcon, MapPin } from "lucide-react";
 import { Card, LoadingState, EmptyState, ErrorState } from "@sweepr/ui";
 import { apiFetch, asList } from "../lib/api";
@@ -32,7 +33,7 @@ function formatAddress(p: Property): string {
 }
 
 export function PropertiesPage() {
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const [properties, setProperties] = useState<Property[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 

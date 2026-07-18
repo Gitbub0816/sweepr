@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin, Home, CalendarClock, Sparkles, Zap, Repeat, Check } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { useTranslation } from "react-i18next";
 import { Card, Textarea, toast } from "@sweepr/ui";
 import {
@@ -68,7 +69,7 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 export function ReviewStep() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const state = useBookingStore();
   const {
     address,

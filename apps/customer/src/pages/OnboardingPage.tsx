@@ -11,6 +11,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { Button, Input, Select, SweeprLogo, toast } from "@sweepr/ui";
 import type { HomeType } from "@sweepr/types";
 import { saveCustomerProfile } from "../data/profile";
@@ -26,7 +27,7 @@ const homeTypes: { label: string; value: HomeType }[] = [
 
 export function OnboardingPage() {
   const navigate = useNavigate();
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const setHome = useBookingStore((s) => s.setHome);
 
   const [bedrooms, setBedrooms] = useState(2);

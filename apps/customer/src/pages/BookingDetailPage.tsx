@@ -32,6 +32,7 @@ import {
   JOB_STATUS_LABELS,
 } from "@sweepr/utils";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { fetchBooking, type BookingWithCleaner } from "../data/bookings";
 import { CleanerTracker } from "../components/CleanerTracker";
 import { TipCard } from "../components/TipCard";
@@ -220,7 +221,7 @@ function ReviewModal({
 export function BookingDetailPage() {
   const { t } = useTranslation();
   const { id } = useParams();
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const [booking, setBooking] = useState<BookingWithCleaner | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviewOpen, setReviewOpen] = useState(false);

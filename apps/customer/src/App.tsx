@@ -11,6 +11,7 @@
 import { Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useCallback, useEffect, useRef } from "react";
 import { AuthenticateWithRedirectCallback } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { SignInPage } from "./components/SignInPage";
 import { SignUpPage } from "./components/SignUpPage";
 import { ContinueSignUp } from "./components/ContinueSignUp";
@@ -32,14 +33,16 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 /** Floating "Report a problem" — shown on every authenticated customer flow. */
 function ReportProblemMount() {
-  const { isSignedIn, getToken } = useAuth();
+  const { isSignedIn } = useAuth();
+  const { getToken } = useAppToken();
   if (!isSignedIn) return null;
   return <ReportProblem app="customer" apiUrl={API_URL} getToken={getToken} />;
 }
 
 /** Site-wide promotion widget host (customer audience — e.g. Founding Member). */
 function PromoHostMount() {
-  const { isSignedIn, getToken } = useAuth();
+  const { isSignedIn } = useAuth();
+  const { getToken } = useAppToken();
   return (
     <PromoHost
       apiBase={API_URL}
@@ -149,7 +152,8 @@ const FORCE_PRELAUNCH = import.meta.env.VITE_PRELAUNCH_FORCE === "true";
  *    carries an explicit ?lang link, which wins and is itself persisted).
  */
 function LanguagePersistence() {
-  const { isSignedIn, isLoaded, getToken } = useAuth();
+  const { isSignedIn, isLoaded } = useAuth();
+  const { getToken } = useAppToken();
   const { i18n } = useTranslation();
   const lastSynced = useRef<string | null>(null);
 

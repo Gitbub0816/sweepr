@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, Camera, X, ShieldAlert } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { useTranslation } from "react-i18next";
 import { Card, Button, Badge, Modal, Textarea, Select, toast } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
@@ -62,7 +63,7 @@ const ACTIVE_STATUSES: RequestStatus[] = ["pending_ai", "pending_admin"];
 
 export function ScopeReviewSection({ bookingId }: { bookingId: string }) {
   const { t } = useTranslation();
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const [privileges, setPrivileges] = useState<Privileges | null>(null);
   const [requests, setRequests] = useState<ScopeRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -288,7 +289,7 @@ function ScopeReviewWizard({
   onSubmitted: () => void;
 }) {
   const { t } = useTranslation();
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const [step, setStep] = useState<WizardStep>(1);
   const [photos, setPhotos] = useState<{ key: string; previewUrl: string; file: File }[]>([]);
   const [uploading, setUploading] = useState(false);

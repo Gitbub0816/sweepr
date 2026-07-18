@@ -28,9 +28,15 @@ export interface CleanerAuthEnv {
    * Worker subrequests, so the BFF reaches the broker off-zone
    * (sweepr.fly.dev) and presents this header itself. */
   ORIGIN_SHARED_SECRET?: string;
+  /** Shared HMAC secret with the API worker. The BFF mints short-lived HS256
+   * API tokens after introspecting the broker session; the API verifies them
+   * with the same key. Same value as the API's API_BROKER_TOKEN_SECRET. */
+  API_BROKER_TOKEN_SECRET?: string;
 }
 
 export const APP_ORIGIN = "https://clean.getsweepr.com";
+/** This app's broker app id, stamped into minted API tokens. */
+export const APP_ID = "cleaner";
 export const SESSION_COOKIE = "__Host-sweepr_cleaner_session";
 export const LOGIN_COOKIE = "__Host-sweepr_cleaner_login";
 export const LOGIN_COOKIE_TTL_SECONDS = 300;
@@ -160,6 +166,45 @@ export function timingSafeEqual(a: string, b: string): boolean {
     diff |= (ab[i % (ab.length || 1)] ?? 0) ^ (bb[i % (bb.length || 1)] ?? 0);
   }
   return diff === 0;
+}
+
+// ── Central-auth API token (BFF → API) ───────────────────────────────────────
+
+/** Issuer the API recognizes as a BFF-minted token (see API requireAuth). */
+export const API_TOKEN_ISS = "https://broker.getsweepr.com/bff";
+/** API tokens are short-lived: they're re-minted on demand from the session. */
+export const API_TOKEN_TTL_SECONDS = 120;
+
+/**
+ * Mint a short-lived HS256 token the browser sends to the API as a Bearer.
+ * `sub` is the primary-instance Clerk user id (== users.clerk_id), so the API
+ * attaches the same identity it would from a Clerk token. Signed with the
+ * secret shared with the API worker; never exposes the broker session token.
+ */
+export async function mintApiToken(
+  secret: string,
+  opts: { sub: string; app: string; principalUserId: string | null }
+): Promise<{ token: string; expiresAt: number }> {
+  const now = Math.floor(Date.now() / 1000);
+  const exp = now + API_TOKEN_TTL_SECONDS;
+  const enc = (o: unknown) => base64UrlEncode(new TextEncoder().encode(JSON.stringify(o)));
+  const signingInput = `${enc({ alg: "HS256", typ: "JWT" })}.${enc({
+    iss: API_TOKEN_ISS,
+    sub: opts.sub,
+    app: opts.app,
+    principal_user_id: opts.principalUserId,
+    iat: now,
+    exp,
+  })}`;
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(signingInput));
+  return { token: `${signingInput}.${base64UrlEncode(new Uint8Array(sig))}`, expiresAt: exp * 1000 };
 }
 
 // ── Return-path sanitizer (mirror of the broker's sanitize_return_path) ─────

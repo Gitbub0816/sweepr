@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { DashboardShell, Card, Button, Modal, toast } from "@sweepr/ui";
 import {
   Briefcase,
@@ -86,7 +87,7 @@ const MODE_OPTIONS: Array<{
 ];
 
 export function BusinessPage() {
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
 
   const [mode, setMode] = useState<Mode | null>(null);
   const [workspaceName, setWorkspaceName] = useState("");

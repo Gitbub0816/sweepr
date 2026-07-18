@@ -44,6 +44,14 @@ export interface Env {
   CLERK_CLEANER_SECRET_KEY?: string;
   /** Svix signing secret for the dedicated cleaner Clerk app's webhook endpoint. */
   CLERK_CLEANER_WEBHOOK_SECRET?: string;
+  /**
+   * Shared HMAC secret for central-auth-mode API tokens. The per-app Pages
+   * Functions BFF (which holds the broker session) mints a short-lived HS256
+   * token after introspecting the session; this key verifies it. When unset,
+   * broker-issued API tokens are rejected (Clerk-token auth still works), so a
+   * misconfiguration fails closed rather than trusting unsigned identities.
+   */
+  API_BROKER_TOKEN_SECRET?: string;
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
   MAILERSEND_API_KEY: string;

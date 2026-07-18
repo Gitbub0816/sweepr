@@ -11,6 +11,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useUser, useAuth } from "@clerk/clerk-react";
+import { useAppToken } from "@/lib/appToken";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -204,7 +205,7 @@ export function OnboardingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useUser();
-  const { getToken } = useAuth();
+  const { getToken } = useAppToken();
   const reduced = useReducedMotion();
 
   const [searchParams, setSearchParams] = useSearchParams();
