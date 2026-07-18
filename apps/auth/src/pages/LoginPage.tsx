@@ -239,9 +239,9 @@ export function LoginPage() {
     })();
   }, [phase, authLoaded, isSignedIn, readyForAuth, clerk, getToken, tx, params]);
 
-  // Complete ONLY on the post-authentication reload (?authed=1). Clerk's
-  // <SignIn> flips isSignedIn true IN-SPA the instant credentials are accepted,
-  // *before* it performs its forceRedirectUrl reload — if we completed then, we
+  // Complete ONLY on the post-authentication reload (?authed=1). setActive
+  // flips isSignedIn true IN-SPA the instant credentials are accepted, *before*
+  // the form's full-page assign(authedUrl) reload — if we completed then, we
   // would consume the transaction (pending→authenticated) and the reload's
   // context fetch would 404 ("nothing to sign in to here"). Gating on ?authed=1
   // means completion runs once, on the reloaded page, against a still-pending

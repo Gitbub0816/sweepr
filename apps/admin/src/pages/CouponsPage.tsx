@@ -18,7 +18,6 @@ import { useCallback, useEffect, useState } from "react";
 import { Card, Button, Input, Modal, toast } from "@sweepr/ui";
 import { TicketPercent, Plus, Play } from "lucide-react";
 import { useAuthedFetch } from "../lib/alerts";
-import { DollarInput } from "../components/DollarInput";
 
 /** Human labels for milestone rule kinds (no raw snake_case in the UI). */
 const MILESTONE_KIND_LABEL: Record<string, string> = {
@@ -71,11 +70,12 @@ function describe(cp: Coupon): string {
   return `Free ${cp.addon_key ?? "add-on"}`;
 }
 
-export function CouponsPage() {
+export function CouponsPage({ embedded = false }: { embedded?: boolean }) {
   const authed = useAuthedFetch();
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [rules, setRules] = useState<MilestoneRule[]>([]);
   const [q, setQ] = useState("");
+  const [confirmEvaluate, setConfirmEvaluate] = useState(false);
 
   // Grant form
   const [gEmail, setGEmail] = useState("");
@@ -115,7 +115,7 @@ export function CouponsPage() {
         email: gEmail.trim(),
         template: {
           kind: gKind,
-          value: gKind === "free_addon" ? 0 : Number(gValue),
+          value: gKind === "free_addon" ? 0 : gKind === "amount_off" ? Math.round((parseFloat(gValue) || 0) * 100) : Number(gValue),
           addonKey: gKind === "free_addon" ? gAddon : undefined,
           theme: gTheme || undefined,
           validDays: Math.min(Number(gDays) || 180, 180),
@@ -144,7 +144,7 @@ export function CouponsPage() {
         label: mLabel.trim(),
         kind: mKind,
         threshold: Number(mThreshold) || 1,
-        coupon: { kind: mCKind, value: mCKind === "free_addon" ? 0 : Number(mCValue), addonKey: mCKind === "free_addon" ? gAddon : undefined },
+        coupon: { kind: mCKind, value: mCKind === "free_addon" ? 0 : mCKind === "amount_off" ? Math.round((parseFloat(mCValue) || 0) * 100) : Number(mCValue), addonKey: mCKind === "free_addon" ? gAddon : undefined },
       }),
     });
     if (res.ok) { toast.success("Milestone added"); setMKey(""); setMLabel(""); await load(); }
@@ -190,15 +190,23 @@ export function CouponsPage() {
           <label className="text-xs">Type
             <select value={gKind} onChange={(e) => setGKind(e.target.value as typeof gKind)}
               className="mt-1 w-full rounded-md border border-slate-200 bg-transparent px-2 py-1.5 text-sm dark:border-slate-700">
-              <option value="percent_off">% off</option><option value="amount_off">$ off (cents)</option><option value="free_addon">Free add-on</option>
+              <option value="percent_off">% off</option><option value="amount_off">$ off</option><option value="free_addon">Free add-on</option>
             </select>
           </label>
           {gKind === "free_addon" ? (
             <label className="text-xs">Add-on key
               <Input value={gAddon} onChange={(e) => setGAddon(e.target.value)} placeholder="inside_fridge" className="mt-1" />
             </label>
+          ) : gKind === "amount_off" ? (
+            <label className="text-xs">Amount off
+              <div className="relative mt-1">
+                <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-slate-400">$</span>
+                <input type="text" inputMode="decimal" value={gValue} onChange={(e) => setGValue(e.target.value)}
+                  className="w-full rounded-md border border-slate-200 bg-transparent py-1.5 pl-6 pr-2 text-sm dark:border-slate-700 dark:text-white" />
+              </div>
+            </label>
           ) : (
-            <label className="text-xs">Value
+            <label className="text-xs">Percent off
               <Input type="number" value={gValue} onChange={(e) => setGValue(e.target.value)} className="mt-1" />
             </label>
           )}
