@@ -40,6 +40,12 @@ export function BackgroundCheckStep({ n, getToken, onComplete, trainingComplete 
   const [lastName, setLastName] = useState("");
   const [phase, setPhase] = useState<Phase>({ kind: "intro" });
   const [ackOpen, setAckOpen] = useState(false);
+  // The Yardstik-hosted page takes ~3-5s to render inside the iframe (it boots
+  // LaunchDarkly/Datadog and starts a candidate session before it paints). Hold
+  // our own loader over the frame until its onLoad fires so the cleaner never
+  // stares at a blank box.
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const email = user?.primaryEmailAddress?.emailAddress ?? "";
 
   /** Gate: the Adjudication Policy must be acknowledged before the check starts. */
@@ -103,6 +109,9 @@ export function BackgroundCheckStep({ n, getToken, onComplete, trainingComplete 
     }
   }
 
+  // Background poll fired on iframe onLoad — only advance if the report has
+  // genuinely moved past the invited state (don't yank the frame out from under
+  // a cleaner mid-form).
   async function pollStatus() {
     try {
       const token = await getToken();
@@ -111,6 +120,27 @@ export function BackgroundCheckStep({ n, getToken, onComplete, trainingComplete 
       const data = (await res.json()) as { status: ReportStatus };
       if (data.status !== "not_started" && data.status !== "invited") setPhase({ kind: "waiting", status: data.status });
     } catch { /* no-op */ }
+  }
+
+  // "I've completed the form" — the cleaner is telling us they're done. The
+  // Yardstik webhook that flips our status lags (A2P/adjudication), so a silent
+  // poll would leave the button looking dead. Always move forward: fetch the
+  // freshest status if we can, otherwise show the pending/submitted screen.
+  async function confirmCompleted() {
+    setCompleting(true);
+    let status: ReportStatus = "pending";
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_URL}/yardstik/status`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (res.ok) {
+        const data = (await res.json()) as { status: ReportStatus };
+        // Anything already reported by Yardstik wins; while still "invited"/
+        // "not_started" we optimistically show the pending screen.
+        if (data.status !== "not_started" && data.status !== "invited") status = data.status;
+      }
+    } catch { /* fall back to pending */ }
+    setCompleting(false);
+    setPhase({ kind: "waiting", status });
   }
 
   if (phase.kind === "intro") {
@@ -146,11 +176,24 @@ export function BackgroundCheckStep({ n, getToken, onComplete, trainingComplete 
       <div className="space-y-3">
         <StepHeader n={n} />
         <p className="text-sm text-slate-500">Complete the Yardstik form below.</p>
-        <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-          <iframe src={phase.invitationUrl} title="Background check, powered by Yardstik" className="h-[640px] w-full" allow="camera; microphone" sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-top-navigation-by-user-activation" onLoad={pollStatus} />
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+          {!iframeLoaded && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-white dark:bg-slate-900">
+              <SweeprLoader label="Connecting to Yardstik…" />
+              <p className="text-xs text-slate-500">This can take a few seconds.</p>
+            </div>
+          )}
+          <iframe
+            src={phase.invitationUrl}
+            title="Background check, powered by Yardstik"
+            className="h-[640px] w-full"
+            allow="camera; microphone"
+            sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-top-navigation-by-user-activation"
+            onLoad={() => { setIframeLoaded(true); void pollStatus(); }}
+          />
         </div>
         <p className="text-center text-xs text-slate-600">Secured by <a href="https://yardstik.com" target="_blank" rel="noopener noreferrer" className="underline">Yardstik</a>. Results are typically available within 1–3 business days.</p>
-        <div className="flex gap-3"><a href={phase.invitationUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-seafoam-700 underline underline-offset-2 hover:text-seafoam-700"><ExternalLink className="h-4 w-4" />Open in new tab</a><Button variant="secondary" onClick={pollStatus} className="ml-auto">I've completed the form</Button></div>
+        <div className="flex gap-3"><a href={phase.invitationUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-seafoam-700 underline underline-offset-2 hover:text-seafoam-700"><ExternalLink className="h-4 w-4" />Open in new tab</a><Button variant="secondary" onClick={confirmCompleted} loading={completing} className="ml-auto">I've completed the form</Button></div>
       </div>
     );
   }
