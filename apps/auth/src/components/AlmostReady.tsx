@@ -15,9 +15,12 @@ import { SweeprLogo, ThemeToggle } from "@sweepr/ui";
  * (missing Clerk publishable key at build time). */
 export function AlmostReady() {
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-slate-100 via-offwhite to-seafoam-50 px-4 py-12 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-offwhite px-4 py-12 dark:bg-charcoal">
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute left-1/2 top-[-15%] h-[60vh] w-[90vw] max-w-[720px] -translate-x-1/2 rounded-full bg-seafoam-400/10 blur-[110px] dark:bg-seafoam-500/[0.06]" />
+      </div>
       <div className="absolute right-4 top-4"><ThemeToggle /></div>
-      <div className="flex flex-col items-center text-center">
+      <div className="relative flex flex-col items-center text-center">
         <SweeprLogo size="lg" />
         <div className="mt-8 flex items-center gap-2 rounded-full border border-seafoam-200 bg-white px-4 py-1.5 text-sm font-medium text-seafoam-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-seafoam-400">
           <Sparkles className="h-4 w-4" />

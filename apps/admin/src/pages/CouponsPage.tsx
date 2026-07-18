@@ -15,9 +15,19 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { Card, Button, Input, toast } from "@sweepr/ui";
+import { Card, Button, Input, Modal, toast } from "@sweepr/ui";
 import { TicketPercent, Plus, Play } from "lucide-react";
 import { useAuthedFetch } from "../lib/alerts";
+import { DollarInput } from "../components/DollarInput";
+
+/** Human labels for milestone rule kinds (no raw snake_case in the UI). */
+const MILESTONE_KIND_LABEL: Record<string, string> = {
+  nth_customer: "Nth customer",
+  nth_cleaner: "Nth approved cleaner",
+  nth_completed_booking: "Nth completed clean",
+  cleaner_anniversary_years: "Cleaner anniversary (years)",
+  customer_anniversary_years: "Customer anniversary (years)",
+};
 
 interface Coupon {
   id: string;

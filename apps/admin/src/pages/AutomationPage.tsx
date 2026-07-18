@@ -87,10 +87,10 @@ function StatCard({
   color?: "slate" | "amber" | "red" | "green" | "blue";
   onRun?: () => void; running?: boolean;
 }) {
-  const bg = { slate: "bg-white", amber: "bg-amber-50", red: "bg-red-50", green: "bg-emerald-50", blue: "bg-blue-50" }[color];
-  const tc = { slate: "text-charcoal", amber: "text-amber-700", red: "text-red-700", green: "text-emerald-700", blue: "text-blue-700" }[color];
+  const bg = { slate: "bg-white dark:bg-slate-900", amber: "bg-amber-50 dark:bg-amber-900/20", red: "bg-red-50 dark:bg-red-900/20", green: "bg-emerald-50 dark:bg-emerald-900/20", blue: "bg-blue-50 dark:bg-blue-900/20" }[color];
+  const tc = { slate: "text-charcoal dark:text-white", amber: "text-amber-700 dark:text-amber-300", red: "text-red-700 dark:text-red-300", green: "text-emerald-700 dark:text-emerald-300", blue: "text-blue-700 dark:text-blue-300" }[color];
   return (
-    <div className={`rounded-xl border border-slate-200 p-4 ${bg}`}>
+    <div className={`rounded-xl border border-slate-200 p-4 dark:border-slate-800 ${bg}`}>
       <div className="flex items-center justify-between mb-2">
         <Icon className={`h-4 w-4 ${tc}`} />
         {onRun && (
@@ -177,14 +177,31 @@ export function AutomationPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-charcoal">Automation Engine</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Assignment, payment capture, payouts, and ops automations.</p>
+          <h1 className="text-xl font-bold text-charcoal dark:text-white">Automation Engine</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Assignment, payment capture, payouts, ops automations, and the schedule.</p>
         </div>
-        <button onClick={load} disabled={loading} className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-600 disabled:opacity-50">
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
-        </button>
+        {tab === "engine" && (
+          <button onClick={load} disabled={loading} className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-600 disabled:opacity-50">
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </button>
+        )}
       </div>
 
+      <div className="flex gap-1 border-b border-slate-200 dark:border-slate-800">
+        {([["engine", "Engine"], ["schedule", "Schedule"]] as ["engine" | "schedule", string][]).map(([key, label]) => (
+          <button key={key} onClick={() => setTab(key)}
+            className={`border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+              tab === key
+                ? "border-seafoam-600 text-seafoam-700 dark:text-seafoam-400"
+                : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "schedule" ? <SchedulePage embedded /> : (
+      <>
       <AssignmentConfigCard />
 
 
@@ -315,11 +332,35 @@ export function AutomationPage() {
       </div>
 
       {/* Cron info */}
-      <div className="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-xs text-slate-500">
-        <p className="font-medium text-slate-600 mb-1">Cloudflare Cron Triggers</p>
+      <div className="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-xs text-slate-500 dark:bg-slate-900 dark:border-slate-800">
+        <p className="font-medium text-slate-600 dark:text-slate-300 mb-1">Cloudflare Cron Triggers</p>
         <p>The automation engine runs every 15 minutes via Cloudflare Cron Triggers. It processes expired assignment offers and captures completed payments automatically. The buttons above let you trigger any job on-demand.</p>
         <p className="mt-1">To run payouts: click <strong>Run</strong> on Pending Payouts, or automate weekly via a cron at <code>0 9 * * 1</code> (Monday 9am).</p>
       </div>
+      </>
+      )}
+
+      <Modal
+        open={!!confirmJob}
+        onOpenChange={(o) => !o && setConfirmJob(null)}
+        title={confirmJob ? CONFIRM_JOBS[confirmJob.endpoint]?.title : undefined}
+        description={confirmJob ? CONFIRM_JOBS[confirmJob.endpoint]?.body : undefined}
+        footer={
+          <>
+            <UIButton variant="ghost" onClick={() => setConfirmJob(null)}>Cancel</UIButton>
+            <UIButton
+              onClick={() => {
+                if (!confirmJob) return;
+                const job = confirmJob;
+                setConfirmJob(null);
+                void runJob(job.endpoint, job.label);
+              }}
+            >
+              {confirmJob ? CONFIRM_JOBS[confirmJob.endpoint]?.confirmLabel : "Run"}
+            </UIButton>
+          </>
+        }
+      />
     </div>
   );
 }
