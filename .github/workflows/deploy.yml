@@ -541,8 +541,11 @@ jobs:
         run: |
           set -e
           put() { printf '%s' "$2" | pnpm exec wrangler pages secret put "$1" --project-name="$3"; }
+          # sweepr-dash serves the SAME cleaner app on dashboard.getsweepr.com,
+          # so it needs the identical BFF config (BROKER_KEY_CLEANER etc.).
           for row in "customer:sweepr-customer:$BROKER_KEY_CUSTOMER" \
                      "cleaner:sweepr-cleaner:$BROKER_KEY_CLEANER" \
+                     "cleaner:sweepr-dash:$BROKER_KEY_CLEANER" \
                      "business:sweepr-business:$BROKER_KEY_BUSINESS"; do
             app="${row%%:*}"; rest="${row#*:}"; project="${rest%%:*}"; key="${rest#*:}"
             if [ -z "$key" ]; then echo "::warning::no BROKER_KEY for $app; skipping"; continue; fi
