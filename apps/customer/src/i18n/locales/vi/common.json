@@ -209,7 +209,9 @@
       "subscription": "Gói đăng ký {{cadence}}",
       "subscriptionPrice": "{{price}} / lần dọn, tiết kiệm {{savings}} mỗi lần",
       "subtitle": "Mọi mức giá đều đã bao gồm tất cả. Không phát sinh phí bất ngờ.",
-      "total": "Tổng cộng"
+      "total": "Tổng cộng",
+      "useDifferentBilling": "Dùng địa chỉ thanh toán khác",
+      "sameAsService": "Giống địa chỉ dịch vụ của bạn"
     },
     "package": {
       "title": "Choose your cleaning package",

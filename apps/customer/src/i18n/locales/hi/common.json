@@ -209,7 +209,9 @@
       "subscription": "{{cadence}} सब्सक्रिप्शन",
       "subscriptionPrice": "{{price}} प्रति सफाई, हर बार {{savings}} की बचत",
       "subtitle": "सभी कीमतें सब कुछ शामिल हैं। कोई छिपा हुआ शुल्क नहीं।",
-      "total": "कुल"
+      "total": "कुल",
+      "useDifferentBilling": "एक अलग बिलिंग पता उपयोग करें",
+      "sameAsService": "आपके सेवा पते के समान"
     },
     "package": {
       "title": "Choose your cleaning package",

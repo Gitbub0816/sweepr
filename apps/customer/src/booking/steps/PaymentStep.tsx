@@ -10,7 +10,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Lock, ShieldCheck, RefreshCw, Tag, Sparkles } from "lucide-react";
+import { Lock, ShieldCheck, RefreshCw, Tag, Sparkles, MapPin, Pencil } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { loadStripe } from "@stripe/stripe-js";
 import {
@@ -160,8 +160,27 @@ function CheckoutForm({ total }: { total: number }) {
   const elements = useElements();
   const navigate = useNavigate();
   const confirmPayment = useBookingStore((s) => s.confirmPayment);
+  const address = useBookingStore((s) => s.address);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Default billing to the address already collected for the clean — most
+  // customers bill the card they pay with to the same address. Only show the
+  // full AddressElement if they say it's different, so checkout is one field
+  // shorter for the common case.
+  const [differentBilling, setDifferentBilling] = useState(false);
+
+  const defaultBillingAddress = address
+    ? {
+        name: address.label ?? undefined,
+        address: {
+          line1: address.line1,
+          city: address.city,
+          state: address.state,
+          postal_code: address.zip,
+          country: "US",
+        },
+      }
+    : undefined;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,10 +193,26 @@ function CheckoutForm({ total }: { total: number }) {
     }
 
     try {
+      // When billing reuses the service address, no AddressElement is mounted
+      // to supply it — pass it explicitly so Stripe still gets a billing
+      // address for AVS/fraud checks.
+      const billingDetails =
+        address && !differentBilling
+          ? {
+              address: {
+                line1: address.line1,
+                city: address.city,
+                state: address.state,
+                postal_code: address.zip,
+                country: "US",
+              },
+            }
+          : undefined;
       const { error: confirmError } = await stripe.confirmPayment({
         elements,
         confirmParams: {
           return_url: `${window.location.origin}/book/confirmed`,
+          ...(billingDetails ? { payment_method_data: { billing_details: billingDetails } } : {}),
         },
         redirect: "if_required",
       });
@@ -199,7 +234,9 @@ function CheckoutForm({ total }: { total: number }) {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
-      {/* Card / wallet tabs */}
+      {/* Card / wallet tabs — Link included, so a returning Stripe customer
+          (here or on any other Link merchant) can pay without re-entering a
+          card at all. */}
       <div>
         <PaymentElement
           options={{
@@ -209,18 +246,45 @@ function CheckoutForm({ total }: { total: number }) {
         />
       </div>
 
-      {/* Billing address, separate so it gets our label styling via Stripe rules */}
+      {/* Billing address: default to the address already collected for the
+          clean; only surface the full picker when it's genuinely different. */}
       <div>
-        <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-400">
-          {t("booking.payment.billingAddress")}
-        </p>
-        <AddressElement
-          options={{
-            mode: "billing",
-            fields: { phone: "never" },
-            display: { name: "split" },
-          }}
-        />
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+            {t("booking.payment.billingAddress")}
+          </p>
+          {address && !differentBilling && (
+            <button
+              type="button"
+              onClick={() => setDifferentBilling(true)}
+              className="flex items-center gap-1 text-xs font-medium text-seafoam-700 hover:underline dark:text-seafoam-400"
+            >
+              <Pencil className="h-3 w-3" />
+              {t("booking.payment.useDifferentBilling")}
+            </button>
+          )}
+        </div>
+
+        {address && !differentBilling ? (
+          <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm dark:border-slate-700 dark:bg-slate-900">
+            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-seafoam-500" />
+            <div className="flex-1 text-slate-700 dark:text-slate-300">
+              {[address.line1, address.city, address.state, address.zip].filter(Boolean).join(", ")}
+              <p className="mt-0.5 text-xs text-slate-500">
+                {t("booking.payment.sameAsService")}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <AddressElement
+            options={{
+              mode: "billing",
+              fields: { phone: "never" },
+              display: { name: "split" },
+              defaultValues: differentBilling ? undefined : defaultBillingAddress,
+            }}
+          />
+        )}
       </div>
 
       {error && (

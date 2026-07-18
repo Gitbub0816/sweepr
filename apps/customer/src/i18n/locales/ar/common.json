@@ -209,7 +209,9 @@
       "subscription": "اشتراك {{cadence}}",
       "subscriptionPrice": "{{price}} لكل تنظيف, وفّر {{savings}} في كل مرة",
       "subtitle": "جميع الأسعار شاملة. بدون رسوم مفاجئة.",
-      "total": "الإجمالي"
+      "total": "الإجمالي",
+      "useDifferentBilling": "استخدام عنوان فواتير مختلف",
+      "sameAsService": "نفس عنوان الخدمة الخاص بك"
     },
     "package": {
       "title": "Choose your cleaning package",

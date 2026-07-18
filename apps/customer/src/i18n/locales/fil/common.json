@@ -209,7 +209,9 @@
       "cardNotCharged": "Hindi macha-charge ang card mo hangga't hindi kinukumpirma ng cleaner ang booking. Libreng mag-cancel hanggang 24 oras bago ang appointment.",
       "subscription": "{{cadence}} na subscription",
       "subscriptionPrice": "{{price}} / cleaning, tipid ng {{savings}} kada beses",
-      "recurringCadence": "Paulit-ulit kada {{cadence}}"
+      "recurringCadence": "Paulit-ulit kada {{cadence}}",
+      "useDifferentBilling": "Gumamit ng ibang billing address",
+      "sameAsService": "Kapareho ng address ng serbisyo mo"
     },
     "package": {
       "title": "Choose your cleaning package",

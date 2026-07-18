@@ -209,7 +209,9 @@
       "subscription": "{{cadence}}訂閱",
       "subscriptionPrice": "每次清潔 {{price}}, 每次節省 {{savings}}",
       "subtitle": "所有價格均為全包價，無隱藏費用。",
-      "total": "總計"
+      "total": "總計",
+      "useDifferentBilling": "使用不同的帳單地址",
+      "sameAsService": "與您的服務地址相同"
     },
     "package": {
       "title": "Choose your cleaning package",

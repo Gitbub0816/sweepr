@@ -209,7 +209,9 @@
       "cardNotCharged": "When you book, we place a temporary hold on your card to secure your appointment. It can show up as a pending charge, but the payment itself only goes through after your cleaning is done. Cancel free up to 24 hours before your appointment and the hold is released.",
       "subscription": "{{cadence}} subscription",
       "subscriptionPrice": "{{price}} / cleaning, save {{savings}} each time",
-      "recurringCadence": "Recurring {{cadence}}"
+      "recurringCadence": "Recurring {{cadence}}",
+      "useDifferentBilling": "Use a different billing address",
+      "sameAsService": "Same as your service address"
     },
     "package": {
       "title": "Choose your cleaning package",

@@ -9,207 +9,199 @@
  */
 
 /**
- * Sweepr-branded Stripe Elements appearance.
+ * Sweepr-native Stripe Elements appearance.
  *
- * Matches the Tailwind design tokens exactly:
- *  - Font: Inter (same as app)
- *  - Brand color: seafoam (#14b8a6 / #2dd4bf)
- *  - Light background: #f8fafb (offwhite)
- *  - Dark background: #1a1a2e (charcoal)
- *  - Border radius: 12px (rounded-xl)
+ * Card fields are always Stripe-hosted iframes — that boundary is PCI
+ * compliance (SAQ A), not a styling choice, so it can't be removed. What we
+ * DO control is every pixel around and inside that iframe. `theme: "flat"` (not
+ * Stripe's default "stripe" theme) strips Stripe's own shadow/spacing
+ * signature entirely, so these rules are the only visual language left —
+ * copied 1:1 from packages/ui/src/primitives/Input.tsx and Button.tsx rather
+ * than approximated, so a card field is indistinguishable from every other
+ * field in the app.
  */
 
 import type { Appearance } from "@stripe/stripe-js";
 
 const BASE = {
   fontFamily: '"Inter", ui-sans-serif, system-ui, sans-serif',
-  fontSizeBase: "14px",
-  borderRadius: "12px",
+  fontSizeBase: "16px", // matches Input.tsx — also keeps iOS from auto-zooming into the field
+  fontWeightNormal: "400",
+  fontWeightMedium: "500",
+  borderRadius: "12px", // rounded-xl
   spacingUnit: "4px",
 };
 
 export const stripeAppearanceLight: Appearance = {
-  theme: "stripe",
+  theme: "flat",
   variables: {
     ...BASE,
-    colorPrimary: "#14b8a6",         // seafoam-500
+    colorPrimary: "#0f766e",        // seafoam-700 — Button primary
     colorBackground: "#ffffff",
-    colorText: "#1a1a2e",            // charcoal
-    colorTextSecondary: "#64748b",   // slate-500
-    colorDanger: "#ef4444",
-    colorSuccess: "#14b8a6",
+    colorText: "#1c1a17",           // charcoal
+    colorTextSecondary: "#64748b",  // slate-500
+    colorTextPlaceholder: "#94a3b8", // slate-400
+    colorDanger: "#dc2626",
+    colorSuccess: "#0f766e",
     colorWarning: "#f59e0b",
-    focusBoxShadow: "0 0 0 3px rgba(20,184,166,0.2)",
-    focusOutline: "2px solid #14b8a6",
-    tabIconSelectedColor: "#14b8a6",
+    focusBoxShadow: "none",
+    focusOutline: "none",
+    tabIconSelectedColor: "#0f766e",
     gridColumnSpacing: "16px",
     gridRowSpacing: "14px",
   },
   rules: {
+    // 1:1 with Input.tsx's own classes (border-slate-300, focus:border-seafoam-500, focus:ring-2 ring-seafoam-400/20).
     ".Input": {
-      border: "1.5px solid #e2e8f0",
-      backgroundColor: "#f8fafb",
+      border: "1px solid #e2e8f0",
+      backgroundColor: "#ffffff",
       boxShadow: "none",
       transition: "border-color 0.15s, box-shadow 0.15s",
       padding: "10px 14px",
-      fontSize: "14px",
-      color: "#1a1a2e",
+      fontSize: "16px",
+      color: "#1c1a17",
     },
     ".Input:focus": {
-      border: "1.5px solid #14b8a6",
-      boxShadow: "0 0 0 3px rgba(20,184,166,0.15)",
-      backgroundColor: "#ffffff",
+      border: "1px solid #14b8a6", // seafoam-500
+      boxShadow: "0 0 0 2px rgba(45,212,191,0.2)", // ring-seafoam-400/20
     },
     ".Input--invalid": {
-      border: "1.5px solid #ef4444",
-      boxShadow: "0 0 0 3px rgba(239,68,68,0.12)",
+      border: "1px solid #dc2626",
+      boxShadow: "none",
     },
     ".Input::placeholder": {
       color: "#94a3b8",
     },
     ".Label": {
-      fontSize: "13px",
+      fontSize: "14px",
       fontWeight: "500",
-      color: "#475569",
+      color: "#334155",
       marginBottom: "6px",
     },
     ".Error": {
-      fontSize: "12px",
-      color: "#ef4444",
+      fontSize: "13px",
+      color: "#dc2626",
       marginTop: "4px",
     },
+    // Payment-method tabs read as our own segmented control, not Stripe's.
     ".Tab": {
-      border: "1.5px solid #e2e8f0",
-      backgroundColor: "#f8fafb",
+      border: "1px solid #cbd5e1",
+      backgroundColor: "#ffffff",
       boxShadow: "none",
       color: "#64748b",
       padding: "10px 16px",
+      transition: "border-color 0.15s, background-color 0.15s, color 0.15s",
     },
     ".Tab:hover": {
-      color: "#14b8a6",
-      border: "1.5px solid #14b8a6",
-      backgroundColor: "#f0fdfa",
+      color: "#0f766e",
+      border: "1px solid #14b8a6",
+      backgroundColor: "#f0fdfa", // seafoam-50
     },
     ".Tab--selected": {
-      border: "1.5px solid #14b8a6",
+      border: "1px solid #0f766e",
       backgroundColor: "#f0fdfa",
-      color: "#0d9488",
-      boxShadow: "0 0 0 3px rgba(20,184,166,0.12)",
+      color: "#0f766e",
+      boxShadow: "none",
     },
-    ".Tab--selected:focus": {
-      boxShadow: "0 0 0 3px rgba(20,184,166,0.2)",
-    },
-    ".TabIcon": {
-      fill: "#94a3b8",
-    },
-    ".TabIcon--selected": {
-      fill: "#14b8a6",
-    },
-    ".TabLabel--selected": {
-      color: "#0d9488",
-      fontWeight: "600",
-    },
+    ".TabIcon": { fill: "#94a3b8" },
+    ".TabIcon--selected": { fill: "#0f766e" },
+    ".TabLabel--selected": { color: "#0f766e", fontWeight: "600" },
     ".Block": {
       borderRadius: "12px",
-      border: "1.5px solid #e2e8f0",
-      backgroundColor: "#f8fafb",
+      border: "1px solid #cbd5e1",
+      backgroundColor: "#ffffff",
+      boxShadow: "none",
     },
     ".CheckboxInput": {
-      border: "1.5px solid #e2e8f0",
+      border: "1px solid #cbd5e1",
       borderRadius: "4px",
     },
     ".CheckboxInput--checked": {
-      backgroundColor: "#14b8a6",
-      border: "1.5px solid #14b8a6",
+      backgroundColor: "#0f766e",
+      border: "1px solid #0f766e",
     },
+    // Stripe's own "Powered by Link" / brand chrome — keep it minimal, not absent
+    // (removing it entirely isn't permitted by Stripe's terms), but flatten it.
+    ".Link": { fontWeight: "500" },
   },
 };
 
 export const stripeAppearanceDark: Appearance = {
-  theme: "night",
+  theme: "flat",
   variables: {
     ...BASE,
-    colorPrimary: "#2dd4bf",         // seafoam-400 (brighter for dark)
-    colorBackground: "#0f172a",      // slate-900
-    colorText: "#f1f5f9",            // slate-100
-    colorTextSecondary: "#94a3b8",   // slate-400
+    colorPrimary: "#2dd4bf",        // seafoam-400 — brighter for dark
+    colorBackground: "#020617",     // matches dark:bg-slate-950 inputs use
+    colorText: "#ffffff",
+    colorTextSecondary: "#94a3b8",  // slate-400
+    colorTextPlaceholder: "#64748b",
     colorDanger: "#f87171",
     colorSuccess: "#2dd4bf",
     colorWarning: "#fbbf24",
-    focusBoxShadow: "0 0 0 3px rgba(45,212,191,0.2)",
-    focusOutline: "2px solid #2dd4bf",
+    focusBoxShadow: "none",
+    focusOutline: "none",
     gridColumnSpacing: "16px",
     gridRowSpacing: "14px",
   },
   rules: {
     ".Input": {
-      border: "1.5px solid #334155",
-      backgroundColor: "#1e293b",
+      border: "1px solid #334155", // slate-700
+      backgroundColor: "#020617",  // slate-950
       boxShadow: "none",
       transition: "border-color 0.15s, box-shadow 0.15s",
       padding: "10px 14px",
-      fontSize: "14px",
-      color: "#f1f5f9",
+      fontSize: "16px",
+      color: "#ffffff",
     },
     ".Input:focus": {
-      border: "1.5px solid #2dd4bf",
-      boxShadow: "0 0 0 3px rgba(45,212,191,0.15)",
-      backgroundColor: "#1e293b",
+      border: "1px solid #2dd4bf",
+      boxShadow: "0 0 0 2px rgba(45,212,191,0.2)",
     },
     ".Input--invalid": {
-      border: "1.5px solid #f87171",
-      boxShadow: "0 0 0 3px rgba(248,113,113,0.12)",
+      border: "1px solid #f87171",
+      boxShadow: "none",
     },
-    ".Input::placeholder": {
-      color: "#64748b",
-    },
-    ".Label": {
-      fontSize: "13px",
-      fontWeight: "500",
-      color: "#94a3b8",
-      marginBottom: "6px",
-    },
-    ".Error": {
-      fontSize: "12px",
-      color: "#f87171",
-      marginTop: "4px",
-    },
+    ".Input::placeholder": { color: "#64748b" },
+    ".Label": { fontSize: "14px", fontWeight: "500", color: "#94a3b8", marginBottom: "6px" },
+    ".Error": { fontSize: "13px", color: "#f87171", marginTop: "4px" },
     ".Tab": {
-      border: "1.5px solid #334155",
-      backgroundColor: "#1e293b",
+      border: "1px solid #334155",
+      backgroundColor: "#020617",
       boxShadow: "none",
       color: "#94a3b8",
       padding: "10px 16px",
+      transition: "border-color 0.15s, background-color 0.15s, color 0.15s",
     },
     ".Tab:hover": {
       color: "#2dd4bf",
-      border: "1.5px solid #2dd4bf",
-      backgroundColor: "#1a3a38",
+      border: "1px solid #2dd4bf",
+      backgroundColor: "#0f2e2b",
     },
     ".Tab--selected": {
-      border: "1.5px solid #2dd4bf",
-      backgroundColor: "#134e4a",
+      border: "1px solid #2dd4bf",
+      backgroundColor: "#0f2e2b",
       color: "#2dd4bf",
-      boxShadow: "0 0 0 3px rgba(45,212,191,0.12)",
+      boxShadow: "none",
     },
-    ".TabLabel--selected": {
-      color: "#2dd4bf",
-      fontWeight: "600",
-    },
+    ".TabIcon": { fill: "#64748b" },
+    ".TabIcon--selected": { fill: "#2dd4bf" },
+    ".TabLabel--selected": { color: "#2dd4bf", fontWeight: "600" },
     ".Block": {
       borderRadius: "12px",
-      border: "1.5px solid #334155",
-      backgroundColor: "#1e293b",
+      border: "1px solid #334155",
+      backgroundColor: "#020617",
+      boxShadow: "none",
     },
     ".CheckboxInput": {
-      border: "1.5px solid #334155",
+      border: "1px solid #334155",
       borderRadius: "4px",
-      backgroundColor: "#1e293b",
+      backgroundColor: "#020617",
     },
     ".CheckboxInput--checked": {
       backgroundColor: "#2dd4bf",
-      border: "1.5px solid #2dd4bf",
+      border: "1px solid #2dd4bf",
     },
+    ".Link": { fontWeight: "500" },
   },
 };
 

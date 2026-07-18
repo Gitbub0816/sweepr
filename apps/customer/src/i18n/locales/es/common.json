@@ -209,7 +209,9 @@
       "cardNotCharged": "No se cobrará a tu tarjeta hasta que un limpiador confirme tu limpieza. Cancela gratis hasta 24 horas antes de tu cita.",
       "subscription": "Suscripción {{cadence}}",
       "subscriptionPrice": "{{price}} / limpieza, ahorra {{savings}} cada vez",
-      "recurringCadence": "Recurrente {{cadence}}"
+      "recurringCadence": "Recurrente {{cadence}}",
+      "useDifferentBilling": "Usar una dirección de facturación diferente",
+      "sameAsService": "La misma que tu dirección de servicio"
     },
     "package": {
       "title": "Choose your cleaning package",

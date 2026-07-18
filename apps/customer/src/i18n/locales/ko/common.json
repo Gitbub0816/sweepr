@@ -209,7 +209,9 @@
       "subscription": "{{cadence}} 구독",
       "subscriptionPrice": "청소 1회당 {{price}}, 매번 {{savings}} 절약",
       "subtitle": "모든 가격은 추가 비용 없이 전부 포함되어 있습니다.",
-      "total": "합계"
+      "total": "합계",
+      "useDifferentBilling": "다른 청구 주소 사용",
+      "sameAsService": "서비스 주소와 동일"
     },
     "package": {
       "title": "Choose your cleaning package",

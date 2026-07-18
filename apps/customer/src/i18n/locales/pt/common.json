@@ -209,7 +209,9 @@
       "cardNotCharged": "Seu cartão só será cobrado quando sua limpeza for confirmada por um profissional. Cancele gratuitamente até 24 horas antes do horário marcado.",
       "subscription": "Assinatura {{cadence}}",
       "subscriptionPrice": "{{price}} / limpeza, economize {{savings}} a cada vez",
-      "recurringCadence": "Recorrente {{cadence}}"
+      "recurringCadence": "Recorrente {{cadence}}",
+      "useDifferentBilling": "Usar um endereço de cobrança diferente",
+      "sameAsService": "Igual ao seu endereço de serviço"
     },
     "package": {
       "title": "Choose your cleaning package",
