@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@sweepr/types": "workspace:*",
     "@sweepr/ui": "workspace:*",
+    "@sweepr/utils": "workspace:*",
     "lucide-react": "^0.469.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
