@@ -850,8 +850,13 @@ async fn authorize(
     match app_id {
         AppId::Customer | AppId::Business => Ok(user.map(|u| u.get::<Uuid, _>("id"))),
         AppId::Cleaner => {
+            // Self-registration: anyone may sign in to the cleaner app and
+            // complete onboarding there — a cleaner profile is NOT required to
+            // enter. A brand-new account (no users row yet) is admitted; its
+            // row is created on first API touch. Only an explicitly disabled
+            // cleaner is refused.
             let Some(user) = user else {
-                return Err("no_cleaner_profile");
+                return Ok(None);
             };
             let uid: Uuid = user.get("id");
             let cleaner = sqlx::query("SELECT status FROM cleaners WHERE user_id = $1 LIMIT 1")
@@ -859,12 +864,11 @@ async fn authorize(
                 .fetch_optional(&state.pool)
                 .await
                 .map_err(|_| "db_unavailable")?;
-            let Some(cleaner) = cleaner else {
-                return Err("no_cleaner_profile");
-            };
-            let status: String = cleaner.try_get("status").unwrap_or_default();
-            if matches!(status.as_str(), "suspended" | "banned" | "deactivated") {
-                return Err("cleaner_not_eligible");
+            if let Some(cleaner) = cleaner {
+                let status: String = cleaner.try_get("status").unwrap_or_default();
+                if matches!(status.as_str(), "suspended" | "banned" | "deactivated") {
+                    return Err("cleaner_not_eligible");
+                }
             }
             Ok(Some(uid))
         }
