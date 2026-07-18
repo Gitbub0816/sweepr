@@ -520,9 +520,6 @@ importers:
       '@sweepr/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      framer-motion:
-        specifier: ^12.42.2
-        version: 12.42.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       lucide-react:
         specifier: ^0.441.0
         version: 0.441.0(react@18.3.1)
@@ -848,12 +845,6 @@ importers:
         specifier: ^2.0.7
         version: 2.0.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
     devDependencies:
-      '@react-three/drei':
-        specifier: ^9.122.0
-        version: 9.122.0(@react-three/fiber@8.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.185.1))(@types/react@18.3.31)(@types/three@0.184.1)(immer@11.1.11)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.185.1)(use-sync-external-store@1.6.0(react@18.3.1))
-      '@react-three/fiber':
-        specifier: ^8.18.0
-        version: 8.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.185.1)
       '@types/dompurify':
         specifier: ^3.2.0
         version: 3.2.0
@@ -863,9 +854,6 @@ importers:
       '@types/react-dom':
         specifier: ^18.3.5
         version: 18.3.7(@types/react@18.3.31)
-      '@types/three':
-        specifier: ^0.184.1
-        version: 0.184.1
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -875,9 +863,6 @@ importers:
       react-router-dom:
         specifier: ^6.28.0
         version: 6.30.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      three:
-        specifier: ^0.185.1
-        version: 0.185.1
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
