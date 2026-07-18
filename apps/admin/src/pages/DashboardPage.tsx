@@ -41,7 +41,7 @@ const SEAFOAM = ["#2DD4BF", "#14B8A6", "#0D9488", "#0F766E", "#134E4A", "#99F6E4
 
 const STATUS_COLOR: Record<string, string> = {
   matching: "bg-amber-100 text-amber-700",
-  confirmed: "bg-blue-100 text-blue-700",
+  confirmed: "bg-seafoam-100 text-seafoam-700",
   in_progress: "bg-seafoam-100 text-seafoam-700",
   completed: "bg-emerald-100 text-emerald-700",
   cancelled_by_customer: "bg-slate-100 text-slate-500",

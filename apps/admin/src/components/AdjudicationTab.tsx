@@ -64,6 +64,29 @@ const DECISION_BADGE: Record<string, "success" | "error" | "warning" | "info"> =
   hold: "info",
 };
 
+/** Human labels — no raw enum ever renders. */
+const STATUS_LABEL: Record<string, string> = {
+  needs_input: "Needs input",
+  executive_review: "Executive review",
+  hold: "On hold",
+  auto_decided: "Auto-decided",
+  decided: "Decided",
+};
+const DECISION_LABEL: Record<string, string> = {
+  auto_approve: "Auto-approve",
+  auto_deny: "Auto-deny",
+  executive_review: "Executive review",
+  hold: "Hold",
+};
+const OUTCOME_LABEL: Record<string, string> = {
+  approved: "Approved",
+  denied: "Denied",
+};
+const labelOf = (map: Record<string, string>, v: string) => map[v] ?? v.replace(/_/g, " ");
+
+/** FCRA-critical statuses awaiting a discretionary human decision. */
+const ESCALATED = new Set(["executive_review", "hold"]);
+
 export function AdjudicationTab() {
   const { getToken } = useAuth();
   const authed = useCallback(async (path: string, init?: RequestInit) => {
@@ -120,12 +143,21 @@ export function AdjudicationTab() {
       <div><span className="font-medium">{[r.first_name, r.last_name].filter(Boolean).join(" ") || ", "}</span>
         <span className="block text-xs text-slate-400">{r.email ?? ""}</span></div>
     ) },
-    { header: "Status", cell: (r: CaseRow) => <Badge variant={STATUS_BADGE[r.status] ?? "default"}>{r.status.replace(/_/g, " ")}</Badge> },
+    { header: "Status", cell: (r: CaseRow) => (
+      <div className="flex items-center gap-2">
+        <Badge variant={STATUS_BADGE[r.status] ?? "default"}>{labelOf(STATUS_LABEL, r.status)}</Badge>
+        {ESCALATED.has(r.status) && (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+            Needs decision
+          </span>
+        )}
+      </div>
+    ) },
     { header: "Engine decision", cell: (r: CaseRow) => r.decision
-      ? <Badge variant={DECISION_BADGE[r.decision] ?? "default"}>{r.decision.replace(/_/g, " ")}</Badge>
-      : <span className="text-xs text-slate-400">not evaluated</span> },
+      ? <Badge variant={DECISION_BADGE[r.decision] ?? "default"}>{labelOf(DECISION_LABEL, r.decision)}</Badge>
+      : <span className="text-xs text-slate-400">Not evaluated</span> },
     { header: "Outcome", cell: (r: CaseRow) => r.final_outcome
-      ? <Badge variant={r.final_outcome === "approved" ? "success" : "error"}>{r.final_outcome}</Badge>
+      ? <Badge variant={r.final_outcome === "approved" ? "success" : "error"}>{labelOf(OUTCOME_LABEL, r.final_outcome)}</Badge>
       : <span className="text-xs text-slate-400">, </span> },
     { header: "Opened", cell: (r: CaseRow) => <span className="text-xs text-slate-500">{new Date(r.created_at).toLocaleDateString()}</span> },
     { header: "", cell: (r: CaseRow) => <Button variant="secondary" onClick={() => setDetail(r)}>Open</Button> },
@@ -146,7 +178,7 @@ export function AdjudicationTab() {
 
       {loading ? <TableSkeleton cols={6} /> : rows.length === 0
         ? <EmptyState title="No adjudication cases" description="Open a case to evaluate an applicant's background check under the policy." />
-        : <DataTable columns={columns} rows={rows} />}
+        : <DataTable columns={columns} rows={[...rows].sort((a, b) => Number(ESCALATED.has(b.status)) - Number(ESCALATED.has(a.status)))} />}
 
       {creating && (
         <Modal open onOpenChange={(o) => !o && setCreating(false)} title="Open adjudication case">
@@ -198,7 +230,7 @@ function CaseModal({ row, onClose, authed, onChanged }: {
       });
       if (!res.ok) throw new Error();
       const d = (await res.json()) as { result: { decision: string } };
-      toast.success(`Engine decision: ${d.result.decision.replace(/_/g, " ")}`);
+      toast.success(`Engine decision: ${labelOf(DECISION_LABEL, d.result.decision)}`);
       await onChanged();
     } catch {
       toast.error("Evaluation failed.");
@@ -232,7 +264,7 @@ function CaseModal({ row, onClose, authed, onChanged }: {
           <Card className="space-y-1.5 p-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-charcoal dark:text-white">
               <Scale className="h-4 w-4 text-seafoam-600" /> Engine decision:{" "}
-              <Badge variant={DECISION_BADGE[row.decision] ?? "default"}>{row.decision.replace(/_/g, " ")}</Badge>
+              <Badge variant={DECISION_BADGE[row.decision] ?? "default"}>{labelOf(DECISION_LABEL, row.decision)}</Badge>
             </div>
             <ul className="list-disc pl-5 text-xs text-slate-500">
               {(row.reasons ?? []).map((r, i) => <li key={i}>{r}</li>)}

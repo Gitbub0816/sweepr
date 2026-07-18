@@ -101,21 +101,21 @@ interface Comment {
 interface Counts { open: number; past_due: number; resolved: number; closed: number; }
 
 const PRIORITY_COLOR: Record<string, string> = {
-  urgent: "bg-red-100 text-red-700",
-  high: "bg-orange-100 text-orange-700",
-  normal: "bg-slate-100 text-slate-600",
-  low: "bg-slate-100 text-slate-600",
+  urgent: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+  high: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+  normal: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
+  low: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
 };
 const STATUS_COLOR: Record<string, string> = {
-  open: "bg-blue-100 text-blue-700",
-  in_progress: "bg-amber-100 text-amber-700",
-  resolved: "bg-green-100 text-green-700",
-  closed: "bg-slate-100 text-slate-500",
+  open: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  in_progress: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  resolved: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+  closed: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
 };
 const SOURCE_COLOR: Record<string, string> = {
-  user_report: "bg-indigo-100 text-indigo-700",
-  error: "bg-red-100 text-red-700",
-  admin: "bg-amber-100 text-amber-700",
+  user_report: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
+  error: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+  admin: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
 };
 const TABS: { id: View; label: string; key: keyof Counts }[] = [
   { id: "open", label: "Open", key: "open" },

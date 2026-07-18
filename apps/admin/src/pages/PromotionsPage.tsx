@@ -18,8 +18,11 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, Button, Input, Textarea, toast, PromoWidget, type PromoView, type PromoCanvas } from "@sweepr/ui";
 import { PromoCanvasEditor } from "../components/PromoCanvasEditor";
+import { DollarInput } from "../components/DollarInput";
+import { CouponsPage } from "./CouponsPage";
 import { Megaphone, Plus, Copy, Trash2, Play, Pause, Archive, GripVertical } from "lucide-react";
 import { useAuthedFetch } from "../lib/alerts";
 
@@ -97,6 +100,44 @@ const BLOCK_TYPES: PromoBlock["type"][] = [
 ];
 
 export function PromotionsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get("tab") === "coupons" ? "coupons" : "promotions";
+  const setTab = (next: "promotions" | "coupons") => {
+    const params = new URLSearchParams(searchParams);
+    if (next === "promotions") params.delete("tab");
+    else params.set("tab", next);
+    setSearchParams(params, { replace: true });
+  };
+
+  return (
+    <div className="space-y-6">
+      <header className="flex items-center gap-3">
+        <Megaphone className="h-6 w-6 text-seafoam-600" />
+        <div>
+          <h1 className="text-2xl font-bold">Promotions</h1>
+          <p className="text-sm text-slate-500">Design promo widgets, publish shareable URLs, and manage the coupons they grant.</p>
+        </div>
+      </header>
+
+      <div className="flex gap-1 border-b border-slate-200 dark:border-slate-800">
+        {([["promotions", "Promotions"], ["coupons", "Coupons"]] as ["promotions" | "coupons", string][]).map(([key, label]) => (
+          <button key={key} onClick={() => setTab(key)}
+            className={`border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+              tab === key
+                ? "border-seafoam-600 text-seafoam-700 dark:text-seafoam-400"
+                : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "coupons" ? <CouponsPage embedded /> : <PromotionsDesigner />}
+    </div>
+  );
+}
+
+function PromotionsDesigner() {
   const authed = useAuthedFetch();
   const [list, setList] = useState<Promo[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -225,14 +266,6 @@ export function PromotionsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-center gap-3">
-        <Megaphone className="h-6 w-6 text-seafoam-600" />
-        <div>
-          <h1 className="text-2xl font-bold">Promotions</h1>
-          <p className="text-sm text-slate-500">Design promo widgets, publish a shareable URL, and grant Founding Member status.</p>
-        </div>
-      </header>
-
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
         {/* ── List + create ── */}
         <div className="space-y-3">
@@ -454,8 +487,12 @@ export function PromotionsPage() {
                         <label className="text-xs">Add-on key
                           <Input value={rc.addonKey ?? ""} placeholder="inside_fridge" onChange={(e) => patch({ addonKey: e.target.value })} className="mt-1" />
                         </label>
+                      ) : rc.kind === "amount_off" ? (
+                        <label className="text-xs">Amount off
+                          <DollarInput cents={rc.value ?? 0} onCents={(c) => patch({ value: c ?? 0 })} className="mt-1" ariaLabel="Amount off" />
+                        </label>
                       ) : (
-                        <label className="text-xs">{rc.kind === "percent_off" ? "Percent (1–100)" : "Amount (cents)"}
+                        <label className="text-xs">Percent (1–100)
                           <Input type="number" min={1} value={rc.value ?? 0} onChange={(e) => patch({ value: Number(e.target.value) })} className="mt-1" />
                         </label>
                       )}
@@ -472,8 +509,8 @@ export function PromotionsPage() {
                         <Input type="number" min={0} value={rc.offerMinutes ?? ""} placeholder="15 = expires 15 min after claiming"
                           onChange={(e) => patch({ offerMinutes: e.target.value ? Number(e.target.value) : undefined })} className="mt-1" />
                       </label>
-                      <label className="text-xs">Min booking total (cents, optional)
-                        <Input type="number" min={0} value={rc.minBookingTotalCents ?? ""} onChange={(e) => patch({ minBookingTotalCents: e.target.value ? Number(e.target.value) : undefined })} className="mt-1" />
+                      <label className="text-xs">Min booking total (optional)
+                        <DollarInput cents={rc.minBookingTotalCents ?? null} allowEmpty onCents={(c) => patch({ minBookingTotalCents: c ?? undefined })} className="mt-1" ariaLabel="Minimum booking total" />
                       </label>
                       <label className="flex items-center gap-2 text-xs">
                         <input type="checkbox" checked={rc.stackable ?? false} onChange={(e) => patch({ stackable: e.target.checked })} />

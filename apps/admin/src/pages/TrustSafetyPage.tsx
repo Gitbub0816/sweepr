@@ -313,13 +313,16 @@ function PrivilegesTab() {
 
 export function TrustSafetyPage() {
   const [tab, setTab] = useState<Tab>("customers");
+  // Bumping this remounts the active tab, re-running its own load() in place
+  // (no full-page reload, which dropped auth/scroll state).
+  const [refreshNonce, setRefreshNonce] = useState(0);
 
   return (
     <DashboardShell
       title="Trust & Safety"
       description="Customer account status, address greylist, cleaner privileges, and background-check adjudication."
       actions={
-        <button onClick={() => window.location.reload()} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50">
+        <button onClick={() => setRefreshNonce((n) => n + 1)} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
           <RefreshCw className="h-3.5 w-3.5" /> Refresh
         </button>
       }
@@ -345,10 +348,12 @@ export function TrustSafetyPage() {
         ))}
       </div>
 
-      {tab === "customers" && <CustomersTab />}
-      {tab === "greylist" && <GreylistTab />}
-      {tab === "privileges" && <PrivilegesTab />}
-      {tab === "adjudication" && <AdjudicationTab />}
+      <div key={refreshNonce}>
+        {tab === "customers" && <CustomersTab />}
+        {tab === "greylist" && <GreylistTab />}
+        {tab === "privileges" && <PrivilegesTab />}
+        {tab === "adjudication" && <AdjudicationTab />}
+      </div>
     </DashboardShell>
   );
 }

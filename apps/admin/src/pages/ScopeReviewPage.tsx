@@ -60,6 +60,25 @@ const STATUS_VARIANT: Record<string, "info" | "warning" | "success" | "error" | 
   cancelled: "default",
 };
 
+/** Human labels so no raw enum ("hard_denied", "pending_ai") renders. */
+const STATUS_LABEL: Record<string, string> = {
+  pending_ai: "Pending AI",
+  pending_admin: "Pending admin",
+  approved: "Approved",
+  denied: "Denied",
+  hard_denied: "Hard denied",
+  expired: "Expired",
+  cancelled: "Cancelled",
+};
+
+const AI_RECOMMENDATION_LABEL: Record<string, string> = {
+  strong_approve: "Strong approve",
+  approve: "Approve",
+  review: "Needs review",
+  deny: "Deny",
+  hard_deny: "Hard deny",
+};
+
 function ConfidenceBadge({ value }: { value: number | null }) {
   if (value == null) return <span className="text-slate-400">, </span>;
   const pct = value <= 1 ? value * 100 : value;
@@ -116,8 +135,10 @@ export function ScopeReviewPage() {
     { header: "Customer", cell: (r) => r.customerName ?? ", " },
     { header: "Cleaner", cell: (r) => r.cleanerName ?? ", " },
     { header: "AI confidence", cell: (r) => <ConfidenceBadge value={r.aiConfidence} /> },
-    { header: "AI recommendation", cell: (r) => r.aiRecommendation?.replace(/_/g, " ") ?? ", " },
-    { header: "Status", cell: (r) => <Badge variant={STATUS_VARIANT[r.status] ?? "default"}>{r.status.replace(/_/g, " ")}</Badge> },
+    { header: "AI recommendation", cell: (r) => r.aiRecommendation
+      ? (AI_RECOMMENDATION_LABEL[r.aiRecommendation] ?? r.aiRecommendation.replace(/_/g, " "))
+      : ", " },
+    { header: "Status", cell: (r) => <Badge variant={STATUS_VARIANT[r.status] ?? "default"}>{STATUS_LABEL[r.status] ?? r.status.replace(/_/g, " ")}</Badge> },
     { header: "Expires", cell: (r) => (r.expiresAt ? new Date(r.expiresAt).toLocaleString() : ", ") },
   ];
 

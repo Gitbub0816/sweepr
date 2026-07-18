@@ -72,10 +72,12 @@ interface Counts {
 }
 
 const LEVEL_COLOR: Record<string, string> = {
-  fatal: "bg-red-100 text-red-700",
-  error: "bg-red-100 text-red-700",
-  warn: "bg-amber-100 text-amber-700",
+  fatal: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+  error: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+  warn: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
 };
+
+const LEVEL_FALLBACK = "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400";
 
 const RANGE_OPTIONS = [
   { value: "", label: "All time" },
@@ -449,7 +451,7 @@ export function ErrorsPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${LEVEL_COLOR[e.level] ?? "bg-slate-100 text-slate-500"}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${LEVEL_COLOR[e.level] ?? LEVEL_FALLBACK}`}>
                       {e.level}
                     </span>
                     {e.app && (
@@ -500,7 +502,7 @@ export function ErrorsPage() {
                     <span className="flex items-center justify-center rounded-full bg-slate-800 px-2 py-0.5 text-xs font-bold text-white">
                       ×{g.count}
                     </span>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${LEVEL_COLOR[g.level] ?? "bg-slate-100 text-slate-500"}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${LEVEL_COLOR[g.level] ?? LEVEL_FALLBACK}`}>
                       {g.level}
                     </span>
                     {g.errorName && (

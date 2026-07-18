@@ -14,8 +14,10 @@ import {
   Badge,
   Button,
   StatCard,
+  Modal,
   toast,
 } from "@sweepr/ui";
+import { DollarInput } from "../components/DollarInput";
 import {
   Wallet,
   Clock,
@@ -163,6 +165,7 @@ function PayoutsListTab() {
   const { getToken } = useAuth();
   const { data, loading, reload } = useApi<{ rows: PayoutRow[] }>("/admin/payouts/payouts?limit=100");
   const [acting, setActing] = useState<string | null>(null);
+  const [confirmRelease, setConfirmRelease] = useState<PayoutRow | null>(null);
 
   async function hold(id: string) {
     const reason = window.prompt("Reason for hold:");
@@ -210,7 +213,7 @@ function PayoutsListTab() {
       cell: (r) => (
         <div className="flex gap-2 justify-end">
           {(r.status === "pending" || r.status === "scheduled") && (
-            <Button size="sm" onClick={() => release(r.id)} loading={acting === r.id}>Release</Button>
+            <Button size="sm" onClick={() => setConfirmRelease(r)} loading={acting === r.id}>Release</Button>
           )}
           {r.status !== "held" && r.status !== "paid" && r.status !== "transferred" && (
             <Button size="sm" variant="secondary" onClick={() => hold(r.id)} loading={acting === r.id}>Hold</Button>
@@ -220,9 +223,37 @@ function PayoutsListTab() {
     },
   ];
 
-  return loading
-    ? <div className="animate-pulse h-40 bg-slate-100 rounded-xl" />
-    : <DataTable columns={cols} rows={data?.rows ?? []} />;
+  return (
+    <>
+      {loading
+        ? <div className="animate-pulse h-40 bg-slate-100 rounded-xl" />
+        : <DataTable columns={cols} rows={data?.rows ?? []} />}
+      <Modal
+        open={!!confirmRelease}
+        onOpenChange={(o) => !o && setConfirmRelease(null)}
+        title="Release this payout?"
+        description={confirmRelease
+          ? `This sends ${formatCurrency(confirmRelease.amount / 100)} to ${confirmRelease.cleaner_name} via a Stripe Connect transfer. This cannot be undone.`
+          : undefined}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmRelease(null)}>Cancel</Button>
+            <Button
+              loading={!!confirmRelease && acting === confirmRelease.id}
+              onClick={() => {
+                if (!confirmRelease) return;
+                const id = confirmRelease.id;
+                setConfirmRelease(null);
+                void release(id);
+              }}
+            >
+              Release {confirmRelease ? formatCurrency(confirmRelease.amount / 100) : ""}
+            </Button>
+          </>
+        }
+      />
+    </>
+  );
 }
 
 // ─── Fee Configuration ────────────────────────────────────────────────────────
@@ -313,22 +344,21 @@ function FeeConfigTab() {
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1">
-              {form.fee_type === "flat" ? "Fee (cents)" : "Fee %"}
+              {form.fee_type === "percentage" ? "Fee %" : "Fee ($ per booking)"}
             </label>
-            {field("fee_value")}
+            {form.fee_type === "percentage" ? (
+              field("fee_value")
+            ) : (
+              <DollarInput cents={form.fee_value} onCents={(c) => setForm((f) => f ? { ...f, fee_value: c ?? 0 } : f)} ariaLabel="Flat fee" />
+            )}
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Min Fee (cents)</label>
-            {field("minimum_platform_fee")}
+            <label className="block text-xs font-medium text-slate-500 mb-1">Min Fee ($)</label>
+            <DollarInput cents={form.minimum_platform_fee} onCents={(c) => setForm((f) => f ? { ...f, minimum_platform_fee: c ?? 0 } : f)} ariaLabel="Minimum platform fee" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Max Fee (cents, blank=uncapped)</label>
-            <input
-              type="number"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              value={form.maximum_platform_fee ?? ""}
-              onChange={(e) => setForm((f) => f ? { ...f, maximum_platform_fee: e.target.value ? Number(e.target.value) : null } : f)}
-            />
+            <label className="block text-xs font-medium text-slate-500 mb-1">Max Fee ($, blank=uncapped)</label>
+            <DollarInput cents={form.maximum_platform_fee} allowEmpty onCents={(c) => setForm((f) => f ? { ...f, maximum_platform_fee: c } : f)} ariaLabel="Maximum platform fee" />
           </div>
         </div>
       </div>
@@ -434,6 +464,7 @@ function DisputesTab() {
   const { getToken } = useAuth();
   const { data, loading, reload } = useApi<{ rows: DisputeRow[] }>("/admin/payouts/disputes");
   const [acting, setActing] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<{ row: DisputeRow; resolution: "release" | "cancel" } | null>(null);
 
   async function resolve(id: string, resolution: "release" | "cancel") {
     let notes = "";
@@ -469,25 +500,56 @@ function DisputesTab() {
       align: "right",
       cell: (r) => (
         <div className="flex gap-2 justify-end">
-          <Button size="sm" onClick={() => resolve(r.id, "release")} loading={acting === r.id}>Release</Button>
-          <Button size="sm" variant="secondary" onClick={() => resolve(r.id, "cancel")} loading={acting === r.id}>Cancel</Button>
+          <Button size="sm" onClick={() => setConfirm({ row: r, resolution: "release" })} loading={acting === r.id}>Release</Button>
+          <Button size="sm" variant="secondary" onClick={() => setConfirm({ row: r, resolution: "cancel" })} loading={acting === r.id}>Cancel</Button>
         </div>
       ),
     },
   ];
 
-  return loading
-    ? <div className="animate-pulse h-40 bg-slate-100 rounded-xl" />
-    : (
-      <div className="space-y-4">
-        {(!data?.rows || data.rows.length === 0) && (
-          <div className="rounded-lg border border-slate-200 p-8 text-center text-slate-600 text-sm">
-            No disputes or holds at this time.
-          </div>
-        )}
-        {data?.rows && data.rows.length > 0 && <DataTable columns={cols} rows={data.rows} />}
-      </div>
-    );
+  return (
+    <>
+      {loading ? (
+        <div className="animate-pulse h-40 bg-slate-100 rounded-xl" />
+      ) : (
+        <div className="space-y-4">
+          {(!data?.rows || data.rows.length === 0) && (
+            <div className="rounded-lg border border-slate-200 p-8 text-center text-slate-600 text-sm">
+              No disputes or holds at this time.
+            </div>
+          )}
+          {data?.rows && data.rows.length > 0 && <DataTable columns={cols} rows={data.rows} />}
+        </div>
+      )}
+      <Modal
+        open={!!confirm}
+        onOpenChange={(o) => !o && setConfirm(null)}
+        title={confirm?.resolution === "release" ? "Release held payout?" : "Cancel held payout?"}
+        description={confirm
+          ? confirm.resolution === "release"
+            ? `This releases ${formatCurrency(confirm.row.amount / 100)} to ${confirm.row.cleaner_name} via a Stripe Connect transfer. This cannot be undone.`
+            : `This cancels the held ${formatCurrency(confirm.row.amount / 100)} payout to ${confirm.row.cleaner_name}. You'll be asked for optional notes next.`
+          : undefined}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirm(null)}>Back</Button>
+            <Button
+              variant={confirm?.resolution === "cancel" ? "secondary" : "primary"}
+              loading={!!confirm && acting === confirm.row.id}
+              onClick={() => {
+                if (!confirm) return;
+                const { row, resolution } = confirm;
+                setConfirm(null);
+                void resolve(row.id, resolution);
+              }}
+            >
+              {confirm?.resolution === "release" ? "Release" : "Cancel payout"}
+            </Button>
+          </>
+        }
+      />
+    </>
+  );
 }
 
 // ─── Settings (tiers + audit) ─────────────────────────────────────────────────
@@ -622,7 +684,7 @@ export function PayoutsPage() {
               className={[
                 "flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
                 tab === t.id
-                  ? "border-indigo-600 text-indigo-700"
+                  ? "border-seafoam-600 text-seafoam-700 dark:text-seafoam-400"
                   : "border-transparent text-slate-500 hover:text-slate-700",
               ].join(" ")}
             >
