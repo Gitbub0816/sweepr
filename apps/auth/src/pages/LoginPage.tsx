@@ -306,6 +306,22 @@ export function LoginPage() {
     );
   }
 
+  // Post-authentication reload (?authed=1): the user is already signed in and
+  // the completion effect is about to finish the ceremony. NEVER render the
+  // sign-in form here — Clerk's <SignIn> would see the live session and fire
+  // its own redirect, racing our completion and consuming the transaction
+  // (which produces the "nothing to sign in to here" 404). Just show a spinner.
+  if (params.get("authed") === "1") {
+    return (
+      <Shell>
+        <div className="flex flex-col items-center py-10 text-slate-400">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span className="mt-3 text-sm">Signing you in to {context.display_name}…</span>
+        </div>
+      </Shell>
+    );
+  }
+
   const hostname = (() => {
     try {
       return new URL(context.application_origin).hostname;
