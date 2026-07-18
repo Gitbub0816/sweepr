@@ -550,11 +550,11 @@ jobs:
             put "$keyname" "$key" "$project"
             put CENTRAL_AUTH_ENABLED "true" "$project"
             put BROKER_URL "https://sweepr.fly.dev" "$project"
-            [ -n "$ORIGIN_SHARED_SECRET" ] && put ORIGIN_SHARED_SECRET "$ORIGIN_SHARED_SECRET" "$project"
+            if [ -n "$ORIGIN_SHARED_SECRET" ]; then put ORIGIN_SHARED_SECRET "$ORIGIN_SHARED_SECRET" "$project"; fi
             # Shared HMAC secret the BFF uses to mint API tokens the API worker
             # verifies (must equal the API's API_BROKER_TOKEN_SECRET). Without
             # it, /auth/token fails closed and central-mode API calls 401.
-            [ -n "$API_BROKER_TOKEN_SECRET" ] && put API_BROKER_TOKEN_SECRET "$API_BROKER_TOKEN_SECRET" "$project"
+            if [ -n "$API_BROKER_TOKEN_SECRET" ]; then put API_BROKER_TOKEN_SECRET "$API_BROKER_TOKEN_SECRET" "$project"; fi
           done
         env:
           BROKER_KEY_CUSTOMER: ${{ secrets.BROKER_KEY_CUSTOMER }}
