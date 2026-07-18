@@ -18,6 +18,7 @@ import { requireAuth } from "../middleware/auth";
 import { requireAdmin } from "../middleware/adminRoles";
 import { yardstikClient, adverseActionEarliestDate } from "../lib/yardstik";
 import { audit } from "../lib/audit";
+import { logger } from "../lib/logger";
 import { enroll as enrollFounding } from "../lib/foundingMember";
 import type { AppBindings } from "../types";
 import type { UserRow } from "@sweepr/db";
@@ -503,6 +504,45 @@ adminRouter.get("/applications/:id", async (c) => {
   `) as Array<Record<string, unknown>>;
   if (!rows[0]) return c.json({ error: "Not found" }, 404);
   return c.json({ application: rows[0] });
+});
+
+// ─── Yardstik report detail (live proxy) ──────────────────────────────────────
+// Returns the COMPLETE report exactly as Yardstik has it — screenings, records,
+// adjudication — so reviewers see what came back without leaving the console.
+// Fetched live on every view and NEVER persisted (we store no candidate PII
+// beyond ids/status). Every view is audited: this is FCRA-sensitive data.
+adminRouter.get("/applications/:id/yardstik-report", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  const id = c.req.param("id");
+  const rows = (await sql`
+    SELECT yardstik_report_id, yardstik_candidate_id FROM cleaners WHERE id = ${id} LIMIT 1
+  `) as { yardstik_report_id: string | null; yardstik_candidate_id: string | null }[];
+  if (!rows[0]) return c.json({ error: "Not found" }, 404);
+  if (!rows[0].yardstik_report_id) return c.json({ error: "No report on file" }, 404);
+
+  let report: Record<string, unknown>;
+  try {
+    report = await yardstikClient(c.env).getReportRaw(rows[0].yardstik_report_id);
+  } catch (err) {
+    logger.warn("yardstik report fetch failed", { cleanerId: id, err: String(err) });
+    return c.json(
+      { error: "Yardstik didn't return the report. Try again in a moment." },
+      502
+    );
+  }
+
+  await audit(sql, {
+    action: "cleaner.yardstik_report.viewed",
+    actorClerkId: c.get("user").clerkId,
+    targetType: "cleaner",
+    targetId: id,
+    metadata: { reportId: rows[0].yardstik_report_id },
+    ipAddress: c.req.header("CF-Connecting-IP"),
+    userAgent: c.req.header("User-Agent"),
+    timestamp: new Date().toISOString(),
+  });
+
+  return c.json({ report, fetched_at: new Date().toISOString() });
 });
 
 // ─── Yardstik Adjudication ────────────────────────────────────────────────────

@@ -176,6 +176,27 @@ function mockClient(accountPackageId: string) {
       };
     },
 
+    async getReportRaw(reportId: string): Promise<Record<string, unknown>> {
+      // Mirrors the live payload closely enough to exercise the admin
+      // report-detail panel end to end without a Yardstik account.
+      return {
+        id: reportId,
+        status: "consider",
+        result: "consider",
+        candidate_id: "mock_cand",
+        package_name: accountPackageId || "Federal Premium",
+        created_at: new Date(Date.now() - 86_400_000).toISOString(),
+        completed_at: new Date().toISOString(),
+        screenings: [
+          { type: "ssn_trace", name: "SSN Trace", status: "complete", result: "clear" },
+          { type: "sex_offender_search", name: "Sex Offender Search", status: "complete", result: "clear" },
+          { type: "national_criminal_search", name: "National Criminal Search", status: "complete", result: "consider",
+            records: [{ court: "Mock County Court", offense: "Sample record (mock)", disposition: "Dismissed", date: "2021-04-02" }] },
+          { type: "county_criminal_search", name: "County Criminal Search", status: "complete", result: "clear" },
+        ],
+      };
+    },
+
     async proceedReport(_candidateId: string, _reportId: string): Promise<void> {
       /* mock: no-op, mirrors the real PATCH /candidates/{id}/approve_by_report */
     },
@@ -228,6 +249,16 @@ function liveClient(apiKey: string, accountPackageId: string, explicitBaseUrl?: 
 
     async getReport(reportId: string): Promise<YardstikReport> {
       return req<YardstikReport>("GET", `/reports/${reportId}`);
+    },
+
+    /**
+     * The COMPLETE report payload as Yardstik returns it — screenings, records,
+     * adjudication, everything. Used only by the admin report-detail proxy; the
+     * response is rendered live in the console and NEVER persisted (we store no
+     * candidate PII beyond ids/status — keep it that way).
+     */
+    async getReportRaw(reportId: string): Promise<Record<string, unknown>> {
+      return req<Record<string, unknown>>("GET", `/reports/${reportId}`);
     },
 
     /**

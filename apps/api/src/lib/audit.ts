@@ -32,6 +32,7 @@ export type AuditAction =
   | "cleaner.rejected"
   | "cleaner.suspended"
   | "cleaner.insurance_enrolled"
+  | "cleaner.yardstik_report.viewed"
   | "dispute.opened"
   | "dispute.resolved"
   | "payout.released"
