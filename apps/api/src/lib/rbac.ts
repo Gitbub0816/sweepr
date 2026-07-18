@@ -97,10 +97,6 @@ export const PERMISSION_KEYS = [
 
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];
 
-export function isPermissionKey(v: string): v is PermissionKey {
-  return (PERMISSION_KEYS as readonly string[]).includes(v);
-}
-
 /**
  * System-role permission map — EXACT mirror of the seed arrays in
  * packages/db/src/migrations/090_platform_identity_workspaces.sql.

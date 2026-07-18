@@ -111,8 +111,13 @@ create_pages_project() {
 create_pages_project sweepr-marketing
 create_pages_project sweepr-customer
 create_pages_project sweepr-cleaner
+create_pages_project sweepr-dash
 create_pages_project sweepr-admin
 create_pages_project sweepr-legal
+create_pages_project sweepr-service
+create_pages_project sweepr-status
+create_pages_project sweepr-business
+create_pages_project sweepr-auth
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. BUILD & DEPLOY FRONTENDS
@@ -219,16 +224,26 @@ echo "  Temporary URLs (live now):"
 echo "    Marketing  → https://sweepr-marketing.pages.dev"
 echo "    Customer   → https://sweepr-customer.pages.dev"
 echo "    Cleaner    → https://sweepr-cleaner.pages.dev"
+echo "    Cleaner dash → https://sweepr-dash.pages.dev"
 echo "    Admin      → https://sweepr-admin.pages.dev"
 echo "    Legal      → https://sweepr-legal.pages.dev"
+echo "    Service    → https://sweepr-service.pages.dev"
+echo "    Status     → https://sweepr-status.pages.dev"
+echo "    Business   → https://sweepr-business.pages.dev"
+echo "    Auth       → https://sweepr-auth.pages.dev"
 echo "    API        → https://api.getsweepr.com"
 echo ""
 echo "  Custom domains — add in Cloudflare Dashboard → Pages → each project:"
 echo "    sweepr-marketing  → getsweepr.com"
 echo "    sweepr-customer   → app.getsweepr.com"
 echo "    sweepr-cleaner    → clean.getsweepr.com"
+echo "    sweepr-dash       → dashboard.getsweepr.com"
 echo "    sweepr-admin      → admin.getsweepr.com"
 echo "    sweepr-legal      → legal.getsweepr.com"
+echo "    sweepr-service    → service.getsweepr.com"
+echo "    sweepr-status     → status.getsweepr.com"
+echo "    sweepr-business   → business.getsweepr.com"
+echo "    sweepr-auth       → auth.getsweepr.com"
 echo "    sweepr-api        → api.getsweepr.com  (Workers → Triggers → Custom Domains)"
 echo ""
 echo "  Next steps:"

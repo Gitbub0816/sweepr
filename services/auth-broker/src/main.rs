@@ -9,7 +9,7 @@
  */
 
 //! Sweepr central authentication broker — native Linux service (Axum + sqlx),
-//! deployed to Fly.io behind Cloudflare at auth.getsweepr.com.
+//! deployed to Fly.io behind Cloudflare at broker.getsweepr.com.
 //!
 //! Clerk proves WHO authenticated; this service decides WHICH app the login is
 //! for, whether the person may enter, and issues that app's own isolated

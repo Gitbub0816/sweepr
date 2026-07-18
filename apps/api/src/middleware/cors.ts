@@ -48,13 +48,3 @@ export function buildCorsMiddleware(env: {
     maxAge: 86400,
   });
 }
-
-/** Default middleware (dev origins) for backwards compatibility. */
-export const corsMiddleware = cors({
-  origin: LOCALHOST_ORIGINS,
-  allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowHeaders: ["Content-Type", "Authorization", "Accept-Encoding", "X-App-Version", "X-Platform"],
-  exposeHeaders: ["X-RateLimit-Limit", "X-RateLimit-Remaining", "ETag"],
-  credentials: true,
-  maxAge: 86400,
-});

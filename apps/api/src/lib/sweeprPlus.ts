@@ -117,25 +117,3 @@ export async function smartEntryFeeCents(sql: Sql, userId: string): Promise<numb
   if (cfg.memberIncluded && (await isMember(sql, userId))) return 0;
   return cfg.nonmemberFeeCents;
 }
-
-/**
- * Try to consume the "one waived late-reschedule fee / 90 days" benefit.
- * Returns true and stamps the usage if available; false otherwise. Claim-then-
- * act: the conditional UPDATE guarantees only one waiver per 90-day window.
- */
-export async function tryConsumeRescheduleWaiver(
-  sql: Sql,
-  membershipId: string,
-  now = new Date(),
-): Promise<boolean> {
-  const cutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
-  const rows = (await sql`
-    UPDATE sweepr_plus_memberships
-    SET last_reschedule_waived_at = ${now.toISOString()}, updated_at = NOW()
-    WHERE id = ${membershipId}
-      AND status IN ('active','trialing')
-      AND (last_reschedule_waived_at IS NULL OR last_reschedule_waived_at < ${cutoff})
-    RETURNING id
-  `) as { id: string }[];
-  return rows.length > 0;
-}

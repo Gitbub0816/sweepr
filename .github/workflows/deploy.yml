@@ -351,6 +351,9 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @sweepr/legal build
+        env:
+          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+          VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
       - name: Deploy (with retry/backoff for Cloudflare rate limits)
         run: |
           # Jitter start so the parallel deploy jobs do not all hit the

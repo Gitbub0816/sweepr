@@ -16,7 +16,6 @@ export interface Env {
   /** Optional comma-separated list of Clerk user ids that always get super_admin. */
   SUPER_ADMIN_CLERK_IDS?: string;
   CLERK_SECRET_KEY: string;
-  CLERK_PUBLISHABLE_KEY: string;
   /**
    * Secret key of the SEPARATE Clerk application serving the admin console
    * (primary domain admin.getsweepr.com). Bearer tokens issued by
@@ -71,7 +70,6 @@ export interface Env {
   DIDIT_WEBHOOK_SECRET?: string;
   ALLOWED_ORIGINS?: string;
   POSTHOG_KEY?: string;
-  SEED_BOOL?: string;
   RATE_LIMIT_KV: KVNamespace;
   CLEANER_APP_URL?: string;
   ADMIN_URL?: string;

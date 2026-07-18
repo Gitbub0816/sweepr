@@ -438,10 +438,6 @@ app.route("/membership", membershipRouter);
 app.route("/smart-entry", smartEntryRouter);
 app.route("/cleaner", cleanerAccessRouter);
 app.route("/admin/smart-entry", adminSmartEntryRouter);
-app.use("/training/*", (c, next) => {
-  // requireAuth is applied per-route inside trainingRouter
-  return next();
-});
 app.route("/training", trainingRouter);
 app.route("/admin/training", trainingAdminRouter);
 app.route("/courses", coursesRouter);
@@ -602,7 +598,6 @@ async function runScheduled(event: ScheduledEvent, env: Record<string, unknown>)
       }
 
       // Hourly jobs (run on every fire, guard with DB dedup via automation_runs).
-      const { adminAutomationRouter: _ } = await import("./routes/adminAutomation");
       // Directly call the business logic instead of HTTP self-calls.
       const { getStripe } = await import("./lib/stripe");
       const stripe = getStripe(env.STRIPE_SECRET_KEY as string);

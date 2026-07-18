@@ -69,28 +69,10 @@ export async function getBookingAuthCtx(
   };
 }
 
-export function canViewBooking(ctx: BookingAuthCtx): boolean {
-  return ctx.isAdmin || ctx.isCleaner || ctx.isCustomer;
-}
-
-export function canModifyBooking(ctx: BookingAuthCtx): boolean {
-  return ctx.isAdmin || ctx.isCleaner || ctx.isCustomer;
-}
-
 export function canUploadPhotos(ctx: BookingAuthCtx): boolean {
   if (ctx.isAdmin) return true;
   if (!ctx.isCleaner && !ctx.isCustomer) return false;
   // Photos only during active job states
   const activeStates = ["in_progress", "awaiting_checkout", "arrived", "en_route"];
   return activeStates.includes(ctx.dayStatus ?? "");
-}
-
-export function canViewAccessCodes(ctx: BookingAuthCtx): boolean {
-  if (ctx.isAdmin) return true;
-  // Cleaner can only view codes after GPS arrival verified and job started
-  if (ctx.isCleaner) {
-    return !!ctx.arrivalVerifiedAt && ctx.dayStatus === "in_progress";
-  }
-  // Customer can always view their own codes
-  return ctx.isCustomer;
 }

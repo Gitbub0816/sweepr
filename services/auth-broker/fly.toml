@@ -13,10 +13,7 @@ primary_region = 'lax'
   AUTH_PAGE_ORIGIN = 'https://auth.getsweepr.com'
   BROKER_DEPLOYMENT = 'standard'
   PORT = '8080'
-  PUBLIC_HOST = 'broker.getsweepr.com'
-  PUBLIC_ORIGIN = 'https://broker.getsweepr.com'
   RUST_LOG = 'info'
-  SESSION_TTL_SECONDS = '259200'
 
 [http_service]
   internal_port = 8080

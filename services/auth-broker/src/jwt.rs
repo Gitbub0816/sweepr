@@ -9,7 +9,7 @@
  */
 
 //! Clerk session-token verification: RS256 via the instance's JWKS.
-//! Pure-Rust `rsa` crate (ring does not target wasm32-unknown-unknown).
+//! Pure-Rust `rsa` crate for the signature check.
 //! The broker accepts EXACTLY ONE issuer per deployment path — standard
 //! ceremonies verify against the standard instance's JWKS, admin ceremonies
 //! against the admin instance's. There is no shared verification path.

@@ -226,8 +226,3 @@ export function et(
     value,
   );
 }
-
-/** Whether the language is written right-to-left. */
-export function isRtl(lang: string | null | undefined): boolean {
-  return toLangCode(lang) === "ar";
-}

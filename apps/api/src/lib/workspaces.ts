@@ -23,7 +23,6 @@
  */
 
 import type { Sql } from "./db";
-import type { ResolvedIdentity, WorkspaceMembership } from "./identity";
 import type { WorkspaceCategory } from "./rbac";
 
 export class WorkspaceRuleError extends Error {
@@ -119,16 +118,6 @@ export async function getWorkspace(
     SELECT * FROM workspaces WHERE id = ${workspaceId} LIMIT 1
   `) as WorkspaceRow[];
   return rows[0];
-}
-
-/**
- * Workspaces reachable through THIS session's identity. Delegates entirely to
- * the identity lib's silo-pinned membership resolution — no second query path.
- */
-export function listWorkspacesForIdentity(
-  resolved: ResolvedIdentity,
-): WorkspaceMembership[] {
-  return resolved.memberships;
 }
 
 export interface UpdateWorkspaceInput {

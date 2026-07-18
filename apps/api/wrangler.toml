@@ -47,12 +47,7 @@ preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
 #                              printf the whole file including BEGIN/END lines,
 #                              never echo, this key can never be regenerated)
 # DIDIT_API_KEY               (x-api-key for hosted session creation)
-# DIDIT_WORKFLOW_ID           (personal / individual KYC workflow)
-# DIDIT_WORKFLOW_ID_BUSINESS  (business / authorized-rep workflow)
 # DIDIT_WEBHOOK_SECRET        (HMAC-SHA256 webhook signature secret)
-# DIDIT_CLIENT_ID             (optional — not needed for hosted session flow)
-# DIDIT_CLIENT_SECRET         (optional — not needed for hosted session flow)
-# DIDIT_ORGANIZATION_ID       (optional)
 # R2_ACCOUNT_ID             (Cloudflare account ID)
 # R2_ACCESS_KEY_ID          (R2 token access key ID)
 # R2_SECRET_ACCESS_KEY      (R2 token secret access key)
@@ -103,8 +98,14 @@ preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
 #   routes; point each route's single webhook forward at https://api.getsweepr.com/mail/inbound and set the two
 #   secrets above. Legacy per-box secrets (MAILERSEND_<BOX>_INBOUND_SECRET) are still accepted during migration
 #   if a route still fans out to /mail/inbound/<box>.
+# MAILERSEND_WEBHOOK_SECRET   (MailerSend → Webhooks → signing secret; verifies inbound delivery/open/click events)
+# MAILERSEND_SMS_FROM         (toll-free sender number; outbound SMS sends are disabled until this is set)
+# MAILERSEND_SMS_INBOUND_SECRET (MailerSend → SMS inbound route signing secret, HMAC-SHA256 of the raw body)
 # OPENAI_API_KEY            (OpenAI API key — vision scope review; server-side only)
 # OPENAI_VISION_MODEL       (optional — vision model override; defaults to gpt-4.1-mini)
+# ANTHROPIC_API_KEY         (Claude API key — admin broadcast/email translation; server-side only)
+# CF_ANALYTICS_TOKEN        (Cloudflare API token with Analytics:Read — powers admin Observability tile)
+# CF_ZONE_ID                (Cloudflare zone ID for getsweepr.com — same account as CF_ANALYTICS_TOKEN)
 
 [env.production]
 vars = { ENVIRONMENT = "production" }
