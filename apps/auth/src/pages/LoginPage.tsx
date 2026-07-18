@@ -96,15 +96,23 @@ function ExpiredState() {
 // code, password, OAuth, 2FA, and — on sign-up — the required first/last name).
 // We strip their card chrome so they sit inside our own Shell, and let the
 // session-watch effect below run the broker completion once Clerk is done.
+// Sweepr-brand Clerk's prebuilt <SignIn>/<SignUp> so it reads as native app UI
+// (seafoam accents, charcoal primary button, Inter, rounded-xl) rather than
+// stock Clerk. Header/footer/badge are hidden — our Shell supplies the brand.
 const clerkAppearance = {
+  layout: { socialButtonsPlacement: "bottom", logoPlacement: "none" },
   variables: {
-    colorPrimary: "#14b8a6",
+    colorPrimary: "#0f766e",
     colorText: "#1c1a17",
+    colorTextSecondary: "#64748b",
     colorBackground: "transparent",
     colorInputBackground: "#ffffff",
+    colorInputText: "#1c1a17",
+    colorDanger: "#dc2626",
     borderRadius: "0.75rem",
     fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
     fontSize: "0.95rem",
+    spacingUnit: "0.9rem",
   },
   elements: {
     rootBox: "w-full",
@@ -113,10 +121,22 @@ const clerkAppearance = {
     header: "hidden",
     footer: "hidden",
     logoBox: "hidden",
+    // Clerk's "Secured by Clerk" badge and dev-mode banner — off-brand.
+    footerAction: "hidden",
+    badge: "hidden",
+    formFieldLabel: "text-sm font-medium text-slate-700 dark:text-slate-300",
+    formFieldInput:
+      "rounded-xl border border-slate-300 bg-white px-3 py-2 text-base text-charcoal shadow-sm focus:border-seafoam-500 focus:ring-2 focus:ring-seafoam-400/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white",
     formButtonPrimary:
-      "bg-charcoal hover:bg-slate-800 text-white text-sm font-semibold normal-case rounded-xl h-10",
-    socialButtonsBlockButton: "rounded-xl border-slate-300 h-10",
-    formFieldInput: "rounded-xl border-slate-300",
+      "bg-charcoal hover:bg-slate-800 text-white text-sm font-semibold normal-case rounded-xl h-11 shadow-sm",
+    socialButtonsBlockButton:
+      "rounded-xl border border-slate-300 h-11 text-charcoal hover:bg-slate-50 dark:border-slate-700 dark:text-white dark:hover:bg-slate-900",
+    dividerLine: "bg-slate-200 dark:bg-slate-700",
+    dividerText: "text-xs font-medium uppercase tracking-wider text-slate-400",
+    formFieldInputShowPasswordButton: "text-slate-500 hover:text-charcoal",
+    identityPreviewEditButton: "text-seafoam-700",
+    formResendCodeLink: "text-seafoam-700 font-medium",
+    otpCodeFieldInput: "rounded-xl border-slate-300",
   },
 } as const;
 
@@ -306,6 +326,41 @@ export function LoginPage() {
     );
   }
 
+  // Completion failed (e.g. the account isn't authorized for this app). Show
+  // the reason and a way out — never leave the user staring at a spinner. This
+  // must come BEFORE the ?authed=1 spinner (which would otherwise hide it).
+  if (phase.name === "error") {
+    const errHost = (() => {
+      try {
+        return new URL(context.application_origin).hostname;
+      } catch {
+        return context.application_origin;
+      }
+    })();
+    return (
+      <Shell>
+        <div className="flex flex-col items-center text-center">
+          <Wordmark appId={context.app_id} displayName={context.display_name} />
+          <div
+            role="alert"
+            className="mt-5 w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
+          >
+            {phase.message}
+          </div>
+          <a
+            href={context.cancel_url}
+            onClick={() => {
+              if (clerk.session) void clerk.signOut({ redirectUrl: context.cancel_url });
+            }}
+            className="mt-5 inline-flex h-10 items-center rounded-xl bg-charcoal px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            Return to {errHost}
+          </a>
+        </div>
+      </Shell>
+    );
+  }
+
   // Post-authentication reload (?authed=1): the user is already signed in and
   // the completion effect is about to finish the ceremony. NEVER render the
   // sign-in form here — Clerk's <SignIn> would see the live session and fire
@@ -351,27 +406,6 @@ export function LoginPage() {
           at <span className="font-mono text-slate-600 dark:text-slate-300">{hostname}</span>
         </p>
       </div>
-
-      {phase.name === "error" && (
-        <div className="mt-4 flex flex-col gap-2">
-          <div
-            role="alert"
-            className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
-          >
-            {phase.message}
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              completing.current = false;
-              void loadContext();
-            }}
-            className="self-start text-sm font-medium text-seafoam-700 underline-offset-4 hover:underline dark:text-seafoam-400"
-          >
-            Try again
-          </button>
-        </div>
-      )}
 
       {/* Render the auth form only after any lingering central session has
           been cleared, so it never auto-completes from another app's session. */}
