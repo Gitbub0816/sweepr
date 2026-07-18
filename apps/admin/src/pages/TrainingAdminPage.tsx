@@ -33,6 +33,13 @@ import {
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
+/** Human labels so no raw enum ("not_started", "in_progress") renders. */
+const TRAINING_STATUS_LABEL: Record<string, string> = {
+  not_started: "Not started",
+  in_progress: "In progress",
+  completed: "Completed",
+};
+
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 interface TrainingModule {
@@ -653,7 +660,7 @@ export function TrainingAdminPage() {
             <div className="mt-6 space-y-4">
               <div className="flex flex-wrap gap-3">
                 <Badge variant={cleanerProgress.cleaner.required_training_completed ? "success" : "default"}>
-                  Training: {cleanerProgress.cleaner.training_status ?? "not_started"}
+                  Training: {TRAINING_STATUS_LABEL[cleanerProgress.cleaner.training_status ?? "not_started"] ?? (cleanerProgress.cleaner.training_status ?? "Not started")}
                 </Badge>
                 <Badge variant={cleanerProgress.cleaner.background_check_unlocked ? "success" : "default"}>
                   BG Check: {cleanerProgress.cleaner.background_check_unlocked ? "Unlocked" : "Locked"}

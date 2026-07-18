@@ -63,6 +63,12 @@ const STATUS_VARIANT: Record<string, "info" | "warning" | "success" | "error" | 
   denied: "error", hard_denied: "error", expired: "default", cancelled: "default",
 };
 
+/** Human labels so no raw enum ("hard_denied", "pending_ai") renders. */
+const STATUS_LABEL: Record<string, string> = {
+  pending_ai: "Pending AI", pending_admin: "Pending admin", approved: "Approved",
+  denied: "Denied", hard_denied: "Hard denied", expired: "Expired", cancelled: "Cancelled",
+};
+
 const SAFETY_FLAG_LABELS: Record<string, string> = {
   biohazard: "Biohazard",
   hoarding: "Hoarding indicators",
@@ -186,7 +192,7 @@ export function ScopeReviewDetailPage() {
           <Card>
             <div className="mb-3 flex items-center justify-between">
               <h3 className="font-semibold text-charcoal dark:text-white">Overview</h3>
-              <Badge variant={STATUS_VARIANT[req.status] ?? "default"}>{req.status.replace(/_/g, " ")}</Badge>
+              <Badge variant={STATUS_VARIANT[req.status] ?? "default"}>{STATUS_LABEL[req.status] ?? req.status.replace(/_/g, " ")}</Badge>
             </div>
             <dl className="grid grid-cols-2 gap-3 text-sm">
               <Detail label="Created" value={new Date(req.createdAt).toLocaleString()} />

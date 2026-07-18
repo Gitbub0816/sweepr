@@ -78,7 +78,7 @@ export function NewsletterPage({ embedded = false }: { embedded?: boolean }) {
     }
   }
 
-  const body = (
+  const content = (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Sidebar */}
         <div className="lg:col-span-1 space-y-4">
@@ -164,13 +164,13 @@ export function NewsletterPage({ embedded = false }: { embedded?: boolean }) {
     </div>
   );
 
-  if (embedded) return body;
+  if (embedded) return content;
   return (
     <DashboardShell
       title="Newsletter"
       description="Compose and send emails to all newsletter subscribers."
     >
-      {body}
+      {content}
     </DashboardShell>
   );
 }

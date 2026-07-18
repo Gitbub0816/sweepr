@@ -136,7 +136,7 @@ export function BroadcastsPage({ embedded = false }: { embedded?: boolean }) {
     }
   }
 
-  const body = (
+  const content = (
     <>
       <div className="flex border-b border-slate-200 mb-6">
         {(["compose", "history"] as const).map((t) => (
@@ -292,10 +292,10 @@ export function BroadcastsPage({ embedded = false }: { embedded?: boolean }) {
     </>
   );
 
-  if (embedded) return body;
+  if (embedded) return content;
   return (
     <DashboardShell title="Broadcasts" description="Send targeted updates to any subscriber list.">
-      {body}
+      {content}
     </DashboardShell>
   );
 }
