@@ -83,7 +83,7 @@ function ExpiredState() {
         </p>
         <a
           href="https://getsweepr.com"
-          className="mt-6 inline-flex h-10 items-center rounded-xl bg-charcoal px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
+          className="mt-6 inline-flex h-10 items-center rounded-xl bg-seafoam-700 px-4 text-sm font-medium text-white shadow-sm shadow-seafoam-500/20 transition hover:bg-seafoam-800"
         >
           Go to getsweepr.com
         </a>
@@ -127,10 +127,12 @@ const clerkAppearance = {
     formFieldLabel: "text-sm font-medium text-slate-700 dark:text-slate-300",
     formFieldInput:
       "rounded-xl border border-slate-300 bg-white px-3 py-2 text-base text-charcoal shadow-sm focus:border-seafoam-500 focus:ring-2 focus:ring-seafoam-400/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white",
+    // Match @sweepr/ui <Button variant="primary"> exactly — seafoam, not black.
     formButtonPrimary:
-      "bg-charcoal hover:bg-slate-800 text-white text-sm font-semibold normal-case rounded-xl h-11 shadow-sm",
+      "bg-seafoam-700 hover:bg-seafoam-800 active:bg-seafoam-900 text-white text-sm font-medium normal-case rounded-xl h-11 shadow-sm shadow-seafoam-500/20 transition-colors",
+    // Match <Button variant="secondary">.
     socialButtonsBlockButton:
-      "rounded-xl border border-slate-300 h-11 text-charcoal hover:bg-slate-50 dark:border-slate-700 dark:text-white dark:hover:bg-slate-900",
+      "rounded-xl border border-slate-200 bg-white h-11 text-charcoal font-medium hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700",
     dividerLine: "bg-slate-200 dark:bg-slate-700",
     dividerText: "text-xs font-medium uppercase tracking-wider text-slate-400",
     formFieldInputShowPasswordButton: "text-slate-500 hover:text-charcoal",
@@ -352,7 +354,7 @@ export function LoginPage() {
             onClick={() => {
               if (clerk.session) void clerk.signOut({ redirectUrl: context.cancel_url });
             }}
-            className="mt-5 inline-flex h-10 items-center rounded-xl bg-charcoal px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
+            className="mt-5 inline-flex h-10 items-center rounded-xl bg-seafoam-700 px-4 text-sm font-medium text-white shadow-sm shadow-seafoam-500/20 transition hover:bg-seafoam-800"
           >
             Return to {errHost}
           </a>
