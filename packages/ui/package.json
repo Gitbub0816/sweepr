@@ -27,15 +27,15 @@
   },
   "peerDependencies": {
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react-dom": "^19.2.7",
     "react-router-dom": "^6.28.0"
   },
   "devDependencies": {
     "@types/dompurify": "^3.2.0",
     "@types/react": "^18.3.18",
-    "@types/react-dom": "^18.3.5",
+    "@types/react-dom": "^19.2.3",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react-dom": "^19.2.7",
     "react-router-dom": "^6.28.0",
     "typescript": "^5.6.3"
   }
