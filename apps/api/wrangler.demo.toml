@@ -1,0 +1,57 @@
+name = "sweepr-api-demo"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# The demo deployment of the REAL apps/api codebase — same code as sweepr-api,
+# just a different worker name/route and a different DATABASE_URL. It runs
+# against the isolated `demo` Postgres schema (see packages/db/clone-demo-schema.mjs)
+# via a DATABASE_URL whose connection string sets search_path=demo,public, so
+# every unqualified table reference in the app resolves inside that schema
+# instead of `public` (production). No app code branches on being "demo" —
+# see context/committee or CLAUDE.md for the full explanation.
+#
+# Backs demo.app.getsweepr.com and demo.clean.getsweepr.com (see deploy.yml
+# jobs deploy-customer-demo / deploy-cleaner-demo), which are ALSO the real
+# apps/customer and apps/cleaner bundles, just pointed at this worker.
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+
+[vars]
+ENVIRONMENT = "demo"
+
+routes = [
+  { pattern = "api-demo.getsweepr.com", custom_domain = true }
+]
+
+# Same rate-limit KV as production — sharing it just means demo traffic and
+# production traffic share rate-limit buckets, which is harmless (counters
+# only, no data crosses over) and avoids provisioning a second namespace.
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "ec932b508b6b43dd85d9cdeabaa850c3"
+preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
+
+# Secrets (set via `wrangler secret put NAME --config wrangler.demo.toml`, or by
+# the sync-demo-secrets step in deploy.yml):
+#   DATABASE_URL          the SAME Neon connection string as production, with
+#                         `?options=-c%20search_path%3Ddemo,public` appended —
+#                         this is the ENTIRE isolation mechanism. Never point
+#                         this at a bare DATABASE_URL with no search_path
+#                         override, or "demo" traffic hits production data.
+#   CLERK_SECRET_KEY      same primary Clerk app as production (the two demo
+#                         personas are real accounts in that same instance —
+#                         this is intentional, see seed-demo.mjs).
+#   STRIPE_SECRET_KEY     a Stripe TEST-mode key (sk_test_…) — deliberately
+#                         NOT the production live key, so demo checkouts never
+#                         touch a real card and never need live-key rotation.
+#   STRIPE_WEBHOOK_SECRET optional — only needed if a Stripe webhook endpoint
+#                         is pointed at https://api-demo.getsweepr.com/webhooks/stripe.
+#   Everything else mirrors the production catalog in wrangler.toml; unset
+#   optional integrations (Slack, MailerSend inbound routes, Seam, etc.) are
+#   safe to leave unset here — those code paths simply don't fire.

@@ -15,7 +15,9 @@
     "build:schema": "node build-schema.mjs",
     "verify:schema": "node verify-schema.mjs",
     "migrate": "node migrate.mjs",
-    "seed:test-cleaner": "node seed-test-cleaner.mjs"
+    "seed:test-cleaner": "node seed-test-cleaner.mjs",
+    "clone-demo-schema": "node clone-demo-schema.mjs",
+    "seed:demo": "node seed-demo.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4"

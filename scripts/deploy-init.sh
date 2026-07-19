@@ -118,6 +118,8 @@ create_pages_project sweepr-service
 create_pages_project sweepr-status
 create_pages_project sweepr-business
 create_pages_project sweepr-auth
+create_pages_project sweepr-customer-demo
+create_pages_project sweepr-cleaner-demo
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. BUILD & DEPLOY FRONTENDS
@@ -245,6 +247,9 @@ echo "    sweepr-status     → status.getsweepr.com"
 echo "    sweepr-business   → business.getsweepr.com"
 echo "    sweepr-auth       → auth.getsweepr.com"
 echo "    sweepr-api        → api.getsweepr.com  (Workers → Triggers → Custom Domains)"
+echo "    sweepr-customer-demo → demo.app.getsweepr.com   (real customer app, demo DB schema)"
+echo "    sweepr-cleaner-demo  → demo.clean.getsweepr.com (real cleaner app, demo DB schema)"
+echo "    sweepr-api-demo      → api-demo.getsweepr.com   (Workers → Triggers → Custom Domains)"
 echo ""
 echo "  Next steps:"
 echo "    1. Get Stripe pk_live_ key → Stripe Dashboard → API Keys"

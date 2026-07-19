@@ -72,6 +72,28 @@ jobs:
           SEED_CLERK_ID: ${{ secrets.SEED_CLERK_ID }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           SEED_EMAIL: ${{ secrets.SEED_EMAIL }}
+      # Isolated `demo` schema for service.getsweepr.com's demo apps — the
+      # REAL apps/customer + apps/cleaner + apps/api, running against this
+      # schema instead of `public` so nothing here can touch production data.
+      # Soft-skips (never fails the deploy) if DATABASE_URL or the demo
+      # account credentials aren't configured yet.
+      - name: Build demo schema + seed demo personas
+        continue-on-error: true
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::warning::DATABASE_URL secret not set — skipping demo schema"
+            exit 0
+          fi
+          pnpm --filter @sweepr/db clone-demo-schema
+          if [ -z "$CLERK_SECRET_KEY" ] || [ -z "$DEMO_ACCOUNT_PASSWORD" ]; then
+            echo "::warning::CLERK_SECRET_KEY / DEMO_ACCOUNT_PASSWORD not set — skipping demo persona seed"
+            exit 0
+          fi
+          pnpm --filter @sweepr/db seed:demo
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          DEMO_ACCOUNT_PASSWORD: ${{ secrets.DEMO_ACCOUNT_PASSWORD }}
 
   deploy-api:
     name: Deploy API Worker (api.getsweepr.com)
@@ -125,6 +147,92 @@ jobs:
           SEAM_WEBHOOK_SECRET: ${{ secrets.SEAM_WEBHOOK_SECRET }}
           SWEEPR_PLUS_MONTHLY_PRICE_ID: ${{ secrets.SWEEPR_PLUS_MONTHLY_PRICE_ID }}
           SWEEPR_PLUS_ANNUAL_PRICE_ID: ${{ secrets.SWEEPR_PLUS_ANNUAL_PRICE_ID }}
+
+  deploy-api-demo:
+    name: Deploy Demo API Worker (api-demo.getsweepr.com)
+    needs: migrate
+    if: github.ref == 'refs/heads/main'
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      # Runs the EXACT SAME apps/api code as the production worker — the only
+      # difference is which DATABASE_URL it's given. See wrangler.demo.toml.
+      - name: Deploy (with retry/backoff for Cloudflare rate limits)
+        run: |
+          sleep $(( (RANDOM % 25) + 1 ))
+          for attempt in 1 2 3 4 5 6; do
+            pnpm exec wrangler deploy --config wrangler.demo.toml && exit 0
+            echo "::warning::deploy attempt $attempt failed (likely CF 1042 rate limit); backing off"
+            sleep $(( attempt * 30 ))
+          done
+          echo "::error::deploy failed after 6 attempts"; exit 1
+        working-directory: apps/api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # Same GitHub secrets as the production worker EXCEPT:
+      #   DATABASE_URL     — same Neon connection string, with search_path
+      #                      forced to the isolated `demo` schema. This one
+      #                      line IS the entire prod/demo data wall.
+      #   STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET — dedicated Stripe
+      #                      TEST-mode secrets (STRIPE_TEST_*), never the
+      #                      live keys, so demo checkouts can never touch a
+      #                      real card and live keys never need rotating.
+      - name: Sync worker secrets
+        run: |
+          put() {
+            if [ -n "$2" ]; then
+              printf '%s' "$2" | pnpm exec wrangler secret put "$1" --config wrangler.demo.toml >/dev/null \
+                && echo "synced $1" || echo "::warning::failed to sync $1"
+            fi
+          }
+          if [ -n "$DATABASE_URL" ]; then
+            case "$DATABASE_URL" in
+              *"?"*) DEMO_DB_URL="${DATABASE_URL}&options=-c%20search_path%3Ddemo,public" ;;
+              *) DEMO_DB_URL="${DATABASE_URL}?options=-c%20search_path%3Ddemo,public" ;;
+            esac
+            put DATABASE_URL "$DEMO_DB_URL"
+          else
+            echo "::warning::DATABASE_URL not set — demo worker will fail every DB call until it is"
+          fi
+          put CLERK_SECRET_KEY "$CLERK_SECRET_KEY"
+          put STRIPE_SECRET_KEY "$STRIPE_TEST_SECRET_KEY"
+          put STRIPE_WEBHOOK_SECRET "$STRIPE_TEST_WEBHOOK_SECRET"
+          put MAILERSEND_API_KEY "$MAILERSEND_API_KEY"
+          put R2_ACCOUNT_ID "$R2_ACCOUNT_ID"
+          put R2_ACCESS_KEY_ID "$R2_ACCESS_KEY_ID"
+          put R2_SECRET_ACCESS_KEY "$R2_SECRET_ACCESS_KEY"
+          put R2_BUCKET "$R2_BUCKET"
+          put R2_PUBLIC_URL "$R2_PUBLIC_URL"
+          put ACCESS_CODE_ENCRYPTION_KEY "$ACCESS_CODE_ENCRYPTION_KEY"
+          put APPLE_MAPS_TEAM_ID "$APPLE_MAPS_TEAM_ID"
+          put APPLE_MAPS_KEY_ID "$APPLE_MAPS_KEY_ID"
+          put APPLE_MAPS_PRIVATE_KEY "$APPLE_MAPS_PRIVATE_KEY"
+        working-directory: apps/api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+          STRIPE_TEST_WEBHOOK_SECRET: ${{ secrets.STRIPE_TEST_WEBHOOK_SECRET }}
+          MAILERSEND_API_KEY: ${{ secrets.MAILERSEND_API_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+          ACCESS_CODE_ENCRYPTION_KEY: ${{ secrets.ACCESS_CODE_ENCRYPTION_KEY }}
+          APPLE_MAPS_TEAM_ID: ${{ secrets.APPLE_MAPS_TEAM_ID }}
+          APPLE_MAPS_KEY_ID: ${{ secrets.APPLE_MAPS_KEY_ID }}
+          APPLE_MAPS_PRIVATE_KEY: ${{ secrets.APPLE_MAPS_PRIVATE_KEY }}
 
   deploy-marketing:
     name: Deploy Marketing (getsweepr.com)
@@ -242,6 +350,78 @@ jobs:
           sleep $(( (RANDOM % 25) + 1 ))
           for attempt in 1 2 3 4 5 6; do
             ( cd apps/cleaner && pnpm exec wrangler pages deploy dist --project-name=sweepr-cleaner --commit-dirty=true ) && exit 0
+            echo "::warning::deploy attempt $attempt failed (likely CF 1042 rate limit); backing off"
+            sleep $(( attempt * 30 ))
+          done
+          echo "::error::deploy failed after 6 attempts"; exit 1
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy-customer-demo:
+    name: Deploy Demo Customer App (demo.app.getsweepr.com)
+    needs: [deploy-cleaner, deploy-api-demo]
+    if: github.ref == 'refs/heads/main'
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      # The REAL apps/customer bundle — same code, same Clerk sign-in, same
+      # everything — just pointed at the demo API worker (and so the isolated
+      # demo DB schema) with a Stripe TEST publishable key. No demo-mode
+      # branch exists in the app; a real Clerk session (the seeded demo
+      # customer account) is what makes this safe to leave ungated.
+      - run: pnpm --filter @sweepr/customer build
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+          VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.VITE_STRIPE_TEST_PUBLISHABLE_KEY }}
+          VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_PUBLIC_TOKEN }}
+          VITE_API_URL: https://api-demo.getsweepr.com
+      - name: Deploy (with retry/backoff for Cloudflare rate limits)
+        run: |
+          sleep $(( (RANDOM % 25) + 1 ))
+          for attempt in 1 2 3 4 5 6; do
+            ( cd apps/customer && pnpm exec wrangler pages deploy dist --project-name=sweepr-customer-demo --commit-dirty=true ) && exit 0
+            echo "::warning::deploy attempt $attempt failed (likely CF 1042 rate limit); backing off"
+            sleep $(( attempt * 30 ))
+          done
+          echo "::error::deploy failed after 6 attempts"; exit 1
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy-cleaner-demo:
+    name: Deploy Demo Cleaner App (demo.clean.getsweepr.com)
+    needs: [deploy-cleaner, deploy-api-demo]
+    if: github.ref == 'refs/heads/main'
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      # The REAL apps/cleaner bundle, pointed at the demo API worker — see
+      # deploy-customer-demo above for why this needs no app-code changes.
+      - run: pnpm --filter @sweepr/cleaner build
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+          VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_PUBLIC_TOKEN }}
+          VITE_API_URL: https://api-demo.getsweepr.com
+      - name: Deploy (with retry/backoff for Cloudflare rate limits)
+        run: |
+          sleep $(( (RANDOM % 25) + 1 ))
+          for attempt in 1 2 3 4 5 6; do
+            ( cd apps/cleaner && pnpm exec wrangler pages deploy dist --project-name=sweepr-cleaner-demo --commit-dirty=true ) && exit 0
             echo "::warning::deploy attempt $attempt failed (likely CF 1042 rate limit); backing off"
             sleep $(( attempt * 30 ))
           done

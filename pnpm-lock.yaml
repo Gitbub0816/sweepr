@@ -675,15 +675,9 @@ importers:
 
   apps/service:
     dependencies:
-      '@sweepr/types':
-        specifier: workspace:*
-        version: link:../../packages/types
       '@sweepr/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      '@sweepr/utils':
-        specifier: workspace:*
-        version: link:../../packages/utils
       lucide-react:
         specifier: ^0.469.0
         version: 0.469.0(react@18.3.1)
