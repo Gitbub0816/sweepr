@@ -202,6 +202,25 @@ async function main() {
     body: JSON.stringify({ public_metadata: { cleanerStatus: "approved" } }),
   }).catch(() => {});
 
+  // The prelaunch bypass code lives in site_settings, which clone-demo-schema.mjs
+  // only clones structurally (no rows) — without this, /status/bypass on the
+  // demo API always falls through to an empty expected value and rejects
+  // every code. Mirror production's code (and gate toggles) into demo on
+  // every seed run so the demo instance always accepts the same bypass code
+  // as production, with no separate value to remember or rotate.
+  const { rows: prelaunchRows } = await client.query(
+    `SELECT key, value FROM public.site_settings
+     WHERE key IN ('prelaunch_bypass_code', 'prelaunch_customer', 'prelaunch_cleaner', 'prelaunch_pricing')`,
+  );
+  for (const { key, value } of prelaunchRows) {
+    await client.query(
+      `INSERT INTO site_settings (key, value) VALUES ($1, $2)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+      [key, value],
+    );
+  }
+  console.log(`• site_settings mirrored (${prelaunchRows.map((r) => r.key).join(", ")})`);
+
   console.log("\n✓ Demo personas ready:");
   console.log(`  Customer: ${CUSTOMER_EMAIL} / (shared demo password)`);
   console.log(`  Cleaner:  ${CLEANER_EMAIL} / (shared demo password)`);
