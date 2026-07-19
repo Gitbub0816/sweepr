@@ -41,6 +41,12 @@ interface Member {
   founding_member_revoked: boolean;
   founding_member_revoked_reason: string | null;
 }
+interface PendingClaim {
+  id: string;
+  email: string;
+  claimed_at: string;
+  promotion_name: string;
+}
 
 export function FoundingMembersPage() {
   const authed = useAuthedFetch();
@@ -48,6 +54,7 @@ export function FoundingMembersPage() {
   const [counts, setCounts] = useState({ cleaner_members: 0, customer_members: 0 });
   const [audience, setAudience] = useState<Audience>("cleaner");
   const [members, setMembers] = useState<Member[]>([]);
+  const [pending, setPending] = useState<PendingClaim[]>([]);
   const [grantId, setGrantId] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -62,7 +69,11 @@ export function FoundingMembersPage() {
 
   const loadMembers = useCallback(async () => {
     const res = await authed(`/admin/founding/members?audience=${audience}`);
-    if (res.ok) setMembers(((await res.json()) as { members: Member[] }).members);
+    if (res.ok) {
+      const data = (await res.json()) as { members: Member[]; pending: PendingClaim[] };
+      setMembers(data.members);
+      setPending(data.pending ?? []);
+    }
   }, [authed, audience]);
 
   useEffect(() => { void loadConfig(); }, [loadConfig]);
@@ -159,6 +170,36 @@ export function FoundingMembersPage() {
 
           <div className="flex justify-end">
             <Button onClick={saveConfig} disabled={saving}><Save className="mr-1 h-4 w-4" />{saving ? "Saving…" : "Save settings"}</Button>
+          </div>
+        </Card>
+      ) : null}
+
+      {/* Pending — signed-out claims with no account yet, waiting on sign-up */}
+      {pending.length > 0 ? (
+        <Card className="space-y-3 p-4">
+          <div>
+            <h3 className="font-semibold">Pending sign-up ({pending.length})</h3>
+            <p className="text-xs text-slate-500">
+              Claimed Founding Member status while signed out. Status attaches automatically the
+              moment this email creates a {audience} account — they've also been added to the
+              waitlist so they're notified when that happens.
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs uppercase text-slate-400">
+                <tr><th className="py-1">Email</th><th>Promotion</th><th>Claimed</th></tr>
+              </thead>
+              <tbody>
+                {pending.map((p) => (
+                  <tr key={p.id} className="border-t border-slate-100 dark:border-slate-800">
+                    <td className="py-1.5">{p.email}</td>
+                    <td className="text-slate-500">{p.promotion_name}</td>
+                    <td className="text-slate-500">{new Date(p.claimed_at).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </Card>
       ) : null}

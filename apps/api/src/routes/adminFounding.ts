@@ -141,7 +141,24 @@ adminFoundingRouter.get("/members", async (c) => {
           WHERE cl.founding_member = TRUE OR cl.founding_member_revoked = TRUE
           ORDER BY cl.founding_member_id ASC NULLS LAST
         `) as unknown[]);
-  return c.json({ audience, members: rows });
+
+  // Signed-out founding claims that haven't attached to an account yet — no
+  // cleaners/customers row exists for these, so they're invisible in the
+  // query above even though they represent a real, promised future grant.
+  // Sourced from promotion_claims directly (see lib/promotions.ts).
+  const promoAudience = audience === "customer" ? "customers" : "cleaners";
+  const pending = (await sql`
+    SELECT pc.id, pc.email, pc.claimed_at, p.name AS promotion_name
+    FROM promotion_claims pc
+    JOIN promotions p ON p.id = pc.promotion_id
+    WHERE p.grants_founding_member = TRUE
+      AND p.audience = ${promoAudience}
+      AND pc.granted_founding = FALSE
+      AND pc.user_id IS NULL
+    ORDER BY pc.claimed_at ASC
+  `) as unknown[];
+
+  return c.json({ audience, members: rows, pending });
 });
 
 const targetSchema = z.object({

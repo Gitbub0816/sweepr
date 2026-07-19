@@ -423,6 +423,19 @@ export async function claimPromotion(
     `.catch(() => {});
   }
 
+  // A signed-out Founding Member claim leaves the person with no way to learn
+  // enrollment opened up unless they're also on the waitlist — the promo's
+  // own copy promises this ("sign up for the waitlist"), so join it
+  // unconditionally here rather than depending on the CTA's action dropdown
+  // matching that copy.
+  if (promo.grants_founding_member && !input.userId && email && action !== "waitlist") {
+    const wlType = promo.audience === "cleaners" ? "cleaner" : "customer";
+    await sql`
+      INSERT INTO waitlist (email, type) VALUES (${email}, ${wlType})
+      ON CONFLICT DO NOTHING
+    `.catch(() => {});
+  }
+
   // Reward: mint the coupon. Signed-in claimants get it on their account
   // immediately; anonymous claimants get it bound to their email (it attaches
   // and becomes spendable when they sign up — per the Promotions & Coupons
