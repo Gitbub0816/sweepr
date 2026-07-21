@@ -44,8 +44,17 @@ export function CustomerAgreement() {
           The Sweepr platform is operated by {COMPANY_NAME} ("Sweepr", "we",
           "us"). When you book through Sweepr, you enter into this Customer
           Agreement with Sweepr for use of the Platform, and a separate service
-          relationship with the independent cleaner ("Cleaner" or "Sweepr Pro")
-          who performs the cleaning.
+          relationship with the independent cleaner ("Cleaner" or "Service
+          Provider") who performs the cleaning. Sweepr operates the
+          marketplace, facilitates matching, payment, communication, and
+          support, and administers the transaction; the independent Cleaner
+          performs the underlying cleaning service.
+        </p>
+        <p>
+          Paying the amount shown through Sweepr's authorized payment system
+          satisfies your payment obligation to the Cleaner for that booking to
+          the extent of the amount collected. You will never be asked to pay a
+          Cleaner directly for a Sweepr booking.
         </p>
       </Section>
 
@@ -86,7 +95,7 @@ export function CustomerAgreement() {
           </li>
         </ul>
         <p>
-          You authorize the assigned Cleaner to enter the premises for the
+          You authorize the matched Cleaner to enter the premises for the
           purpose of performing the Services on the scheduled date and time.
         </p>
       </Section>

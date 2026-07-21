@@ -16,7 +16,7 @@ import { LegalLogo } from "./LegalLogo";
 const REF_URLS: Record<string, { label: string; url: string }> = {
   marketing: { label: "getsweepr.com", url: "https://getsweepr.com" },
   customer:  { label: "Sweepr App", url: "https://app.getsweepr.com" },
-  cleaner:   { label: "Sweepr Pro", url: "https://clean.getsweepr.com" },
+  cleaner:   { label: "Sweepr for Cleaners", url: "https://clean.getsweepr.com" },
   admin:     { label: "Admin", url: "https://admin.getsweepr.com" },
 };
 

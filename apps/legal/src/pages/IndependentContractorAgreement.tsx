@@ -19,14 +19,19 @@ import {
 const toc = [
   { id: "scope", title: "Scope" },
   { id: "status", title: "Independent Contractor Status" },
+  { id: "opportunities", title: "Service Opportunities" },
+  { id: "compliance", title: "Licenses & Legal Compliance" },
   { id: "ab5", title: "California Classification (AB5 / Borello)" },
   { id: "fee", title: "Platform Fee" },
-  { id: "ratecard", title: "Opt-In to Rate Card" },
+  { id: "ratecard", title: "Compensation & Opt-In to Rate Card" },
+  { id: "payment-agency", title: "Payment Collection Authorization" },
+  { id: "tips", title: "Tips" },
   { id: "background", title: "Background Check Consent" },
   { id: "tax", title: "Tax Responsibility" },
   { id: "insurance", title: "Insurance" },
-  { id: "termination", title: "Termination" },
+  { id: "termination", title: "Term, Deactivation & Marketplace Access" },
   { id: "confidentiality", title: "Confidentiality" },
+  { id: "hierarchy", title: "Order of Precedence" },
   { id: "governing", title: "Governing Law" },
 ];
 
@@ -67,6 +72,63 @@ export function IndependentContractorAgreement() {
         </ul>
       </Section>
 
+      <Section id="opportunities" title="3. Service Opportunities">
+        <p>
+          Sweepr operates a marketplace that presents individual service
+          opportunities to eligible Service Providers. A booking for which the
+          Platform identifies the Service Provider as a candidate is a{" "}
+          <strong>proposed match</strong>, not a work order or a directive to
+          report to work. The Service Provider may accept or decline any
+          service opportunity; if declined, the Platform may offer the
+          opportunity to another eligible Service Provider.
+        </p>
+        <ul className="list-disc space-y-1 pl-6">
+          <li>No minimum number of service opportunities is guaranteed or required;</li>
+          <li>The Service Provider is not required to remain continuously available;</li>
+          <li>
+            The Service Provider may pause availability, change their service
+            area, or stop using the Platform at any time;
+          </li>
+          <li>
+            The Service Provider may provide services through competing
+            platforms and operate their own independent cleaning business
+            outside Sweepr.
+          </li>
+        </ul>
+        <p>
+          A Service Provider who accepts an opportunity agrees to perform the
+          accepted service. Accountability for services voluntarily accepted
+          and not performed is distinct from any consequence for declining an
+          opportunity that was never accepted.
+        </p>
+      </Section>
+
+      <Section id="compliance" title="4. Licenses, Registrations & Legal Compliance">
+        <p>
+          Each Service Provider is solely responsible for identifying,
+          obtaining, maintaining, and renewing all licenses, permits,
+          registrations, tax accounts, insurance coverage, certifications, and
+          other authorizations required for the Service Provider's independent
+          business activities and for providing services in each jurisdiction
+          the Service Provider selects, including any local business licenses,
+          business tax registrations, or fictitious business name filings.
+        </p>
+        <p>
+          Access to the Sweepr platform does not, by itself, establish that a
+          Service Provider is legally authorized to operate an independent
+          business or satisfies every requirement applicable to independent
+          contractors, and approval to access the marketplace is not a
+          representation by Sweepr that the Service Provider has satisfied any
+          such requirement, except to the extent applicable law expressly
+          requires Sweepr to verify or enforce a particular requirement.
+          Sweepr does not provide legal or tax advice regarding independent
+          contractor status or business compliance; Service Providers are
+          responsible for obtaining their own advice. The Service Provider must
+          comply with all applicable federal, state, county, and municipal
+          laws.
+        </p>
+      </Section>
+
       {/*
         NOTE (DRAFT, attorney review required): Proposition 22 applies to
         app-based transportation and delivery network companies, not ordinary
@@ -75,7 +137,7 @@ export function IndependentContractorAgreement() {
         factors and the independent-business model. Counsel must review the
         classification strategy before production use.
       */}
-      <Section id="ab5" title="3. California Classification (AB5 / Borello)">
+      <Section id="ab5" title="5. California Classification (AB5 / Borello)">
         <p>
           Sweepr classifies Cleaners as independent contractors. This
           classification reflects that Service Providers operate independent
@@ -95,7 +157,7 @@ export function IndependentContractorAgreement() {
         </p>
       </Section>
 
-      <Section id="fee" title="4. Platform Fee">
+      <Section id="fee" title="6. Platform Fee">
         <p>
           Sweepr charges a platform fee from each completed booking. The Cleaner
           receives their agreed payout. The applicable fee and payout are
@@ -117,17 +179,53 @@ export function IndependentContractorAgreement() {
         </p>
       </Section>
 
-      <Section id="ratecard" title="5. Opt-In to Rate Card">
+      <Section id="ratecard" title="7. Compensation & Opt-In to Rate Card">
         <p>
-          By accepting jobs through the Sweepr platform, the Service Provider
-          agrees to Sweepr's published rate card for each service type. Sweepr
-          sets customer-facing prices. The Service Provider may decline any job
-          and is under no obligation to accept any particular job or volume of
-          jobs.
+          Sweepr calculates the customer-facing marketplace price through its
+          pricing technology and discloses the Service Provider's earnings for
+          each service opportunity before acceptance. By accepting an
+          opportunity, the Service Provider agrees to perform it for the
+          disclosed compensation under Sweepr's published rate methodology for
+          that service type. The Service Provider may decline any opportunity
+          and is under no obligation to accept any particular opportunity or
+          volume of opportunities. Provider compensation is earnings of the
+          Service Provider's independent business and is not wages, salary, or
+          payroll.
         </p>
       </Section>
 
-      <Section id="background" title="6. Background Check Consent">
+      {/*
+        DRAFT — attorney review required. Limited payment collection agency is
+        the standard marketplace pattern (Stripe Connect destination charges);
+        counsel must confirm the agency framing and the discharge provision
+        under California law.
+      */}
+      <Section id="payment-agency" title="8. Payment Collection Authorization">
+        <p>
+          The Service Provider appoints Sweepr, acting through its payment
+          processor, as the Service Provider's limited agent solely for the
+          purpose of collecting amounts owed by customers for services the
+          Service Provider performs through the Platform. Amounts a customer
+          pays through the Sweepr payment system are treated as received by the
+          Service Provider to the extent of the compensation collected on the
+          Service Provider's behalf, and to that extent the customer's payment
+          obligation to the Service Provider is satisfied even if Sweepr fails
+          to remit the corresponding amount to the Service Provider. Sweepr's
+          obligation to remit collected provider compensation is governed by
+          the Payment Services Terms, including payout timing, holds,
+          adjustments, refunds, and chargebacks.
+        </p>
+      </Section>
+
+      <Section id="tips" title="9. Tips">
+        <p>
+          Voluntary customer tips belong entirely to the Service Provider.
+          Sweepr does not take a platform fee or commission from tips.
+          Third-party payment processing costs may apply as disclosed.
+        </p>
+      </Section>
+
+      <Section id="background" title="10. Background Check Consent">
         <p>
           The Service Provider consents to a background check conducted by a
           third-party consumer reporting agency (Yardstik, Inc.) as a condition of
@@ -138,7 +236,7 @@ export function IndependentContractorAgreement() {
         </p>
       </Section>
 
-      <Section id="tax" title="7. Tax Responsibility">
+      <Section id="tax" title="11. Tax Responsibility">
         <p>
           The Service Provider is solely responsible for reporting and paying all
           applicable taxes. Sweepr will issue a Form 1099-NEC if annual earnings
@@ -147,7 +245,7 @@ export function IndependentContractorAgreement() {
         </p>
       </Section>
 
-      <Section id="insurance" title="8. Insurance">
+      <Section id="insurance" title="12. Insurance">
         <p>
           Sweepr does not provide workers' compensation coverage to Service
           Providers. The Service Provider is encouraged to obtain appropriate
@@ -156,16 +254,23 @@ export function IndependentContractorAgreement() {
         </p>
       </Section>
 
-      <Section id="termination" title="9. Termination">
+      <Section id="termination" title="13. Term, Deactivation & Marketplace Access">
         <p>
-          Either party may terminate this Agreement at any time, with or without
-          cause. Sweepr may suspend or deactivate a Cleaner account for
-          violations of these terms, the Terms of Service, or for conduct that
-          endangers customers or other users.
+          Either party may end this Agreement at any time. The Service Provider
+          may stop using the Platform at any time without penalty for unaccepted
+          opportunities. Sweepr may suspend or deactivate marketplace access for
+          violations of these terms, the Terms of Service, fraud, theft,
+          violence, harassment, discriminatory conduct, serious safety concerns,
+          repeated failure to perform accepted services, falsified completion
+          evidence, or platform manipulation. Where appropriate and not
+          prohibited by safety or legal considerations, Sweepr will provide
+          notice of the reason for deactivation and an opportunity to respond
+          or request review. Deactivation is a loss of marketplace access, not
+          a termination of employment.
         </p>
       </Section>
 
-      <Section id="confidentiality" title="10. Confidentiality">
+      <Section id="confidentiality" title="14. Confidentiality">
         <p>
           The Service Provider must keep confidential all customer information
           obtained through the Platform, including customer addresses, entry
@@ -175,7 +280,18 @@ export function IndependentContractorAgreement() {
         </p>
       </Section>
 
-      <Section id="governing" title="11. Governing Law">
+      <Section id="hierarchy" title="15. Order of Precedence">
+        <p>
+          The Service Provider's relationship with Sweepr is governed by, in
+          descending order of precedence in the event of conflict: (1) this
+          Independent Contractor Agreement; (2) the Cleaner Platform Agreement;
+          (3) the incorporated platform policies (including the Payment
+          Services Terms, Platform Fee Policy, Trust &amp; Safety Policy, and
+          Damage Claims Policy); and (4) the Terms of Service.
+        </p>
+      </Section>
+
+      <Section id="governing" title="16. Governing Law">
         <p>
           This Agreement is governed by the laws of the State of{" "}
           {STATE_OF_INCORPORATION}. Questions may be directed to{" "}

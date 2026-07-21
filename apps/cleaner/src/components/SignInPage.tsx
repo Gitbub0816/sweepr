@@ -126,7 +126,7 @@ export function SignInPage() {
       <div className="absolute right-4 top-4"><ThemeToggle /></div>
       <div className="mb-8 flex flex-col items-center text-center">
         <SweeprLogo size="md" />
-        <p className="mt-1 text-sm font-medium text-seafoam-700 dark:text-seafoam-400">Sweepr Pro</p>
+        <p className="mt-1 text-sm font-medium text-seafoam-700 dark:text-seafoam-400">Sweepr for Cleaners</p>
         <h1 className="mt-4 text-2xl font-bold text-charcoal dark:text-white">{t("auth.welcomeBack")}</h1>
         <p className="mt-1 text-sm text-slate-500">{t("auth.signInToManageCleans")}</p>
       </div>

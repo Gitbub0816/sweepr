@@ -19,6 +19,7 @@ const toc = [
   { id: "customer-auth", title: "Customer Payment Authorization" },
   { id: "saved", title: "Saved Payment Methods" },
   { id: "recurring", title: "Recurring Billing" },
+  { id: "collection", title: "Collection on Behalf of Cleaners" },
   { id: "connect", title: "Cleaner Connected Accounts" },
   { id: "payouts", title: "Payouts, Holds & Reserves" },
   { id: "chargebacks", title: "Chargebacks & Refunds" },
@@ -86,7 +87,25 @@ export function PaymentServicesTerms() {
         </p>
       </Section>
 
-      <Section id="connect" title="5. Cleaner Connected Accounts">
+      {/*
+        DRAFT — attorney review required (limited payment collection agency
+        framing and customer-discharge provision).
+      */}
+      <Section id="collection" title="5. Collection on Behalf of Cleaners">
+        <p>
+          Each customer charge is a single payment that Sweepr allocates
+          internally among the Cleaner's earnings for the service, Sweepr's
+          platform fee, applicable taxes and fees, tips, and any adjustments.
+          Sweepr, through its payment processor, collects the Cleaner's
+          earnings as the Cleaner's limited payment collection agent under the
+          Independent Contractor Agreement. A customer's payment through the
+          Sweepr payment system satisfies the customer's payment obligation to
+          the Cleaner to the extent of the amount collected. Voluntary tips
+          belong entirely to the Cleaner; Sweepr takes no commission on tips.
+        </p>
+      </Section>
+
+      <Section id="connect" title="6. Cleaner Connected Accounts">
         <p>
           Cleaners receive payouts through a Stripe Connect account and must
           complete Stripe onboarding, including identity verification. Cleaners
@@ -94,7 +113,7 @@ export function PaymentServicesTerms() {
         </p>
       </Section>
 
-      <Section id="payouts" title="6. Payouts, Holds & Reserves">
+      <Section id="payouts" title="7. Payouts, Holds & Reserves">
         <p>
           Cleaner payouts follow the schedule shown in the app. Sweepr or the
           processor may delay, hold, or reserve payouts for risk, fraud review,
@@ -107,7 +126,7 @@ export function PaymentServicesTerms() {
         </p>
       </Section>
 
-      <Section id="chargebacks" title="7. Chargebacks & Refunds">
+      <Section id="chargebacks" title="8. Chargebacks & Refunds">
         <p>
           Refunds are handled under the{" "}
           <Link className="text-seafoam-700 underline" to="/refund-policy">
@@ -118,7 +137,7 @@ export function PaymentServicesTerms() {
         </p>
       </Section>
 
-      <Section id="negative" title="8. Negative Balances">
+      <Section id="negative" title="9. Negative Balances">
         <p>
           If your account develops a negative balance (for example, from a refund,
           reversal, or validated claim), Sweepr may offset it against future
@@ -126,7 +145,7 @@ export function PaymentServicesTerms() {
         </p>
       </Section>
 
-      <Section id="kyc" title="9. Identity, KYC & Sanctions">
+      <Section id="kyc" title="10. Identity, KYC & Sanctions">
         <p>
           Payment services require identity verification and screening against
           sanctions and other legal requirements. Accounts may be suspended for
@@ -134,7 +153,7 @@ export function PaymentServicesTerms() {
         </p>
       </Section>
 
-      <Section id="fees" title="10. Fees">
+      <Section id="fees" title="11. Fees">
         <p>
           Platform fees, commissions, and processing costs are described in the{" "}
           <Link className="text-seafoam-700 underline" to="/platform-fee-policy">

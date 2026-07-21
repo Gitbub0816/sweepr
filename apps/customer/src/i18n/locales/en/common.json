@@ -182,9 +182,9 @@
     },
     "confirmed": {
       "title": "You're booked.",
-      "cleanerAssigned": "A trusted cleaner has been assigned to your booking.",
-      "findingCleaner": "We're finding your perfect cleaner. You'll be notified as soon as one is assigned.",
-      "cleanerAssignedBadge": "Cleaner assigned",
+      "cleanerAssigned": "A trusted cleaner has been matched to your booking.",
+      "findingCleaner": "We're finding your perfect cleaner. You'll be notified as soon as one is matched.",
+      "cleanerAssignedBadge": "Cleaner matched",
       "matchingCleaner": "Matching you with a cleaner…",
       "bookingRef": "Booking ref:",
       "goToDashboard": "Go to dashboard",
@@ -292,7 +292,7 @@
     "thanksFeedback": "Thanks, your feedback was sent.",
     "submitReview": "Submit review",
     "submitting": "Submitting…",
-    "noCleanerAssigned": "No cleaner assigned to this booking.",
+    "noCleanerAssigned": "No cleaner matched to this booking yet.",
     "couldNotSubmitReview": "Couldn't submit your review. Please try again.",
     "tags": {
       "arrivedOnTime": "Arrived on time",

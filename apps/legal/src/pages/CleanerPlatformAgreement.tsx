@@ -37,7 +37,7 @@ export function CleanerPlatformAgreement() {
     <DocPage
       title="Cleaner Platform Agreement"
       version={DOC_VERSION}
-      intro="This Agreement governs your use of Sweepr as an independent cleaner ('Cleaner' or 'Sweepr Pro'). It supplements the Terms of Service and the Independent Contractor Agreement."
+      intro="This Agreement governs your use of Sweepr as an independent cleaner ('Cleaner' or 'Service Provider'). It supplements the Terms of Service and the Independent Contractor Agreement."
       toc={toc}
     >
       <Section id="status" title="1. Independent Contractor Status">
@@ -107,9 +107,13 @@ export function CleanerPlatformAgreement() {
 
       <Section id="jobs" title="6. Accepting & Declining Jobs">
         <p>
-          You may accept or decline any job. There is no minimum-work guarantee, no
-          guaranteed earnings, and no exclusivity. Payout for a job is shown before
-          you accept it.
+          Bookings are presented to you as service opportunities (proposed
+          matches). You may accept or decline any opportunity; declined
+          opportunities may be offered to other eligible Cleaners. There is no
+          minimum-work guarantee, no guaranteed earnings, and no exclusivity.
+          Your earnings for an opportunity are shown before you accept it.
+          Accountability applies to services you accepted and did not perform,
+          not to opportunities you never accepted.
         </p>
       </Section>
 
