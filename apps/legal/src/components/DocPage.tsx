@@ -18,6 +18,21 @@ interface ArchivedVersion {
   documentUrl: string;
   pdfUrl: string;
 }
+
+// Slugs that actually have a published archived version, fetched once per
+// page load via the batched list endpoint so individual doc pages never fire
+// /current requests that are guaranteed to 404 for unpublished docs.
+let archivedSlugsPromise: Promise<Set<string>> | null = null;
+function fetchArchivedSlugs(): Promise<Set<string>> {
+  archivedSlugsPromise ??= fetch(`${API_URL}/legal-archive`)
+    .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+    .then((d: { docs: { slug: string }[] }) => new Set(d.docs.map((doc) => doc.slug)))
+    .catch(() => {
+      archivedSlugsPromise = null; // allow retry on next navigation
+      return new Set<string>();
+    });
+  return archivedSlugsPromise;
+}
 import { LAST_UPDATED, LEGAL_EMAIL, LEGAL_URL } from "../docs";
 import { TableOfContents, type TocItem } from "./TableOfContents";
 
@@ -112,10 +127,15 @@ export function DocPage({
     // Offer downloads if a versioned snapshot has been archived for this doc.
     setArchived(null);
     let cancelled = false;
-    fetch(`${API_URL}/legal-archive/${slug}/current`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((d: ArchivedVersion) => {
-        if (!cancelled) setArchived(d);
+    fetchArchivedSlugs()
+      .then((slugs) => {
+        if (cancelled || !slugs.has(slug)) return null;
+        return fetch(`${API_URL}/legal-archive/${slug}/current`).then((r) =>
+          r.ok ? (r.json() as Promise<ArchivedVersion>) : null,
+        );
+      })
+      .then((d) => {
+        if (!cancelled && d) setArchived(d);
       })
       .catch(() => {});
     return () => {

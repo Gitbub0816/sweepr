@@ -174,6 +174,39 @@ async function captureBodySnippet(c: { req: { header: (n: string) => string | un
   }
 }
 
+// --- Scanner-probe short-circuit -------------------------------------------
+// Vulnerability scanners constantly hit the worker with paths like /.env,
+// /.git/config, /wp-login.php, /phpinfo.php, /config.json… Letting those flow
+// through the full middleware chain burns KV rate-limiter writes and floods
+// the logs, so they get an immediate bare 404 BEFORE any other middleware —
+// no logging, no KV, no DB. Matchers are deliberately narrow: no legitimate
+// API route starts with "/." or "/wp-", or ends in .php/.asp/.aspx/.jsp/
+// .yml/.bak, so real traffic can never be intercepted here.
+const PROBE_PATH_PREFIXES = ["/.", "/wp-", "/wordpress", "/phpmyadmin"];
+const PROBE_PATH_SUFFIXES = [".php", ".asp", ".aspx", ".jsp", ".yml", ".bak"];
+const PROBE_PATH_EXACT = new Set(["/config.json", "/web.config"]);
+
+function isProbePath(path: string): boolean {
+  const p = path.toLowerCase();
+  return (
+    PROBE_PATH_EXACT.has(p) ||
+    PROBE_PATH_PREFIXES.some((prefix) => p.startsWith(prefix)) ||
+    PROBE_PATH_SUFFIXES.some((suffix) => p.endsWith(suffix))
+  );
+}
+
+app.use("*", async (c, next) => {
+  const path = c.req.path;
+  if (isProbePath(path)) return c.text("Not found", 404);
+  // Crawlers and browsers request these on every host; serve tiny valid
+  // responses so they stop showing up as 404 errors.
+  if (c.req.method === "GET" || c.req.method === "HEAD") {
+    if (path === "/robots.txt") return c.text("User-agent: *\nDisallow: /");
+    if (path === "/favicon.ico") return c.body(null, 204);
+  }
+  await next();
+});
+
 // Security headers run first so they apply to every response.
 app.use("*", securityHeaders);
 

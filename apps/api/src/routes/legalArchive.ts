@@ -49,7 +49,7 @@ legalArchiveRouter.get("/:slug/versions", async (c) => {
 legalArchiveRouter.get("/:slug/current", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const current = await getCurrentLegalDocVersion(sql, c.req.param("slug"));
-  if (!current) return c.json({ error: "No archived version for this document" }, 404);
+  if (!current) return c.json({ ok: false, error: "no_published_version" }, 404);
   const r2 = parseR2LegalConfig(c.env);
   return c.json({
     version: current,
