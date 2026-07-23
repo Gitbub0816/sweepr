@@ -62,7 +62,12 @@ function PrelaunchSettingsPanel() {
         without a bypass code. Flip it off to launch.
       </p>
       {loading ? (
-        <p className="text-sm text-slate-400">Loading…</p>
+        // Skeleton mirrors the two checkbox rows so the card doesn't grow on load (CLS).
+        <div className="space-y-3">
+          {[1, 2].map((i) => (
+            <div key={i} className="h-5 w-56 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
+          ))}
+        </div>
       ) : (
         <div className="space-y-3">
           {([
@@ -198,10 +203,15 @@ function GeneralSettingsPanel() {
     <Card className="max-w-lg space-y-4">
       <h2 className="text-sm font-semibold text-charcoal dark:text-white">General</h2>
       {loading ? (
-        <div className="space-y-3">
+        // Label + input pairs, then the save button — sized like the loaded form (CLS).
+        <div className="space-y-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-10 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />
+            <div key={i} className="space-y-1.5">
+              <div className="h-4 w-28 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
+              <div className="h-10 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />
+            </div>
           ))}
+          <div className="h-10 w-32 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />
         </div>
       ) : (
         <>
@@ -330,9 +340,23 @@ function ScopeReviewSettingsPanel() {
   }
 
   if (loading) {
+    // Mirror the loaded form's five sections (heading + input grid each) so the
+    // card occupies its final height while data loads (CLS).
     return (
-      <Card className="max-w-2xl space-y-3">
-        {[1, 2, 3].map((i) => <div key={i} className="h-10 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />)}
+      <Card className="max-w-2xl space-y-6">
+        {[3, 2, 3, 3, 1].map((cols, s) => (
+          <div key={s}>
+            <div className="mb-3 h-4 w-32 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
+            <div className={`grid gap-3 ${cols === 3 ? "grid-cols-3" : cols === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
+              {Array.from({ length: cols === 3 ? 6 : cols === 2 ? 2 : 1 }, (_, i) => (
+                <div key={i} className="space-y-1.5">
+                  <div className="h-4 w-24 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
+                  <div className="h-10 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </Card>
     );
   }
