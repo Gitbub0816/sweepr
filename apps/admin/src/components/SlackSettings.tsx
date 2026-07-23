@@ -61,7 +61,13 @@ export function SlackSettings() {
         const ws = d.workspaces?.[0];
         if (ws) {
           const lr = await authed(`/slack/admin/channels/${ws.id}`);
-          if (lr.ok) setLive(((await lr.json()) as { channels: LiveChannel[] }).channels ?? []);
+          if (lr.ok) {
+            const body = (await lr.json()) as { ok?: boolean; error?: string; needed?: string | null; channels?: LiveChannel[] };
+            setLive(body.channels ?? []);
+            if (body.ok === false) {
+              toast.error(`Could not list Slack channels: ${body.error ?? "Slack error"}${body.needed ? ` (needs ${body.needed})` : ""}.`);
+            }
+          }
         }
       }
     } finally {

@@ -449,8 +449,17 @@ slackRouter.get("/admin/channels/:wsId", ...adminGate, async (c) => {
   const rows = (await sql`SELECT bot_token FROM slack_workspaces WHERE id = ${wsId} AND status = 'active' LIMIT 1`) as Array<{ bot_token: string }>;
   if (!rows[0]) return c.json({ error: "Workspace not found" }, 404);
   const list = await listChannels(rows[0].bot_token);
-  if (!list.ok) return c.json({ error: list.error ?? "slack_error" }, 502);
-  return c.json({ channels: (list.channels ?? []).map((ch) => ({ id: ch.id, name: ch.name, is_private: ch.is_private })) });
+  if (!list.ok) {
+    // Expected upstream failures (missing_scope, token_revoked, ratelimited…) —
+    // surface a structured payload the UI can display, never a bare 502.
+    logger.warn("slack.admin.channels list failed", {
+      wsId,
+      error: list.error ?? "slack_error",
+      needed: (list.needed as string) ?? null,
+    });
+    return c.json({ ok: false, error: list.error ?? "slack_error", needed: (list.needed as string) ?? null, channels: [] });
+  }
+  return c.json({ ok: true, channels: (list.channels ?? []).map((ch) => ({ id: ch.id, name: ch.name, is_private: ch.is_private })) });
 });
 
 slackRouter.post(
@@ -636,17 +645,34 @@ slackRouter.get("/workspace/history", ...wsGate, async (c) => {
   const uToken = await userToken(sql, c.get("user").clerkId);
   const ws = await activeWorkspace(sql);
   const botToken = ws?.bot_token as string | null;
-  const histToken = uToken ?? botToken;
+  let histToken = uToken ?? botToken;
   if (!histToken) return c.json({ error: "Slack not connected" }, 409);
   // If using bot token, ensure it's in the channel.
   if (!uToken && botToken) await conversationsJoin(botToken, channel).catch(() => null);
 
-  const [hist, users, cards] = await Promise.all([
-    conversationsHistory(histToken, channel, 50),
+  let hist = await conversationsHistory(histToken, channel, 50);
+  if (!hist.ok && uToken && botToken && histToken !== botToken) {
+    // The user's personal token can't read this channel (not a member, missing
+    // scope, revoked…) — fall back to the bot token, same as /workspace/message.
+    await conversationsJoin(botToken, channel).catch(() => null);
+    histToken = botToken;
+    hist = await conversationsHistory(botToken, channel, 50);
+  }
+  if (!hist.ok) {
+    // Expected upstream failure — return a structured payload, never a bare 502.
+    logger.warn("slack.workspace.history failed", {
+      channel,
+      error: hist.error ?? "slack_error",
+      needed: (hist.needed as string) ?? null,
+      clerkId: c.get("user").clerkId,
+    });
+    return c.json({ ok: false, error: hist.error ?? "slack_error", needed: (hist.needed as string) ?? null, messages: [] });
+  }
+
+  const [users, cards] = await Promise.all([
     userMap(histToken),
     sql`SELECT message_ts, ref_id FROM slack_messages WHERE channel_id = ${channel} AND ref_type = 'fee_proposal'`,
   ]);
-  if (!hist.ok) return c.json({ error: hist.error ?? "slack_error" }, 502);
   const cardRows = cards as Array<{ message_ts: string; ref_id: string }>;
   const cardMap = new Map(cardRows.map((r) => [r.message_ts, r.ref_id]));
 
@@ -664,7 +690,7 @@ slackRouter.get("/workspace/history", ...wsGate, async (c) => {
       approvalProposalId: cardMap.get(ts) ?? null,
     };
   }).reverse();
-  return c.json({ messages });
+  return c.json({ ok: true, messages });
 });
 
 slackRouter.get("/workspace/replies", ...wsGate, async (c) => {

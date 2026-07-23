@@ -66,8 +66,13 @@ export function SlackPage() {
     setLoadingMsgs(true);
     try {
       const res = await authed(`/slack/workspace/history?channel=${ch.id}`);
-      if (res.ok) setMessages(((await res.json()) as { messages: Message[] }).messages ?? []);
-      else setMessages([]);
+      if (res.ok) {
+        const body = (await res.json()) as { ok?: boolean; error?: string; needed?: string | null; messages?: Message[] };
+        setMessages(body.messages ?? []);
+        if (body.ok === false) {
+          toast.error(`Could not load messages: ${body.error ?? "Slack error"}${body.needed ? ` (needs ${body.needed})` : ""}.`);
+        }
+      } else setMessages([]);
     } finally { setLoadingMsgs(false); }
   }, [authed]);
 
