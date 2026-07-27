@@ -17,9 +17,9 @@
     "@sweepr/db": "workspace:*",
     "@sweepr/types": "workspace:*",
     "@sweepr/utils": "workspace:*",
-    "hono": "^4.12.26",
+    "hono": "^4.12.32",
     "posthog-node": "^5.39.4",
-    "stripe": "^22.3.0",
+    "stripe": "^22.3.2",
     "zod": "^3.25.76"
   },
   "devDependencies": {
