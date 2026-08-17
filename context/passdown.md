@@ -13,8 +13,9 @@ Stable conventions live in root `/CLAUDE.md` — this file is state + recent wor
 
 ## Session 2026-08-17 (Site Analytics + tracking links, Coverdash, Yardstik prod prep)
 
-Branch `claude/analytics-dashboard-tracking-667zz8` (task-designated; NOT
-merged to main from this session).
+Branch `claude/analytics-dashboard-tracking-667zz8`, merged to main on
+user instruction (deploys only run from main). User confirmed tracker
+coverage is "all pages except admin" — which is what shipped.
 
 - **First-party site analytics** (user asked for "truly individualized
   metrics", separate from current Observability):
