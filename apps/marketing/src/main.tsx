@@ -11,7 +11,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
-import { ErrorBoundary, installGlobalErrorHandlers, initAnalytics } from "@sweepr/ui";
+import { ErrorBoundary, installGlobalErrorHandlers, initAnalytics, initSiteTracker } from "@sweepr/ui";
 import App from "./App";
 import "./index.css";
 import "./i18n";
@@ -27,6 +27,11 @@ const scheduleIdle =
     ? window.requestIdleCallback
     : (cb: () => void) => setTimeout(cb, 1);
 scheduleIdle(() => void initAnalyticsIfConsented(initAnalytics));
+
+// First-party site analytics (our own pipeline → admin Site Analytics).
+// Self-gating: cookieless/tab-scoped until the visitor grants analytics
+// consent, at which point it upgrades to first-party swa_* cookies.
+initSiteTracker({ app: "marketing" });
 
 // Clerk is only needed for the auth controls in the nav (see
 // MarketingAuth.tsx / ClerkAuthControls.tsx), which lazy-load

@@ -8,6 +8,7 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { SignInPage } from "./components/SignInPage";
 import { AccessControlPage } from "./pages/AccessControlPage";
@@ -48,6 +49,7 @@ import {
   Gavel,
   CalendarClock,
   DoorOpen,
+  Orbit,
 } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -95,6 +97,20 @@ import { MailPage } from "./pages/MailPage";
 import { ScopeReviewPage } from "./pages/ScopeReviewPage";
 import { ScopeReviewDetailPage } from "./pages/ScopeReviewDetailPage";
 import { TrustSafetyPage } from "./pages/TrustSafetyPage";
+
+// Lazy: Site Analytics carries three.js (React Three Fiber KPIs) — keep it
+// out of the main admin bundle.
+const AnalyticsPage = lazy(() =>
+  import("./pages/AnalyticsPage").then((m) => ({ default: m.AnalyticsPage })),
+);
+
+function AnalyticsFallback() {
+  return (
+    <div className="flex items-center justify-center py-24 text-sm text-slate-500">
+      Loading analytics…
+    </div>
+  );
+}
 
 const navGroups = [
   {
@@ -149,6 +165,7 @@ const navGroups = [
   {
     label: "Platform",
     items: [
+      { to: "/analytics", label: "Site Analytics", icon: Orbit },
       { to: "/observability", label: "Observability", icon: Telescope },
       { to: "/errors", label: "Errors", icon: Bug },
       { to: "/events", label: "Events", icon: CalendarClock },
@@ -282,6 +299,16 @@ export default function App() {
       <Route path="/smart-entry" element={<Guarded><SmartEntryPage /></Guarded>} />
       <Route path="/founding-members" element={<Guarded><FoundingMembersPage /></Guarded>} />
       <Route path="/mail" element={<Guarded><MailPage /></Guarded>} />
+      <Route
+        path="/analytics"
+        element={
+          <Guarded>
+            <Suspense fallback={<AnalyticsFallback />}>
+              <AnalyticsPage />
+            </Suspense>
+          </Guarded>
+        }
+      />
       <Route path="/observability" element={<Guarded><ObservabilityPage /></Guarded>} />
       <Route path="/errors" element={<Guarded><ErrorsPage /></Guarded>} />
       <Route path="/it-portal" element={<Guarded><ITPortalPage /></Guarded>} />

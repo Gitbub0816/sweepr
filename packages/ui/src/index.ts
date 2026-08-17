@@ -70,6 +70,7 @@ export { SafeText, sanitizeText } from "./lib/sanitize";
 export { isValidEmail, validateEmail, validateText, validatePhone } from "./lib/validation";
 export { loadMapkit, MAP_3D_PITCH, isDarkTheme, applyMapTheme, bindMapTheme } from "./lib/mapStyles";
 export { initAnalytics, track, identify, resetAnalytics } from "./lib/analytics";
+export { initSiteTracker, trackSiteEvent, type SiteApp } from "./lib/siteTracker";
 export {
   initCookieEngine,
   enforceCookiePolicy,

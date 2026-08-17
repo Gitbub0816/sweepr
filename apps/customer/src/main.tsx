@@ -13,12 +13,14 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ClerkProvider } from "@clerk/clerk-react";
-import { ToastProvider, ErrorBoundary, installGlobalErrorHandlers, initAnalytics } from "@sweepr/ui";
+import { ToastProvider, ErrorBoundary, installGlobalErrorHandlers, initAnalytics, initSiteTracker } from "@sweepr/ui";
 import App from "./App";
 import "./i18n/index";
 import "./index.css";
 
 initAnalytics();
+// First-party site analytics (cookieless until analytics consent is granted).
+initSiteTracker({ app: "customer" });
 
 const queryClient = new QueryClient();
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as

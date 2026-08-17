@@ -39,6 +39,9 @@ const COOKIE_TABLE: Array<{
   { name: "__stripe_mid, __stripe_sid, m", provider: "Stripe", category: "Functional (payment security)", purpose: "Fraud prevention on card payments; never used for advertising", duration: "30 minutes to 1 year" },
   { name: "theme, lang", provider: "Sweepr", category: "Functional", purpose: "Light/dark mode and language preferences", duration: "Persistent" },
   { name: "ph_*", provider: "PostHog", category: "Analytics (opt-in)", purpose: "Product analytics: which features are used and where visitors struggle", duration: "Up to 1 year" },
+  { name: "swa_vid", provider: "Sweepr", category: "Analytics (opt-in)", purpose: "First-party site analytics: recognizes return visits (random identifier, set only after consent)", duration: "13 months" },
+  { name: "swa_sid", provider: "Sweepr", category: "Analytics (opt-in)", purpose: "First-party site analytics: groups one browsing session (set only after consent)", duration: "30 minutes" },
+  { name: "swa_attr", provider: "Sweepr", category: "Analytics (opt-in)", purpose: "First-party site analytics: remembers which source or campaign link brought you here", duration: "90 days" },
 ];
 
 export function CookiePolicy() {

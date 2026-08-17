@@ -11,6 +11,70 @@ Stable conventions live in root `/CLAUDE.md` — this file is state + recent wor
 
 ---
 
+## Session 2026-08-17 (Site Analytics + tracking links, Coverdash, Yardstik prod prep)
+
+Branch `claude/analytics-dashboard-tracking-667zz8` (task-designated; NOT
+merged to main from this session).
+
+- **First-party site analytics** (user asked for "truly individualized
+  metrics", separate from current Observability):
+  - Mig. **096**: `tracking_links`, `site_events`, `site_sessions`. Distinct
+    from the old `analytics_events` observability table on purpose.
+  - New Worker **apps/analytics** (`sweepr-analytics`): `POST /collect`
+    ingest (Origin-checked *.getsweepr.com, plain-text body = no preflight,
+    per-IP in-isolate budget, UA parsed server-side, geo from `request.cf`,
+    salted IP hash only) and `GET /go/{code}` tracking-link redirector
+    (validated destinations, forwards ad params, stamps `swl/sws/swc`,
+    denormalized hit counters). Routes: custom domain metrics.getsweepr.com
+    (wrangler auto-DNS) + zone route `getsweepr.com/go/*`. Optional IPinfo
+    enrichment (`IPINFO_TOKEN`; first event per session + link hits, 6h
+    cache). deploy.yml job `deploy-analytics` syncs `DATABASE_URL` (+optional
+    `ANALYTICS_IP_SALT`, `IPINFO_TOKEN`) from GitHub secrets.
+    **Watch on first deploy**: confirm `/go/*` zone route takes precedence
+    over the marketing Pages custom domain (docs say Workers routes run
+    first; if not, links also work as metrics.getsweepr.com/go/{code} — flip
+    the URL the admin UI displays in AnalyticsPage/adminSiteAnalytics).
+  - Tracker `packages/ui/src/lib/siteTracker.ts` in marketing, customer,
+    cleaner, legal, status main.tsx (admin deliberately excluded; business
+    not yet). Cookieless/tab-scoped until analytics consent; `swa_*` cookies
+    (13mo/30min/90d) registered in cookieEngine + Cookie Policy. SPA route
+    hooks, click capture, sendBeacon flush. CSPs: all 5 apps' connect-src +
+    metrics host. Custom events via `trackSiteEvent(name, meta)`.
+  - Legal app's inline PostHog init (consent-less AND CSP-blocked = dead
+    code) replaced with the shared consent-gated `initAnalytics` + tracker;
+    legal CSP now carries posthog hosts.
+  - API: `routes/adminSiteAnalytics.ts` → `/admin/site-analytics/*`
+    (overview/breakdowns/pages/geo/live/sessions + links CRUD w/ zod +
+    audit; codes immutable after create). Screen slug `analytics` in both
+    permissions files. Cron: 395-day retention deletes.
+  - Admin `/analytics` (Platform group, lazy chunk ~238KB gz): R3F visitor
+    globe (city dots from cf lat/lon) + 3D daily bars + recharts timeseries
+    (colors validated light+dark), breakdowns (device/OS/browser/geo/
+    language/source/campaign/link), top pages/clicks, tracking-link manager
+    (create→URL copied to clipboard), session explorer w/ journey modal
+    (shows IPinfo VPN flags when present).
+  - Legal: Privacy Policy §3.2.1 (first-party analytics, hashed IP, GPC,
+    consent model), retention line (13mo), IPinfo subprocessor added,
+    PostHog "self-hosted" mis-claim fixed; Cookie Policy `swa_*` rows;
+    Subprocessors + IPinfo row.
+- **Coverdash affiliate** (cleaner insurance): partner card in
+  InsurancePage "My Own Policy" tab + onboarding BusinessVerificationStep
+  (`apps/cleaner/src/lib/partners.ts` holds the quote URL). Copy explicitly
+  says purchase does NOT auto-link; COI upload still required.
+- **Yardstik prod readiness**: audited — fully secret-driven, default host
+  already production. Runbook: **docs/YARDSTIK_PRODUCTION_SWITCH.md**
+  (3 secret swaps + YARDSTIK_API_URL, webhook registration, verify steps,
+  post-cutover CSP cleanup). No code changes needed for cutover.
+- Tests 330→353 (site-analytics.test.ts: destination/open-redirect gate, UA
+  parser, ingest normalization, links CRUD). Full typecheck + all app builds
+  green; schema.sql rebuilt.
+- **User-answer ambiguity flagged**: coverage question answered "All pages
+  except for marketing" while ALSO selecting Marketing; marketing was
+  included (tracking links land there). Trivial to remove if wrong: delete
+  initSiteTracker from apps/marketing/src/main.tsx.
+
+---
+
 ## Session 2026-07-13 (Central auth broker — pilot wiring, business app)
 
 Sweepr-owned central auth broker (Rust Worker, `services/auth-broker`) now has

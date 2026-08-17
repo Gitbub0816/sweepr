@@ -74,6 +74,8 @@ export const COOKIE_REGISTRY: CookieRule[] = [
   { pattern: "m", exact: true, category: "functional", provider: "Stripe", purpose: "Payment fraud signals" },
   // ── PostHog (analytics, consent-gated) ──
   { pattern: "ph_", category: "analytics", provider: "PostHog", purpose: "Product analytics" },
+  // ── Sweepr first-party site analytics (siteTracker.ts, consent-gated) ──
+  { pattern: "swa_", category: "analytics", provider: "Sweepr", purpose: "First-party site analytics (visitor id, session, source attribution)" },
   // ── Advertising (none active today; fail closed if any appear) ──
   { pattern: "_ga", category: "advertising", provider: "Google", purpose: "Ads/analytics measurement" },
   { pattern: "_gid", category: "advertising", provider: "Google", purpose: "Ads/analytics measurement" },

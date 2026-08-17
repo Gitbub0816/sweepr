@@ -18,6 +18,7 @@ Didit identity verification, Neon Postgres, Hono on Cloudflare Workers.
 | Path | Deploys to |
 | --- | --- |
 | `apps/api` | Worker `sweepr-api` → api.getsweepr.com (cron `*/15 * * * *`) |
+| `apps/analytics` | Worker `sweepr-analytics` → metrics.getsweepr.com + zone route `getsweepr.com/go/*` (first-party analytics ingest + tracking-link redirects) |
 | `apps/marketing` | getsweepr.com |
 | `apps/customer` | app.getsweepr.com (booking wizard `src/booking/`, Zustand store `src/store/booking.ts`) |
 | `apps/cleaner` | clean.getsweepr.com + dashboard.getsweepr.com (day-of-service `src/pages/JobDetailPage.tsx`; 10 locales) |
@@ -94,6 +95,23 @@ comments in `apps/api/wrangler.toml`.
 15. Each Pages app has its own CSP in `apps/<app>/public/_headers`; new external
     script/XHR/iframe origins must be added there (browsers cache it).
 16. Every source file starts with the ClearKey copyright header.
+
+## First-party site analytics (separate from Observability)
+`site_events`/`site_sessions`/`tracking_links` (mig. 096) are OUR web
+analytics, distinct from the older `analytics_events` observability table.
+Pipeline: `packages/ui/src/lib/siteTracker.ts` (all public apps' main.tsx) →
+`sweepr-analytics` worker `/collect` → Neon; admin reads
+`/admin/site-analytics/*` (routes/adminSiteAnalytics.ts) → admin `/analytics`
+page (R3F globe + bars; lazy chunk). Tracking links: admin creates
+`getsweepr.com/go/{code}` (source + optional campaign ID); the worker logs the
+hit and 302s to a `normalizeDestination`-validated *.getsweepr.com URL with
+`swl/sws/swc` params the tracker picks up. Privacy invariants: raw IPs never
+stored (salted hash), cookieless until analytics consent (`swa_*` cookies are
+registry-classified "analytics" in cookieEngine.ts), GPC honored, 13-month
+retention via the API cron. Adding a tracked app: init tracker + add
+`https://metrics.getsweepr.com` to its CSP connect-src + `SITE_APPS` in
+`packages/utils/src/siteAnalytics.ts`. Keep the Privacy/Cookie Policies in
+sync with any collection change.
 
 ## Auth — TWO Clerk applications
 1. **Primary** (`clerk.getsweepr.com`): customers + cleaners; one account can be

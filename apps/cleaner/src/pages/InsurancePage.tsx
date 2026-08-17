@@ -10,11 +10,12 @@
 
 import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
-import { Shield, ShieldCheck, ShieldAlert, Upload, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
+import { Shield, ShieldCheck, ShieldAlert, Upload, CheckCircle2, AlertTriangle, Clock, ExternalLink } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
 import { useAppToken } from "@/lib/appToken";
 import { DashboardShell, Card, Button, toast } from "@sweepr/ui";
 import { cn } from "@sweepr/utils";
+import { COVERDASH_QUOTE_URL } from "@/lib/partners";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 
@@ -327,6 +328,32 @@ export function InsurancePage() {
                 at least $500,000 general liability.
               </p>
             </div>
+          </div>
+
+          {/* Coverdash partner quote flow. Purchasing there does NOT auto-link
+              the policy: the COI upload below is still required for approval. */}
+          <div className="rounded-xl border border-seafoam-200 bg-seafoam-50 p-4 dark:border-seafoam-900/40 dark:bg-seafoam-900/20">
+            <p className="font-semibold text-seafoam-800 dark:text-seafoam-200">
+              Don't have a policy yet?
+            </p>
+            <p className="mt-1 text-sm text-seafoam-800/90 dark:text-seafoam-200/90">
+              You can buy general liability coverage through our partner Coverdash.
+              Quotes take a few minutes and coverage can start the same day.
+            </p>
+            <a
+              href={COVERDASH_QUOTE_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-seafoam-600 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-seafoam-700"
+            >
+              Get a quote through Coverdash
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+            <p className="mt-3 text-xs text-seafoam-800/80 dark:text-seafoam-200/80">
+              Heads up: buying through Coverdash doesn't connect the policy to Sweepr
+              automatically. Once your policy is issued, upload your COI below so our
+              team can review and approve it.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

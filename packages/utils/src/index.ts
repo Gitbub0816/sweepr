@@ -13,4 +13,5 @@ export * from "./format";
 export * from "./pricing";
 export * from "./roomPricing";
 export * from "./scope";
+export * from "./siteAnalytics";
 export * from "./status";

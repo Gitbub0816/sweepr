@@ -95,6 +95,7 @@ import { adminSettingsRouter } from "./routes/adminSettings";
 import { adminTrustRouter } from "./routes/adminTrust";
 import { adminPricingConfigRouter } from "./routes/adminPricingConfig";
 import { adminZipPricingRouter } from "./routes/adminZipPricing";
+import { adminSiteAnalyticsRouter } from "./routes/adminSiteAnalytics";
 import { legalArchiveRouter } from "./routes/legalArchive";
 import { legalAttorneyRouter } from "./routes/legalAttorney";
 import { AppError, toSafeError } from "./lib/errors";
@@ -503,6 +504,9 @@ app.route("/admin/settings", adminSettingsRouter);
 app.route("/admin-trust", adminTrustRouter);
 app.route("/admin-pricing-config", adminPricingConfigRouter);
 app.route("/admin/zip-pricing", adminZipPricingRouter);
+// First-party site analytics (site_events/site_sessions/tracking_links —
+// written by the sweepr-analytics worker, read here for the admin dashboard).
+app.route("/admin/site-analytics", adminSiteAnalyticsRouter);
 app.route("/legal-archive", legalArchiveRouter);
 app.route("/legal-attorney", legalAttorneyRouter);
 app.route("/webhooks/mailersend", mailersendWebhookRouter);
@@ -703,6 +707,10 @@ async function runScheduled(event: ScheduledEvent, env: Record<string, unknown>)
       // Observability retention cleanup (safe to run every cron fire — idempotent).
       await sql`DELETE FROM api_request_logs WHERE logged_at < NOW() - INTERVAL '90 days'`;
       await sql`DELETE FROM analytics_events  WHERE occurred_at < NOW() - INTERVAL '180 days'`;
+      // First-party site analytics: 13-month retention (matches the Privacy
+      // Policy's analytics retention disclosure — keep the two in sync).
+      await sql`DELETE FROM site_events   WHERE occurred_at   < NOW() - INTERVAL '395 days'`;
+      await sql`DELETE FROM site_sessions WHERE last_seen_at  < NOW() - INTERVAL '395 days'`;
       await sql`DELETE FROM session_replay_refs WHERE started_at < NOW() - INTERVAL '90 days'`;
       await sql`DELETE FROM cleaner_location_pings WHERE created_at < NOW() - INTERVAL '72 hours'`;
 

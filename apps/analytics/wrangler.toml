@@ -1,0 +1,39 @@
+# Copyright © 2026–Present ClearKey Solutions, LLC.
+# All Rights Reserved.
+
+name = "sweepr-analytics"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+
+[vars]
+ENVIRONMENT = "production"
+
+# Two surfaces, one worker:
+#  - metrics.getsweepr.com    → POST /collect ingest beacon (all Pages apps'
+#    CSP connect-src allowlists this host) + GET /go/{code} fallback.
+#  - getsweepr.com/go/*       → tracking-link redirector on the marketing
+#    domain (zone route; Workers routes run in front of the Pages project on
+#    the same zone). Admin-created short links look like
+#    https://getsweepr.com/go/google or /go/fb-spring26.
+routes = [
+  { pattern = "metrics.getsweepr.com", custom_domain = true },
+  { pattern = "getsweepr.com/go/*", zone_name = "getsweepr.com" }
+]
+
+# Secrets stored in Cloudflare (set via wrangler secret put — use printf, not
+# echo; see CLAUDE.md):
+# DATABASE_URL        (same Neon connection string as sweepr-api; deploy.yml
+#                      syncs it from the GitHub secret on every deploy)
+# ANALYTICS_IP_SALT   (optional — salt for the IP hash stored on events.
+#                      openssl rand -hex 32. Falls back to a key derived from
+#                      DATABASE_URL when unset, so ingest works without it.)
+# IPINFO_TOKEN        (optional — IPinfo.io token. When set, new sessions and
+#                      tracking-link hits are enriched with ISP/company and
+#                      VPN/proxy privacy flags. Unset = enrichment skipped.)

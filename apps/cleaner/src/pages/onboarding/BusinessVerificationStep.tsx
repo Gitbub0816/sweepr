@@ -9,8 +9,9 @@
  */
 
 import { useRef, useState } from "react";
-import { CheckCircle2, ShieldCheck, Upload } from "lucide-react";
+import { CheckCircle2, ExternalLink, ShieldCheck, Upload } from "lucide-react";
 import { Input, Select } from "@sweepr/ui";
+import { COVERDASH_QUOTE_URL } from "@/lib/partners";
 
 export const US_STATES = [
   "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
@@ -175,6 +176,26 @@ export function BusinessVerificationStep({
         value={value.insuranceDoc}
         onChange={(name) => onChange({ insuranceDoc: name })}
       />
+
+      {/* Coverdash partner quote flow. Purchasing there does NOT auto-link the
+          policy: a COI upload and admin review are still required. */}
+      <div className="rounded-xl border border-slate-200 p-4 text-sm dark:border-slate-700">
+        <p className="font-medium text-charcoal dark:text-white">Need liability insurance?</p>
+        <p className="mt-1 text-slate-500">
+          You can buy coverage through our partner Coverdash in a few minutes.
+          The policy won't link to Sweepr automatically: after it's issued,
+          upload your COI here (or later under Insurance) for review.
+        </p>
+        <a
+          href={COVERDASH_QUOTE_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-2 inline-flex items-center gap-1.5 font-semibold text-seafoam-700 underline"
+        >
+          Get a quote through Coverdash
+          <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+      </div>
     </div>
   );
 }

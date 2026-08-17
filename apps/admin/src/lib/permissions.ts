@@ -43,6 +43,7 @@ export const ROUTE_SCREEN: Record<string, string> = {
   "/broadcasts": screenKey("broadcasts"),
   "/newsletter": screenKey("newsletter"),
   "/mail": screenKey("mail"),
+  "/analytics": screenKey("analytics"),
   "/observability": screenKey("observability"),
   "/errors": screenKey("errors"),
   "/it-portal": screenKey("it_portal"),

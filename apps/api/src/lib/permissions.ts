@@ -66,6 +66,7 @@ const SCREENS: Array<{ slug: string; label: string; route: string }> = [
   { slug: "broadcasts", label: "Broadcasts", route: "/broadcasts" },
   { slug: "newsletter", label: "Newsletter", route: "/newsletter" },
   { slug: "mail", label: "Mail", route: "/mail" },
+  { slug: "analytics", label: "Site Analytics", route: "/analytics" },
   { slug: "observability", label: "Observability", route: "/observability" },
   { slug: "errors", label: "Errors", route: "/errors" },
   { slug: "it_portal", label: "IT Portal", route: "/it-portal" },

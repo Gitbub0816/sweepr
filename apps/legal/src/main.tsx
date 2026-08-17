@@ -12,27 +12,19 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
-import { installGlobalErrorHandlers } from "@sweepr/ui";
+import { installGlobalErrorHandlers, initAnalytics, initSiteTracker } from "@sweepr/ui";
 import "./index.css";
 
 const API_URL =
   (import.meta.env.VITE_API_URL as string | undefined) ?? "https://api.getsweepr.com";
 installGlobalErrorHandlers({ app: "legal", apiUrl: API_URL });
 
-const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY as string | undefined;
-if (POSTHOG_KEY && typeof window !== "undefined") {
-  import("posthog-js").then(({ default: posthog }) => {
-    posthog.init(POSTHOG_KEY, {
-      api_host:
-        (import.meta.env.VITE_POSTHOG_HOST as string | undefined) ??
-        "https://app.posthog.com",
-      capture_pageview: true,
-      capture_pageleave: true,
-      autocapture: true,
-      session_recording: { maskAllInputs: true },
-    });
-  });
-}
+// PostHog through the shared consent-gated wrapper. (The previous inline
+// posthog.init here ran without a consent check AND was blocked by this
+// app's CSP anyway — the shared path is both compliant and consistent.)
+void initAnalytics();
+// First-party site analytics (cookieless until analytics consent is granted).
+initSiteTracker({ app: "legal" });
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

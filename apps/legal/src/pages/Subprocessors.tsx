@@ -45,6 +45,7 @@ const SUBS: Sub[] = [
   { vendor: "Twilio", purpose: "Masked voice calling", data: "Phone numbers, call metadata", region: "US", role: "Processor", status: "Optional" },
   { vendor: "Mapbox", purpose: "Maps, geocoding, routing", data: "Address/location data", region: "US", role: "Processor", status: "Active" },
   { vendor: "PostHog", purpose: "Product analytics", data: "Usage & device data", region: "US/EU", role: "Processor", status: "Active" },
+  { vendor: "IPinfo", purpose: "IP classification for site analytics & fraud prevention (ISP, VPN/proxy detection)", data: "IP-derived network metadata", region: "US", role: "Processor", status: "Active" },
 ];
 
 export function Subprocessors() {

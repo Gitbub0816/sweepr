@@ -70,11 +70,13 @@ export function PrivacyPolicy() {
         </ul>
         <p><strong>3.2 Information Collected Automatically:</strong></p>
         <ul className="list-disc space-y-1 pl-6">
-          <li>Technical data: IP address, device type, browser type and version, operating system;</li>
-          <li>Usage data: pages visited, features used, session duration, clickstream data;</li>
+          <li>Technical data: IP address, device type, browser type and version, operating system, screen size, and language preference;</li>
+          <li>Usage data: pages visited, features used, session duration, clickstream data, link and button interactions, and the referring website or campaign link that brought you to the Platform;</li>
+          <li>Approximate location data derived from your network connection at city level (city, region, country, and time zone), used for aggregate traffic analytics; this is not GPS or precise location;</li>
           <li>Location data: service address coordinates (used for Cleaner matching and mapping);</li>
           <li>Cookies and similar tracking technologies as described in our <a className="text-seafoam-700 underline" href={`${LEGAL_URL}/cookie-policy`}>Cookie Policy</a>.</li>
         </ul>
+        <p><strong>3.2.1 First-Party Site Analytics.</strong> We operate our own analytics pipeline on infrastructure we control; site-traffic measurement data is not shared with advertising networks. Two design choices limit what this data can identify: (a) we store a salted cryptographic hash in place of your IP address, never the IP address itself; and (b) unless you grant analytics consent through our cookie banner, measurement uses temporary identifiers that expire when you close the browser tab, so visits cannot be linked across sessions. If you grant analytics consent, we set first-party cookies (described in the Cookie Policy) that allow us to recognize return visits. A Global Privacy Control (GPC) signal from your browser is honored as a standing refusal of analytics consent. We may use a service provider (IPinfo) to classify network connections (for example, identifying ISP names and VPN or data-center traffic) for analytics quality and fraud prevention.</p>
         <p><strong>3.3 Information from Third Parties:</strong></p>
         <ul className="list-disc space-y-1 pl-6">
           <li>Background check status (pass/fail/pending) from Yardstik, PII is collected and retained by Yardstik, not Sweepr;</li>
@@ -126,7 +128,8 @@ export function PrivacyPolicy() {
           <li><strong>MailerSend</strong>, transactional email delivery;</li>
           <li><strong>Mapbox</strong>, mapping and geocoding services;</li>
           <li><strong>Twilio</strong>, SMS message delivery;</li>
-          <li><strong>PostHog</strong>, product analytics (self-hosted configuration, no third-party sale).</li>
+          <li><strong>PostHog</strong>, product analytics (opt-in via the cookie banner; no third-party sale);</li>
+          <li><strong>IPinfo</strong>, IP-address classification for site analytics and fraud prevention (ISP name, connection type, VPN/proxy detection).</li>
         </ul>
       </Section>
 
@@ -136,6 +139,7 @@ export function PrivacyPolicy() {
           <li>Financial and transaction records: seven (7) years from the date of transaction (tax and legal requirements);</li>
           <li>Account data: three (3) years after the account becomes inactive or is deleted;</li>
           <li>Access and system logs: two (2) years;</li>
+          <li>Site analytics events and sessions (first-party measurement data described in Section 3.2.1): thirteen (13) months, deleted automatically on a rolling basis;</li>
           <li>Background-check status references: duration of the Cleaner relationship plus two (2) years;</li>
           <li>Marketing consent records: retained until consent is withdrawn plus applicable statutory period.</li>
         </ul>
