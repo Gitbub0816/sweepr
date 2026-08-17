@@ -14,7 +14,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "jsdom": "^24.1.3",
-    "turbo": "^2.10.4",
+    "turbo": "^2.10.9",
     "typescript": "^5.6.3",
     "vitest": "^3.2.7",
     "wrangler": "3.114.17"
