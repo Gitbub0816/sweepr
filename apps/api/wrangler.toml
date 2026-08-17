@@ -3,6 +3,21 @@ main = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
+# 5th "site": the API + webhooks live on their own subdomain (api.getsweepr.com),
+# NOT under a path on another site. This binds the Worker to the custom domain
+# on deploy, exposing:
+#   https://api.getsweepr.com/webhooks/stripe
+#   https://api.getsweepr.com/webhooks/didit
+#   https://api.getsweepr.com/webhooks/yardstik
+# Requires the getsweepr.com zone to be in this Cloudflare account.
+# NOTE: `routes` must sit ABOVE the first [section] header — TOML scopes keys
+# to the preceding table, so a routes array under [vars] silently becomes an
+# env var named "routes" and wrangler attaches nothing (api.getsweepr.com kept
+# working only because the domain was already bound in the dashboard).
+routes = [
+  { pattern = "api.getsweepr.com", custom_domain = true }
+]
+
 [observability]
 enabled = true
 
@@ -12,17 +27,6 @@ invocation_logs = true
 
 [vars]
 ENVIRONMENT = "production"
-
-# 5th "site": the API + webhooks live on their own subdomain (api.getsweepr.com),
-# NOT under a path on another site. This binds the Worker to the custom domain
-# on deploy, exposing:
-#   https://api.getsweepr.com/webhooks/stripe
-#   https://api.getsweepr.com/webhooks/didit
-#   https://api.getsweepr.com/webhooks/yardstik
-# Requires the getsweepr.com zone to be in this Cloudflare account.
-routes = [
-  { pattern = "api.getsweepr.com", custom_domain = true }
-]
 
 [[kv_namespaces]]
 binding = "RATE_LIMIT_KV"

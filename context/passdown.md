@@ -280,6 +280,12 @@ admin.getsweepr.com) over a Sweepr-owned platform identity layer.
   engine, admin reorg with grouped nav.
 
 ## Gotchas (do not relearn)
+- wrangler.toml `routes` MUST sit above the FIRST `[section]` header. TOML
+  scopes keys to the preceding table, so `routes` under `[vars]` (or
+  `[observability.logs]`) becomes that table's key and wrangler attaches NO
+  routes/custom domains — deploy still "succeeds". Cost sweepr-analytics its
+  first deploy; api.getsweepr.com only ever worked because its domain was
+  bound in the dashboard.
 - Strict rate buckets on polled GETs break onboarding — give polls their own bucket.
 - `wrangler secret put` via `echo` adds a newline; use `printf`. Wrapping
   quotes/whitespace in secrets broke Yardstik twice (code now trims — set clean anyway).

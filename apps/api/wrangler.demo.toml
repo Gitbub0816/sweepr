@@ -15,6 +15,13 @@ compatibility_flags = ["nodejs_compat"]
 # jobs deploy-customer-demo / deploy-cleaner-demo), which are ALSO the real
 # apps/customer and apps/cleaner bundles, just pointed at this worker.
 
+# Above the first [section] header on purpose — TOML scopes keys to the
+# preceding table, so routes under [vars] (or [observability.logs]) would
+# silently become that table's key and wrangler would attach nothing.
+routes = [
+  { pattern = "api-demo.getsweepr.com", custom_domain = true }
+]
+
 [observability]
 enabled = true
 
@@ -24,10 +31,6 @@ invocation_logs = true
 
 [vars]
 ENVIRONMENT = "demo"
-
-routes = [
-  { pattern = "api-demo.getsweepr.com", custom_domain = true }
-]
 
 # Same rate-limit KV as production — sharing it just means demo traffic and
 # production traffic share rate-limit buckets, which is harmless (counters

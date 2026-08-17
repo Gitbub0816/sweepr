@@ -6,6 +6,22 @@ main = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
+# Two surfaces, one worker:
+#  - metrics.getsweepr.com    → POST /collect ingest beacon (all Pages apps'
+#    CSP connect-src allowlists this host) + GET /go/{code} fallback.
+#  - getsweepr.com/go/*       → tracking-link redirector on the marketing
+#    domain (zone route; Workers routes run in front of the Pages project on
+#    the same zone). Admin-created short links look like
+#    https://getsweepr.com/go/google or /go/fb-spring26.
+# NOTE: `routes` MUST sit above the FIRST [section] header in this file —
+# TOML scopes keys to the preceding table, so a routes array under [vars] (or
+# [observability.logs]) silently becomes a key of that table and wrangler
+# attaches no routes at all (bit us on this worker's first deploy).
+routes = [
+  { pattern = "metrics.getsweepr.com", custom_domain = true },
+  { pattern = "getsweepr.com/go/*", zone_name = "getsweepr.com" }
+]
+
 [observability]
 enabled = true
 
@@ -14,18 +30,6 @@ enabled = true
 
 [vars]
 ENVIRONMENT = "production"
-
-# Two surfaces, one worker:
-#  - metrics.getsweepr.com    → POST /collect ingest beacon (all Pages apps'
-#    CSP connect-src allowlists this host) + GET /go/{code} fallback.
-#  - getsweepr.com/go/*       → tracking-link redirector on the marketing
-#    domain (zone route; Workers routes run in front of the Pages project on
-#    the same zone). Admin-created short links look like
-#    https://getsweepr.com/go/google or /go/fb-spring26.
-routes = [
-  { pattern = "metrics.getsweepr.com", custom_domain = true },
-  { pattern = "getsweepr.com/go/*", zone_name = "getsweepr.com" }
-]
 
 # Secrets stored in Cloudflare (set via wrangler secret put — use printf, not
 # echo; see CLAUDE.md):
