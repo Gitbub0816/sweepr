@@ -97,6 +97,90 @@ function ExpiredState() {
   );
 }
 
+/** Standalone destination allowlist — Sweepr origins only, never elsewhere. */
+function safeReturnTo(raw: string | null): string {
+  const fallback = "https://app.getsweepr.com/";
+  if (!raw) return fallback;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:") return fallback;
+    if (!/^(?:[a-z0-9-]+\.)*getsweepr\.com$/i.test(url.hostname)) return fallback;
+    return url.toString();
+  } catch {
+    return fallback;
+  }
+}
+
+/** Transaction-less sign-in (linked from the marketing nav and anywhere else
+ * that wants the branded page instead of an embedded Clerk form). This is the
+ * plain shared-Clerk-session flow every app uses today: authenticate against
+ * the central instance, then return to a validated *.getsweepr.com URL. The
+ * broker ceremony's session-isolation rules deliberately do NOT apply here —
+ * outside central-auth mode the shared session IS the product, so an existing
+ * session short-circuits straight back to return_to. */
+function StandaloneLogin() {
+  const [params] = useSearchParams();
+  const { isLoaded: authLoaded, isSignedIn } = useAuth();
+  const returnTo = safeReturnTo(params.get("return_to"));
+  const returnHost = (() => {
+    try {
+      return new URL(returnTo).hostname;
+    } catch {
+      return "getsweepr.com";
+    }
+  })();
+
+  useEffect(() => {
+    document.title = "Sign in to Sweepr";
+  }, []);
+
+  useEffect(() => {
+    if (authLoaded && isSignedIn) window.location.replace(returnTo);
+  }, [authLoaded, isSignedIn, returnTo]);
+
+  if (!authLoaded || isSignedIn) {
+    return (
+      <Shell>
+        <div className="flex flex-col items-center py-10 text-slate-500">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span className="mt-3 text-sm">
+            {isSignedIn ? "Taking you back…" : "Preparing secure sign-in…"}
+          </span>
+        </div>
+      </Shell>
+    );
+  }
+
+  // After AuthForm finishes (or OAuth returns), a full-page load lands back
+  // here with the session live; the effect above then redirects to return_to.
+  const selfUrl = `${window.location.origin}/login?return_to=${encodeURIComponent(returnTo)}`;
+  const ssoCallbackUrl = `${window.location.origin}/login/sso-callback?return_to=${encodeURIComponent(returnTo)}`;
+
+  return (
+    <Shell>
+      <div className="flex flex-col items-center text-center">
+        <SweeprLogo size="md" />
+        <h1 className="mt-4 text-xl font-bold text-charcoal dark:text-white">
+          Sign in to Sweepr
+        </h1>
+        <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-400">
+          You'll continue to{" "}
+          <span className="font-mono text-charcoal dark:text-slate-200">{returnHost}</span>
+        </p>
+      </div>
+
+      <AuthForm context={{ display_name: "Sweepr" }} ssoCallbackUrl={ssoCallbackUrl} authedUrl={selfUrl} />
+
+      <p className="mt-4 text-center text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">
+        By continuing, you agree to Sweepr's{" "}
+        <a href={`${LEGAL_URL}/terms`} target="_blank" rel="noopener noreferrer" className="font-medium text-slate-600 underline underline-offset-2 hover:text-charcoal dark:text-slate-300 dark:hover:text-white">Terms of Service</a>{" "}
+        and acknowledge our{" "}
+        <a href={`${LEGAL_URL}/privacy`} target="_blank" rel="noopener noreferrer" className="font-medium text-slate-600 underline underline-offset-2 hover:text-charcoal dark:text-slate-300 dark:hover:text-white">Privacy Policy</a>.
+      </p>
+    </Shell>
+  );
+}
+
 /** The central sign-in ceremony.
  *
  * Authentication is delegated ENTIRELY to Clerk (one central instance), but
@@ -110,6 +194,14 @@ function ExpiredState() {
 export function LoginPage() {
   const [params] = useSearchParams();
   const tx = params.get("tx");
+  // No transaction handle at all → the standalone (shared-session) sign-in.
+  // A PRESENT-but-invalid/expired handle still shows the expired state below.
+  if (tx === null) return <StandaloneLogin />;
+  return <BrokerCeremony tx={tx} />;
+}
+
+function BrokerCeremony({ tx }: { tx: string }) {
+  const [params] = useSearchParams();
   const { isLoaded: authLoaded, isSignedIn, getToken } = useAuth();
   const clerk = useClerk();
 

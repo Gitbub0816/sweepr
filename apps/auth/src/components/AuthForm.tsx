@@ -27,7 +27,8 @@ import {
   SubmitButton,
   TextLinkButton,
 } from "./authHelpers";
-import type { TransactionContext } from "../broker";
+// The form needs only the display name from the broker context, which lets
+// the standalone (transaction-less) ceremony reuse it with a synthetic value.
 
 type View = "signIn" | "signUp" | "reset";
 type Stage = "form" | "code" | "second_factor";
@@ -46,7 +47,7 @@ export function AuthForm({
   ssoCallbackUrl,
   authedUrl,
 }: {
-  context: TransactionContext;
+  context: { display_name: string };
   ssoCallbackUrl: string;
   authedUrl: string;
 }) {
