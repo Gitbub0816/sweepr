@@ -16,7 +16,7 @@
     "jsdom": "^24.1.3",
     "playwright": "1.62.1",
     "turbo": "^2.10.4",
-    "typescript": "^5.6.3",
+    "typescript": "^7.0.2",
     "vitest": "^3.2.7",
     "wrangler": "3.114.17"
   },
