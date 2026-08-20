@@ -33,6 +33,17 @@ Stable conventions live in root `/CLAUDE.md` — this file is state + recent wor
   shared-Clerk-session mode added to the auth app; broker ceremony untouched;
   return_to allowlisted to *.getsweepr.com).
 
+- **End-to-end review shipped** (artifact "Sweepr Site Review"): 51 ranked
+  findings w/ file refs. Top unfixed: DemoCheckout ships on missing Stripe
+  key (PaymentStep.tsx:31), double-submit refresh bypasses price ledger
+  (bookings.ts:683), refusal fee clobbers totals w/o CAS
+  (scopeReviewEngine.ts:410), capture cron starvation (index.ts:653),
+  business/auth origins missing from cors.ts allow-list, THREE divergent
+  admin-permission systems, onboarding draft self-destructs on refresh
+  (OnboardingPage.tsx:213), status page green during outages. Fixed during
+  review: booking-draft partialize gap, legal PostHog consent bypass,
+  audit CVEs, wrangler TOML routes scoping.
+
 ## Session 2026-08-17 (Site Analytics + tracking links, Coverdash, Yardstik prod prep)
 
 Branch `claude/analytics-dashboard-tracking-667zz8`, merged to main on
