@@ -309,6 +309,11 @@ export const useBookingStore = create<BookingState>()(
         home: s.home,
         serviceType: s.serviceType,
         rooms: s.rooms,
+        // Clutter + counts-by-level answers ride with the room conditions —
+        // dropping them across a reload (e.g. Stripe's off-site redirect)
+        // would silently change the quote the customer already saw.
+        clutter: s.clutter,
+        roomCountsByLevel: s.roomCountsByLevel,
         cleaningLevel: s.cleaningLevel,
         // Persist the DB booking id so a Stripe off-site redirect (which reloads
         // the app) can still reference the booking on /book/confirmed.
