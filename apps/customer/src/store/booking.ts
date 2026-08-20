@@ -36,6 +36,12 @@ export interface BookingState {
   serviceType: ServiceType | null;
   /** Per-room worst-condition selections (Clean My Home flow). */
   rooms: RoomConditionSelection[];
+  /** One clutter/access state per room type (0 clear · 1 some · 2 obstructed).
+   *  Missing key = clear. Feeds Pricing v2 time estimation only. */
+  clutter: Partial<Record<RoomType, 0 | 1 | 2>>;
+  /** Optional "my rooms vary a lot" correction: exact room counts at each
+   *  condition level for a multi-room type. */
+  roomCountsByLevel: Partial<Record<RoomType, [number, number, number, number]>>;
   /** Customer-declared cleaning level (scope review). Required before Review. */
   cleaningLevel: CleaningLevel | null;
   addOnKeys: string[];
@@ -61,6 +67,11 @@ export interface BookingState {
   setAddress: (address: Address) => void;
   setIntent: (intent: HomeCleaningIntent) => void;
   setRoomCondition: (roomType: RoomType, level: RoomConditionLevel) => void;
+  setClutter: (roomType: RoomType, state: 0 | 1 | 2) => void;
+  setRoomCountsByLevel: (
+    roomType: RoomType,
+    counts: [number, number, number, number] | null,
+  ) => void;
   setTimeWindow: (window: "morning" | "afternoon" | "evening" | null) => void;
   setArrivalWindow: (window: { start: string; end: string } | null) => void;
   setSubscription: (
@@ -119,6 +130,8 @@ export const useBookingStore = create<BookingState>()(
   home: defaultHome,
   serviceType: null,
   rooms: [],
+  clutter: {},
+  roomCountsByLevel: {},
   cleaningLevel: null,
   addOnKeys: [],
   cadence: "none",
@@ -152,6 +165,19 @@ export const useBookingStore = create<BookingState>()(
         ...s.rooms.filter((r) => r.roomType !== roomType),
         { roomType, level },
       ],
+      // Changing the reported maximum invalidates any counts-by-level
+      // correction for that type (its ceiling moved).
+      roomCountsByLevel: { ...s.roomCountsByLevel, [roomType]: undefined },
+      draftSavedAt: new Date().toISOString(),
+    })),
+  setClutter: (roomType, state) =>
+    set((s) => ({
+      clutter: { ...s.clutter, [roomType]: state },
+      draftSavedAt: new Date().toISOString(),
+    })),
+  setRoomCountsByLevel: (roomType, counts) =>
+    set((s) => ({
+      roomCountsByLevel: { ...s.roomCountsByLevel, [roomType]: counts ?? undefined },
       draftSavedAt: new Date().toISOString(),
     })),
   setTimeWindow: (timeWindow) => set({ timeWindow }),
@@ -177,6 +203,8 @@ export const useBookingStore = create<BookingState>()(
       // (the Booking type doesn't include them) — the customer must reassess, or
       // we'd price the new clean from stale/unrelated answers.
       rooms: [],
+      clutter: {},
+      roomCountsByLevel: {},
       cleaningLevel: null,
       addOnKeys: [...prev.addOnKeys],
       cadence: prev.cadence,
@@ -236,6 +264,8 @@ export const useBookingStore = create<BookingState>()(
       home: defaultHome,
       serviceType: null,
       rooms: [],
+      clutter: {},
+      roomCountsByLevel: {},
       cleaningLevel: null,
       addOnKeys: [],
       cadence: "none",

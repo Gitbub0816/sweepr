@@ -96,6 +96,7 @@ import { adminTrustRouter } from "./routes/adminTrust";
 import { adminPricingConfigRouter } from "./routes/adminPricingConfig";
 import { adminZipPricingRouter } from "./routes/adminZipPricing";
 import { adminSiteAnalyticsRouter } from "./routes/adminSiteAnalytics";
+import { adminPricingV2Router } from "./routes/adminPricingV2";
 import { legalArchiveRouter } from "./routes/legalArchive";
 import { legalAttorneyRouter } from "./routes/legalAttorney";
 import { AppError, toSafeError } from "./lib/errors";
@@ -507,6 +508,8 @@ app.route("/admin/zip-pricing", adminZipPricingRouter);
 // First-party site analytics (site_events/site_sessions/tracking_links —
 // written by the sweepr-analytics worker, read here for the admin dashboard).
 app.route("/admin/site-analytics", adminSiteAnalyticsRouter);
+// Pricing v2 workspace (versioned labor-minutes engine — Pricing Studio).
+app.route("/admin/pricing-v2", adminPricingV2Router);
 app.route("/legal-archive", legalArchiveRouter);
 app.route("/legal-attorney", legalAttorneyRouter);
 app.route("/webhooks/mailersend", mailersendWebhookRouter);
@@ -774,6 +777,16 @@ async function runScheduled(event: ScheduledEvent, env: Record<string, unknown>)
         if (ran > 0) logger.info("cron.schedule", { ran });
       } catch (err) {
         logger.error("cron.schedule failed", err, { cron: event.cron });
+      }
+
+      // Pricing v2: activate Scheduled pricing versions whose effective time
+      // has arrived (claim-by-status-transition; idempotent).
+      try {
+        const { activateScheduledPricingVersions } = await import("./lib/quoteEngine/service");
+        const activated = await activateScheduledPricingVersions(sql);
+        if (activated > 0) logger.info("cron.pricing_v2_activated", { activated });
+      } catch (err) {
+        logger.error("cron.pricing_v2 failed", err, { cron: event.cron });
       }
 
       // Promotions engine: expire time-/claim-exhausted active promos.

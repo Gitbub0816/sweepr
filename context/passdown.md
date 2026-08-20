@@ -11,6 +11,28 @@ Stable conventions live in root `/CLAUDE.md` — this file is state + recent wor
 
 ---
 
+## Session 2026-08-20 (Pricing v2 engine + Pricing Studio, marketing sign-in fix)
+
+- **Pricing v2** (full spec implementation — see docs/PRICING_V2.md):
+  mig. 097 (pricing_versions/pricing_quotes_v2/pricing_audit_events + booking
+  refs), `apps/api/src/lib/quoteEngine/` (ordinal inference w/ exact
+  order-statistic likelihood, consensus + floor product rules, integer-cents
+  money, deterministic fingerprints), booking/quote/checkout integration
+  behind an ACTIVATION GATE (v2 dark until an admin publishes a version;
+  archive active = instant legacy fallback), customer wizard clutter +
+  counts-by-level + confirmation copy, admin **Pricing Studio**
+  (/pricing-studio; matrix/prediction/extras/rates/scheduling/test-quote/
+  publish/history; finance role + content.pricing.publish/advanced_model),
+  cron activation of scheduled versions, 49 new tests + shadow-comparison
+  report. **Cold-start config is a TRANSLATION at $60/labor-hour and needs
+  Caleb's approval before publishing** (assumptions table in the doc; heavy
+  homes price up to +38% because every room now bills, not just the worst
+  per type). Legacy engines intentionally retained until post-activation
+  cleanup (doc has the list).
+- **Marketing sign-in** now routes to auth.getsweepr.com (standalone
+  shared-Clerk-session mode added to the auth app; broker ceremony untouched;
+  return_to allowlisted to *.getsweepr.com).
+
 ## Session 2026-08-17 (Site Analytics + tracking links, Coverdash, Yardstik prod prep)
 
 Branch `claude/analytics-dashboard-tracking-667zz8`, merged to main on

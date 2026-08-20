@@ -15,7 +15,7 @@
 -- This file is GENERATED. Do not edit by hand — edit the migrations in
 -- src/migrations/ and re-run: node packages/db/build-schema.mjs
 --
--- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql, 034_fee_approval_engine.sql, 035_slack_user_tokens.sql, 036_pricing_engine.sql, 037_security_tickets.sql, 038_compact_ticket_ids.sql, 039_report_submitter.sql, 040_classification_and_templates.sql, 041_fix_security_templates.sql, 042_email_deliverability.sql, 043_slack_purpose_security.sql, 044_senior_admin_roles.sql, 045_status_autodetect.sql, 046_seed_pricing_rule.sql, 047_seed_super_admin_invite.sql, 048_customer_home_profile.sql, 049_reset_bootstrap_invite.sql, 050_customers_user_id_unique.sql, 051_preferred_language.sql, 052_payouts_booking_id_unique.sql, 053_sms_consent.sql, 054_strict_rls.sql, 055_mailbox_messages.sql, 056_admin_mail_center.sql, 057_public_privacy_intake.sql, 058_scope_review_engine.sql, 059_scope_review_links.sql, 060_performance_indexes.sql, 061_composite_query_indexes.sql, 062_atomicity_constraints.sql, 063_customers_updated_at.sql, 064_booking_arrival_window.sql, 065_str_calendar_sync.sql, 066_address_property_type.sql, 067_str_enrollment.sql, 068_availability_backfill.sql, 069_review_tags.sql, 070_error_telemetry_v2.sql, 071_mail_security_rework.sql, 072_assignment_queue_cleaner_cascade.sql, 073_customer_fk_cascade.sql, 074_cleaner_service_area_and_declines.sql, 075_admin_permission_overrides.sql, 076_cleaners_updated_at.sql, 077_adjudication_cases.sql, 078_ip_blocklist.sql, 079_admin_alerting.sql, 080_status_health_checks.sql, 081_yardstik.sql, 082_admin_schedule.sql, 083_adjudication_pre_adverse.sql, 084_yardstik_webhook_dedup.sql, 085_founding_and_promotions.sql, 086_founder_badge_color.sql, 087_coupons_engine.sql, 088_coupon_stacking_locks.sql, 089_smart_entry_and_sweepr_plus.sql, 090_platform_identity_workspaces.sql, 091_auth_broker.sql, 092_founding_customer_discount.sql, 093_zip_pricing_multipliers.sql, 094_legal_document_versions.sql, 095_legal_attorneys.sql, 096_site_analytics.sql
+-- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql, 034_fee_approval_engine.sql, 035_slack_user_tokens.sql, 036_pricing_engine.sql, 037_security_tickets.sql, 038_compact_ticket_ids.sql, 039_report_submitter.sql, 040_classification_and_templates.sql, 041_fix_security_templates.sql, 042_email_deliverability.sql, 043_slack_purpose_security.sql, 044_senior_admin_roles.sql, 045_status_autodetect.sql, 046_seed_pricing_rule.sql, 047_seed_super_admin_invite.sql, 048_customer_home_profile.sql, 049_reset_bootstrap_invite.sql, 050_customers_user_id_unique.sql, 051_preferred_language.sql, 052_payouts_booking_id_unique.sql, 053_sms_consent.sql, 054_strict_rls.sql, 055_mailbox_messages.sql, 056_admin_mail_center.sql, 057_public_privacy_intake.sql, 058_scope_review_engine.sql, 059_scope_review_links.sql, 060_performance_indexes.sql, 061_composite_query_indexes.sql, 062_atomicity_constraints.sql, 063_customers_updated_at.sql, 064_booking_arrival_window.sql, 065_str_calendar_sync.sql, 066_address_property_type.sql, 067_str_enrollment.sql, 068_availability_backfill.sql, 069_review_tags.sql, 070_error_telemetry_v2.sql, 071_mail_security_rework.sql, 072_assignment_queue_cleaner_cascade.sql, 073_customer_fk_cascade.sql, 074_cleaner_service_area_and_declines.sql, 075_admin_permission_overrides.sql, 076_cleaners_updated_at.sql, 077_adjudication_cases.sql, 078_ip_blocklist.sql, 079_admin_alerting.sql, 080_status_health_checks.sql, 081_yardstik.sql, 082_admin_schedule.sql, 083_adjudication_pre_adverse.sql, 084_yardstik_webhook_dedup.sql, 085_founding_and_promotions.sql, 086_founder_badge_color.sql, 087_coupons_engine.sql, 088_coupon_stacking_locks.sql, 089_smart_entry_and_sweepr_plus.sql, 090_platform_identity_workspaces.sql, 091_auth_broker.sql, 092_founding_customer_discount.sql, 093_zip_pricing_multipliers.sql, 094_legal_document_versions.sql, 095_legal_attorneys.sql, 096_site_analytics.sql, 097_pricing_v2.sql
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -6026,3 +6026,107 @@ CREATE INDEX IF NOT EXISTS idx_site_sessions_last    ON site_sessions(last_seen_
 CREATE INDEX IF NOT EXISTS idx_site_sessions_visitor ON site_sessions(visitor_id);
 CREATE INDEX IF NOT EXISTS idx_site_sessions_source  ON site_sessions(source) WHERE source IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_site_sessions_link    ON site_sessions(link_code) WHERE link_code IS NOT NULL;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 097_pricing_v2.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Copyright © 2026–Present ClearKey Solutions, LLC.
+-- All Rights Reserved.
+--
+-- Proprietary and Confidential.
+--
+-- Unauthorized copying, modification, disclosure,
+-- distribution, reverse engineering, or use is prohibited.
+
+-- Pricing v2: ONE authoritative, versioned quote service (labor-minutes
+-- model with ordinal room-condition inference) replacing the five parallel
+-- pricing formulas. See docs/PRICING_V2.md.
+--
+-- Rollout gate: the v2 engine only prices customer bookings once an admin
+-- PUBLISHES a pricing version to Active for the booking's service area and
+-- currency. Until then every existing path behaves exactly as before, so
+-- deploying this migration changes no prices.
+--
+-- Money: integer cents. Durations: integer minutes. The full engine
+-- configuration (labor matrix, clutter/size adjustments, extras, rates,
+-- payout, scheduling, inference parameters) is snapshotted whole into
+-- `config` JSONB per version — published versions are immutable (enforced
+-- at the API layer; editing clones a new draft).
+
+CREATE TABLE IF NOT EXISTS pricing_versions (
+  id                     UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  name                   TEXT        NOT NULL,
+  service_area           TEXT        NOT NULL DEFAULT 'default',
+  currency               TEXT        NOT NULL DEFAULT 'USD',
+  status                 TEXT        NOT NULL DEFAULT 'draft'
+    CHECK (status IN ('draft', 'scheduled', 'active', 'superseded', 'archived')),
+  -- Full engine configuration snapshot (shape: PricingConfigV2 in
+  -- apps/api/src/lib/quoteEngine/types.ts).
+  config                 JSONB       NOT NULL,
+  -- Provenance of the inference parameters: cold_start | learned | blended.
+  inference_provenance   TEXT        NOT NULL DEFAULT 'cold_start',
+  source_version_id      UUID        REFERENCES pricing_versions(id) ON DELETE SET NULL,
+  change_summary         TEXT,
+  -- Result of the last server-side validation run ({ok, errors[], warnings[]}).
+  validation             JSONB,
+  effective_at           TIMESTAMPTZ,
+  effective_end          TIMESTAMPTZ,
+  created_by_clerk_id    TEXT,
+  published_by_clerk_id  TEXT,
+  published_at           TIMESTAMPTZ,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- Exactly one Active version per (service_area, currency) at any instant.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pricing_versions_one_active
+  ON pricing_versions(service_area, currency) WHERE status = 'active';
+CREATE INDEX IF NOT EXISTS idx_pricing_versions_status ON pricing_versions(status);
+CREATE INDEX IF NOT EXISTS idx_pricing_versions_scheduled
+  ON pricing_versions(effective_at) WHERE status = 'scheduled';
+
+-- Immutable quote snapshots. Every v2 quote shown to a customer (or used at
+-- checkout) is persisted here; bookings reference the exact snapshot so a
+-- later pricing change can never rewrite what a customer accepted.
+CREATE TABLE IF NOT EXISTS pricing_quotes_v2 (
+  id                     UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  pricing_version_id     UUID        NOT NULL REFERENCES pricing_versions(id),
+  -- Normalized input (rooms, conditions, clutter, counts-by-level overrides,
+  -- sqft, extras, schedule, promo ids) and the complete engine result
+  -- (components, inference breakdown, minutes, money, warnings).
+  input                  JSONB       NOT NULL,
+  result                 JSONB       NOT NULL,
+  currency               TEXT        NOT NULL DEFAULT 'USD',
+  total_cents            INT         NOT NULL,
+  expected_labor_minutes INT         NOT NULL,
+  scheduled_labor_minutes INT        NOT NULL,
+  fingerprint            TEXT        NOT NULL,
+  manual_review_required BOOLEAN     NOT NULL DEFAULT FALSE,
+  customer_id            UUID        REFERENCES customers(id) ON DELETE SET NULL,
+  consumed_by_booking_id UUID,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at             TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_pricing_quotes_v2_created ON pricing_quotes_v2(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_pricing_quotes_v2_customer ON pricing_quotes_v2(customer_id);
+
+-- Append-only audit trail for the pricing workspace (draft edits, validation
+-- runs, simulations, scheduling, publication, rollback clones, overrides).
+-- Deliberately separate from admin_audit_log so pricing history is complete,
+-- exportable, and cheap to query on its own.
+CREATE TABLE IF NOT EXISTS pricing_audit_events (
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  version_id       UUID        REFERENCES pricing_versions(id) ON DELETE SET NULL,
+  actor_clerk_id   TEXT,
+  event            TEXT        NOT NULL,
+  detail           JSONB       NOT NULL DEFAULT '{}',
+  request_id       TEXT,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_pricing_audit_version ON pricing_audit_events(version_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_pricing_audit_created ON pricing_audit_events(created_at DESC);
+
+-- Bookings carry immutable references to the exact version + quote snapshot
+-- that priced them (v2 path only; legacy bookings leave these NULL).
+ALTER TABLE bookings
+  ADD COLUMN IF NOT EXISTS pricing_version_id UUID REFERENCES pricing_versions(id),
+  ADD COLUMN IF NOT EXISTS pricing_quote_v2_id UUID REFERENCES pricing_quotes_v2(id);

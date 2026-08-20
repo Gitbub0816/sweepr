@@ -76,6 +76,8 @@ export function ReviewStep() {
     home,
     serviceType,
     rooms,
+    clutter,
+    roomCountsByLevel,
     addOnKeys,
     scheduledFor,
     arrivalWindowStart,
@@ -94,6 +96,17 @@ export function ReviewStep() {
   const derivedLevel = deriveCleaningLevel(rooms);
   const [total, setTotal] = useState<number | null>(null);
   const [quoteError, setQuoteError] = useState(false);
+  // Pricing v2 explanation (present once a v2 pricing version is live).
+  const [v2Info, setV2Info] = useState<{
+    roomInference: Array<{
+      roomType: string;
+      count: number;
+      reportedMaximumLevel: number;
+      method: string;
+    }>;
+    estimatedElapsedMinutes: number;
+    recommendedTeamSize: number;
+  } | null>(null);
 
   const roomsComplete = ROOM_TYPES.every((r) => rooms.some((s) => s.roomType === r.type));
   const missingRequiredFields =
@@ -130,6 +143,8 @@ export function ReviewStep() {
             hasPets: home.pets,
             cleaningLevel: derivedLevel,
             rooms,
+            clutter,
+            roomCountsByLevel,
             addOnKeys,
             scheduledAt: scheduledFor,
           }),
@@ -138,12 +153,15 @@ export function ReviewStep() {
         const data = (await res.json()) as {
           total?: number;
           price?: { totalPrice?: number };
+          v2?: NonNullable<typeof v2Info>;
         };
         const dollars =
           data.total ??
           (data.price?.totalPrice != null ? data.price.totalPrice / 100 : null);
-        if (!cancelled && dollars != null) setTotal(dollars);
-        else if (!cancelled) setQuoteError(true);
+        if (!cancelled && dollars != null) {
+          setTotal(dollars);
+          setV2Info(data.v2 ?? null);
+        } else if (!cancelled) setQuoteError(true);
       } catch {
         if (!cancelled) setQuoteError(true);
       }
@@ -206,6 +224,8 @@ export function ReviewStep() {
           hasPets: home.pets,
           cleaningLevel: derivedLevel,
           rooms,
+          clutter,
+          roomCountsByLevel,
           addOnKeys,
           scheduledAt: scheduledFor,
           arrivalWindowStart,
@@ -297,15 +317,37 @@ export function ReviewStep() {
         {ROOM_TYPES.map((room) => {
           const sel = rooms.find((r) => r.roomType === room.type);
           if (!sel) return null;
+          const inference = v2Info?.roomInference.find((ri) => ri.roomType === room.type);
           return (
-            <div key={room.type} className="flex items-center justify-between py-1 text-sm">
-              <span className="text-slate-600 dark:text-slate-400">{room.label}</span>
-              <span className="font-medium text-charcoal dark:text-white">
-                {LEVEL_CAPTIONS[sel.level]}
-              </span>
+            <div key={room.type} className="py-1 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600 dark:text-slate-400">
+                  {room.label}
+                  {inference && inference.count > 1 ? ` ×${inference.count}` : ""}
+                </span>
+                <span className="font-medium text-charcoal dark:text-white">
+                  {LEVEL_CAPTIONS[sel.level]}
+                </span>
+              </div>
+              {inference && inference.count > 1 && inference.method === "inferred" && (
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  One reported at this condition; time for the remaining{" "}
+                  {inference.count - 1 === 1 ? "room is" : "rooms is"} estimated from
+                  your home details.
+                </p>
+              )}
             </div>
           );
         })}
+
+        {/* Non-punitive scope note (only meaningful under Pricing v2). */}
+        {v2Info && (
+          <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">
+            We plan around what you've told us. If a room turns out to need
+            substantially more work than described, your cleaner will check with
+            you first — nothing extra is ever charged without your approval.
+          </p>
+        )}
 
         {addOnSummary.length > 0 && (
           <>

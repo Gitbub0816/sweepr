@@ -63,4 +63,12 @@ export function deriveCleaningLevel(
 }
 
 export const MULTI_ROOM_HELPER =
-  "If you have multiple rooms of this type, choose the image that best matches the one needing the most attention.";
+  "If you have more than one room of a type, choose the condition of the one needing the most attention. We will use your other answers and room count to estimate the remaining rooms fairly.";
+
+/** Clutter/access states (Pricing v2): helps reserve enough time, nothing
+ *  more. Copy is deliberately judgment-free. */
+export const CLUTTER_STATES: Array<{ value: 0 | 1 | 2; label: string; hint: string }> = [
+  { value: 0, label: "Clear", hint: "Floors and surfaces are easy to reach" },
+  { value: 1, label: "Some items to work around", hint: "A few things to move or clean around" },
+  { value: 2, label: "Quite full", hint: "Many surfaces or floor areas are hard to reach" },
+];

@@ -116,6 +116,22 @@ const createSchema = z.object({
     )
     .max(8)
     .optional(),
+  // Pricing v2 signals (ignored while no v2 pricing version is Active):
+  // one clutter/access state per room type (0 clear / 1 some / 2 obstructed)…
+  clutter: z
+    .record(
+      z.enum(["kitchen", "bathroom", "bedroom", "living_room"]),
+      z.number().int().min(0).max(2),
+    )
+    .optional(),
+  // …and the optional "my rooms vary a lot" correction: exact room counts at
+  // each condition level, per room type.
+  roomCountsByLevel: z
+    .record(
+      z.enum(["kitchen", "bathroom", "bedroom", "living_room"]),
+      z.array(z.number().int().min(0).max(30)).length(4),
+    )
+    .optional(),
   // Client must NOT submit prices — server always calculates.
 });
 
@@ -293,7 +309,7 @@ function isDuplicateBookingViolation(err: unknown): boolean {
  *  POST /quote so the review-step preview and the actual charge are identical
  *  (same engine, same level + emergency surcharges). */
 interface AssembledPricing {
-  engine: "rooms" | "rule" | "legacy";
+  engine: "v2" | "rooms" | "rule" | "legacy";
   baseTotalPrice: number;
   basePrice: number;
   addonsTotal: number;
@@ -316,6 +332,8 @@ interface AssembledPricing {
   lineItems: Array<{ label: string; cents: number }>;
   resolved: ResolvedPricing | null;
   roomPrice: Awaited<ReturnType<typeof roomConditionPricing>>;
+  /** Present when the v2 versioned quote engine priced this booking. */
+  v2: import("../lib/quoteEngine/bookingAdapter").V2Assembly | null;
 }
 
 /**
@@ -332,6 +350,41 @@ async function computeBookingPricing(
   customerId: string | null = null,
   zip: string | null = null,
 ): Promise<AssembledPricing> {
+  // Pricing v2: when an admin has PUBLISHED an Active pricing version, the
+  // versioned labor-minutes engine (lib/quoteEngine) is authoritative — one
+  // immutable quote snapshot per booking, one formula for every surface.
+  // While no version is active (or on any internal v2 failure) this returns
+  // null and the pre-existing engine chain below runs unchanged.
+  {
+    const { assembleV2Pricing } = await import("../lib/quoteEngine/bookingAdapter");
+    const v2 = await assembleV2Pricing(sql, input, {
+      customerId,
+      emergency: isEmergencyBooking(input.scheduledAt, now),
+      zipMultiplierPct: await loadZipMultiplierPct(sql, zip),
+    });
+    if (v2) {
+      return {
+        engine: "v2",
+        baseTotalPrice: v2.baseTotalPrice,
+        basePrice: v2.basePrice,
+        addonsTotal: v2.addonsTotal,
+        feeCents: v2.feeCents,
+        taxCents: v2.taxCents,
+        cleanerPayout: v2.cleanerPayout,
+        levelSurchargeCents: 0,
+        emergencySurchargeCents: v2.emergencySurchargeCents,
+        isEmergency: v2.isEmergency,
+        zipPricingAdjustmentCents: v2.zipPricingAdjustmentCents,
+        totalPrice: v2.totalPrice,
+        foundingCustomerDiscountCents: v2.foundingCustomerDiscountCents,
+        lineItems: v2.lineItems,
+        resolved: null,
+        roomPrice: null,
+        v2,
+      };
+    }
+  }
+
   const roomPrice = await roomConditionPricing(sql, input);
   const legacy = calculateBookingPrice(input);
   let resolved: ResolvedPricing | null = null;
@@ -409,6 +462,7 @@ async function computeBookingPricing(
 
   return {
     engine: roomPrice ? "rooms" : resolved ? "rule" : "legacy",
+    v2: null,
     baseTotalPrice,
     basePrice,
     addonsTotal,
@@ -578,7 +632,7 @@ bookingsRouter.post(
         tax, total_price, notes, cleaning_level, cleaning_level_surcharge_cents,
         pricing_rule_id, pricing_rule_version, pricing_line_items_json, estimated_cleaner_payout_cents,
         arrival_window_start, arrival_window_end, founding_customer_discount_cents,
-        zip_pricing_adjustment_cents
+        zip_pricing_adjustment_cents, pricing_version_id, pricing_quote_v2_id
       ) VALUES (
         ${customer.id}, ${input.addressId ?? null}, 'booked', ${input.serviceType},
         ${input.bedrooms}, ${input.bathrooms}, ${input.sqft}, ${input.homeType},
@@ -590,7 +644,8 @@ bookingsRouter.post(
         ${lineItemsJson}, ${cleanerPayout},
         ${input.arrivalWindowStart ?? null}, ${input.arrivalWindowEnd ?? null},
         ${p.foundingCustomerDiscountCents},
-        ${p.zipPricingAdjustmentCents}
+        ${p.zipPricingAdjustmentCents},
+        ${p.v2 ? p.v2.versionId : null}, ${p.v2 ? p.v2.quoteId : null}
       ) RETURNING *
     `) as BookingRow[];
     created = rows[0];
@@ -638,6 +693,8 @@ bookingsRouter.post(
             pricing_line_items_json = ${lineItemsJson},
             founding_customer_discount_cents = ${p.foundingCustomerDiscountCents},
             zip_pricing_adjustment_cents = ${p.zipPricingAdjustmentCents},
+            pricing_version_id = ${p.v2 ? p.v2.versionId : null},
+            pricing_quote_v2_id = ${p.v2 ? p.v2.quoteId : null},
             notes = ${input.notes ?? null}, updated_at = NOW()
           WHERE id = ${existingRows[0].id}
           RETURNING *
@@ -663,6 +720,19 @@ bookingsRouter.post(
     });
   } catch (err) {
     logger.error("initial_quote ledger write failed", err, { bookingId: created.id });
+  }
+
+  // v2 quote snapshots are already persisted; mark this one consumed so the
+  // audit trail links quote → booking.
+  if (p.v2) {
+    try {
+      await sql`
+        UPDATE pricing_quotes_v2 SET consumed_by_booking_id = ${created.id}
+        WHERE id = ${p.v2.quoteId}
+      `;
+    } catch (err) {
+      logger.error("v2 quote consumption stamp failed", err, { bookingId: created.id });
+    }
   }
 
   // Persist the immutable quote snapshot and stamp it on the booking.
@@ -812,6 +882,22 @@ bookingsRouter.post("/quote", zValidator("json", createSchema), async (c) => {
     },
     catalogue,
     engine: p.engine,
+    // v2 explanation payload: labor minutes, per-room inference, itemized
+    // components, and the persisted quote id the review step can carry to
+    // checkout. Absent while v2 is dark.
+    v2: p.v2
+      ? {
+          quoteId: p.v2.quoteId,
+          expiresAt: p.v2.expiresAt,
+          expectedLaborMinutes: p.v2.result.expectedLaborMinutes,
+          estimatedElapsedMinutes: p.v2.result.estimatedElapsedMinutes,
+          recommendedTeamSize: p.v2.result.recommendedTeamSize,
+          roomInference: p.v2.result.roomInference,
+          components: p.v2.result.components,
+          warnings: p.v2.result.warnings,
+          manualReviewRequired: p.v2.result.manualReviewRequired,
+        }
+      : undefined,
   });
 });
 

@@ -49,6 +49,7 @@ import {
   Gavel,
   CalendarClock,
   DoorOpen,
+  Gauge,
   Orbit,
 } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
@@ -104,6 +105,11 @@ const AnalyticsPage = lazy(() =>
   import("./pages/AnalyticsPage").then((m) => ({ default: m.AnalyticsPage })),
 );
 
+// Lazy: Pricing Studio is a large workspace only finance/admins open.
+const PricingStudioPage = lazy(() =>
+  import("./pages/PricingStudioPage").then((m) => ({ default: m.PricingStudioPage })),
+);
+
 function AnalyticsFallback() {
   return (
     <div className="flex items-center justify-center py-24 text-sm text-slate-500">
@@ -140,6 +146,7 @@ const navGroups = [
     label: "Money",
     items: [
       { to: "/pricing", label: "Pricing", icon: DollarSign },
+      { to: "/pricing-studio", label: "Pricing Studio", icon: Gauge },
       { to: "/payouts", label: "Payouts", icon: Wallet },
       { to: "/promotions", label: "Promotions", icon: Megaphone },
     ],
@@ -262,6 +269,16 @@ export default function App() {
         element={<Guarded><ApplicationDetailPage /></Guarded>}
       />
       <Route path="/pricing" element={<Guarded><PricingPage /></Guarded>} />
+      <Route
+        path="/pricing-studio"
+        element={
+          <Guarded>
+            <Suspense fallback={<AnalyticsFallback />}>
+              <PricingStudioPage />
+            </Suspense>
+          </Guarded>
+        }
+      />
       <Route path="/legal-archive" element={<Guarded><LegalArchivePage /></Guarded>} />
       <Route path="/cleaning-pricing" element={<Navigate to="/pricing?tab=home-cleaning" replace />} />
       <Route path="/pricing/rules/:id" element={<Guarded><PricingRulePage /></Guarded>} />

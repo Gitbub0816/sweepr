@@ -24,6 +24,7 @@ export const ROUTE_SCREEN: Record<string, string> = {
   "/cleaners": screenKey("cleaners"),
   "/applications": screenKey("applications"),
   "/pricing": screenKey("pricing"),
+  "/pricing-studio": screenKey("pricing_studio"),
   "/promotions": screenKey("promotions"),
   "/approvals": screenKey("approvals"),
   "/scope-review": screenKey("scope_review"),

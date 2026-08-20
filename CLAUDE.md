@@ -159,6 +159,18 @@ ONLY via `/v1/auth/introspect` before any data render. Pilot integration:
 never appear in URLs, storage, logs, or frontend code. Fail closed: missing
 key/flag → 503.
 
+## Pricing v2 (versioned labor-minutes engine) — docs/PRICING_V2.md
+`apps/api/src/lib/quoteEngine/` is THE authoritative quote service (ordinal
+room-condition inference + integer-cents money). Tables (mig. 097):
+`pricing_versions` (immutable once published; ONE active per area/currency),
+`pricing_quotes_v2` (immutable snapshot per quote; bookings stamp
+`pricing_version_id`+`pricing_quote_v2_id`), `pricing_audit_events`. Rollout
+gate: v2 prices customers ONLY while a version is Active (publish in admin
+Pricing Studio → /admin/pricing-v2); otherwise the legacy chain
+(roomPricing → rule → legacy) runs unchanged. Legacy engines stay until
+post-activation cleanup (list in the doc). Shadow report:
+`npx vitest run apps/api/tests/pricing-v2-shadow.test.ts`.
+
 ## Domain model (three independent axes)
 - **Package** (`serviceType`) = WHAT gets cleaned (`PACKAGE_SCOPES`)
 - **Cleaning Level** (refresh / extra_attention / significant_attention) = HOW
