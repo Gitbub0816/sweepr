@@ -12,7 +12,7 @@
   "dependencies": {
     "@sweepr/ui": "workspace:*",
     "lucide-react": "^0.441.0",
-    "posthog-js": "^1.398.0",
+    "posthog-js": "^1.418.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.2"

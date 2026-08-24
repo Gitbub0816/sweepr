@@ -22,7 +22,7 @@
     "framer-motion": "^12.42.2",
     "lottie-web": "^5.13.0",
     "lucide-react": "^0.469.0",
-    "posthog-js": "^1.398.0",
+    "posthog-js": "^1.418.7",
     "sonner": "^2.0.7"
   },
   "peerDependencies": {
