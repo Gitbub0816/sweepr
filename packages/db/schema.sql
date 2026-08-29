@@ -15,7 +15,7 @@
 -- This file is GENERATED. Do not edit by hand — edit the migrations in
 -- src/migrations/ and re-run: node packages/db/build-schema.mjs
 --
--- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql, 034_fee_approval_engine.sql, 035_slack_user_tokens.sql, 036_pricing_engine.sql, 037_security_tickets.sql, 038_compact_ticket_ids.sql, 039_report_submitter.sql, 040_classification_and_templates.sql, 041_fix_security_templates.sql, 042_email_deliverability.sql, 043_slack_purpose_security.sql, 044_senior_admin_roles.sql, 045_status_autodetect.sql, 046_seed_pricing_rule.sql, 047_seed_super_admin_invite.sql, 048_customer_home_profile.sql, 049_reset_bootstrap_invite.sql, 050_customers_user_id_unique.sql, 051_preferred_language.sql, 052_payouts_booking_id_unique.sql, 053_sms_consent.sql, 054_strict_rls.sql, 055_mailbox_messages.sql, 056_admin_mail_center.sql, 057_public_privacy_intake.sql, 058_scope_review_engine.sql, 059_scope_review_links.sql, 060_performance_indexes.sql, 061_composite_query_indexes.sql, 062_atomicity_constraints.sql, 063_customers_updated_at.sql, 064_booking_arrival_window.sql, 065_str_calendar_sync.sql, 066_address_property_type.sql, 067_str_enrollment.sql, 068_availability_backfill.sql, 069_review_tags.sql, 070_error_telemetry_v2.sql, 071_mail_security_rework.sql, 072_assignment_queue_cleaner_cascade.sql, 073_customer_fk_cascade.sql, 074_cleaner_service_area_and_declines.sql, 075_admin_permission_overrides.sql, 076_cleaners_updated_at.sql, 077_adjudication_cases.sql, 078_ip_blocklist.sql, 079_admin_alerting.sql, 080_status_health_checks.sql, 081_yardstik.sql, 082_admin_schedule.sql, 083_adjudication_pre_adverse.sql, 084_yardstik_webhook_dedup.sql, 085_founding_and_promotions.sql, 086_founder_badge_color.sql, 087_coupons_engine.sql, 088_coupon_stacking_locks.sql, 089_smart_entry_and_sweepr_plus.sql, 090_platform_identity_workspaces.sql, 091_auth_broker.sql, 092_founding_customer_discount.sql, 093_zip_pricing_multipliers.sql, 094_legal_document_versions.sql, 095_legal_attorneys.sql, 096_site_analytics.sql, 097_pricing_v2.sql, 098_yardstik_sor_monitoring.sql, 099_price_ledger_quote_refresh.sql
+-- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql, 034_fee_approval_engine.sql, 035_slack_user_tokens.sql, 036_pricing_engine.sql, 037_security_tickets.sql, 038_compact_ticket_ids.sql, 039_report_submitter.sql, 040_classification_and_templates.sql, 041_fix_security_templates.sql, 042_email_deliverability.sql, 043_slack_purpose_security.sql, 044_senior_admin_roles.sql, 045_status_autodetect.sql, 046_seed_pricing_rule.sql, 047_seed_super_admin_invite.sql, 048_customer_home_profile.sql, 049_reset_bootstrap_invite.sql, 050_customers_user_id_unique.sql, 051_preferred_language.sql, 052_payouts_booking_id_unique.sql, 053_sms_consent.sql, 054_strict_rls.sql, 055_mailbox_messages.sql, 056_admin_mail_center.sql, 057_public_privacy_intake.sql, 058_scope_review_engine.sql, 059_scope_review_links.sql, 060_performance_indexes.sql, 061_composite_query_indexes.sql, 062_atomicity_constraints.sql, 063_customers_updated_at.sql, 064_booking_arrival_window.sql, 065_str_calendar_sync.sql, 066_address_property_type.sql, 067_str_enrollment.sql, 068_availability_backfill.sql, 069_review_tags.sql, 070_error_telemetry_v2.sql, 071_mail_security_rework.sql, 072_assignment_queue_cleaner_cascade.sql, 073_customer_fk_cascade.sql, 074_cleaner_service_area_and_declines.sql, 075_admin_permission_overrides.sql, 076_cleaners_updated_at.sql, 077_adjudication_cases.sql, 078_ip_blocklist.sql, 079_admin_alerting.sql, 080_status_health_checks.sql, 081_yardstik.sql, 082_admin_schedule.sql, 083_adjudication_pre_adverse.sql, 084_yardstik_webhook_dedup.sql, 085_founding_and_promotions.sql, 086_founder_badge_color.sql, 087_coupons_engine.sql, 088_coupon_stacking_locks.sql, 089_smart_entry_and_sweepr_plus.sql, 090_platform_identity_workspaces.sql, 091_auth_broker.sql, 092_founding_customer_discount.sql, 093_zip_pricing_multipliers.sql, 094_legal_document_versions.sql, 095_legal_attorneys.sql, 096_site_analytics.sql, 097_pricing_v2.sql, 098_yardstik_sor_monitoring.sql, 099_price_ledger_quote_refresh.sql, 100_mcp_simulator.sql
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -6196,3 +6196,68 @@ DO $$ BEGIN
   ));
 EXCEPTION WHEN duplicate_object THEN NULL; WHEN duplicate_table THEN NULL;
 END $$;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 100_mcp_simulator.sql
+-- ─────────────────────────────────────────────────────────────────────────
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
+-- 100_mcp_simulator.sql
+-- MCP pricing sandbox: quarantined storage for LLM-drafted Pricing v2
+-- proposals plus an append-only audit trail of every MCP tool call.
+--
+-- Quarantine model: the MCP server (apps/mcp) can ONLY read/write these two
+-- tables — it has NO path to pricing_versions or any live pricing. The only
+-- way a sandbox proposal reaches customers is a HUMAN admin exporting the
+-- payload and uploading it in the admin console (Pricing → Import Payload),
+-- which creates a DRAFT pricing version that still must be reviewed and
+-- published in Pricing Studio. Deliberately NO foreign key from
+-- based_on_version_id to pricing_versions: the reference is informational
+-- provenance only, and the sandbox must not couple to (or constrain) the
+-- live pricing tables.
+
+CREATE TABLE IF NOT EXISTS mcp_simulator_configs (
+  id                   UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- Admin identity from the MCP OAuth session (verified email).
+  admin_email          TEXT        NOT NULL,
+  name                 TEXT        NOT NULL DEFAULT 'default',
+  -- Full PricingConfigV2 proposal (shape: apps/api/src/lib/quoteEngine/types.ts).
+  config               JSONB       NOT NULL,
+  -- Informational provenance only — see quarantine note above (no FK).
+  based_on_version_id  UUID,
+  notes                TEXT,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (admin_email, name)
+);
+CREATE INDEX IF NOT EXISTS idx_mcp_simulator_configs_admin
+  ON mcp_simulator_configs (admin_email);
+
+COMMENT ON TABLE mcp_simulator_configs IS
+  'Quarantined MCP pricing sandbox: LLM-drafted PricingConfigV2 proposals, keyed by the admin''s MCP OAuth email. No FK to pricing_versions and no write path to live pricing — going live requires a human uploading the payload in the admin console (draft) and publishing in Pricing Studio.';
+
+-- Append-only audit trail of every MCP tool call (who, which tool, args).
+CREATE TABLE IF NOT EXISTS mcp_action_log (
+  id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin_email  TEXT        NOT NULL,
+  tool         TEXT        NOT NULL,
+  detail       JSONB,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_mcp_action_log_admin_created
+  ON mcp_action_log (admin_email, created_at);
+
+COMMENT ON TABLE mcp_action_log IS
+  'Audit trail of every MCP tool call against the quarantined pricing sandbox. Sandbox activity never touches live pricing; this log exists so admins can review exactly what the MCP session did.';
+
+-- ── RLS parity ────────────────────────────────────────────────────────────────
+ALTER TABLE mcp_simulator_configs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mcp_action_log        ENABLE ROW LEVEL SECURITY;

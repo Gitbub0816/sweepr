@@ -25,6 +25,8 @@ export const ROUTE_SCREEN: Record<string, string> = {
   "/applications": screenKey("applications"),
   "/pricing": screenKey("pricing"),
   "/pricing-studio": screenKey("pricing_studio"),
+  // Import shares Pricing Studio's screen permission: same audience, same risk.
+  "/pricing-import": screenKey("pricing_studio"),
   "/promotions": screenKey("promotions"),
   "/approvals": screenKey("approvals"),
   "/scope-review": screenKey("scope_review"),

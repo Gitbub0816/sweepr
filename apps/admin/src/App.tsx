@@ -51,6 +51,7 @@ import {
   DoorOpen,
   Gauge,
   Orbit,
+  FileUp,
 } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -110,6 +111,11 @@ const PricingStudioPage = lazy(() =>
   import("./pages/PricingStudioPage").then((m) => ({ default: m.PricingStudioPage })),
 );
 
+// Lazy: Pricing Import is an occasional finance tool (MCP payload → draft).
+const PricingImportPage = lazy(() =>
+  import("./pages/PricingImportPage").then((m) => ({ default: m.PricingImportPage })),
+);
+
 function AnalyticsFallback() {
   return (
     <div className="flex items-center justify-center py-24 text-sm text-slate-500">
@@ -147,6 +153,7 @@ const navGroups = [
     items: [
       { to: "/pricing", label: "Pricing", icon: DollarSign },
       { to: "/pricing-studio", label: "Pricing Studio", icon: Gauge },
+      { to: "/pricing-import", label: "Import Payload", icon: FileUp },
       { to: "/payouts", label: "Payouts", icon: Wallet },
       { to: "/promotions", label: "Promotions", icon: Megaphone },
     ],
@@ -275,6 +282,16 @@ export default function App() {
           <Guarded>
             <Suspense fallback={<AnalyticsFallback />}>
               <PricingStudioPage />
+            </Suspense>
+          </Guarded>
+        }
+      />
+      <Route
+        path="/pricing-import"
+        element={
+          <Guarded>
+            <Suspense fallback={<AnalyticsFallback />}>
+              <PricingImportPage />
             </Suspense>
           </Guarded>
         }
