@@ -34,7 +34,8 @@ export type LedgerEventType =
   | "tax_adjustment"
   | "coupon_discount"
   | "smart_entry_fee"
-  | "membership_discount";
+  | "membership_discount"
+  | "quote_refresh";
 
 export type LedgerSource = "customer" | "cleaner_request" | "admin" | "system";
 

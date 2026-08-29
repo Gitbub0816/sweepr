@@ -699,6 +699,27 @@ bookingsRouter.post(
           WHERE id = ${existingRows[0].id}
           RETURNING *
         `) as BookingRow[];
+
+        // Keep the append-only ledger in step with the repriced total
+        // (convention 5). Pre-payment draft, so no PaymentIntent to sync yet —
+        // a plain ledger entry recording the delta is sufficient.
+        const previousTotalCents = existingRows[0].total_price ?? 0;
+        if (totalPrice !== previousTotalCents) {
+          try {
+            await recordLedgerEntry(sql, {
+              bookingId: existingRows[0].id,
+              eventType: "quote_refresh",
+              previousTotalCents,
+              adjustmentCents: totalPrice - previousTotalCents,
+              newTotalCents: totalPrice,
+              reason: "Draft repriced on duplicate booking submit (same slot, refreshed quote)",
+              source: "system",
+            });
+          } catch (err) {
+            logger.error("quote_refresh ledger write failed", err, { bookingId: existingRows[0].id });
+          }
+        }
+
         return c.json({ booking: refreshed[0] ?? existingRows[0] }, 201);
       }
       return c.json({ booking: existingRows[0] }, 201);

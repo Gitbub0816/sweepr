@@ -311,7 +311,33 @@ function CheckoutForm({ total }: { total: number }) {
   );
 }
 
+// ─── Fail-safe when live payment can't start ─────────────────────────────────
+// Rendered instead of any checkout when Stripe is configured but the intent
+// failed, OR when a production build has no publishable key. It NEVER completes
+// a booking — the customer is told their booking is saved and uncharged.
+function PaymentUnavailable({ onRetry }: { onRetry?: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-900/40 dark:bg-red-900/10">
+      <p className="text-sm font-semibold text-red-800 dark:text-red-300">
+        {t("booking.payment.couldNotStart", { defaultValue: "We couldn't start payment" })}
+      </p>
+      <p className="mt-1 text-sm text-red-700 dark:text-red-400">
+        {t("booking.payment.couldNotStartBody", { defaultValue: "Your booking is saved and hasn't been charged. Please try again." })}
+      </p>
+      {onRetry ? (
+        <Button className="mt-4" onClick={onRetry}>
+          {t("common.tryAgain", { defaultValue: "Try again" })}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 // ─── Demo fallback (no Stripe key) ───────────────────────────────────────────
+// DEV-ONLY. This mock completes a booking without a charge, so it must never
+// be reachable in a production bundle — the render tree gates it behind
+// import.meta.env.DEV. A prod build with a missing key fails safe instead.
 
 function DemoCheckout({ total }: { total: number }) {
   const { t } = useTranslation();
@@ -510,20 +536,15 @@ export function PaymentStep() {
           ) : stripePromise && intentError ? (
             // Live Stripe is configured but we couldn't start payment — NEVER
             // show the demo checkout here (it would let the order finish unpaid).
-            <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-900/40 dark:bg-red-900/10">
-              <p className="text-sm font-semibold text-red-800 dark:text-red-300">
-                {t("booking.payment.couldNotStart", { defaultValue: "We couldn't start payment" })}
-              </p>
-              <p className="mt-1 text-sm text-red-700 dark:text-red-400">
-                {t("booking.payment.couldNotStartBody", { defaultValue: "Your booking is saved and hasn't been charged. Please try again." })}
-              </p>
-              <Button className="mt-4" onClick={() => setIntentAttempt((n) => n + 1)}>
-                {t("common.tryAgain", { defaultValue: "Try again" })}
-              </Button>
-            </div>
-          ) : (
-            // Reached only when no publishable key is configured (dev/demo).
+            <PaymentUnavailable onRetry={() => setIntentAttempt((n) => n + 1)} />
+          ) : import.meta.env.DEV && !stripePromise ? (
+            // DEV builds only: no publishable key configured → local mock. A
+            // production bundle has import.meta.env.DEV === false and never
+            // reaches this branch, so it can never complete a booking unpaid.
             <DemoCheckout total={chargedPrice} />
+          ) : (
+            // Production with no usable Stripe key: fail safe, never unpaid.
+            <PaymentUnavailable />
           )}
         </div>
 

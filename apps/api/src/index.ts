@@ -654,6 +654,13 @@ async function runScheduled(event: ScheduledEvent, env: Record<string, unknown>)
         WHERE b.status = 'completed'
           AND b.stripe_payment_intent_id IS NOT NULL
           AND p.id IS NULL
+        -- Oldest authorizations first (auth is placed at booking creation, per
+        -- the manual-capture flow). Stripe cancels an uncaptured PI ~7 days
+        -- after authorization, so under a backlog larger than this batch the
+        -- bookings nearest that deadline must be captured first — an unordered
+        -- LIMIT could let a near-expiry booking lose the row lottery every tick
+        -- and get cancelled uncaptured. Uses idx_bookings_created_at.
+        ORDER BY b.created_at ASC
         LIMIT 50
       ` as { id: string; stripe_payment_intent_id: string; total_price: number | null }[];
 
