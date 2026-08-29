@@ -94,11 +94,13 @@ crewRouter.get("/bookings/:id/crew", async (c) => {
   const bookingId = c.req.param("id");
   const sql = getDb(c.env.DATABASE_URL);
   const rows = (await sql`
-    SELECT id, crew_status, required_crew_size, min_crew_size, target_crew_size,
-           crew_assignment_version, extra_cleaner_requested
+    SELECT id, customer_id, cleaner_id, crew_status, required_crew_size, min_crew_size,
+           target_crew_size, crew_assignment_version, extra_cleaner_requested
     FROM bookings WHERE id = ${bookingId} LIMIT 1
   `) as Array<{
     id: string;
+    customer_id: string | null;
+    cleaner_id: string | null;
     crew_status: string | null;
     required_crew_size: number | null;
     min_crew_size: number | null;
@@ -107,7 +109,86 @@ crewRouter.get("/bookings/:id/crew", async (c) => {
     extra_cleaner_requested: boolean | null;
   }>;
   if (!rows[0]) return c.json({ error: "Booking not found" }, 404);
+
   const seats = await getCrewSeats(sql, bookingId);
+
+  // Authorize + determine the viewer's role so we expose only what each party
+  // may see (spec §53/§54). Actor is one of: admin, the booking's customer, or
+  // a cleaner holding a seat on this booking.
+  const clerkId = c.get("user").clerkId;
+  const meUsers = (await sql`
+    SELECT u.id, u.role, cu.id AS customer_id, cl.id AS cleaner_id
+    FROM users u
+    LEFT JOIN customers cu ON cu.user_id = u.id
+    LEFT JOIN cleaners  cl ON cl.user_id = u.id
+    WHERE u.clerk_id = ${clerkId} LIMIT 1
+  `) as Array<{ id: string; role: string | null; customer_id: string | null; cleaner_id: string | null }>;
+  const me = meUsers[0];
+  const isAdmin = me?.role === "admin" || me?.role === "super_admin";
+  const myCleanerId = me?.cleaner_id ?? null;
+  const isCustomer = !!me?.customer_id && me.customer_id === rows[0].customer_id;
+  const isCrewCleaner = !!myCleanerId && seats.some((s) => s.cleanerId === myCleanerId);
+  if (!isAdmin && !isCustomer && !isCrewCleaner) {
+    return c.json({ error: "Forbidden" }, 403);
+  }
+
+  // Load cleaner identity + score breakdown for filled seats, then shape it per
+  // role: admin sees full names + match breakdown; the customer sees a safe
+  // "First L." + rating for ACCEPTED/COMPLETED seats (the crew authorized to
+  // enter their home, spec §33); a crew cleaner sees teammates' first names and
+  // which seat is theirs. Nobody sees another cleaner's earnings or breakdown.
+  const filledIds = seats.map((s) => s.cleanerId).filter((x): x is string => !!x);
+  const idRows = filledIds.length
+    ? ((await sql`
+        SELECT bca.cleaner_id, bca.score_breakdown, cl.first_name, cl.last_name, cl.rating
+        FROM booking_crew_assignments bca
+        JOIN cleaners cl ON cl.id = bca.cleaner_id
+        WHERE bca.booking_id = ${bookingId} AND bca.cleaner_id IS NOT NULL
+      `) as Array<{
+        cleaner_id: string;
+        score_breakdown: unknown;
+        first_name: string | null;
+        last_name: string | null;
+        rating: number | null;
+      }>)
+    : [];
+  const idByCleaner = new Map(idRows.map((r) => [r.cleaner_id, r]));
+
+  const shaped = seats.map((s) => {
+    const info = s.cleanerId ? idByCleaner.get(s.cleanerId) : undefined;
+    const first = (info?.first_name ?? "").trim();
+    const lastInitial = (info?.last_name ?? "").trim().slice(0, 1);
+    if (isAdmin) {
+      return {
+        ...s,
+        cleanerName: info ? `${first} ${info.last_name ?? ""}`.trim() || null : null,
+        cleanerRating: info?.rating ?? null,
+        scoreBreakdown: info?.score_breakdown ?? null,
+      };
+    }
+    if (isCustomer) {
+      const shown = info && (s.status === "ACCEPTED" || s.status === "COMPLETED");
+      return {
+        id: s.id,
+        role: s.role,
+        seatIndex: s.seatIndex,
+        status: s.status,
+        cleanerName: shown ? `${first} ${lastInitial}`.trim() : null,
+        cleanerRating: shown ? info?.rating ?? null : null,
+      };
+    }
+    // crew cleaner
+    return {
+      id: s.id,
+      role: s.role,
+      seatIndex: s.seatIndex,
+      status: s.status,
+      isMine: !!myCleanerId && s.cleanerId === myCleanerId,
+      cleanerName: info ? first || null : null,
+      checkInAt: s.checkInAt,
+    };
+  });
+
   return c.json({
     booking: {
       id: rows[0].id,
@@ -118,7 +199,8 @@ crewRouter.get("/bookings/:id/crew", async (c) => {
       crewAssignmentVersion: rows[0].crew_assignment_version,
       extraCleanerRequested: rows[0].extra_cleaner_requested ?? false,
     },
-    seats,
+    viewer: isAdmin ? "admin" : isCustomer ? "customer" : "cleaner",
+    seats: shaped,
   });
 });
 

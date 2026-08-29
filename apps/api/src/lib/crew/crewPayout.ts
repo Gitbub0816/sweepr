@@ -40,6 +40,26 @@ import type { Sql } from "@sweepr/db";
 import { loadFeeSettings, calculatePayout, getTierMultiplier } from "../payoutEngine";
 import { foundingPayoutMultiplier } from "../foundingMember";
 import { loadCrewConfig, payoutSplitFractions } from "./crewConfig";
+import { serverTrack } from "../posthog";
+
+// ── Analytics (best-effort; never breaks a payout) ───────────────────────────
+// env is optional and threaded from the payout route; without POSTHOG_KEY the
+// emit is a no-op. Booking id is the distinct id (no PII, no amounts per member).
+export type CrewAnalyticsEnv = { POSTHOG_KEY?: string };
+
+async function emitCrewEvent(
+  env: CrewAnalyticsEnv | undefined,
+  event: string,
+  bookingId: string,
+  props?: Record<string, unknown>,
+): Promise<void> {
+  if (!env?.POSTHOG_KEY) return;
+  try {
+    await serverTrack(env, event, bookingId, { feature: "team_cleans", booking_id: bookingId, ...props });
+  } catch {
+    /* best-effort: analytics must never break a payout */
+  }
+}
 
 /** A crew seat that is physically present and shares the payout pool. */
 const PRESENT_SEAT_STATUSES = ["ACCEPTED", "COMPLETED"] as const;
@@ -223,6 +243,7 @@ export async function releaseCrewPayouts(
   sql: Sql,
   stripe: Stripe,
   bookingId: string,
+  env?: CrewAnalyticsEnv,
 ): Promise<CrewPayoutSummary> {
   const { poolCents, presentCrewSize } = await computeCrewEarnings(sql, bookingId);
 
@@ -336,5 +357,10 @@ export async function releaseCrewPayouts(
   }
 
   const allSucceeded = transfers.every((t) => t.status === "transferred" || t.status === "skipped");
+  await emitCrewEvent(env, "crew_payout_released", bookingId, {
+    crew_size: presentCrewSize,
+    transfer_count: transfers.filter((t) => t.status === "transferred").length,
+    all_succeeded: allSucceeded,
+  });
   return { poolCents, presentCrewSize, transfers, allSucceeded };
 }

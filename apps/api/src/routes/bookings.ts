@@ -852,7 +852,7 @@ bookingsRouter.post(
   // person-minutes and staffs a team when team_cleans_enabled is on; it falls
   // back to the solo initiateAssignment path otherwise, so this is a safe swap.
   try {
-    await planAndStartStaffing(sql, created.id);
+    await planAndStartStaffing(sql, created.id, c.env);
   } catch (err) {
     logger.error("planAndStartStaffing failed", err, { bookingId: created.id });
   }
@@ -1327,7 +1327,7 @@ bookingsRouter.post("/:id/match", requireAdmin, async (c) => {
 
   // Canonical assignment engine. planAndStartStaffing handles crew sizing when
   // team cleans are enabled and falls back to the solo assignment_queue path.
-  await planAndStartStaffing(sql, bookingId);
+  await planAndStartStaffing(sql, bookingId, c.env);
   const queue = (await sql`
     SELECT cleaner_id, position, status, score
     FROM assignment_queue WHERE booking_id = ${bookingId}

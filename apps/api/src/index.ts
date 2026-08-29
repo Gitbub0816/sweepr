@@ -60,6 +60,7 @@ import { trainingAdminRouter } from "./routes/admin/trainingAdmin";
 import { coursesRouter } from "./routes/courses";
 import { crewRouter } from "./routes/crew";
 import { crewTasksRouter } from "./routes/crewTasks";
+import { adminCrewConfigRouter } from "./routes/adminCrewConfig";
 import { adminCoursesRouter } from "./routes/admin/courses";
 import { dayOfServiceRouter } from "./routes/dayOfService";
 import { insuranceRouter, insuranceAdminRouter } from "./routes/insurance";
@@ -511,6 +512,7 @@ app.route("/admin/settings", adminSettingsRouter);
 app.route("/admin-trust", adminTrustRouter);
 app.route("/admin-pricing-config", adminPricingConfigRouter);
 app.route("/admin/zip-pricing", adminZipPricingRouter);
+app.route("/admin/crew-config", adminCrewConfigRouter);
 // First-party site analytics (site_events/site_sessions/tracking_links —
 // written by the sweepr-analytics worker, read here for the admin dashboard).
 app.route("/admin/site-analytics", adminSiteAnalyticsRouter);
@@ -640,7 +642,7 @@ async function runScheduled(event: ScheduledEvent, env: Record<string, unknown>)
       // Team Cleans: expire stale crew-seat invitations and cascade to the
       // next candidate (no-op when the feature is off / no crew bookings).
       try {
-        await expireStaleCrewInvitations(sql);
+        await expireStaleCrewInvitations(sql, typedEnv);
       } catch (err) {
         logger.error("expireStaleCrewInvitations failed", err);
       }

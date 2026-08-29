@@ -148,7 +148,7 @@ stripeWebhookRouter.post("/", async (c) => {
         );
         // Payment captured -> kick off silent auto-assignment.
         try {
-          await planAndStartStaffing(sql, bookingId);
+          await planAndStartStaffing(sql, bookingId, c.env);
         } catch (err) {
           logger.error("assignment after payment failed", err, { bookingId });
         }
@@ -477,7 +477,7 @@ stripeWebhookRouter.post("/", async (c) => {
             .slice(0, 10)}, 'booked')
         `;
         try {
-          await planAndStartStaffing(sql, booking.id);
+          await planAndStartStaffing(sql, booking.id, c.env);
         } catch (err) {
           logger.error("subscription assignment failed", err, {
             bookingId: booking.id,

@@ -47,6 +47,27 @@ import {
 import { checkInsurance } from "../cleanerRequirements";
 import { sendNotification } from "../notifications";
 import { logger } from "../logger";
+import { serverTrack } from "../posthog";
+
+// ── Analytics (best-effort; never breaks a crew flow) ────────────────────────
+// Team-clean events flow through the existing serverTrack/PostHog infra. The
+// booking id is the distinct id (no PII). env is optional and threaded from the
+// route/cron caller; without POSTHOG_KEY the emit is a no-op.
+export type CrewAnalyticsEnv = { POSTHOG_KEY?: string };
+
+async function emitCrewEvent(
+  env: CrewAnalyticsEnv | undefined,
+  event: string,
+  bookingId: string,
+  props?: Record<string, unknown>,
+): Promise<void> {
+  if (!env?.POSTHOG_KEY) return;
+  try {
+    await serverTrack(env, event, bookingId, { feature: "team_cleans", booking_id: bookingId, ...props });
+  } catch {
+    /* best-effort: analytics must never break a crew flow */
+  }
+}
 
 // ── Invitation pool carried in a seat's score_breakdown while open ───────────
 export interface CrewSeatPool {
@@ -231,6 +252,7 @@ export async function inviteCandidatesToSeat(
   candidates: CandidateInvite[],
   ttlMinutes: number,
   booking: BookingRow,
+  env?: CrewAnalyticsEnv,
 ): Promise<string[]> {
   if (candidates.length === 0) return [];
   const current = await getSeat(db, seatId);
@@ -270,6 +292,12 @@ export async function inviteCandidatesToSeat(
       data: { href: "/jobs", bookingId: booking.id, seatId },
     });
   }
+  await emitCrewEvent(env, "crew_member_invited", booking.id, {
+    seat_id: seatId,
+    role: current.seat.role,
+    seat_index: current.seat.seatIndex,
+    invitation_count: invitedNow.length,
+  });
   return invitedNow;
 }
 
@@ -280,7 +308,12 @@ export async function inviteCandidatesToSeat(
  * conflicts AT acceptance, then atomically claims the position row. On a LEAD
  * accept the booking's compat pointer is claimed too.
  */
-export async function acceptSeat(db: Sql, seatId: string, cleanerId: string): Promise<AcceptResult> {
+export async function acceptSeat(
+  db: Sql,
+  seatId: string,
+  cleanerId: string,
+  env?: CrewAnalyticsEnv,
+): Promise<AcceptResult> {
   const current = await getSeat(db, seatId);
   if (!current) return { ok: false, reason: "seat_not_found" };
   const { seat, pool } = current;
@@ -345,6 +378,11 @@ export async function acceptSeat(db: Sql, seatId: string, cleanerId: string): Pr
   }
 
   logger.info("crew.seat_accepted", { bookingId: seat.bookingId, seatId, cleanerId, role: seat.role });
+  await emitCrewEvent(env, "crew_member_accepted", seat.bookingId, {
+    seat_id: seatId,
+    role: seat.role,
+    seat_index: seat.seatIndex,
+  });
   const after = await getSeat(db, seatId);
   return { ok: true, seat: after?.seat ?? seat, role: seat.role };
 }
@@ -388,6 +426,7 @@ export async function declineSeat(
   db: Sql,
   seatId: string,
   cleanerId: string,
+  env?: CrewAnalyticsEnv,
 ): Promise<{ ok: boolean; waveExhausted: boolean; seat?: CrewSeat }> {
   const current = await getSeat(db, seatId);
   if (!current) return { ok: false, waveExhausted: false };
@@ -404,6 +443,13 @@ export async function declineSeat(
   `;
   const outstanding = pool.invited.filter((c) => !declined.includes(c));
   logger.info("crew.seat_declined", { bookingId: seat.bookingId, seatId, cleanerId });
+  await emitCrewEvent(env, "crew_member_declined", seat.bookingId, {
+    seat_id: seatId,
+    role: seat.role,
+    seat_index: seat.seatIndex,
+    decline_count: declined.length,
+    wave_exhausted: outstanding.length === 0,
+  });
   return { ok: true, waveExhausted: outstanding.length === 0, seat };
 }
 

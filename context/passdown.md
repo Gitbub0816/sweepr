@@ -11,6 +11,50 @@ Stable conventions live in root `/CLAUDE.md` — this file is state + recent wor
 
 ---
 
+## Team Cleans (multi-cleaner crews) — flag-gated OFF (branch)
+
+Extends the single-cleaner system to **crews** (1 LEAD + N MEMBER helpers).
+Full reference: **docs/team-cleans.md**; design/compat audit:
+docs/team-cleans-audit.md. **Everything is gated OFF by default** behind
+`isTeamFlagEnabled(...)` — with flags off the legacy solo path is unchanged.
+
+Shipped on the branch:
+- **Schema** — migrations 101 (`booking_crew_assignments` + `bookings.crew_status`
+  and crew-size columns + `cleaner_relationships` + `crew_peer_ratings`, with a
+  backfill mapping every existing solo booking to one LEAD seat), 102 (relaxes
+  the per-booking UNIQUEs on `payouts`/`booking_tips`/`reviews` for per-member
+  money/ratings), 103 (`cleaning_tasks`).
+- **Engines** (`apps/api/src/lib/crew/*`) — `crewSizing` (person-minutes →
+  size via the team-efficiency curve; v2-active-only), `crewMatching`
+  (LEAD/MEMBER ranking on top of the solo engine + peer thumbs + preferred
+  teammates), `crewAssignment` (seat CRUD + claim-then-act accept race),
+  `crewStaffing` (the `crew_status` state machine + cascade/expiry), `crewPayout`
+  (pool → 60/40 & 40/30/30 split, one transfer per member, no-show forfeit),
+  `crewDayOfService` (independent per-member check-in, ephemeral HMAC PIN-vouch,
+  no-show recompute, LEAD-only completion), `taskAllocation`, `crewPeerRating`.
+  Routes `routes/crew.ts` + `routes/crewTasks.ts`; day-of-service/payments/tips/
+  reviews carry crew branches; cron runs `expireStaleCrewInvitations`.
+- **Wave 5 (this session, polish):**
+  - **Analytics** — best-effort `serverTrack` emits added to the crew engines
+    (`crewStaffing`/`crewAssignment`/`crewPayout`/`crewDayOfService`):
+    `team_clean_required`, `crew_size_calculated`, `crew_staffing_started`,
+    `crew_member_invited/accepted/declined`, `crew_confirmed`,
+    `crew_staffing_failed`, `crew_member_replaced`, `crew_at_risk`,
+    `team_clean_completed`, `crew_payout_released`. Booking id = distinct id, no
+    PII; wrapped in try/catch. `env` (POSTHOG_KEY) is threaded as an OPTIONAL
+    param from callers — routes (owned by UX agents) still need to pass `c.env`
+    to light emission up; without it the calls no-op.
+  - **Integration tests** — `apps/api/tests/crew-integration.test.ts` (18 tests):
+    solo regression, 2- and 3-person full staffing flows to CONFIRMED, lead/member
+    decline cascades, invitation expiry cascade + exhaustion → STAFFING_FAILED,
+    last-seat race, member drop → AT_RISK + replacement, no-show → zero pay +
+    reduced-crew recompute, 60/40 & 40/30/30 payout, migration-101 backfill.
+  - **Docs** — docs/team-cleans.md written; audit doc left as-is.
+- **Verify:** `npx turbo run typecheck --filter=@sweepr/api --force` green;
+  `npx vitest run apps/api/tests` = 471 passed (was 453).
+
+---
+
 ## Session 2026-08-20 (Pricing v2 engine + Pricing Studio, marketing sign-in fix)
 
 - **Pricing v2** (full spec implementation — see docs/PRICING_V2.md):

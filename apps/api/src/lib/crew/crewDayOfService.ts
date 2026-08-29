@@ -42,6 +42,26 @@ import type { Sql } from "@sweepr/db";
 import type { CrewConfig } from "./crewConfig";
 import type { CrewRole, CrewSeatStatus, CrewSizePlan } from "./types";
 import { computeCrewPlan, elapsedMinutes } from "./crewSizing";
+import { serverTrack } from "../posthog";
+
+// ── Analytics (best-effort; never breaks a crew flow) ────────────────────────
+// env is optional and threaded from the route caller; without POSTHOG_KEY the
+// emit is a no-op. Booking id is the distinct id (no PII).
+export type CrewAnalyticsEnv = { POSTHOG_KEY?: string };
+
+async function emitCrewEvent(
+  env: CrewAnalyticsEnv | undefined,
+  event: string,
+  bookingId: string,
+  props?: Record<string, unknown>,
+): Promise<void> {
+  if (!env?.POSTHOG_KEY) return;
+  try {
+    await serverTrack(env, event, bookingId, { feature: "team_cleans", booking_id: bookingId, ...props });
+  } catch {
+    /* best-effort: analytics must never break a crew flow */
+  }
+}
 
 // ─── PIN (ephemeral, derived — no schema change) ────────────────────────────
 
@@ -242,6 +262,7 @@ export interface NoShowParams {
   config: CrewConfig;
   productivityPermille?: Record<string, number>;
   nowIso?: string;
+  env?: CrewAnalyticsEnv;
 }
 
 export interface NoShowResult {
@@ -287,6 +308,10 @@ export async function handleNoShow(sql: Sql, params: NoShowParams): Promise<NoSh
     UPDATE bookings SET crew_status = 'AT_RISK', updated_at = NOW()
     WHERE id = ${params.bookingId} AND crew_status IS NOT NULL
   `;
+  await emitCrewEvent(params.env, "crew_at_risk", params.bookingId, {
+    seat_id: params.assignmentId,
+    reason: "no_show",
+  });
 
   // Reduced crew = seats still in play; total labor does not shrink.
   const agg = (await sql`
@@ -322,6 +347,7 @@ export interface CompleteCrewParams {
   /** The completing cleaner's id (must be the LEAD). */
   callerCleanerId: string;
   nowIso?: string;
+  env?: CrewAnalyticsEnv;
 }
 
 export interface CompleteCrewResult {
@@ -380,5 +406,10 @@ export async function completeCrewBooking(sql: Sql, params: CompleteCrewParams):
   `;
 
   const noShowSeats = seats.filter((s) => s.status === "NO_SHOW").length;
+  await emitCrewEvent(params.env, "team_clean_completed", params.bookingId, {
+    crew_size: seats.length,
+    completed_seats: completed.length,
+    no_show_count: noShowSeats,
+  });
   return { ok: true, completedSeats: completed.length, noShowSeats };
 }
