@@ -22,6 +22,7 @@ import {
   Home as HomeIcon,
   Repeat,
   KeyRound,
+  DoorOpen,
 } from "lucide-react";
 import { AppShell, PrelaunchGate, ReportProblem, CookieConsent, PromoHost } from "@sweepr/ui";
 import { useAuth } from "@clerk/clerk-react";
@@ -73,6 +74,8 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { MembershipPage } from "./pages/MembershipPage";
 import { PaymentMethodsPage } from "./pages/PaymentMethodsPage";
 import { BusinessPage } from "./pages/BusinessPage";
+import { SmartLocksPage } from "./pages/SmartLocksPage";
+import { SmartEntryConnectReturn } from "./pages/SmartEntryConnectReturn";
 import { Home } from "./pages/Home";
 import { OfflineIndicator } from "./components/OfflineIndicator";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -84,6 +87,7 @@ const nav = [
   { to: "/book", label: "Book", icon: CalendarCheck },
   { to: "/bookings", label: "My Bookings", icon: CalendarCheck, end: true },
   { to: "/rentals", label: "Rentals", icon: KeyRound },
+  { to: "/smart-locks", label: "Smart Locks", icon: DoorOpen },
   { to: "/subscriptions", label: "Subscriptions", icon: Repeat },
   { to: "/payment-methods", label: "Payment Methods", icon: CreditCard },
   { to: "/profile", label: "Profile", icon: User },
@@ -234,6 +238,11 @@ export default function App() {
         {/* OAuth SSO callback, outside prelaunch gate, handles token exchange */}
         <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback continueSignUpUrl="/sign-up/continue" />} />
 
+        {/* Smart Entry provider-consent return tab. Static confirmation, no API
+            calls or PII, so it sits outside the auth/prelaunch gates and always
+            renders after the provider redirect. It signals the opener tab's poll. */}
+        <Route path="/smart-entry/connect/return" element={<SmartEntryConnectReturn />} />
+
         {/* Auth routes, outside gate so sign-in is always accessible */}
         <Route path="/sign-in" element={CENTRAL_AUTH_ENABLED ? <RedirectToCentralLogin /> : <SignInPage />} />
         <Route path="/sign-up" element={CENTRAL_AUTH_ENABLED ? <RedirectToCentralLogin /> : <SignUpPage />} />
@@ -271,6 +280,7 @@ export default function App() {
           {/* Account area, auth required */}
           <Route path="/bookings" element={<Protected><BookingsPage /></Protected>} />
           <Route path="/rentals" element={<Protected><RentalsPage /></Protected>} />
+          <Route path="/smart-locks" element={<Protected><SmartLocksPage /></Protected>} />
           <Route
             path="/bookings/:id"
             element={<Protected><BookingDetailPage /></Protected>}

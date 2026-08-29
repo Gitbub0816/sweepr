@@ -10,8 +10,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { KeyRound, Home, Lock, DoorOpen, Check } from "lucide-react";
-import { Card, Button, toast } from "@sweepr/ui";
+import { KeyRound, Home, Lock, DoorOpen, Check, Wifi, WifiOff, Plus } from "lucide-react";
+import { Card, Button, Badge, toast } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
 
 interface Props {
@@ -35,6 +35,15 @@ const OPTIONS: Array<{ key: Method; label: string; hint: string; icon: typeof Ho
   { key: "lockbox", label: "Lockbox / hidden key", hint: "Give secure access instructions.", icon: Lock },
 ];
 
+interface Device {
+  id: string;
+  name: string;
+  type: string | null;
+  online: boolean;
+  supportsRemoteUnlock: boolean;
+  supportsTemporaryCodes: boolean;
+}
+
 export function SmartEntryCard({ bookingId, token, apiUrl }: Props) {
   const [status, setStatus] = useState<Status | null>(null);
   const [method, setMethod] = useState<Method>("home");
@@ -42,6 +51,10 @@ export function SmartEntryCard({ bookingId, token, apiUrl }: Props) {
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  // Whether Smart Entry is the PERSISTED method (customer already saved/consented)
+  // — gates the device picker so it only appears once consent is on record.
+  const [persistedSmartEntry, setPersistedSmartEntry] = useState(false);
+  const [attachedDeviceId, setAttachedDeviceId] = useState<string | null>(null);
 
   const headers = useCallback(
     (json = false): Record<string, string> => ({
@@ -62,8 +75,13 @@ export function SmartEntryCard({ bookingId, token, apiUrl }: Props) {
         if (!active) return;
         if (s.ok) setStatus((await s.json()) as Status);
         if (b.ok) {
-          const data = (await b.json()) as { authorization: { access_method?: Method } | null };
-          if (data.authorization?.access_method) setMethod(data.authorization.access_method);
+          const data = (await b.json()) as {
+            authorization: { access_method?: Method; lock_device_id?: string | null } | null;
+          };
+          const auth = data.authorization;
+          if (auth?.access_method) setMethod(auth.access_method);
+          setPersistedSmartEntry(auth?.access_method === "smart_entry");
+          setAttachedDeviceId(auth?.lock_device_id ?? null);
         }
       } catch {
         /* silent */
@@ -97,6 +115,7 @@ export function SmartEntryCard({ bookingId, token, apiUrl }: Props) {
         throw new Error(e.error);
       }
       setSaved(true);
+      setPersistedSmartEntry(method === "smart_entry");
       toast.success("Access preference saved");
     } catch {
       toast.error("Couldn't save access preference");
@@ -214,6 +233,160 @@ export function SmartEntryCard({ bookingId, token, apiUrl }: Props) {
           )}
         </Button>
       </div>
+
+      {/* Device picker: only once Smart Entry is the chosen + consented method
+          for this booking (the backend requires the smart_entry authorization to
+          exist before a device can be attached — otherwise PUT .../device 409s). */}
+      {persistedSmartEntry && method === "smart_entry" && (
+        <SmartEntryDevicePicker
+          bookingId={bookingId}
+          apiUrl={apiUrl}
+          headers={headers}
+          attachedDeviceId={attachedDeviceId}
+          onAttached={setAttachedDeviceId}
+        />
+      )}
     </Card>
+  );
+}
+
+/**
+ * Lets the customer pick WHICH of their connected locks to use for this
+ * cleaning. Appears under the access-method chooser once Smart Entry is the
+ * saved method. Selecting a lock calls PUT /smart-entry/booking/:id/device,
+ * which provisions the Seam grant. A 409 (no_smart_entry_authorization) means
+ * the method/consent wasn't saved first — we guide the customer back to that.
+ */
+function SmartEntryDevicePicker({
+  bookingId,
+  apiUrl,
+  headers,
+  attachedDeviceId,
+  onAttached,
+}: {
+  bookingId: string;
+  apiUrl: string;
+  headers: (json?: boolean) => Record<string, string>;
+  attachedDeviceId: string | null;
+  onAttached: (id: string) => void;
+}) {
+  const [devices, setDevices] = useState<Device[] | null>(null);
+  const [error, setError] = useState(false);
+  const [savingId, setSavingId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setError(false);
+    try {
+      const res = await fetch(`${apiUrl}/smart-entry/devices`, { headers: headers() });
+      if (!res.ok) throw new Error("devices");
+      const d = (await res.json()) as { devices: Device[] };
+      setDevices(d.devices ?? []);
+    } catch {
+      setError(true);
+      setDevices([]);
+    }
+  }, [apiUrl, headers]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function attach(deviceId: string) {
+    setSavingId(deviceId);
+    try {
+      const res = await fetch(`${apiUrl}/smart-entry/booking/${bookingId}/device`, {
+        method: "PUT",
+        headers: headers(true),
+        body: JSON.stringify({ deviceId }),
+      });
+      if (res.status === 409) {
+        toast.error("Save Smart Entry as your access method first, then pick a lock");
+        return;
+      }
+      if (!res.ok) throw new Error("attach");
+      onAttached(deviceId);
+      toast.success("Lock selected for this cleaning");
+    } catch {
+      toast.error("Couldn't set that lock. Please try again.");
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  return (
+    <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800">
+      <p className="text-xs font-semibold text-charcoal dark:text-white">Which lock should we use?</p>
+
+      {devices === null ? (
+        <div className="mt-3 h-16 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
+      ) : error ? (
+        <p className="mt-2 text-xs text-slate-500">
+          Couldn&apos;t load your locks.{" "}
+          <button type="button" onClick={() => void load()} className="font-semibold text-seafoam-700 underline">
+            Retry
+          </button>
+        </p>
+      ) : devices.length === 0 ? (
+        <div className="mt-2 rounded-xl border border-dashed border-slate-200 p-4 text-center dark:border-slate-700">
+          <p className="text-xs text-slate-500">You don&apos;t have a connected lock yet.</p>
+          <Link
+            to="/smart-locks"
+            className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-seafoam-700 underline"
+          >
+            <Plus className="h-3.5 w-3.5" /> Connect a lock
+          </Link>
+        </div>
+      ) : (
+        <div className="mt-2 grid gap-2">
+          {devices.map((d) => {
+            const active = d.id === attachedDeviceId;
+            const savingThis = savingId === d.id;
+            return (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => void attach(d.id)}
+                disabled={savingThis}
+                aria-pressed={active}
+                className={`flex items-center justify-between gap-3 rounded-xl border p-3 text-left transition-colors disabled:opacity-60 ${
+                  active
+                    ? "border-seafoam-400 bg-seafoam-50 dark:bg-slate-800"
+                    : "border-slate-200 hover:border-seafoam-300 dark:border-slate-700"
+                }`}
+              >
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <Lock className="h-4 w-4 shrink-0 text-seafoam-700" />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-charcoal dark:text-white">
+                      {d.name}
+                    </span>
+                    <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-slate-500">
+                      {d.online ? (
+                        <>
+                          <Wifi className="h-3 w-3" /> Online
+                        </>
+                      ) : (
+                        <>
+                          <WifiOff className="h-3 w-3" /> Offline
+                        </>
+                      )}
+                    </span>
+                  </span>
+                </span>
+                {active ? (
+                  <Badge variant="success" className="gap-1">
+                    <Check className="h-3 w-3" /> Selected
+                  </Badge>
+                ) : savingThis ? (
+                  <span className="text-xs text-slate-400">Saving…</span>
+                ) : (
+                  <span className="text-xs font-semibold text-seafoam-700">Use this</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
