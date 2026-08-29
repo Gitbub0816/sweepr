@@ -52,6 +52,7 @@ import { promotionsRouter } from "./routes/promotions";
 import { couponsRouter } from "./routes/coupons";
 import { membershipRouter } from "./routes/membership";
 import { smartEntryRouter } from "./routes/smartEntry";
+import { seamWebhookRouter } from "./routes/seamWebhook";
 import { cleanerAccessRouter } from "./routes/cleanerAccess";
 import { adminSmartEntryRouter } from "./routes/adminSmartEntry";
 import { adminCouponsRouter } from "./routes/adminCoupons";
@@ -405,6 +406,27 @@ app.use("/report/*", rateLimit({ limit: 20, windowMs: 15 * 60_000, keyPrefix: "r
 app.use("/status/bypass", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "bypass", strict: true }));
 app.use("/maps/*", rateLimit({ limit: 240, windowMs: 15 * 60_000, keyPrefix: "maps" }));
 
+// Smart Entry: the read-only status/poll endpoints (feature status, connect-
+// webview status, device list, booking selection) are POLLED by the customer
+// booking-detail + lock-connect UI, so they get a generous per-user bucket
+// (convention 14 — strict buckets on polls have broken onboarding twice).
+// Everything else on /smart-entry is a mutation and gets a strict bucket.
+// /webhooks/seam is separate and HMAC(Svix)-verified, not covered here.
+const smartEntryPoll = rateLimit({ limit: 240, windowMs: 15 * 60_000, keyPrefix: "smartentry-poll", by: "user" });
+const smartEntryStrict = rateLimit({ limit: 30, windowMs: 15 * 60_000, keyPrefix: "smartentry", by: "user", strict: true });
+app.use("/smart-entry/*", (c, next) => {
+  const p = c.req.path;
+  const isPoll =
+    c.req.method === "GET" &&
+    (p === "/smart-entry/status" ||
+      p === "/smart-entry/devices" ||
+      p === "/smart-entry/connect/status" ||
+      p === "/smart-entry/airbnb/connect/status" ||
+      p === "/smart-entry/airbnb/listings" ||
+      p.startsWith("/smart-entry/booking/"));
+  return isPoll ? smartEntryPoll(c, next) : smartEntryStrict(c, next);
+});
+
 app.get("/", (c) => c.json({ name: "sweepr-api", status: "ok" }));
 app.get("/health", (c) => c.json({ ok: true }));
 
@@ -480,6 +502,7 @@ app.route("/coupons", couponsRouter);
 app.route("/admin/coupons", adminCouponsRouter);
 app.route("/membership", membershipRouter);
 app.route("/smart-entry", smartEntryRouter);
+app.route("/webhooks/seam", seamWebhookRouter);
 app.route("/cleaner", cleanerAccessRouter);
 app.route("/admin/smart-entry", adminSmartEntryRouter);
 app.route("/training", trainingRouter);

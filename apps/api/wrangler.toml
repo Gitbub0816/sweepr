@@ -45,6 +45,13 @@ preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
 # SENTRY_AUTH_TOKEN           (Organization Auth Token — powers the admin Integrations tile)
 # SENTRY_ORG / SENTRY_PROJECT (optional slugs; default sweepr-45 / javascript-nextjs)
 # ACCESS_CODE_ENCRYPTION_KEY  (32-byte hex key: openssl rand -hex 32)
+# SEAM_API_KEY                (Seam Bearer API key for connect.getseam.com — smart-lock Access Grants,
+#                              Connect Webviews, device sync; server-side only, never sent to a client.
+#                              Confirm the workspace has the customers' lock providers + Airbnb enabled)
+# SEAM_WEBHOOK_SECRET         (Seam → Webhooks signing secret, whsec_… — Seam signs via Svix like Clerk.
+#                              Register https://api.getsweepr.com/webhooks/seam and subscribe to
+#                              connected_account.connected/.disconnected/.error, device.connected/.disconnected,
+#                              access_grant.*/access_method.*. Unset = /webhooks/seam fails closed (500))
 # DIDIT_API_KEY               (x-api-key for hosted session creation)
 # DIDIT_WEBHOOK_SECRET        (HMAC-SHA256 webhook signature secret)
 # R2_ACCOUNT_ID             (Cloudflare account ID)

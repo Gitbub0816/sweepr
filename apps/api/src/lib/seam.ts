@@ -62,8 +62,55 @@ export interface SeamDevice {
   };
 }
 
+export interface SeamConnectWebview {
+  connect_webview_id: string;
+  url: string;
+  status: string; // "pending" | "authorized" | "failed"
+  connected_account_id?: string | null;
+  custom_metadata?: Record<string, unknown> | null;
+}
+
 export function makeSeam(apiKey: string) {
   return {
+    /**
+     * Create a hosted Connect Webview — Seam's OAuth-style authorization flow.
+     * We launch the returned `url` in a NEW TAB (never an iframe: the provider's
+     * consent screen, like Airbnb, is X-Frame-Options blocked cross-site). For a
+     * lock-brand connect pass the manufacturer providers; for Airbnb pass
+     * `["airbnb"]`. `customMetadata` ties the webview back to our user.
+     */
+    async createConnectWebview(input: {
+      acceptedProviders: string[];
+      customRedirectUrl?: string;
+      customRedirectFailureUrl?: string;
+      customMetadata?: Record<string, unknown>;
+    }): Promise<{ connectWebviewId: string; url: string }> {
+      const r = await seamFetch<{ connect_webview: SeamConnectWebview }>(
+        apiKey,
+        "/connect_webviews/create",
+        {
+          accepted_providers: input.acceptedProviders,
+          custom_redirect_url: input.customRedirectUrl,
+          custom_redirect_failure_url: input.customRedirectFailureUrl ?? input.customRedirectUrl,
+          custom_metadata: input.customMetadata,
+        },
+      );
+      return {
+        connectWebviewId: r.connect_webview.connect_webview_id,
+        url: r.connect_webview.url,
+      };
+    },
+
+    /** Poll a Connect Webview; `authorized` + a connected_account_id means done. */
+    async getConnectWebview(connectWebviewId: string): Promise<SeamConnectWebview> {
+      const r = await seamFetch<{ connect_webview: SeamConnectWebview }>(
+        apiKey,
+        "/connect_webviews/get",
+        { connect_webview_id: connectWebviewId },
+      );
+      return r.connect_webview;
+    },
+
     /** List the smart-lock devices under a connected account. */
     async listDevices(connectedAccountId?: string): Promise<SeamDevice[]> {
       const r = await seamFetch<{ devices: SeamDevice[] }>(
