@@ -1,0 +1,404 @@
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ *
+ * Unauthorized copying, modification, disclosure,
+ * distribution, reverse engineering, or use is prohibited.
+ */
+
+/**
+ * Crew matching — multi-cleaner ranking that REUSES (never replaces) the solo
+ * engine (lib/matching.ts). The base score from `rankCleanersForBooking` (a
+ * fair, weighted, hard-filtered per-cleaner score) is the foundation; crew
+ * matching layers explainable, additive crew terms on top:
+ *
+ *   LEAD candidates  → lead-eligibility, reliability, customer continuity.
+ *   CREW candidates  → availability-overlap, distance, reliability,
+ *                      qualification, prior-pairing (crew_peer_ratings),
+ *                      preferred-teammate (mutual cleaner_relationships),
+ *                      team-compatibility with the accepted LEAD.
+ *
+ * Every candidate carries a full `breakdown` so admins can see WHY a cleaner
+ * ranked where they did (mirrors assignment_queue.score_breakdown). The base
+ * engine already applies the HARD filters (service offering + service area) and
+ * the eligibility/conflict gate (schedule + double-booking, widened for crews),
+ * so crew terms only reorder survivors — they never smuggle in an ineligible or
+ * out-of-area cleaner.
+ */
+
+import type { Sql, BookingRow, CleanerRow } from "@sweepr/db";
+import {
+  rankCleanersForBooking,
+  eligibleCleanersForBooking,
+  type MatchScore,
+} from "../matching";
+
+// ── Additive crew-term weights (points added on top of the base score) ───────
+// Kept modest relative to the base ceiling (MAX_MATCH_SCORE = 90) so the base
+// fairness/quality signal dominates and crew terms act as tie-breakers / nudges.
+const LEAD_WEIGHTS = {
+  leadEligibility: 25, // experience + tier make a credible lead-of-record
+  reliability: 15, // low no-show / cancel history
+  continuity: 10, // has led good jobs for THIS customer before
+} as const;
+
+const CREW_WEIGHTS = {
+  availabilityOverlap: 10, // schedule tightly covers the booking window
+  distance: 12, // near the job within their own radius
+  reliability: 15,
+  qualification: 10, // offers the service type + has real job volume
+  priorPairing: 14, // peer thumbs-up with the LEAD (thumbs-down sinks them)
+  preferredTeammate: 18, // mutual PREFERRED_TEAMMATE bond with the LEAD
+  teamCompatibility: 8, // avoid pairing two green cleaners with no anchor
+} as const;
+
+/** Explainable score: `base` from the solo engine + each named crew term. */
+export interface CrewScoreBreakdown {
+  base: number;
+  [term: string]: number;
+}
+
+export interface CrewCandidateScore {
+  cleanerId: string;
+  /** base + sum of crew terms. */
+  score: number;
+  baseScore: number;
+  breakdown: CrewScoreBreakdown;
+}
+
+export interface CrewMatchOptions {
+  /** Cleaners never to consider (already seated, the LEAD, prior contacted). */
+  excludeCleanerIds?: Iterable<string>;
+  /** Override the candidate pool (defaults to all approved/active cleaners). */
+  candidatePool?: CleanerRow[];
+}
+
+// ── Small helpers ────────────────────────────────────────────────────────────
+
+function clamp01(n: number): number {
+  return Math.max(0, Math.min(1, n));
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+function tierFactor(tier: string | null | undefined): number {
+  switch (tier) {
+    case "elite":
+      return 1;
+    case "preferred":
+      return 0.7;
+    default:
+      return 0.4;
+  }
+}
+
+/** Load the default candidate pool: every approved/active cleaner. */
+async function loadCandidatePool(db: Sql): Promise<CleanerRow[]> {
+  return (await db`
+    SELECT * FROM cleaners WHERE status IN ('approved', 'active')
+  `) as CleanerRow[];
+}
+
+/**
+ * Run the solo engine to produce the eligibility-gated, hard-filtered base
+ * ranking. Returns the surviving cleaners plus a map of cleanerId → base score.
+ */
+async function baseRanking(
+  booking: BookingRow,
+  pool: CleanerRow[],
+  db: Sql,
+): Promise<{ survivors: CleanerRow[]; base: Map<string, MatchScore> }> {
+  const eligible = await eligibleCleanersForBooking(booking, pool, db);
+  const ranked = await rankCleanersForBooking(booking, eligible, db);
+  const base = new Map(ranked.map((r) => [r.cleanerId, r]));
+  const survivors = eligible.filter((c) => base.has(c.id));
+  return { survivors, base };
+}
+
+/**
+ * Reliability signal from crew history: seats that went well (ACCEPTED /
+ * COMPLETED) vs seats that fell through (NO_SHOW / CANCELLED / REMOVED). New
+ * cleaners with no crew history default to a healthy 0.9.
+ */
+async function reliabilityByCleaner(
+  db: Sql,
+  cleanerIds: string[],
+): Promise<Map<string, number>> {
+  if (cleanerIds.length === 0) return new Map();
+  const rows = (await db`
+    SELECT cleaner_id,
+           COUNT(*) FILTER (WHERE status IN ('ACCEPTED', 'COMPLETED'))::int AS good,
+           COUNT(*) FILTER (WHERE status IN ('NO_SHOW', 'CANCELLED', 'REMOVED'))::int AS bad
+    FROM booking_crew_assignments
+    WHERE cleaner_id = ANY(${cleanerIds})
+    GROUP BY cleaner_id
+  `) as Array<{ cleaner_id: string; good: number; bad: number }>;
+  const out = new Map<string, number>();
+  for (const r of rows) {
+    const total = r.good + r.bad;
+    out.set(r.cleaner_id, total === 0 ? 0.9 : r.good / total);
+  }
+  return out;
+}
+
+// ── LEAD ranking ─────────────────────────────────────────────────────────────
+
+/**
+ * Rank candidates to be the LEAD (cleaner-of-record) for a booking. The LEAD
+ * carries the customer relationship and completion accountability, so on top of
+ * the base score we reward provable experience/tier (lead-eligibility),
+ * reliability, and continuity with this exact customer.
+ */
+export async function rankLeadCandidates(
+  booking: BookingRow,
+  db: Sql,
+  options: CrewMatchOptions = {},
+): Promise<CrewCandidateScore[]> {
+  const exclude = new Set(options.excludeCleanerIds ?? []);
+  const pool = (options.candidatePool ?? (await loadCandidatePool(db))).filter(
+    (c) => !exclude.has(c.id),
+  );
+  const { survivors, base } = await baseRanking(booking, pool, db);
+  if (survivors.length === 0) return [];
+
+  const ids = survivors.map((c) => c.id);
+  const [reliability, continuity] = await Promise.all([
+    reliabilityByCleaner(db, ids),
+    leadContinuityByCleaner(db, booking.customer_id, ids),
+  ]);
+
+  const scored: CrewCandidateScore[] = survivors.map((cleaner) => {
+    const b = base.get(cleaner.id)!;
+    const baseScore = b.score;
+
+    // Lead-eligibility: a blend of tier and job volume — enough of a track
+    // record to be trusted as the responsible party. Soft (never a hard filter
+    // here); the staffing layer re-validates account/vetting at acceptance.
+    const experience = clamp01((cleaner.total_jobs ?? 0) / 20);
+    const ratingFactor =
+      cleaner.rating != null ? clamp01(Number(cleaner.rating) / 5) : 0.6;
+    const leadEligibilityFactor = clamp01(
+      0.5 * tierFactor(cleaner.tier) + 0.3 * experience + 0.2 * ratingFactor,
+    );
+    const leadEligibility = leadEligibilityFactor * LEAD_WEIGHTS.leadEligibility;
+
+    const relFactor = reliability.get(cleaner.id) ?? 0.9;
+    const reliabilityPts = relFactor * LEAD_WEIGHTS.reliability;
+
+    const contFactor = continuity.get(cleaner.id) ?? 0;
+    const continuityPts = clamp01(contFactor) * LEAD_WEIGHTS.continuity;
+
+    const breakdown: CrewScoreBreakdown = {
+      base: round2(baseScore),
+      leadEligibility: round2(leadEligibility),
+      reliability: round2(reliabilityPts),
+      continuity: round2(continuityPts),
+    };
+    const score = round2(
+      baseScore + leadEligibility + reliabilityPts + continuityPts,
+    );
+    return { cleanerId: cleaner.id, score, baseScore: round2(baseScore), breakdown };
+  });
+
+  return scored.sort((a, b) => b.score - a.score);
+}
+
+/** Prior completed LEAD jobs for THIS customer → a 0..1 continuity factor. */
+async function leadContinuityByCleaner(
+  db: Sql,
+  customerId: string | null,
+  cleanerIds: string[],
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (!customerId || cleanerIds.length === 0) return out;
+  const rows = (await db`
+    SELECT bca.cleaner_id, COUNT(*)::int AS jobs
+    FROM booking_crew_assignments bca
+    JOIN bookings b ON b.id = bca.booking_id
+    WHERE bca.role = 'LEAD'
+      AND bca.status = 'COMPLETED'
+      AND bca.cleaner_id = ANY(${cleanerIds})
+      AND b.customer_id = ${customerId}
+    GROUP BY bca.cleaner_id
+  `) as Array<{ cleaner_id: string; jobs: number }>;
+  for (const r of rows) out.set(r.cleaner_id, clamp01(r.jobs / 3));
+  return out;
+}
+
+// ── CREW (member) ranking ────────────────────────────────────────────────────
+
+/**
+ * Rank candidates for the MEMBER (helper) seats of a booking whose LEAD has
+ * already accepted. Adds crew-fit terms relative to that LEAD on top of the
+ * base score. The accepted LEAD (and any already-seated / previously-contacted
+ * cleaners, via options.excludeCleanerIds) are removed from the pool.
+ *
+ * `remainingSeats` is advisory (how many open MEMBER seats remain); the full
+ * ranked list is returned and the staffing layer decides how deep to invite.
+ */
+export async function rankCrewCandidates(
+  booking: BookingRow,
+  acceptedLeadCleanerId: string,
+  remainingSeats: number,
+  db: Sql,
+  options: CrewMatchOptions = {},
+): Promise<CrewCandidateScore[]> {
+  const exclude = new Set(options.excludeCleanerIds ?? []);
+  exclude.add(acceptedLeadCleanerId);
+  const pool = (options.candidatePool ?? (await loadCandidatePool(db))).filter(
+    (c) => !exclude.has(c.id),
+  );
+  const { survivors, base } = await baseRanking(booking, pool, db);
+  if (survivors.length === 0 || remainingSeats <= 0) return [];
+
+  const ids = survivors.map((c) => c.id);
+  const [reliability, peer, preferred, lead] = await Promise.all([
+    reliabilityByCleaner(db, ids),
+    peerRatingWithLead(db, acceptedLeadCleanerId, ids),
+    preferredTeammateWithLead(db, acceptedLeadCleanerId, ids),
+    loadCleaner(db, acceptedLeadCleanerId),
+  ]);
+  const leadExperience = clamp01((lead?.total_jobs ?? 0) / 20);
+
+  const scored: CrewCandidateScore[] = survivors.map((cleaner) => {
+    const b = base.get(cleaner.id)!;
+    const baseScore = b.score;
+
+    // availability-overlap & distance reuse the base sub-signals (schedule fit
+    // and service-area closeness) as explicit, re-weighted crew emphases rather
+    // than re-querying — same source of truth as the solo engine.
+    const availabilityOverlap =
+      clamp01(b.breakdown.availability / 12) * CREW_WEIGHTS.availabilityOverlap;
+    const distance =
+      clamp01(b.breakdown.serviceArea / 15) * CREW_WEIGHTS.distance;
+
+    const relFactor = reliability.get(cleaner.id) ?? 0.9;
+    const reliabilityPts = relFactor * CREW_WEIGHTS.reliability;
+
+    // qualification: base already hard-filtered non-offerers; reward real job
+    // volume (a proven helper) plus the base acceptance signal.
+    const qualFactor = clamp01(
+      0.6 * clamp01((cleaner.total_jobs ?? 0) / 20) +
+        0.4 * clamp01(b.breakdown.acceptance / 15),
+    );
+    const qualification = qualFactor * CREW_WEIGHTS.qualification;
+
+    // prior-pairing: peer thumbs between this candidate and the LEAD. A
+    // thumbs-DOWN in either direction is a strong negative (they asked not to be
+    // paired) — never a hard block, but enough to sink them below fresh pairings.
+    const peerVal = peer.get(cleaner.id) ?? 0; // +1 up, -1 down, 0 none
+    const priorPairing =
+      peerVal > 0 ? CREW_WEIGHTS.priorPairing : peerVal < 0 ? -CREW_WEIGHTS.priorPairing * 2 : 0;
+
+    // preferred-teammate: mutual (both-directions ACCEPTED) bond gets the full
+    // bonus; a one-directional preference toward the candidate gets half.
+    const prefVal = preferred.get(cleaner.id) ?? 0; // 2 mutual, 1 one-way, 0 none
+    const preferredTeammate =
+      prefVal >= 2
+        ? CREW_WEIGHTS.preferredTeammate
+        : prefVal === 1
+          ? CREW_WEIGHTS.preferredTeammate * 0.5
+          : 0;
+
+    // team-compatibility: at least one anchor of experience on the pair. Two
+    // brand-new cleaners together is the weakest crew; reward the max of the
+    // two experience levels so a green helper alongside a seasoned LEAD is fine.
+    const compatFactor = Math.max(
+      leadExperience,
+      clamp01((cleaner.total_jobs ?? 0) / 20),
+    );
+    const teamCompatibility = compatFactor * CREW_WEIGHTS.teamCompatibility;
+
+    const breakdown: CrewScoreBreakdown = {
+      base: round2(baseScore),
+      availabilityOverlap: round2(availabilityOverlap),
+      distance: round2(distance),
+      reliability: round2(reliabilityPts),
+      qualification: round2(qualification),
+      priorPairing: round2(priorPairing),
+      preferredTeammate: round2(preferredTeammate),
+      teamCompatibility: round2(teamCompatibility),
+    };
+    const score = round2(
+      baseScore +
+        availabilityOverlap +
+        distance +
+        reliabilityPts +
+        qualification +
+        priorPairing +
+        preferredTeammate +
+        teamCompatibility,
+    );
+    return { cleanerId: cleaner.id, score, baseScore: round2(baseScore), breakdown };
+  });
+
+  return scored.sort((a, b) => b.score - a.score);
+}
+
+async function loadCleaner(db: Sql, cleanerId: string): Promise<CleanerRow | null> {
+  const rows = (await db`SELECT * FROM cleaners WHERE id = ${cleanerId} LIMIT 1`) as CleanerRow[];
+  return rows[0] ?? null;
+}
+
+/** Peer thumbs between the LEAD and each candidate: +1 up, -1 down, 0 none. */
+async function peerRatingWithLead(
+  db: Sql,
+  leadId: string,
+  cleanerIds: string[],
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (cleanerIds.length === 0) return out;
+  const rows = (await db`
+    SELECT rater_cleaner_id, ratee_cleaner_id, thumbs
+    FROM crew_peer_ratings
+    WHERE (rater_cleaner_id = ${leadId} AND ratee_cleaner_id = ANY(${cleanerIds}))
+       OR (ratee_cleaner_id = ${leadId} AND rater_cleaner_id = ANY(${cleanerIds}))
+  `) as Array<{ rater_cleaner_id: string; ratee_cleaner_id: string; thumbs: "up" | "down" }>;
+  for (const r of rows) {
+    const other = r.rater_cleaner_id === leadId ? r.ratee_cleaner_id : r.rater_cleaner_id;
+    const delta = r.thumbs === "up" ? 1 : -1;
+    // A single thumbs-down dominates (worst signal wins).
+    const prev = out.get(other) ?? 0;
+    out.set(other, delta < 0 ? -1 : Math.max(prev, delta));
+  }
+  return out;
+}
+
+/**
+ * Preferred-teammate bond between the LEAD and each candidate:
+ *   2 = mutual (an ACCEPTED PREFERRED_TEAMMATE row in BOTH directions),
+ *   1 = one-directional (only one accepted side),
+ *   0 = none.
+ */
+async function preferredTeammateWithLead(
+  db: Sql,
+  leadId: string,
+  cleanerIds: string[],
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (cleanerIds.length === 0) return out;
+  const rows = (await db`
+    SELECT cleaner_id, other_cleaner_id
+    FROM cleaner_relationships
+    WHERE relationship = 'PREFERRED_TEAMMATE'
+      AND status = 'ACCEPTED'
+      AND ((cleaner_id = ${leadId} AND other_cleaner_id = ANY(${cleanerIds}))
+        OR (other_cleaner_id = ${leadId} AND cleaner_id = ANY(${cleanerIds})))
+  `) as Array<{ cleaner_id: string; other_cleaner_id: string }>;
+  const leadToOther = new Set<string>();
+  const otherToLead = new Set<string>();
+  for (const r of rows) {
+    if (r.cleaner_id === leadId) leadToOther.add(r.other_cleaner_id);
+    if (r.other_cleaner_id === leadId) otherToLead.add(r.cleaner_id);
+  }
+  for (const id of cleanerIds) {
+    const a = leadToOther.has(id);
+    const b = otherToLead.has(id);
+    out.set(id, a && b ? 2 : a || b ? 1 : 0);
+  }
+  return out;
+}

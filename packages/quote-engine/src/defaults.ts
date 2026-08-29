@@ -105,6 +105,9 @@ export function buildColdStartConfig(): PricingConfigV2 {
       taxRateBps: 825,
       roundTotalUpToEndingDigit: 9,
       emergencySurchargeBps: 1500,
+      // $1 per 100 sqft, charged only when the customer opts into one extra
+      // cleaner for speed (integer cents per 100 sqft).
+      extraCleanerFeeCentsPer100Sqft: 100,
     },
     payout: {
       mode: "per_labor_hour",

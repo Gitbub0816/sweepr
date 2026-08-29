@@ -79,6 +79,7 @@ export function ReviewStep() {
     clutter,
     roomCountsByLevel,
     addOnKeys,
+    extraCleanerRequested,
     scheduledFor,
     arrivalWindowStart,
     arrivalWindowEnd,
@@ -146,6 +147,7 @@ export function ReviewStep() {
             clutter,
             roomCountsByLevel,
             addOnKeys,
+            extraCleanerRequested,
             scheduledAt: scheduledFor,
           }),
         });
@@ -169,7 +171,7 @@ export function ReviewStep() {
     return () => {
       cancelled = true;
     };
-  }, [missingRequiredFields, serviceType, home, derivedLevel, rooms, addOnKeys, scheduledFor, getToken]);
+  }, [missingRequiredFields, serviceType, home, derivedLevel, rooms, addOnKeys, extraCleanerRequested, scheduledFor, getToken]);
 
   if (missingRequiredFields) return null;
 
@@ -227,6 +229,7 @@ export function ReviewStep() {
           clutter,
           roomCountsByLevel,
           addOnKeys,
+          extraCleanerRequested,
           scheduledAt: scheduledFor,
           arrivalWindowStart,
           arrivalWindowEnd,

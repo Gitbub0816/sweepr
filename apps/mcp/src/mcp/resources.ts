@@ -135,6 +135,11 @@ shapes.
   dollar part ends in this digit (0–9), or null = off.
 - \`emergencySurchargeBps\`: disclosed short-notice (<48h) surcharge,
   0–5000 bps.
+- \`extraCleanerFeeCentsPer100Sqft\`: flat fee in INTEGER CENTS per 100 sqft,
+  charged ONLY when the customer opts to add one extra cleaner for speed.
+  Whole cents ≥ 0, max 5000 ($50) per 100 sqft. Default 100 ($1) per 100 sqft.
+  It is a customer-elected line item, never a multiplier on the whole price by
+  crew size, and it never touches labor minutes or cleaner payout.
 
 ## payout
 - \`mode\`: \`per_labor_hour\` → \`centsPerLaborHour\` must be positive;
@@ -156,12 +161,22 @@ blended. \`thresholds\`: three STRICTLY increasing values per room type.
 \`betaHome\`: whole-home sensitivity, 0–5 per type. \`hGridPoints\`: 5–51.
 Change these only with statistical review.
 
+## Completeness (provide all fields, or accept defaults)
+Provide ALL PricingConfigV2 fields, or accept the built-in defaults. Before
+validating, \`set_simulator_config\` and \`draft_pricing_payload\` DEEP-MERGE
+your config over the cold-start defaults, so any field you omit is filled from
+defaults and reported back in \`defaultedFields\`. The result is always a
+complete config — a partial config becomes complete-with-defaults, never a
+partial/incomplete pricing model. Arrays (like \`extras\` and the labor-matrix
+rows) are replaced wholesale, not merged: send the whole array when you change
+one entry.
+
 ## Validation
-\`set_simulator_config\` runs the same validator the admin console uses:
-hard errors REFUSE the save; warnings store but surface for review. The
-validator also prices three reference scenarios and rejects configs that
-produce ≤ $0 totals, zero labor, or negative margin (cleaner payout ≥
-pre-tax subtotal).
+After the defaults-merge, \`set_simulator_config\` runs the same validator the
+admin console uses: hard errors REFUSE the save (including any out-of-bounds
+value you DID set); warnings store but surface for review. The validator also
+prices three reference scenarios and rejects configs that produce ≤ $0 totals,
+zero labor, or negative margin (cleaner payout ≥ pre-tax subtotal).
 `;
 
 export const WORKFLOW_GUIDE = `# Sweepr pricing sandbox — operating workflow
@@ -177,7 +192,10 @@ everything else is read-only. Every tool call is audit-logged.
    \`get_zip_multipliers\`, \`list_service_areas\`, \`get_site_settings\`.
 2. **Sandbox**: start from \`reset_simulator\` (cold-start defaults) or copy
    a real version's config, then adjust and store with
-   \`set_simulator_config\` (validated; invalid configs are refused).
+   \`set_simulator_config\`. Provide all fields or accept the defaults — any
+   field you omit is filled from cold-start defaults before validation and
+   listed in \`defaultedFields\`, so you never ship a partial model; hard
+   errors still refuse the save.
 3. **Simulate**: \`simulate_quote\` for specific homes;
    \`compare_scenarios\` for a side-by-side vs. the active version.
    \`get_simulator_link\` gives the human a customer-look page.

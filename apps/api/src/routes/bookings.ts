@@ -24,6 +24,7 @@ import { requireAuth } from "../middleware/auth";
 import { requireAdmin } from "../middleware/adminRoles";
 import { rankCleanersForBooking } from "../lib/matching";
 import { initiateAssignment, handleOfferResponse } from "../lib/assignment";
+import { planAndStartStaffing } from "../lib/crew/crewStaffing";
 import { sendNotification } from "../lib/notifications";
 import { rateLimit } from "../middleware/rateLimit";
 import { assertValidTransition } from "../lib/statusMachine";
@@ -133,6 +134,10 @@ const createSchema = z.object({
       z.array(z.number().int().min(0).max(30)).length(4),
     )
     .optional(),
+  // Customer explicitly opted to add ONE extra cleaner for speed (flat fee in
+  // Pricing v2). Optional; defaults to false. Priced server-side; never a
+  // client-supplied amount. Ignored while no v2 pricing version is Active.
+  extraCleanerRequested: z.boolean().default(false),
   // Client must NOT submit prices — server always calculates.
 });
 
@@ -646,7 +651,8 @@ bookingsRouter.post(
         tax, total_price, notes, cleaning_level, cleaning_level_surcharge_cents,
         pricing_rule_id, pricing_rule_version, pricing_line_items_json, estimated_cleaner_payout_cents,
         arrival_window_start, arrival_window_end, founding_customer_discount_cents,
-        zip_pricing_adjustment_cents, pricing_version_id, pricing_quote_v2_id
+        zip_pricing_adjustment_cents, pricing_version_id, pricing_quote_v2_id,
+        extra_cleaner_requested
       ) VALUES (
         ${customer.id}, ${input.addressId ?? null}, 'booked', ${input.serviceType},
         ${input.bedrooms}, ${input.bathrooms}, ${input.sqft}, ${input.homeType},
@@ -659,7 +665,8 @@ bookingsRouter.post(
         ${input.arrivalWindowStart ?? null}, ${input.arrivalWindowEnd ?? null},
         ${p.foundingCustomerDiscountCents},
         ${p.zipPricingAdjustmentCents},
-        ${p.v2 ? p.v2.versionId : null}, ${p.v2 ? p.v2.quoteId : null}
+        ${p.v2 ? p.v2.versionId : null}, ${p.v2 ? p.v2.quoteId : null},
+        ${input.extraCleanerRequested}
       ) RETURNING *
     `) as BookingRow[];
     created = rows[0];
@@ -709,6 +716,7 @@ bookingsRouter.post(
             zip_pricing_adjustment_cents = ${p.zipPricingAdjustmentCents},
             pricing_version_id = ${p.v2 ? p.v2.versionId : null},
             pricing_quote_v2_id = ${p.v2 ? p.v2.quoteId : null},
+            extra_cleaner_requested = ${input.extraCleanerRequested},
             notes = ${input.notes ?? null}, updated_at = NOW()
           WHERE id = ${existingRows[0].id}
           RETURNING *
@@ -840,11 +848,13 @@ bookingsRouter.post(
     totalPrice,
   });
 
-  // Silent auto-assignment: rank cleaners and offer to the best match.
+  // Silent auto-assignment. planAndStartStaffing sizes the crew from the v2
+  // person-minutes and staffs a team when team_cleans_enabled is on; it falls
+  // back to the solo initiateAssignment path otherwise, so this is a safe swap.
   try {
-    await initiateAssignment(sql, created.id);
+    await planAndStartStaffing(sql, created.id);
   } catch (err) {
-    logger.error("initiateAssignment failed", err, { bookingId: created.id });
+    logger.error("planAndStartStaffing failed", err, { bookingId: created.id });
   }
 
   return c.json({ booking: created }, 201);
@@ -1315,9 +1325,9 @@ bookingsRouter.post("/:id/match", requireAdmin, async (c) => {
   const booking = (await getBooking(sql, bookingId)) as BookingRow | null;
   if (!booking) return c.json({ error: "Not found" }, 404);
 
-  // Canonical assignment engine (assignment_queue). The old body inserted into
-  // a dead `job_offers` table with columns that never existed and would 500.
-  await initiateAssignment(sql, bookingId);
+  // Canonical assignment engine. planAndStartStaffing handles crew sizing when
+  // team cleans are enabled and falls back to the solo assignment_queue path.
+  await planAndStartStaffing(sql, bookingId);
   const queue = (await sql`
     SELECT cleaner_id, position, status, score
     FROM assignment_queue WHERE booking_id = ${bookingId}

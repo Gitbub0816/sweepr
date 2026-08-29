@@ -45,6 +45,9 @@ export interface BookingState {
   /** Customer-declared cleaning level (scope review). Required before Review. */
   cleaningLevel: CleaningLevel | null;
   addOnKeys: string[];
+  /** Customer opted to add ONE extra cleaner for speed (flat fee, Pricing v2).
+   *  Off by default; priced server-side. */
+  extraCleanerRequested: boolean;
   cadence: RecurringCadence;
   scheduledFor: string | null;
   scheduledAt: string | null;
@@ -84,6 +87,7 @@ export interface BookingState {
   setService: (service: ServiceType) => void;
   setCleaningLevel: (level: CleaningLevel) => void;
   toggleAddOn: (key: string) => void;
+  setExtraCleanerRequested: (requested: boolean) => void;
   setCadence: (cadence: RecurringCadence) => void;
   setSchedule: (iso: string) => void;
   clearSchedule: () => void;
@@ -134,6 +138,7 @@ export const useBookingStore = create<BookingState>()(
   roomCountsByLevel: {},
   cleaningLevel: null,
   addOnKeys: [],
+  extraCleanerRequested: false,
   cadence: "none",
   scheduledFor: null,
   scheduledAt: null,
@@ -207,6 +212,8 @@ export const useBookingStore = create<BookingState>()(
       roomCountsByLevel: {},
       cleaningLevel: null,
       addOnKeys: [...prev.addOnKeys],
+      // A per-visit speed choice — not carried over from a past booking.
+      extraCleanerRequested: false,
       cadence: prev.cadence,
       scheduledFor: null,
       arrivalWindowStart: null,
@@ -235,6 +242,8 @@ export const useBookingStore = create<BookingState>()(
         ? s.addOnKeys.filter((k) => k !== key)
         : [...s.addOnKeys, key],
     })),
+  setExtraCleanerRequested: (extraCleanerRequested) =>
+    set({ extraCleanerRequested, draftSavedAt: new Date().toISOString() }),
   setCadence: (cadence) => set({ cadence }),
   setSchedule: (scheduledFor) => {
     set({
@@ -268,6 +277,7 @@ export const useBookingStore = create<BookingState>()(
       roomCountsByLevel: {},
       cleaningLevel: null,
       addOnKeys: [],
+      extraCleanerRequested: false,
       cadence: "none",
       scheduledFor: null,
       scheduledAt: null,
@@ -315,6 +325,9 @@ export const useBookingStore = create<BookingState>()(
         clutter: s.clutter,
         roomCountsByLevel: s.roomCountsByLevel,
         cleaningLevel: s.cleaningLevel,
+        // Persist the extra-cleaner choice so a Stripe off-site redirect (which
+        // reloads the app) can't silently change the quote the customer saw.
+        extraCleanerRequested: s.extraCleanerRequested,
         // Persist the DB booking id so a Stripe off-site redirect (which reloads
         // the app) can still reference the booking on /book/confirmed.
         bookingId: s.bookingId,

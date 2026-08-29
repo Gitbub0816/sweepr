@@ -17,6 +17,7 @@ import { logger } from "../lib/logger";
 import { audit } from "../lib/audit";
 import { serverTrack } from "../lib/posthog";
 import { initiateAssignment } from "../lib/assignment";
+import { planAndStartStaffing } from "../lib/crew/crewStaffing";
 import { nextOccurrenceDate } from "../lib/subscriptions";
 import { syncSweeprPlusSubscription, markMembershipCanceled, SWEEPR_PLUS_META } from "../lib/stripeSubscriptions";
 import { recordPaymentEvent } from "../lib/paymentObservability";
@@ -147,7 +148,7 @@ stripeWebhookRouter.post("/", async (c) => {
         );
         // Payment captured -> kick off silent auto-assignment.
         try {
-          await initiateAssignment(sql, bookingId);
+          await planAndStartStaffing(sql, bookingId);
         } catch (err) {
           logger.error("assignment after payment failed", err, { bookingId });
         }
@@ -476,7 +477,7 @@ stripeWebhookRouter.post("/", async (c) => {
             .slice(0, 10)}, 'booked')
         `;
         try {
-          await initiateAssignment(sql, booking.id);
+          await planAndStartStaffing(sql, booking.id);
         } catch (err) {
           logger.error("subscription assignment failed", err, {
             bookingId: booking.id,

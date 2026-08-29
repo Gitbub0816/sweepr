@@ -117,7 +117,7 @@ export const TOOL_DEFS: ToolDef[] = [
   {
     name: "set_simulator_config",
     description:
-      "SANDBOX: store/replace your quarantined simulator config (upsert by name). The config is validated first: hard errors REFUSE the save; warnings are stored and returned. This NEVER affects live pricing.",
+      "SANDBOX: store/replace your quarantined simulator config (upsert by name). Provide ALL PricingConfigV2 fields, or accept the built-in defaults: any field you omit is filled from the cold-start defaults BEFORE validation and reported back in defaultedFields, so a partial config becomes complete-with-defaults (never a partial pricing model). The completed config is then validated: hard errors REFUSE the save; warnings are stored and returned. This NEVER affects live pricing.",
     inputSchema: {
       type: "object",
       properties: {
@@ -230,6 +230,65 @@ function coerceName(args: Record<string, unknown>): string {
 }
 
 export class ToolError extends Error {}
+
+/**
+ * Deep-merge a caller-provided (possibly PARTIAL) config OVER the cold-start
+ * defaults so every field is present before validation — a partial config
+ * becomes complete-with-defaults rather than shipping incomplete. Objects are
+ * merged key-by-key; arrays and primitives are LEAVES (the caller's value
+ * replaces the default wholesale — this is how `extras`, the labor-matrix rows,
+ * etc. are meant to be replaced as a unit). Records every default-filled field
+ * path so the human can see exactly what was defaulted. Override-only keys pass
+ * through untouched so the validator can still reject unknown shapes.
+ */
+function deepMergeDefaults(
+  defaults: unknown,
+  override: unknown,
+  path: string,
+  defaulted: string[],
+): unknown {
+  const defaultsIsObject =
+    defaults !== null && typeof defaults === "object" && !Array.isArray(defaults);
+  if (!defaultsIsObject) {
+    // Default is an array or primitive (a leaf).
+    if (override === undefined) {
+      if (path) defaulted.push(path);
+      return defaults;
+    }
+    return override;
+  }
+  if (override === undefined) {
+    // Whole subtree missing — take it from defaults and record the parent path.
+    if (path) defaulted.push(path);
+    return defaults;
+  }
+  if (override === null || typeof override !== "object" || Array.isArray(override)) {
+    // Shape mismatch (object expected): keep the caller's value; the validator
+    // will surface the problem as a hard error.
+    return override;
+  }
+  const out: Record<string, unknown> = {};
+  const d = defaults as Record<string, unknown>;
+  const o = override as Record<string, unknown>;
+  for (const key of Object.keys(d)) {
+    out[key] = deepMergeDefaults(d[key], o[key], path ? `${path}.${key}` : key, defaulted);
+  }
+  for (const key of Object.keys(o)) {
+    if (!(key in d)) out[key] = o[key];
+  }
+  return out;
+}
+
+/** Fill any missing PricingConfigV2 fields from cold-start defaults, returning
+ *  the completed config and the sorted list of default-filled field paths. */
+export function mergeConfigWithDefaults(config: unknown): {
+  merged: PricingConfigV2;
+  defaulted: string[];
+} {
+  const defaulted: string[] = [];
+  const merged = deepMergeDefaults(buildColdStartConfig(), config, "", defaulted) as PricingConfigV2;
+  return { merged, defaulted: defaulted.sort() };
+}
 
 async function loadSandboxRow(
   ctx: ToolContext,
@@ -354,6 +413,8 @@ export function buildPayloadTemplate(): Record<string, unknown> {
       "rates.roundTotalUpToEndingDigit":
         "Charm rounding: round the total UP so its dollar part ends in this digit (e.g. 9). null = off.",
       "rates.emergencySurchargeBps": "Short-notice (<48h) surcharge in bps. Max 5000.",
+      "rates.extraCleanerFeeCentsPer100Sqft":
+        "Flat fee in INTEGER CENTS per 100 sqft, charged ONLY when the customer opts to add one extra cleaner for speed. Whole cents ≥ 0, max 5000 ($50) per 100 sqft. Default 100 ($1) per 100 sqft. Never multiplies the whole price by crew size.",
       payout:
         "Cleaner compensation: mode 'per_labor_hour' (centsPerLaborHour, integer cents) or 'percent_of_subtotal' (percentBps, 1–10000).",
       "scheduling.reservePercentile": "Capacity planning percentile 50–99 (NOT billed).",
@@ -459,8 +520,15 @@ export async function callTool(
 
     case "set_simulator_config": {
       const cfgName = coerceName(args);
-      const config = args.config as PricingConfigV2 | undefined;
-      if (!config || typeof config !== "object") throw new ToolError("config object is required.");
+      const rawConfig = args.config;
+      if (!rawConfig || typeof rawConfig !== "object" || Array.isArray(rawConfig)) {
+        throw new ToolError("config object is required.");
+      }
+      // Completeness guarantee: fill any missing field from cold-start defaults
+      // BEFORE validating, so a partial config becomes complete-with-defaults
+      // (never a partial/incomplete pricing model). The validator then still
+      // REJECTS any hard error (e.g. an out-of-bounds value the caller DID set).
+      const { merged: config, defaulted } = mergeConfigWithDefaults(rawConfig);
       let validation;
       try {
         validation = validatePricingConfig(config);
@@ -475,7 +543,8 @@ export async function callTool(
           ok: false,
           errors: validation.errors,
           warnings: validation.warnings,
-          hint: "Fix the errors and call set_simulator_config again — invalid configs are refused.",
+          defaultedFields: defaulted,
+          hint: "Fix the errors and call set_simulator_config again — invalid configs are refused. Fields listed in defaultedFields were filled from cold-start defaults.",
         };
       }
       const notes = typeof args.notes === "string" ? args.notes.slice(0, 2000) : null;
@@ -493,7 +562,14 @@ export async function callTool(
               notes = COALESCE(EXCLUDED.notes, mcp_simulator_configs.notes),
               updated_at = NOW()
       `;
-      return { stored: true, ok: true, errors: [], warnings: validation.warnings, name: cfgName };
+      return {
+        stored: true,
+        ok: true,
+        errors: [],
+        warnings: validation.warnings,
+        defaultedFields: defaulted,
+        name: cfgName,
+      };
     }
 
     case "reset_simulator": {
@@ -602,12 +678,18 @@ export async function callTool(
           `No sandbox config "${cfgName}" to draft from — build one with set_simulator_config first.`,
         );
       }
-      const validation = validatePricingConfig(row.config);
+      // Complete the stored config from defaults before validating/emitting, so
+      // an older or partial stored config can never ship incomplete — any
+      // missing field (e.g. a newly added one) is filled from cold-start
+      // defaults, and hard errors still block the draft.
+      const { merged: config, defaulted } = mergeConfigWithDefaults(row.config);
+      const validation = validatePricingConfig(config);
       if (!validation.ok) {
         return {
           ok: false,
           errors: validation.errors,
           warnings: validation.warnings,
+          defaultedFields: defaulted,
           hint: "The sandbox config no longer validates — fix it before drafting the payload.",
         };
       }
@@ -615,7 +697,8 @@ export async function callTool(
       return {
         ok: true,
         warnings: validation.warnings,
-        payload: { name: cfgName, note, config: row.config },
+        defaultedFields: defaulted,
+        payload: { name: cfgName, note, config },
         instructions: PAYLOAD_INSTRUCTIONS,
       };
     }

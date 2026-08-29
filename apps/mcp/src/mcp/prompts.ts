@@ -45,7 +45,11 @@ simulate; humans decide and publish.
    get_site_settings.
 2. Sandbox: reset_simulator to start from valid cold-start defaults (or
    copy a stored version's config), then set_simulator_config to store your
-   proposal. The save is validated — hard errors refuse it; fix and retry.
+   proposal. Provide ALL PricingConfigV2 fields or accept the defaults: any
+   field you omit is filled from cold-start defaults before validation and
+   returned in defaultedFields, so a partial config becomes
+   complete-with-defaults (never a partial pricing model). The completed
+   config is then validated — hard errors refuse it; fix and retry.
 3. Simulate: simulate_quote for specific homes; compare_scenarios for a
    side-by-side vs. the active version; get_simulator_link for a
    customer-look page the human can open.
@@ -65,7 +69,13 @@ simulate; humans decide and publish.
   points (825 = 8.25%) or permille (1000 = 1.0x). Never emit float dollars
   into a config.
 - Do not invent config fields. Start from the sweepr://payload-template
-  resource and consult sweepr://config-field-guide for bounds.
+  resource and consult sweepr://config-field-guide for bounds. Provide all
+  PricingConfigV2 fields or accept the built-in defaults — the tool fills any
+  missing field from cold-start defaults and reports them in defaultedFields,
+  so you never ship a partial pricing model.
+- rates.extraCleanerFeeCentsPer100Sqft is a flat fee (integer cents per 100
+  sqft) charged only when the customer opts to add one extra cleaner for
+  speed; it never multiplies the whole price by crew size.
 - Condition levels 1-4 are ordered categories, not a linear score.
 - Simulated prices are estimates for internal review, never quotes to give
   customers.

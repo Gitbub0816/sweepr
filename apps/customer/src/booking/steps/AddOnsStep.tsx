@@ -36,6 +36,8 @@ export function AddOnsStep() {
   const serviceType = useBookingStore((s) => s.serviceType);
   const addOnKeys = useBookingStore((s) => s.addOnKeys);
   const toggleAddOn = useBookingStore((s) => s.toggleAddOn);
+  const extraCleanerRequested = useBookingStore((s) => s.extraCleanerRequested);
+  const setExtraCleanerRequested = useBookingStore((s) => s.setExtraCleanerRequested);
 
   // Add-ons offered come from the Active pricing version when one is published
   // (so a new add-on introduced in a version shows up here without a code
@@ -120,6 +122,37 @@ export function AddOnsStep() {
           );
         })}
       </div>
+
+      <button
+        type="button"
+        onClick={() => setExtraCleanerRequested(!extraCleanerRequested)}
+        aria-pressed={extraCleanerRequested}
+        className={cn(
+          SELECTABLE_OPTION_BASE,
+          "mt-6 flex w-full items-start gap-3 rounded-xl p-4 text-left",
+          extraCleanerRequested ? SELECTABLE_OPTION_SELECTED : SELECTABLE_OPTION_UNSELECTED
+        )}
+      >
+        <span
+          className={cn(
+            "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full",
+            extraCleanerRequested
+              ? "bg-seafoam-700 text-white"
+              : "bg-slate-100 text-slate-400 dark:bg-slate-800"
+          )}
+        >
+          {extraCleanerRequested ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+        </span>
+        <span className="flex-1">
+          <span className="block text-sm font-medium text-charcoal dark:text-white">
+            Add an extra cleaner (finish faster)
+          </span>
+          <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
+            Send a second cleaner so your home is done in less time. A small flat
+            fee applies and appears in your total at review.
+          </span>
+        </span>
+      </button>
 
       <div className="mt-6 flex items-start gap-3 rounded-2xl bg-seafoam-50 px-4 py-3 dark:bg-seafoam-900/20">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-seafoam-600" />

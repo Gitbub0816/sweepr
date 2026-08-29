@@ -62,7 +62,9 @@ export type AuditAction =
   | "workspace.transition_created"
   | "workspace.transition_completed"
   | "legal.attorney_edit"
-  | "legal.attorney_approve";
+  | "legal.attorney_approve"
+  | "crew.vouch_checkin"
+  | "crew.no_show";
 
 export interface AuditEntry {
   action: AuditAction;

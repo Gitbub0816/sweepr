@@ -93,13 +93,29 @@ export async function eligibleCleanersForBooking(
     getMergedSlots(db, cleanerIds),
     getBlockedCleaners(db, dateStr, cleanerIds),
     db`
-      SELECT DISTINCT cleaner_id
-      FROM bookings
-      WHERE cleaner_id = ANY(${cleanerIds})
-        AND status IN ('cleaner_accepted', 'confirmed', 'cleaner_on_the_way',
-                       'arrived', 'in_progress')
-        AND scheduled_at IS NOT NULL
-        AND ABS(EXTRACT(EPOCH FROM (scheduled_at - ${booking.scheduled_at}::timestamptz))) < 10800
+      SELECT DISTINCT cleaner_id FROM (
+        -- Solo assignment (unchanged): a cleaner who is the booking-level cleaner
+        -- (the LEAD, via bookings.cleaner_id) on a live job in the window.
+        SELECT cleaner_id, scheduled_at
+        FROM bookings
+        WHERE cleaner_id = ANY(${cleanerIds})
+          AND status IN ('cleaner_accepted', 'confirmed', 'cleaner_on_the_way',
+                         'arrived', 'in_progress')
+          AND scheduled_at IS NOT NULL
+        UNION ALL
+        -- Team Cleans: a cleaner holding an ACCEPTED crew SEAT on ANOTHER booking
+        -- is just as unavailable, even when they are a non-LEAD member that
+        -- bookings.cleaner_id never surfaces. Solo behavior is unchanged: a solo
+        -- job's backfilled LEAD seat mirrors the same cleaner the first branch
+        -- already excludes, so the deduped set is identical for solo cleaners.
+        SELECT bca.cleaner_id, b2.scheduled_at
+        FROM booking_crew_assignments bca
+        JOIN bookings b2 ON b2.id = bca.booking_id
+        WHERE bca.cleaner_id = ANY(${cleanerIds})
+          AND bca.status = 'ACCEPTED'
+          AND b2.scheduled_at IS NOT NULL
+      ) conflicts
+      WHERE ABS(EXTRACT(EPOCH FROM (scheduled_at - ${booking.scheduled_at}::timestamptz))) < 10800
     `,
   ]);
 

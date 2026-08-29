@@ -127,6 +127,7 @@ export function normalizeQuoteInput(raw: QuoteInputV2): QuoteInputV2 {
     extras,
     emergency: Boolean(raw.emergency),
     zipMultiplierPct: raw.zipMultiplierPct ?? 0,
+    extraCleanerRequested: Boolean(raw.extraCleanerRequested),
   };
 }
 
@@ -384,7 +385,33 @@ export function computeQuoteV2(
     });
   }
 
-  let subtotalCents = laborSubtotalCents + config.rates.fixedServiceCents + extrasFixedCents;
+  // Customer-elected extra cleaner (flat, crew-count-independent). The customer
+  // may opt to add ONE extra cleaner for speed and pay a flat fee of
+  // rates.extraCleanerFeeCentsPer100Sqft per 100 sqft. This is a customer
+  // choice, NOT a multiplier on the whole price by crew size, and it never
+  // touches labor minutes, scheduled capacity, or cleaner payout. Integer-cents
+  // discipline: round-half-up of sqft × fee ÷ 100, no binary float.
+  let extraCleanerCents = 0;
+  if (
+    input.extraCleanerRequested &&
+    input.sqft &&
+    config.rates.extraCleanerFeeCentsPer100Sqft > 0
+  ) {
+    extraCleanerCents = roundDiv(input.sqft * config.rates.extraCleanerFeeCentsPer100Sqft, 100);
+    if (extraCleanerCents > 0) {
+      components.push({
+        code: "extra_cleaner",
+        label: "Extra cleaner (finish faster)",
+        quantity: 1,
+        laborMinutes: 0,
+        amountCents: extraCleanerCents,
+        source: "fixed",
+      });
+    }
+  }
+
+  let subtotalCents =
+    laborSubtotalCents + config.rates.fixedServiceCents + extrasFixedCents + extraCleanerCents;
 
   const zipBps = Math.round((input.zipMultiplierPct ?? 0) * 100);
   if (zipBps !== 0) {

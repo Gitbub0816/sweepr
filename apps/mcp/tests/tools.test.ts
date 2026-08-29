@@ -120,6 +120,65 @@ describe("set_simulator_config", () => {
   });
 });
 
+describe("set_simulator_config completeness (defaults merge)", () => {
+  it("fills a missing field from cold-start defaults and stores the completed config", async () => {
+    // A partial config from the LLM: a complete cold-start config minus one field.
+    const partial = buildColdStartConfig() as unknown as { rates: Record<string, unknown> };
+    delete partial.rates.extraCleanerFeeCentsPer100Sqft;
+    const { ctx, calls } = ctxWith(() => []);
+    const out = (await callTool(ctx, "set_simulator_config", { config: partial })) as {
+      stored: boolean;
+      ok: boolean;
+      defaultedFields: string[];
+    };
+    expect(out.ok).toBe(true);
+    expect(out.stored).toBe(true);
+    // The tool reports which fields it filled from defaults.
+    expect(out.defaultedFields).toContain("rates.extraCleanerFeeCentsPer100Sqft");
+    // The completed config is what gets stored — the missing field is present.
+    const ins = calls.find((c) => c.text.includes("INSERT INTO mcp_simulator_configs"));
+    expect(ins).toBeDefined();
+    const storedJson = ins!.values.find(
+      (v) => typeof v === "string" && v.includes("extraCleanerFeeCentsPer100Sqft"),
+    ) as string;
+    expect(storedJson).toBeDefined();
+    const stored = JSON.parse(storedJson) as { rates: { extraCleanerFeeCentsPer100Sqft: number } };
+    expect(stored.rates.extraCleanerFeeCentsPer100Sqft).toBe(100);
+  });
+
+  it("completes a heavily partial config so it validates and stores", async () => {
+    // Only one field supplied; everything else must come from defaults.
+    const partial = { rates: { customerLaborRateCentsPerHour: 7000 } };
+    const { ctx, calls } = ctxWith(() => []);
+    const out = (await callTool(ctx, "set_simulator_config", { config: partial })) as {
+      stored: boolean;
+      ok: boolean;
+      defaultedFields: string[];
+    };
+    expect(out.ok).toBe(true);
+    expect(out.stored).toBe(true);
+    // Whole missing subtrees (e.g. laborMatrix, inference) are reported.
+    expect(out.defaultedFields).toContain("laborMatrix");
+    expect(calls.some((c) => c.text.includes("INSERT INTO mcp_simulator_configs"))).toBe(true);
+  });
+
+  it("still rejects an out-of-bounds value even after the defaults merge", async () => {
+    // The one field the caller DID set is invalid — merging defaults must not
+    // paper over a hard error.
+    const partial = { rates: { customerLaborRateCentsPerHour: 1 } }; // below the $20/hr floor
+    const { ctx, calls } = ctxWith(() => []);
+    const out = (await callTool(ctx, "set_simulator_config", { config: partial })) as {
+      stored: boolean;
+      ok: boolean;
+      errors: string[];
+    };
+    expect(out.stored).toBe(false);
+    expect(out.ok).toBe(false);
+    expect(out.errors.length).toBeGreaterThan(0);
+    expect(calls.some((c) => c.text.includes("INSERT INTO mcp_simulator_configs"))).toBe(false);
+  });
+});
+
 describe("introducing a brand-new add-on via the payload", () => {
   // A key that does NOT exist in the cold-start catalog.
   const NEW_EXTRA = {

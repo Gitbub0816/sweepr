@@ -22,6 +22,8 @@ import { requireAuth } from "../middleware/auth";
 import { requireAdmin } from "../middleware/adminRoles";
 import { loadFeeSettings, calculatePayout, getTierMultiplier } from "../lib/payoutEngine";
 import { foundingPayoutMultiplier } from "../lib/foundingMember";
+import { isTeamFlagEnabled } from "../lib/crew/crewConfig";
+import { releaseCrewPayouts } from "../lib/crew/crewPayout";
 import { audit } from "../lib/audit";
 import { serverTrack } from "../lib/posthog";
 import { isValidTransition } from "../lib/statusMachine";
@@ -265,6 +267,122 @@ paymentsRouter.post(
         { error: "payment_not_captured", message: "Customer payment has not been captured for this booking yet." },
         409,
       );
+    }
+
+    // Team Cleans branch: a crew booking (crew_status set) splits the SAME
+    // cleaner-payout pool across present members with one Stripe transfer each
+    // (claim-then-act per seat). Solo bookings (crew_status NULL) fall through to
+    // the unchanged single-transfer path below. Gated on the master flag so the
+    // solo path stays byte-for-byte identical while the feature is off.
+    const crewStatus = (booking as unknown as Record<string, unknown>).crew_status as string | null;
+    if (crewStatus && (await isTeamFlagEnabled(sql, "enabled"))) {
+      let summary;
+      try {
+        summary = await releaseCrewPayouts(sql, stripe, bookingId);
+      } catch (err) {
+        logger.error("crew payout release failed", err, { bookingId });
+        return c.json({ error: "payout_failed", message: "Crew payout transfer failed. Please try again." }, 502);
+      }
+
+      // Notify each paid member; audit the fan-out at booking level.
+      for (const t of summary.transfers) {
+        if (t.status !== "transferred") continue;
+        const [cl] = (await sql`
+          SELECT user_id FROM cleaners WHERE id = ${t.cleanerId} LIMIT 1
+        `) as Array<{ user_id: string }>;
+        if (cl?.user_id) {
+          await sendNotification(sql, cl.user_id, {
+            type: "payout_released",
+            title: "Payout on the way",
+            body: `Your payout of $${(t.earningsCents / 100).toFixed(2)} has been released.`,
+            data: { href: "/earnings", bookingId },
+          });
+        }
+      }
+
+      // Crew tips: each succeeded, unpaid booking_tips row (one per tipped crew
+      // member — see routes/tips.ts) is transferred 100% to THAT member as a
+      // separate transfer. Claim-then-act per row (paid_out_at) + idempotency
+      // key make each safe on retry; a failed one is released for a later retry.
+      const crewTipTransfers: Array<{ tipId: string; amount: number; transferId: string | null }> = [];
+      try {
+        const tipRows = (await sql`
+          SELECT id, cleaner_id, amount_cents FROM booking_tips
+          WHERE booking_id = ${bookingId} AND status = 'succeeded' AND paid_out_at IS NULL
+        `) as Array<{ id: string; cleaner_id: string | null; amount_cents: number }>;
+        for (const tip of tipRows) {
+          if (!tip.cleaner_id) continue;
+          const [ct] = (await sql`
+            SELECT stripe_connect_id FROM cleaners WHERE id = ${tip.cleaner_id} LIMIT 1
+          `) as Array<{ stripe_connect_id: string | null }>;
+          if (!ct?.stripe_connect_id) continue;
+          const claimedTip = (await sql`
+            UPDATE booking_tips
+            SET paid_out_at = NOW(), visible_to_cleaner = TRUE, updated_at = NOW()
+            WHERE id = ${tip.id} AND paid_out_at IS NULL
+            RETURNING id
+          `) as Array<{ id: string }>;
+          if (!claimedTip[0]) continue;
+          try {
+            const tipTransfer = await stripe.transfers.create(
+              {
+                amount: tip.amount_cents,
+                currency: "usd",
+                destination: ct.stripe_connect_id,
+                transfer_group: `booking_${bookingId}`,
+                metadata: { type: "tip", booking_id: bookingId, tip_id: tip.id, cleaner_id: tip.cleaner_id },
+              },
+              { idempotencyKey: `tip_${tip.id}` },
+            );
+            crewTipTransfers.push({ tipId: tip.id, amount: tip.amount_cents, transferId: tipTransfer.id });
+          } catch (err) {
+            await sql`
+              UPDATE booking_tips SET paid_out_at = NULL, visible_to_cleaner = FALSE, updated_at = NOW()
+              WHERE id = ${tip.id}
+            `;
+            logger.error("crew tip-transfer failed", err, { bookingId, tipId: tip.id });
+          }
+        }
+      } catch (err) {
+        logger.error("crew tip payout lookup failed", err, { bookingId });
+      }
+
+      await audit(sql, {
+        action: "payout.released",
+        actorClerkId: c.get("user").clerkId,
+        targetType: "booking",
+        targetId: bookingId,
+        metadata: {
+          crew: true,
+          tipTransfers: crewTipTransfers,
+          poolCents: summary.poolCents,
+          presentCrewSize: summary.presentCrewSize,
+          transfers: summary.transfers.map((t) => ({
+            crewAssignmentId: t.assignmentId,
+            amount: t.earningsCents,
+            transferId: t.transferId,
+            status: t.status,
+          })),
+        },
+        ipAddress: c.req.header("CF-Connecting-IP"),
+        userAgent: c.req.header("User-Agent"),
+        timestamp: new Date().toISOString(),
+      });
+
+      await serverTrack(c.env, "payout_released", c.get("user").clerkId, {
+        bookingId,
+        crew: true,
+        poolCents: summary.poolCents,
+        presentCrewSize: summary.presentCrewSize,
+      });
+
+      return c.json({
+        ok: true,
+        crew: true,
+        poolCents: summary.poolCents,
+        presentCrewSize: summary.presentCrewSize,
+        transfers: summary.transfers,
+      });
     }
 
     const feeSettings = await loadFeeSettings(sql);

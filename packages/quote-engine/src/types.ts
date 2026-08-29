@@ -120,6 +120,14 @@ export interface PricingConfigV2 {
     roundTotalUpToEndingDigit: number | null;
     /** Disclosed short-notice surcharge (<48h), basis points of subtotal. */
     emergencySurchargeBps: number;
+    /**
+     * Flat fee, in INTEGER CENTS per 100 sqft, charged ONLY when the customer
+     * explicitly opts to add one extra cleaner for speed (QuoteInputV2
+     * .extraCleanerRequested). The base price stays crew-count-independent;
+     * this is a customer-elected line item, never a multiplier on the whole
+     * price. Default 100 cents ($1) per 100 sqft.
+     */
+    extraCleanerFeeCentsPer100Sqft: number;
   };
   payout: {
     mode: "per_labor_hour" | "percent_of_subtotal";
@@ -166,6 +174,12 @@ export interface QuoteInputV2 {
   emergency?: boolean;
   /** ZIP area adjustment percent (validated server-side from the table). */
   zipMultiplierPct?: number;
+  /**
+   * Customer explicitly opted to add ONE extra cleaner for speed. When true,
+   * a flat fee (rates.extraCleanerFeeCentsPer100Sqft × sqft/100) is added to
+   * the subtotal before tax. The base price is otherwise crew-independent.
+   */
+  extraCleanerRequested?: boolean;
 }
 
 export interface QuoteComponentV2 {

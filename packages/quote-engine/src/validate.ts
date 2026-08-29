@@ -31,6 +31,8 @@ export const VALIDATION_BOUNDS = {
   maxTaxBps: 2000,
   maxEmergencyBps: 5000,
   maxBufferPermille: 500,
+  // Flat customer-elected extra-cleaner fee: at most $50 per 100 sqft.
+  maxExtraCleanerFeeCentsPer100Sqft: 5000,
 } as const;
 
 /** Reference scenarios used for margin/impact checks and admin previews. */
@@ -112,6 +114,13 @@ export function validatePricingConfig(config: PricingConfigV2): ValidationResult
   }
   if (r.minimumBookingCents > r.maxAutoQuoteCents) {
     errors.push("Minimum booking total cannot exceed the automatic quote limit.");
+  }
+  // Customer-elected extra-cleaner flat fee: must be present, a whole number of
+  // cents ≥ 0, and within bounds. (Completeness: the config must carry it.)
+  if (!Number.isInteger(r.extraCleanerFeeCentsPer100Sqft) || r.extraCleanerFeeCentsPer100Sqft < 0) {
+    errors.push("Extra-cleaner fee per 100 sqft must be a whole number of cents ≥ 0.");
+  } else if (r.extraCleanerFeeCentsPer100Sqft > B.maxExtraCleanerFeeCentsPer100Sqft) {
+    errors.push(`Extra-cleaner fee per 100 sqft must not exceed $${B.maxExtraCleanerFeeCentsPer100Sqft / 100}.`);
   }
   if (r.taxRateBps < 0 || r.taxRateBps > B.maxTaxBps) errors.push(`Tax rate must be 0–${B.maxTaxBps / 100}%.`);
   if (r.emergencySurchargeBps < 0 || r.emergencySurchargeBps > B.maxEmergencyBps) {

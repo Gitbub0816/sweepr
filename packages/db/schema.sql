@@ -15,7 +15,7 @@
 -- This file is GENERATED. Do not edit by hand — edit the migrations in
 -- src/migrations/ and re-run: node packages/db/build-schema.mjs
 --
--- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql, 034_fee_approval_engine.sql, 035_slack_user_tokens.sql, 036_pricing_engine.sql, 037_security_tickets.sql, 038_compact_ticket_ids.sql, 039_report_submitter.sql, 040_classification_and_templates.sql, 041_fix_security_templates.sql, 042_email_deliverability.sql, 043_slack_purpose_security.sql, 044_senior_admin_roles.sql, 045_status_autodetect.sql, 046_seed_pricing_rule.sql, 047_seed_super_admin_invite.sql, 048_customer_home_profile.sql, 049_reset_bootstrap_invite.sql, 050_customers_user_id_unique.sql, 051_preferred_language.sql, 052_payouts_booking_id_unique.sql, 053_sms_consent.sql, 054_strict_rls.sql, 055_mailbox_messages.sql, 056_admin_mail_center.sql, 057_public_privacy_intake.sql, 058_scope_review_engine.sql, 059_scope_review_links.sql, 060_performance_indexes.sql, 061_composite_query_indexes.sql, 062_atomicity_constraints.sql, 063_customers_updated_at.sql, 064_booking_arrival_window.sql, 065_str_calendar_sync.sql, 066_address_property_type.sql, 067_str_enrollment.sql, 068_availability_backfill.sql, 069_review_tags.sql, 070_error_telemetry_v2.sql, 071_mail_security_rework.sql, 072_assignment_queue_cleaner_cascade.sql, 073_customer_fk_cascade.sql, 074_cleaner_service_area_and_declines.sql, 075_admin_permission_overrides.sql, 076_cleaners_updated_at.sql, 077_adjudication_cases.sql, 078_ip_blocklist.sql, 079_admin_alerting.sql, 080_status_health_checks.sql, 081_yardstik.sql, 082_admin_schedule.sql, 083_adjudication_pre_adverse.sql, 084_yardstik_webhook_dedup.sql, 085_founding_and_promotions.sql, 086_founder_badge_color.sql, 087_coupons_engine.sql, 088_coupon_stacking_locks.sql, 089_smart_entry_and_sweepr_plus.sql, 090_platform_identity_workspaces.sql, 091_auth_broker.sql, 092_founding_customer_discount.sql, 093_zip_pricing_multipliers.sql, 094_legal_document_versions.sql, 095_legal_attorneys.sql, 096_site_analytics.sql, 097_pricing_v2.sql, 098_yardstik_sor_monitoring.sql, 099_price_ledger_quote_refresh.sql, 100_mcp_simulator.sql, 101_team_cleans.sql
+-- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql, 034_fee_approval_engine.sql, 035_slack_user_tokens.sql, 036_pricing_engine.sql, 037_security_tickets.sql, 038_compact_ticket_ids.sql, 039_report_submitter.sql, 040_classification_and_templates.sql, 041_fix_security_templates.sql, 042_email_deliverability.sql, 043_slack_purpose_security.sql, 044_senior_admin_roles.sql, 045_status_autodetect.sql, 046_seed_pricing_rule.sql, 047_seed_super_admin_invite.sql, 048_customer_home_profile.sql, 049_reset_bootstrap_invite.sql, 050_customers_user_id_unique.sql, 051_preferred_language.sql, 052_payouts_booking_id_unique.sql, 053_sms_consent.sql, 054_strict_rls.sql, 055_mailbox_messages.sql, 056_admin_mail_center.sql, 057_public_privacy_intake.sql, 058_scope_review_engine.sql, 059_scope_review_links.sql, 060_performance_indexes.sql, 061_composite_query_indexes.sql, 062_atomicity_constraints.sql, 063_customers_updated_at.sql, 064_booking_arrival_window.sql, 065_str_calendar_sync.sql, 066_address_property_type.sql, 067_str_enrollment.sql, 068_availability_backfill.sql, 069_review_tags.sql, 070_error_telemetry_v2.sql, 071_mail_security_rework.sql, 072_assignment_queue_cleaner_cascade.sql, 073_customer_fk_cascade.sql, 074_cleaner_service_area_and_declines.sql, 075_admin_permission_overrides.sql, 076_cleaners_updated_at.sql, 077_adjudication_cases.sql, 078_ip_blocklist.sql, 079_admin_alerting.sql, 080_status_health_checks.sql, 081_yardstik.sql, 082_admin_schedule.sql, 083_adjudication_pre_adverse.sql, 084_yardstik_webhook_dedup.sql, 085_founding_and_promotions.sql, 086_founder_badge_color.sql, 087_coupons_engine.sql, 088_coupon_stacking_locks.sql, 089_smart_entry_and_sweepr_plus.sql, 090_platform_identity_workspaces.sql, 091_auth_broker.sql, 092_founding_customer_discount.sql, 093_zip_pricing_multipliers.sql, 094_legal_document_versions.sql, 095_legal_attorneys.sql, 096_site_analytics.sql, 097_pricing_v2.sql, 098_yardstik_sor_monitoring.sql, 099_price_ledger_quote_refresh.sql, 100_mcp_simulator.sql, 101_team_cleans.sql, 102_team_cleans_compensation.sql, 103_crew_tasks.sql
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -6434,3 +6434,131 @@ WHERE b.cleaner_id IS NOT NULL
 ALTER TABLE booking_crew_assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cleaner_relationships    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE crew_peer_ratings        ENABLE ROW LEVEL SECURITY;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 102_team_cleans_compensation.sql
+-- ─────────────────────────────────────────────────────────────────────────
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
+-- 102_team_cleans_compensation.sql
+-- Team Cleans (multi-cleaner crews) — per-member compensation, tips & ratings.
+--
+-- Wave 1 foundation (101) added booking_crew_assignments (with per-seat
+-- earnings_cents + stripe_transfer_id) and crew_peer_ratings. This migration
+-- relaxes the two per-booking UNIQUE constraints that block per-crew-member
+-- tips and ratings, so a booking can now carry one tip row and one review row
+-- PER cleaner instead of exactly one per booking.
+--
+-- Payouts stay booking-level (the POOL): payouts.booking_id UNIQUE (mig 052)
+-- and payout_ledger's booking-unique index are DELIBERATELY untouched — the
+-- per-seat split is tracked on booking_crew_assignments.earnings_cents /
+-- stripe_transfer_id (already added in 101), never by fanning out payouts rows.
+--
+-- Solo bookings are the degenerate crew of one: a single (booking_id, cleaner_id)
+-- pair behaves exactly like the old (booking_id) UNIQUE, so solo tips/ratings
+-- are unchanged.
+
+-- ─── booking_tips: per-member tips ──────────────────────────────────────────
+-- The original inline column UNIQUE (mig 058) is auto-named
+-- booking_tips_booking_id_key. Replace it with a composite so each crew member
+-- can receive their own split of a customer tip.
+ALTER TABLE booking_tips DROP CONSTRAINT IF EXISTS booking_tips_booking_id_key;
+DO $$ BEGIN
+  ALTER TABLE booking_tips ADD CONSTRAINT booking_tips_booking_cleaner_key UNIQUE (booking_id, cleaner_id);
+EXCEPTION WHEN duplicate_object THEN NULL; WHEN duplicate_table THEN NULL;
+END $$;
+
+-- ─── reviews: per-member ratings ────────────────────────────────────────────
+-- The original inline column UNIQUE (mig 001) is auto-named
+-- reviews_booking_id_key. Replace it with a composite so a customer rating can
+-- target each cleaner who performed the booking (or the booking overall via the
+-- LEAD's cleaner_id).
+ALTER TABLE reviews DROP CONSTRAINT IF EXISTS reviews_booking_id_key;
+DO $$ BEGIN
+  ALTER TABLE reviews ADD CONSTRAINT reviews_booking_cleaner_key UNIQUE (booking_id, cleaner_id);
+EXCEPTION WHEN duplicate_object THEN NULL; WHEN duplicate_table THEN NULL;
+END $$;
+
+-- Admin/reporting: which cleaners performed a given booking, and each seat's
+-- rating. Ratings join booking_crew_assignments on (booking_id, cleaner_id).
+CREATE INDEX IF NOT EXISTS idx_reviews_booking ON reviews (booking_id);
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 103_crew_tasks.sql
+-- ─────────────────────────────────────────────────────────────────────────
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
+-- 103_crew_tasks.sql
+-- Team Cleans — per-booking task decomposition + labor-balanced allocation.
+--
+-- Wave 1 gave a booking crew SEATS (booking_crew_assignments, mig 101). This
+-- migration adds the WORK: a booking's cleaning is decomposed into discrete
+-- cleaning_tasks (rooms, extras, whole-home overhead), each with an integer
+-- estimated_minutes derived from the Pricing v2 quote engine's per-room labor.
+-- A deterministic greedy load-balancer (lib/crew/taskAllocation.ts) then
+-- assigns each task to a crew member so LABOR (minutes) is balanced across the
+-- crew — not room count — with the LEAD carrying walkthrough/coordination
+-- overhead and therefore a lighter cleaning load.
+--
+-- Gated behind the 'team_task_allocation_enabled' site_setting flag (see
+-- lib/crew/crewConfig.ts isTeamFlagEnabled). Solo bookings need no tasks and
+-- behave exactly as before.
+--
+-- NOTE (migration numbering): at authoring time the latest migration on disk
+-- was 101_team_cleans.sql; a sibling agent owns 102_*.sql (not yet present).
+-- This file is numbered 103 by design to sit after that sibling migration. If
+-- 102 is still missing when the consolidated schema is built there will be a
+-- numbering gap — that is expected and harmless (build-schema sorts + skips no
+-- numbers); it does NOT create 102.
+
+-- ─── cleaning_tasks: one row per decomposed unit of work on a booking ────────
+CREATE TABLE IF NOT EXISTS cleaning_tasks (
+  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id              UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+
+  -- Canonical Pricing v2 room type when the task is a room ('kitchen',
+  -- 'bathroom', 'bedroom', 'living_room'); NULL for extras / whole-home units.
+  room_type               TEXT,
+  -- Human-facing label for the work unit ("Kitchen ×1", "Inside Oven", …).
+  area_label              TEXT NOT NULL,
+  -- The booking's cleaning level for room tasks (refresh / extra_attention /
+  -- significant_attention) or the inferred condition band; NULL where N/A.
+  cleaning_level          TEXT,
+
+  task_type               TEXT NOT NULL
+    CHECK (task_type IN ('room', 'extra', 'operational', 'clutter', 'size')),
+  -- Person-minutes of work for this unit, derived from the v2 quote (integer).
+  estimated_minutes       INT  NOT NULL,
+  -- Whether this unit can be worked concurrently with others (different room /
+  -- independent extra). Whole-home overhead (setup, size) is FALSE.
+  parallelizable          BOOLEAN NOT NULL DEFAULT TRUE,
+  -- A skill/cert a cleaner must hold to take this task (NULL = anyone).
+  required_qualification  TEXT,
+
+  -- The crew member currently responsible; NULL while unassigned / dropped.
+  assigned_cleaner_id     UUID REFERENCES cleaners(id) ON DELETE SET NULL,
+  status                  TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'in_progress', 'complete')),
+
+  created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_cleaning_tasks_booking ON cleaning_tasks (booking_id);
+CREATE INDEX IF NOT EXISTS idx_cleaning_tasks_booking_status ON cleaning_tasks (booking_id, status);
+
+COMMENT ON TABLE cleaning_tasks IS
+  'Per-booking decomposed work units (rooms, extras, whole-home overhead) with integer person-minutes from the Pricing v2 quote. Labor-balanced across the crew by lib/crew/taskAllocation.ts. Only populated for team bookings behind the team_task_allocation_enabled flag.';
+
+-- ─── RLS parity (owner-bypass; matches migrations 100/101) ──────────────────
+ALTER TABLE cleaning_tasks ENABLE ROW LEVEL SECURITY;

@@ -39,6 +39,8 @@ export interface BookingWireInput {
   rooms?: Array<{ roomType: RoomTypeV2; level: string }>;
   clutter?: Partial<Record<RoomTypeV2, number>>;
   roomCountsByLevel?: Partial<Record<RoomTypeV2, number[]>>;
+  /** Customer explicitly opted to add one extra cleaner for speed (flat fee). */
+  extraCleanerRequested?: boolean;
 }
 
 export interface V2Assembly {
@@ -102,6 +104,7 @@ export function buildQuoteInputFromBooking(
     extras: input.addOnKeys.map((key) => ({ key, quantity: 1 })),
     emergency: opts.emergency,
     zipMultiplierPct: opts.zipMultiplierPct,
+    extraCleanerRequested: input.extraCleanerRequested === true,
   };
 }
 

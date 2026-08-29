@@ -31,6 +31,19 @@ import { audit } from "../lib/audit";
 import { encryptSecret, decryptSecret, requireEncryptionKey } from "../lib/crypto";
 import { canUploadPhotos, getBookingAuthCtx } from "../lib/bookingAuthorization";
 import { isValidTransition } from "../lib/statusMachine";
+import { isTeamFlagEnabled, loadCrewConfig } from "../lib/crew/crewConfig";
+import {
+  findCrewSeat,
+  getCrewSeat,
+  recordCrewCheckIn,
+  resolveVoucherSeat,
+  handleNoShow,
+  completeCrewBooking,
+  generateVouchPin,
+  verifyVouchPin,
+  type CrewSeatRow,
+} from "../lib/crew/crewDayOfService";
+import { sendNotification } from "../lib/notifications";
 import type { AppBindings } from "../types";
 
 export const dayOfServiceRouter = new Hono<AppBindings>();
@@ -38,6 +51,49 @@ export const dayOfServiceRouter = new Hono<AppBindings>();
 dayOfServiceRouter.use("*", requireAuth);
 
 const GPS_ARRIVAL_THRESHOLD_M = 150; // metres
+
+/**
+ * The secret keying the ephemeral vouch PIN. Uses an existing worker secret
+ * (never a new one, never stored): the on-site access-code key when present,
+ * else the Stripe webhook secret (always set in production). See
+ * crewDayOfService.ts for why this needs no schema change.
+ */
+function vouchPinSecret(env: AppBindings["Bindings"]): string {
+  return env.ACCESS_CODE_ENCRYPTION_KEY || env.STRIPE_WEBHOOK_SECRET || env.CLERK_SECRET_KEY || "";
+}
+
+/**
+ * Resolve the caller (by Clerk id) to their cleaner row. Returns null if the
+ * user is not a cleaner.
+ */
+async function callerCleanerId(sql: ReturnType<typeof getDb>, clerkId: string): Promise<string | null> {
+  const users = (await sql`SELECT id FROM users WHERE clerk_id = ${clerkId}`) as Array<{ id: string }>;
+  if (!users[0]) return null;
+  const cleaner = (await sql`SELECT id FROM cleaners WHERE user_id = ${users[0].id}`) as Array<{ id: string }>;
+  return cleaner[0]?.id ?? null;
+}
+
+/**
+ * Authorize a day-of-service actor. Solo/legacy (crew_status IS NULL) keeps the
+ * EXACT existing rule: caller must be booking.cleaner_id (the LEAD). Only when
+ * the booking is a real crew (crew_status set) AND the team flag is on do we
+ * additionally admit any ACCEPTED crew member, returning their seat.
+ */
+async function authorizeDayOfServiceActor(
+  sql: ReturnType<typeof getDb>,
+  bookingId: string,
+  cleanerId: string | null,
+  leadCleanerId: string | null,
+  crewStatus: string | null,
+): Promise<{ allowed: boolean; isLead: boolean; seat: CrewSeatRow | null }> {
+  const isLead = !!cleanerId && cleanerId === leadCleanerId;
+  if (isLead) return { allowed: true, isLead: true, seat: null };
+  // Solo/legacy booking: no crew branch, behaves exactly as before.
+  if (crewStatus == null || !cleanerId) return { allowed: false, isLead: false, seat: null };
+  if (!(await isTeamFlagEnabled(sql, "enabled"))) return { allowed: false, isLead: false, seat: null };
+  const seat = await findCrewSeat(sql, bookingId, cleanerId);
+  return { allowed: !!seat, isLead: false, seat };
+}
 
 function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
@@ -84,7 +140,7 @@ dayOfServiceRouter.post(
     const sql = getDb(c.env.DATABASE_URL);
 
     const rows = (await sql`
-      SELECT b.id, b.status, b.day_status, b.cleaner_id,
+      SELECT b.id, b.status, b.day_status, b.cleaner_id, b.crew_status,
              cl.user_id AS cleaner_user_id,
              a.lat AS address_lat, a.lng AS address_lng,
              a.street AS address_line1, a.city AS address_city,
@@ -93,7 +149,7 @@ dayOfServiceRouter.post(
       JOIN cleaners cl ON cl.id = b.cleaner_id
       JOIN addresses a ON a.id = b.address_id
       WHERE b.id = ${bookingId}
-    `) as Array<BookingRow & { cleaner_user_id: string }>;
+    `) as Array<BookingRow & { cleaner_user_id: string; crew_status: string | null }>;
 
     const booking = rows[0];
     if (!booking) return c.json({ error: "Booking not found" }, 404);
@@ -111,7 +167,10 @@ dayOfServiceRouter.post(
 
     const users = (await sql`SELECT id FROM users WHERE clerk_id = ${clerkId}`) as Array<{ id: string }>;
     const cleaner = (await sql`SELECT id FROM cleaners WHERE user_id = ${users[0]?.id}`) as Array<{ id: string }>;
-    if (!cleaner[0] || cleaner[0].id !== booking.cleaner_id) {
+    const actor = await authorizeDayOfServiceActor(
+      sql, bookingId, cleaner[0]?.id ?? null, booking.cleaner_id, booking.crew_status,
+    );
+    if (!actor.allowed) {
       return c.json({ error: "Forbidden" }, 403);
     }
 
@@ -190,30 +249,43 @@ dayOfServiceRouter.post(
     const sql = getDb(c.env.DATABASE_URL);
 
     const rows = (await sql`
-      SELECT b.id, b.day_status, b.cleaner_id, b.arrival_verified_at,
+      SELECT b.id, b.day_status, b.cleaner_id, b.crew_status, b.arrival_verified_at,
              a.lat AS address_lat, a.lng AS address_lng
       FROM bookings b
       JOIN addresses a ON a.id = b.address_id
       WHERE b.id = ${bookingId}
-    `) as Array<{ id: string; day_status: string | null; cleaner_id: string; arrival_verified_at: string | null; address_lat: number | null; address_lng: number | null }>;
+    `) as Array<{ id: string; day_status: string | null; cleaner_id: string; crew_status: string | null; arrival_verified_at: string | null; address_lat: number | null; address_lng: number | null }>;
 
     const booking = rows[0];
     if (!booking) return c.json({ error: "Not found" }, 404);
 
     const users = (await sql`SELECT id FROM users WHERE clerk_id = ${clerkId}`) as Array<{ id: string }>;
     const cleaner = (await sql`SELECT id FROM cleaners WHERE user_id = ${users[0]?.id}`) as Array<{ id: string }>;
-    if (!cleaner[0] || cleaner[0].id !== booking.cleaner_id) return c.json({ error: "Forbidden" }, 403);
+    const actor = await authorizeDayOfServiceActor(
+      sql, bookingId, cleaner[0]?.id ?? null, booking.cleaner_id, booking.crew_status,
+    );
+    if (!actor.allowed) return c.json({ error: "Forbidden" }, 403);
 
+    // Pings are attributed to the pinging cleaner (crew member or lead), never
+    // always the booking lead.
+    const pingCleanerId = cleaner[0]?.id ?? booking.cleaner_id;
     await sql`
       INSERT INTO cleaner_location_pings (booking_id, cleaner_id, lat, lng, accuracy_m, heading, speed_kmh)
-      VALUES (${bookingId}, ${booking.cleaner_id}, ${lat}, ${lng}, ${accuracy_m ?? null}, ${heading ?? null}, ${speed_kmh ?? null})
+      VALUES (${bookingId}, ${pingCleanerId}, ${lat}, ${lng}, ${accuracy_m ?? null}, ${heading ?? null}, ${speed_kmh ?? null})
     `;
 
-    // Auto-verify arrival if within threshold and not already verified
+    const withinArrival =
+      !!booking.address_lat && !!booking.address_lng &&
+      haversineM(lat, lng, booking.address_lat, booking.address_lng) <= GPS_ARRIVAL_THRESHOLD_M;
+
+    // Auto-verify arrival if within threshold and not already verified. For a
+    // crew booking the booking-level arrival flips only for the LEAD (it gates
+    // the booking's day_status), while EACH member's own GPS arrival records
+    // their independent seat check-in.
     let arrivalJustVerified = false;
-    if (!booking.arrival_verified_at && booking.address_lat && booking.address_lng) {
-      const dist = haversineM(lat, lng, booking.address_lat, booking.address_lng);
-      if (dist <= GPS_ARRIVAL_THRESHOLD_M) {
+    let seatCheckedIn = false;
+    if (withinArrival) {
+      if (actor.isLead && !booking.arrival_verified_at) {
         await sql`
           UPDATE bookings SET
             day_status = 'arrived',
@@ -223,9 +295,20 @@ dayOfServiceRouter.post(
         `;
         arrivalJustVerified = true;
       }
+      // Record the arriving cleaner's own seat check-in (crew bookings only).
+      if (actor.seat) {
+        const res = await recordCrewCheckIn(sql, { bookingId, assignmentId: actor.seat.id });
+        seatCheckedIn = res.ok || res.reason === "already_checked_in";
+      } else if (actor.isLead && booking.crew_status != null) {
+        const leadSeat = cleaner[0] ? await findCrewSeat(sql, bookingId, cleaner[0].id) : null;
+        if (leadSeat) {
+          const res = await recordCrewCheckIn(sql, { bookingId, assignmentId: leadSeat.id });
+          seatCheckedIn = res.ok || res.reason === "already_checked_in";
+        }
+      }
     }
 
-    return c.json({ ok: true, arrival_verified: arrivalJustVerified });
+    return c.json({ ok: true, arrival_verified: arrivalJustVerified, seat_checked_in: seatCheckedIn });
   }
 );
 
@@ -239,34 +322,49 @@ dayOfServiceRouter.post(
     const sql = getDb(c.env.DATABASE_URL);
 
     const rows = (await sql`
-      SELECT b.id, b.day_status, b.cleaner_id, b.arrival_verified_at
+      SELECT b.id, b.day_status, b.cleaner_id, b.crew_status, b.arrival_verified_at
       FROM bookings b WHERE b.id = ${bookingId}
-    `) as Array<{ id: string; day_status: string | null; cleaner_id: string; arrival_verified_at: string | null }>;
+    `) as Array<{ id: string; day_status: string | null; cleaner_id: string; crew_status: string | null; arrival_verified_at: string | null }>;
 
     const booking = rows[0];
     if (!booking) return c.json({ error: "Not found" }, 404);
-    if (!booking.arrival_verified_at) return c.json({ error: "GPS arrival must be verified first" }, 400);
-    if (booking.day_status !== "arrived") return c.json({ error: "Must be in arrived state" }, 400);
 
     const users = (await sql`SELECT id FROM users WHERE clerk_id = ${clerkId}`) as Array<{ id: string }>;
     const cleaner = (await sql`SELECT id FROM cleaners WHERE user_id = ${users[0]?.id}`) as Array<{ id: string }>;
-    if (!cleaner[0] || cleaner[0].id !== booking.cleaner_id) return c.json({ error: "Forbidden" }, 403);
+    const actor = await authorizeDayOfServiceActor(
+      sql, bookingId, cleaner[0]?.id ?? null, booking.cleaner_id, booking.crew_status,
+    );
+    if (!actor.allowed) return c.json({ error: "Forbidden" }, 403);
 
-    // Advance booking.status to in_progress alongside day_status. The day-of-
-    // service flow otherwise only walks day_status, leaving booking.status stuck
-    // at cleaner_accepted — which would make the completion guard
-    // (isValidTransition(status, 'completed')) reject the final step. Guard
-    // against clobbering a booking that was cancelled/refunded mid-service.
-    await sql`
-      UPDATE bookings SET
-        day_status = 'in_progress',
-        status = 'in_progress',
-        started_at = NOW(),
-        access_code_revealed_at = NOW(),
-        updated_at = NOW()
-      WHERE id = ${bookingId}
-        AND status NOT IN ('completed', 'cancelled_by_customer', 'cancelled_by_cleaner', 'cancelled', 'refunded', 'disputed')
-    `;
+    // A non-lead crew member starts their own work once their seat is checked in
+    // (their own GPS arrival or a PIN vouch); they never advance the booking's
+    // status/day_status — only the LEAD does that. The LEAD (and every solo
+    // booking) keeps the exact original arrival gate.
+    if (actor.isLead) {
+      if (!booking.arrival_verified_at) return c.json({ error: "GPS arrival must be verified first" }, 400);
+      if (booking.day_status !== "arrived") return c.json({ error: "Must be in arrived state" }, 400);
+
+      // Advance booking.status to in_progress alongside day_status. The day-of-
+      // service flow otherwise only walks day_status, leaving booking.status stuck
+      // at cleaner_accepted — which would make the completion guard
+      // (isValidTransition(status, 'completed')) reject the final step. Guard
+      // against clobbering a booking that was cancelled/refunded mid-service.
+      await sql`
+        UPDATE bookings SET
+          day_status = 'in_progress',
+          status = 'in_progress',
+          started_at = NOW(),
+          access_code_revealed_at = NOW(),
+          updated_at = NOW()
+        WHERE id = ${bookingId}
+          AND status NOT IN ('completed', 'cancelled_by_customer', 'cancelled_by_cleaner', 'cancelled', 'refunded', 'disputed')
+      `;
+    } else {
+      // Crew member: must be checked in on their own seat before access codes.
+      if (!actor.seat?.check_in_at) {
+        return c.json({ error: "You must be checked in (GPS arrival or PIN vouch) first" }, 400);
+      }
+    }
 
     // Fetch and decrypt access codes — only revealed after GPS arrival confirmed.
     const rawCodes = (await sql`
@@ -366,9 +464,9 @@ dayOfServiceRouter.post(
     const sql = getDb(c.env.DATABASE_URL);
 
     const rows = (await sql`
-      SELECT b.id, b.day_status, b.status, b.cleaner_id, b.customer_id, b.started_at
+      SELECT b.id, b.day_status, b.status, b.cleaner_id, b.crew_status, b.customer_id, b.started_at
       FROM bookings b WHERE b.id = ${bookingId}
-    `) as Array<{ id: string; day_status: string | null; status: string; cleaner_id: string; customer_id: string; started_at: string | null }>;
+    `) as Array<{ id: string; day_status: string | null; status: string; cleaner_id: string; crew_status: string | null; customer_id: string; started_at: string | null }>;
 
     const booking = rows[0];
     if (!booking) return c.json({ error: "Not found" }, 404);
@@ -376,7 +474,14 @@ dayOfServiceRouter.post(
 
     const users = (await sql`SELECT id FROM users WHERE clerk_id = ${clerkId}`) as Array<{ id: string }>;
     const cleaner = (await sql`SELECT id FROM cleaners WHERE user_id = ${users[0]?.id}`) as Array<{ id: string }>;
+    // Completion is LEAD-only on every booking (booking.cleaner_id is the LEAD),
+    // so a member's premature complete never closes out the others.
     if (!cleaner[0] || cleaner[0].id !== booking.cleaner_id) return c.json({ error: "Forbidden" }, 403);
+
+    // For a real crew, validate every seat's attendance is resolved (checked in
+    // or NO_SHOW) before the booking can complete. This runs only for crew
+    // bookings with the flag on, so solo bookings are untouched.
+    const crewActive = booking.crew_status != null && (await isTeamFlagEnabled(sql, "enabled"));
 
     // P0-4: Load configurable photo requirements from DB.
     const reqRows = (await sql`
@@ -427,6 +532,23 @@ dayOfServiceRouter.post(
     // state (disputed/refunded/cancelled) by a race with another flow.
     if (!isValidTransition(booking.status, "completed")) {
       return c.json({ error: `Cannot complete a booking in '${booking.status}' status` }, 409);
+    }
+
+    // Crew: validate all seats + mark every present seat COMPLETED before the
+    // booking-level completion. Blocks completion while any member seat is still
+    // ACCEPTED without a check-in and not marked NO_SHOW.
+    if (crewActive) {
+      const crewResult = await completeCrewBooking(sql, { bookingId, callerCleanerId: booking.cleaner_id });
+      if (!crewResult.ok) {
+        if (crewResult.reason === "unresolved_attendance") {
+          return c.json({
+            error: "Cannot complete: some crew members have unresolved attendance (not checked in and not marked no-show)",
+            unresolved_seat_ids: crewResult.unresolvedSeatIds,
+          }, 409);
+        }
+        if (crewResult.reason === "not_lead") return c.json({ error: "Only the crew lead can complete this booking" }, 403);
+        return c.json({ error: "Crew booking has no lead seat" }, 409);
+      }
     }
 
     await sql`
@@ -521,7 +643,7 @@ dayOfServiceRouter.get("/bookings/:id/live", async (c) => {
   if (!UUID_RE.test(bookingId)) return c.json({ error: "Not found" }, 404);
 
   const rows = (await sql`
-    SELECT b.id, b.status, b.day_status, b.cleaner_id, b.customer_id,
+    SELECT b.id, b.status, b.day_status, b.cleaner_id, b.crew_status, b.customer_id,
            b.arrival_verified_at, b.started_at, b.completed_at,
            b.address_revealed_at, b.access_code_revealed_at,
            b.scheduled_at, b.total_price, b.service_type,
@@ -538,7 +660,7 @@ dayOfServiceRouter.get("/bookings/:id/live", async (c) => {
     WHERE b.id = ${bookingId}
   `) as Array<{
     id: string; status: string; day_status: string | null;
-    cleaner_id: string | null; customer_id: string | null;
+    cleaner_id: string | null; crew_status: string | null; customer_id: string | null;
     arrival_verified_at: string | null; started_at: string | null;
     completed_at: string | null; address_revealed_at: string | null;
     access_code_revealed_at: string | null; scheduled_at: string | null;
@@ -556,9 +678,22 @@ dayOfServiceRouter.get("/bookings/:id/live", async (c) => {
   // Verify caller is customer or cleaner for this booking
   const users = (await sql`SELECT id FROM users WHERE clerk_id = ${clerkId}`) as Array<{ id: string }>;
   const userId = users[0]?.id;
-  const isCleaner = booking.cleaner_clerk_id === clerkId;
+  const isLead = booking.cleaner_clerk_id === clerkId;
   const isCustomer = booking.customer_user_id === userId;
+
+  // A crew member (not the lead) is also an authorized cleaner-side reader, and
+  // may see access codes once THEIR seat is checked in. Solo bookings never
+  // enter this branch (crew_status NULL), so their reads are unchanged.
+  let crewSeat: CrewSeatRow | null = null;
+  if (!isLead && booking.crew_status != null && userId && (await isTeamFlagEnabled(sql, "enabled"))) {
+    const callerCleaner = (await sql`SELECT id FROM cleaners WHERE user_id = ${userId}`) as Array<{ id: string }>;
+    if (callerCleaner[0]) crewSeat = await findCrewSeat(sql, bookingId, callerCleaner[0].id);
+  }
+  const isCleaner = isLead || !!crewSeat;
   if (!isCleaner && !isCustomer) return c.json({ error: "Forbidden" }, 403);
+  // Codes reveal to the lead once unlocked booking-wide, or to a member once
+  // their own seat is checked in.
+  const canSeeCodes = isLead ? !!booking.access_code_revealed_at : !!crewSeat?.check_in_at;
 
   // Latest location ping
   const pings = (await sql`
@@ -576,7 +711,7 @@ dayOfServiceRouter.get("/bookings/:id/live", async (c) => {
   // Access codes: only revealed to the cleaner after they've been unlocked
   // (access_code_revealed_at set, i.e. GPS arrival confirmed).
   let accessCodes: Array<{ code_type: string; code_value: string | null; notes: string | null }> = [];
-  if (isCleaner && booking.access_code_revealed_at) {
+  if (isCleaner && canSeeCodes) {
     const rawCodes = (await sql`
       SELECT code_type, code_value, code_value_encrypted, notes
       FROM booking_access_codes WHERE booking_id = ${bookingId}
@@ -680,4 +815,221 @@ dayOfServiceRouter.post(
 
     return c.json({ ok: true });
   }
+);
+
+// ─── CREW: shared gate ────────────────────────────────────────────────────────
+// Load a booking's crew context and require the team flag + a real crew. Returns
+// null (with the caller left to 404/403) when this is not a flagged crew booking.
+interface CrewBookingRow {
+  id: string;
+  cleaner_id: string | null;
+  crew_status: string | null;
+  address_lat: number | null;
+  address_lng: number | null;
+}
+
+async function loadCrewBooking(
+  sql: ReturnType<typeof getDb>,
+  bookingId: string,
+): Promise<CrewBookingRow | null> {
+  const rows = (await sql`
+    SELECT b.id, b.cleaner_id, b.crew_status,
+           a.lat AS address_lat, a.lng AS address_lng
+    FROM bookings b
+    LEFT JOIN addresses a ON a.id = b.address_id
+    WHERE b.id = ${bookingId}
+  `) as CrewBookingRow[];
+  return rows[0] ?? null;
+}
+
+// ─── CREW: secondary fetches its current vouch PIN ───────────────────────────
+// The helper app displays this short-lived PIN; the lead types it in on-site.
+dayOfServiceRouter.post("/bookings/:id/crew/pin", async (c) => {
+  const bookingId = c.req.param("id");
+  const clerkId = c.get("user").clerkId;
+  const sql = getDb(c.env.DATABASE_URL);
+
+  if (!(await isTeamFlagEnabled(sql, "enabled"))) return c.json({ error: "Team cleans not enabled" }, 403);
+  const booking = await loadCrewBooking(sql, bookingId);
+  if (!booking) return c.json({ error: "Not found" }, 404);
+  if (booking.crew_status == null) return c.json({ error: "Not a crew booking" }, 400);
+
+  const cid = await callerCleanerId(sql, clerkId);
+  if (!cid) return c.json({ error: "Forbidden" }, 403);
+  const seat = await findCrewSeat(sql, bookingId, cid);
+  if (!seat) return c.json({ error: "Forbidden" }, 403);
+
+  const { pin, expiresAt } = await generateVouchPin(seat.id, vouchPinSecret(c.env));
+  return c.json({ ok: true, assignment_id: seat.id, pin, expires_at: expiresAt });
+});
+
+// ─── CREW: independent per-member GPS check-in ───────────────────────────────
+dayOfServiceRouter.post(
+  "/bookings/:id/crew/checkin",
+  zValidator("json", z.object({ lat: z.number().optional(), lng: z.number().optional() })),
+  async (c) => {
+    const bookingId = c.req.param("id");
+    const { lat, lng } = c.req.valid("json");
+    const clerkId = c.get("user").clerkId;
+    const sql = getDb(c.env.DATABASE_URL);
+
+    if (!(await isTeamFlagEnabled(sql, "enabled"))) return c.json({ error: "Team cleans not enabled" }, 403);
+    const booking = await loadCrewBooking(sql, bookingId);
+    if (!booking) return c.json({ error: "Not found" }, 404);
+    if (booking.crew_status == null) return c.json({ error: "Not a crew booking" }, 400);
+
+    const cid = await callerCleanerId(sql, clerkId);
+    if (!cid) return c.json({ error: "Forbidden" }, 403);
+    const seat = await findCrewSeat(sql, bookingId, cid);
+    if (!seat) return c.json({ error: "Forbidden" }, 403);
+
+    // GPS proof of presence (independent of any other crew member).
+    if (typeof lat !== "number" || typeof lng !== "number" || booking.address_lat == null || booking.address_lng == null) {
+      return c.json({ error: "GPS coordinates required to check in" }, 400);
+    }
+    const dist = haversineM(lat, lng, booking.address_lat, booking.address_lng);
+    if (dist > GPS_ARRIVAL_THRESHOLD_M) {
+      return c.json({ error: "You are not at the job location yet" }, 400);
+    }
+
+    await sql`
+      INSERT INTO cleaner_location_pings (booking_id, cleaner_id, lat, lng)
+      VALUES (${bookingId}, ${cid}, ${lat}, ${lng})
+    `;
+    const res = await recordCrewCheckIn(sql, { bookingId, assignmentId: seat.id });
+    if (!res.ok && res.reason === "not_eligible") {
+      return c.json({ error: "Seat is not eligible for check-in" }, 409);
+    }
+    return c.json({ ok: true, checked_in: true, already: res.reason === "already_checked_in", assignment_id: seat.id });
+  },
+);
+
+// ─── CREW: lead vouches a helper in via the helper's PIN ─────────────────────
+dayOfServiceRouter.post(
+  "/bookings/:id/crew/vouch",
+  zValidator("json", z.object({ assignmentId: z.string().min(1), pin: z.string().min(1) })),
+  async (c) => {
+    const bookingId = c.req.param("id");
+    const { assignmentId, pin } = c.req.valid("json");
+    const clerkId = c.get("user").clerkId;
+    const sql = getDb(c.env.DATABASE_URL);
+
+    if (!(await isTeamFlagEnabled(sql, "enabled"))) return c.json({ error: "Team cleans not enabled" }, 403);
+    const booking = await loadCrewBooking(sql, bookingId);
+    if (!booking) return c.json({ error: "Not found" }, 404);
+    if (booking.crew_status == null) return c.json({ error: "Not a crew booking" }, 400);
+
+    const cid = await callerCleanerId(sql, clerkId);
+    if (!cid) return c.json({ error: "Forbidden" }, 403);
+
+    // The voucher must be a crew member who is on-site (checked in) themselves.
+    const voucher = await resolveVoucherSeat(sql, bookingId, cid);
+    if (!voucher) return c.json({ error: "Only an on-site crew member can vouch a helper in" }, 403);
+
+    // Target must be a distinct, ACCEPTED, not-yet-present seat on this booking.
+    const target = await getCrewSeat(sql, bookingId, assignmentId);
+    if (!target || target.id === voucher.id) return c.json({ error: "Invalid seat to vouch" }, 400);
+    if (target.status !== "ACCEPTED") return c.json({ error: "Seat is not awaiting check-in" }, 409);
+    if (target.check_in_at) return c.json({ error: "Seat is already checked in" }, 409);
+
+    const valid = await verifyVouchPin(assignmentId, pin, vouchPinSecret(c.env));
+    if (!valid) return c.json({ error: "Invalid or expired PIN" }, 401);
+
+    const res = await recordCrewCheckIn(sql, {
+      bookingId,
+      assignmentId: target.id,
+      vouchedByAssignmentId: voucher.id,
+    });
+    if (!res.ok) {
+      if (res.reason === "already_checked_in") return c.json({ error: "Seat is already checked in" }, 409);
+      return c.json({ error: "Seat is not eligible for check-in" }, 409);
+    }
+
+    await audit(sql, {
+      action: "crew.vouch_checkin",
+      actorClerkId: clerkId,
+      targetType: "booking_crew_assignment",
+      targetId: target.id,
+      metadata: { booking_id: bookingId, voucher_seat_id: voucher.id },
+      timestamp: new Date().toISOString(),
+    });
+
+    // Best-effort notify the vouched-in helper.
+    if (target.cleaner_id) {
+      const helperUser = (await sql`
+        SELECT u.id FROM cleaners cl JOIN users u ON u.id = cl.user_id WHERE cl.id = ${target.cleaner_id}
+      `) as Array<{ id: string }>;
+      if (helperUser[0]) {
+        await sendNotification(sql, helperUser[0].id, {
+          type: "team_vouch_checkin",
+          title: "You're checked in",
+          body: "Your lead confirmed your arrival on-site.",
+          data: { href: `/jobs/${bookingId}` },
+        }).catch(() => {});
+      }
+    }
+
+    return c.json({ ok: true, checked_in: true, assignment_id: target.id });
+  },
+);
+
+// ─── CREW: mark a no-show helper and re-plan the reduced crew (LEAD only) ─────
+dayOfServiceRouter.post(
+  "/bookings/:id/crew/no-show",
+  zValidator("json", z.object({ assignmentId: z.string().min(1) })),
+  async (c) => {
+    const bookingId = c.req.param("id");
+    const { assignmentId } = c.req.valid("json");
+    const clerkId = c.get("user").clerkId;
+    const sql = getDb(c.env.DATABASE_URL);
+
+    if (!(await isTeamFlagEnabled(sql, "enabled"))) return c.json({ error: "Team cleans not enabled" }, 403);
+    const booking = await loadCrewBooking(sql, bookingId);
+    if (!booking) return c.json({ error: "Not found" }, 404);
+    if (booking.crew_status == null) return c.json({ error: "Not a crew booking" }, 400);
+
+    const cid = await callerCleanerId(sql, clerkId);
+    if (!cid || cid !== booking.cleaner_id) return c.json({ error: "Only the crew lead can mark a no-show" }, 403);
+
+    const target = await getCrewSeat(sql, bookingId, assignmentId);
+    if (!target || target.role === "LEAD") return c.json({ error: "Invalid seat" }, 400);
+
+    const cfg = await loadCrewConfig(sql);
+    const res = await handleNoShow(sql, { bookingId, assignmentId, config: cfg });
+    if (!res.ok) return c.json({ error: "Seat is not eligible to be marked no-show" }, 409);
+
+    await audit(sql, {
+      action: "crew.no_show",
+      actorClerkId: clerkId,
+      targetType: "booking_crew_assignment",
+      targetId: assignmentId,
+      metadata: {
+        booking_id: bookingId,
+        present_crew_size: res.presentCrewSize,
+        revised_elapsed_minutes: res.revisedElapsedMinutes,
+      },
+      timestamp: new Date().toISOString(),
+    });
+
+    // Notify the lead's own account of the re-plan (in-app record for the crew).
+    const leadUser = (await sql`
+      SELECT u.id FROM cleaners cl JOIN users u ON u.id = cl.user_id WHERE cl.id = ${booking.cleaner_id}
+    `) as Array<{ id: string }>;
+    if (leadUser[0]) {
+      await sendNotification(sql, leadUser[0].id, {
+        type: "team_member_no_show",
+        title: "Crew member marked no-show",
+        body: `On-site time re-estimated for ${res.presentCrewSize} cleaner(s)${res.revisedElapsedMinutes ? `: ~${res.revisedElapsedMinutes} min` : ""}.`,
+        data: { href: `/jobs/${bookingId}` },
+      }).catch(() => {});
+    }
+
+    return c.json({
+      ok: true,
+      present_crew_size: res.presentCrewSize,
+      revised_elapsed_minutes: res.revisedElapsedMinutes,
+      person_minutes: res.personMinutes,
+      plan: res.plan ?? null,
+    });
+  },
 );

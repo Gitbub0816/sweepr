@@ -58,6 +58,8 @@ import { adminCouponsRouter } from "./routes/adminCoupons";
 import { trainingRouter } from "./routes/training";
 import { trainingAdminRouter } from "./routes/admin/trainingAdmin";
 import { coursesRouter } from "./routes/courses";
+import { crewRouter } from "./routes/crew";
+import { crewTasksRouter } from "./routes/crewTasks";
 import { adminCoursesRouter } from "./routes/admin/courses";
 import { dayOfServiceRouter } from "./routes/dayOfService";
 import { insuranceRouter, insuranceAdminRouter } from "./routes/insurance";
@@ -421,6 +423,10 @@ app.route("/cleaners", cleanersRouter);
 // Cleaner self-service dashboard (separate from admin cleaners management).
 // Mounted under /cleaner-dashboard to avoid conflict with /cleaners admin routes.
 app.route("/reviews", reviewsRouter);
+// Team Cleans (behind team_cleans_enabled flag): crew management endpoints
+// (absolute /bookings/:id/crew/*) and crew task allocation (under /jobs).
+app.route("/", crewRouter);
+app.route("/jobs", crewTasksRouter);
 app.route("/admin/debug", adminDebugRouter);
 app.route("/it-tickets", itTicketsRouter);
 app.route("/it", itRouter);
@@ -622,6 +628,7 @@ export default {
 async function runScheduled(event: ScheduledEvent, env: Record<string, unknown>) {
     const { getDb } = await import("./lib/db");
     const { processExpiredOffers } = await import("./lib/assignment");
+    const { expireStaleCrewInvitations } = await import("./lib/crew/crewStaffing");
     const typedEnv = env as unknown as import("./types").Env;
     const sql = getDb(env.DATABASE_URL as string);
 
@@ -630,6 +637,13 @@ async function runScheduled(event: ScheduledEvent, env: Record<string, unknown>)
     try {
       // Every 15 minutes: expire stale assignment offers.
       await processExpiredOffers(sql);
+      // Team Cleans: expire stale crew-seat invitations and cascade to the
+      // next candidate (no-op when the feature is off / no crew bookings).
+      try {
+        await expireStaleCrewInvitations(sql);
+      } catch (err) {
+        logger.error("expireStaleCrewInvitations failed", err);
+      }
 
       // Status engine: probe every public component and record health.
       try {
