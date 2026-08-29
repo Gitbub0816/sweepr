@@ -65,13 +65,84 @@ public enum SweeprSpacing {
     public static let md: CGFloat = 16
     public static let lg: CGFloat = 24
     public static let xl: CGFloat = 32
+    public static let xxl: CGFloat = 48
 }
 
 public enum SweeprFont {
+    // Existing scale (kept verbatim — call sites depend on these).
     public static func title() -> Font { .system(size: 28, weight: .bold, design: .rounded) }
     public static func heading() -> Font { .system(size: 20, weight: .semibold, design: .rounded) }
     public static func body() -> Font { .system(size: 16, weight: .regular) }
     public static func caption() -> Font { .system(size: 13, weight: .medium) }
+
+    // Additive refinements for hero numerals, sub-headings, and fine print.
+    public static func largeTitle() -> Font { .system(size: 34, weight: .bold, design: .rounded) }
+    public static func subheading() -> Font { .system(size: 17, weight: .semibold, design: .rounded) }
+    public static func footnote() -> Font { .system(size: 12, weight: .medium) }
+    /// Tabular-ish monospaced numerals for codes, timers, and stat readouts.
+    public static func mono(size: CGFloat = 30) -> Font { .system(size: size, weight: .bold, design: .monospaced) }
+}
+
+// MARK: - Elevation / shadow tokens (light + warm-graphite dark aware)
+
+/// A small, deliberate ladder of resting elevations. Shadows are theme-aware:
+/// soft and cool-neutral in light, deeper and darker under warm graphite so
+/// cards still read as lifted without a blue cast.
+public enum SweeprElevation: Sendable {
+    case none, low, medium, high
+
+    public var radius: CGFloat {
+        switch self {
+        case .none: return 0
+        case .low: return 8
+        case .medium: return 16
+        case .high: return 28
+        }
+    }
+    public var y: CGFloat {
+        switch self {
+        case .none: return 0
+        case .low: return 2
+        case .medium: return 6
+        case .high: return 12
+        }
+    }
+    /// Theme-aware shadow colour. Warm graphite deepens the alpha so the lift
+    /// survives the dark ground.
+    public var color: Color {
+        let lightAlpha: Double
+        let darkAlpha: Double
+        switch self {
+        case .none: lightAlpha = 0;    darkAlpha = 0
+        case .low: lightAlpha = 0.08;  darkAlpha = 0.40
+        case .medium: lightAlpha = 0.12; darkAlpha = 0.50
+        case .high: lightAlpha = 0.18;  darkAlpha = 0.60
+        }
+        return Color(
+            light: SweeprColor.charcoal.opacity(lightAlpha),
+            dark: Color.black.opacity(darkAlpha)
+        )
+    }
+}
+
+// MARK: - Motion presets (spring + easing)
+
+/// Named animation presets so screens share one motion language. Springs are
+/// tuned for a responsive-but-calm feel; `press` is the quick, tight response
+/// used for tap/hold affordances.
+public enum SweeprMotion {
+    public static let snappy = Animation.spring(response: 0.30, dampingFraction: 0.82)
+    public static let smooth = Animation.spring(response: 0.45, dampingFraction: 0.90)
+    public static let bouncy = Animation.spring(response: 0.50, dampingFraction: 0.62)
+    public static let gentle = Animation.easeInOut(duration: 0.25)
+    public static let press  = Animation.spring(response: 0.24, dampingFraction: 0.72)
+}
+
+public extension View {
+    /// A soft, tasteful resting shadow for cards and floating surfaces.
+    func sweeprElevation(_ level: SweeprElevation = .medium) -> some View {
+        shadow(color: level.color, radius: level.radius, x: 0, y: level.y)
+    }
 }
 
 // MARK: - Color helpers (SKIP-supported subset)

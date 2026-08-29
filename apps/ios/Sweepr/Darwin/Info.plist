@@ -32,10 +32,29 @@
     <array>
         <string>UIInterfaceOrientationPortrait</string>
     </array>
-    <!-- Live cleaner tracking needs the map + when-in-use location. -->
+
+    <!-- ===== Privacy usage strings (App Review 5.1.1) ===== -->
+
+    <!-- Foreground-only: LiveTracking shows the cleaner's approach on a MapKit
+         map and confirms the saved service address. The customer app never
+         tracks location in the background (no "location" background mode). -->
     <key>NSLocationWhenInUseUsageDescription</key>
-    <string>Sweepr uses your location to show your cleaner's live arrival and confirm your service address.</string>
+    <string>Sweepr uses your location while the app is open to show your cleaner's live arrival on the map and to confirm your service address.</string>
+
+    <!-- Scope-request and booking photos captured with the camera. -->
     <key>NSCameraUsageDescription</key>
-    <string>Sweepr uses the camera to add photos to your booking and scope requests.</string>
+    <string>Sweepr uses the camera so you can photograph the areas you want cleaned and attach them to a booking or scope request.</string>
+
+    <!-- Attaching existing photos to a booking or scope request. -->
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Sweepr needs access to your photo library so you can attach existing photos to a booking or scope request.</string>
+
+    <!-- ===== Background execution ===== -->
+    <!-- Push only. NO background "location": the customer app tracks the
+         cleaner's arrival only while open. -->
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>remote-notification</string>
+    </array>
 </dict>
 </plist>

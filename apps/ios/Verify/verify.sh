@@ -52,7 +52,7 @@ let package = Package(
     targets: [
         .target(name: "SwiftUI"),
         .target(name: "MapKit", dependencies: ["SwiftUI"]),
-        .target(name: "SweeprKit", dependencies: ["SwiftUI"]),
+        .target(name: "SweeprKit", dependencies: ["SwiftUI", "MapKit"]),
         .target(name: "SweeprApp", dependencies: ["SweeprKit", "SwiftUI", "MapKit"]),
         .target(name: "CleanApp", dependencies: ["SweeprKit", "SwiftUI", "MapKit"]),
         .testTarget(name: "SweeprKitTests", dependencies: ["SweeprKit"]),

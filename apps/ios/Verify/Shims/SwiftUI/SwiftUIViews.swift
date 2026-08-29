@@ -190,6 +190,40 @@ public struct Button: View {
     public init(role: ButtonRole?, action: @escaping () -> Void, @ViewBuilder label: () -> AnyShimView) {}
 }
 
+// MARK: - Custom button styles (configuration-driven)
+
+public struct ButtonStyleConfiguration {
+    public struct Label: View {
+        public typealias Body = AnyShimView
+        public init() {}
+    }
+    public let label: Label
+    public let isPressed: Bool
+    public let role: ButtonRole?
+    public init(label: Label, isPressed: Bool = false, role: ButtonRole? = nil) {
+        self.label = label
+        self.isPressed = isPressed
+        self.role = role
+    }
+}
+
+@MainActor public protocol ButtonStyle {
+    associatedtype Body: View
+    typealias Configuration = ButtonStyleConfiguration
+    @ViewBuilder @MainActor func makeBody(configuration: Configuration) -> Body
+}
+
+// MARK: - Progress indicators
+
+public struct ProgressView: View {
+    public typealias Body = AnyShimView
+    public init() {}
+    public init(_ title: String) {}
+    public init(value: Double) {}
+    public init(value: Double, total: Double) {}
+    public init<Label: View>(@ViewBuilder label: () -> Label) {}
+}
+
 public struct Toggle: View {
     public typealias Body = AnyShimView
     public init(_ title: String, isOn: Binding<Bool>) {}

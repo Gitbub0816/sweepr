@@ -167,6 +167,8 @@ public struct Bindable<Value: AnyObject> {
 public struct EnvironmentValues {
     public var dismiss = DismissAction()
     public var openURL = OpenURLAction()
+    public var isEnabled = true
+    public var colorScheme: ColorScheme = .light
     public init() {}
 }
 

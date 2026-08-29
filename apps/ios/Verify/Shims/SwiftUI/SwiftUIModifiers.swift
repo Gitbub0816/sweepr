@@ -50,12 +50,21 @@ public extension View {
     // Animation / transition
     func animation<V: Equatable>(_ animation: Animation?, value: V) -> AnyShimView { AnyShimView() }
     func transition(_ transition: AnyTransition) -> AnyShimView { AnyShimView() }
+    func scaleEffect(_ scale: CGFloat, anchor: UnitPoint = .center) -> AnyShimView { AnyShimView() }
+    func scaleEffect(x: CGFloat = 1, y: CGFloat = 1, anchor: UnitPoint = .center) -> AnyShimView { AnyShimView() }
+    func rotationEffect(_ angle: Angle, anchor: UnitPoint = .center) -> AnyShimView { AnyShimView() }
 
     // Safe area
     func ignoresSafeArea(edges: Edge.Set = .all) -> AnyShimView { AnyShimView() }
 
     // Gestures / lifecycle
     func onTapGesture(count: Int = 1, perform action: @escaping () -> Void) -> AnyShimView { AnyShimView() }
+    func onLongPressGesture(
+        minimumDuration: Double = 0.5,
+        maximumDistance: CGFloat = 10,
+        perform action: @escaping @MainActor () -> Void,
+        onPressingChanged: @escaping @MainActor (Bool) -> Void = { _ in }
+    ) -> AnyShimView { AnyShimView() }
     func onAppear(perform action: (() -> Void)? = nil) -> AnyShimView { AnyShimView() }
     func onDisappear(perform action: (() -> Void)? = nil) -> AnyShimView { AnyShimView() }
     func onChange<V: Equatable>(of value: V, _ action: @escaping (V, V) -> Void) -> AnyShimView { AnyShimView() }
@@ -73,6 +82,8 @@ public extension View {
 
     // Styles
     func buttonStyle(_ style: _ButtonStyle) -> AnyShimView { AnyShimView() }
+    func buttonStyle<S: ButtonStyle>(_ style: S) -> AnyShimView { AnyShimView() }
+    func progressViewStyle(_ style: _ProgressViewStyle) -> AnyShimView { AnyShimView() }
     func listStyle(_ style: _ListStyle) -> AnyShimView { AnyShimView() }
     func pickerStyle(_ style: _PickerStyle) -> AnyShimView { AnyShimView() }
     func datePickerStyle(_ style: _DatePickerStyle) -> AnyShimView { AnyShimView() }

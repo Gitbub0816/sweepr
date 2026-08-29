@@ -20,33 +20,50 @@ public struct SweeprButton: View {
     private let title: String
     private let style: Style
     private let systemIcon: String?
+    private let isLoading: Bool
     private let action: () -> Void
+
+    /// `@Environment(\.isEnabled)` reflects any `.disabled(_:)` a caller applies
+    /// to this button, so the button can dim itself without a separate flag.
+    @Environment(\.isEnabled) private var isEnabled
 
     public init(
         _ title: String,
         style: Style = .primary,
         systemIcon: String? = nil,
+        isLoading: Bool = false,
         action: @escaping () -> Void
     ) {
         self.title = title
         self.style = style
         self.systemIcon = systemIcon
+        self.isLoading = isLoading
         self.action = action
     }
 
     public var body: some View {
-        Button(action: action) {
+        Button(action: {
+            guard !isLoading else { return }
+            SweeprHaptics.impact(.medium)
+            action()
+        }) {
             HStack(spacing: SweeprSpacing.sm) {
-                if let systemIcon { Image(systemName: systemIcon) }
-                Text(title).font(SweeprFont.body().weight(.semibold))
+                if isLoading {
+                    ProgressView().tint(foreground)
+                } else {
+                    if let systemIcon { Image(systemName: systemIcon) }
+                    Text(title).font(SweeprFont.body().weight(.semibold))
+                }
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
             .foregroundColor(foreground)
             .background(background)
             .clipShape(RoundedRectangle(cornerRadius: SweeprRadius.button, style: .continuous))
+            .opacity(isEnabled && !isLoading ? 1 : 0.55)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SweeprPressableButtonStyle())
+        .allowsHitTesting(!isLoading)
     }
 
     private var foreground: Color {
@@ -64,11 +81,32 @@ public struct SweeprButton: View {
     }
 }
 
+// MARK: - Pressable button style (scale + opacity on press)
+
+/// A shared `ButtonStyle` giving every SweeprButton a tactile press response —
+/// a subtle scale-down and dim on `isPressed`, on the shared `SweeprMotion`
+/// spring. SKIP transpiles `ButtonStyle` + `configuration.isPressed`.
+public struct SweeprPressableButtonStyle: ButtonStyle {
+    public init() {}
+    public func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .opacity(configuration.isPressed ? 0.90 : 1.0)
+            .animation(SweeprMotion.press, value: configuration.isPressed)
+    }
+}
+
 // MARK: - SweeprCard
 
 public struct SweeprCard<Content: View>: View {
     private let content: Content
-    public init(@ViewBuilder content: () -> Content) { self.content = content() }
+    private let elevation: SweeprElevation
+    /// `elevation` defaults to a subtle `.low` lift; existing `SweeprCard { … }`
+    /// call sites keep working and simply gain the softer resting shadow.
+    public init(elevation: SweeprElevation = .low, @ViewBuilder content: () -> Content) {
+        self.elevation = elevation
+        self.content = content()
+    }
 
     public var body: some View {
         content
@@ -80,6 +118,7 @@ public struct SweeprCard<Content: View>: View {
                 RoundedRectangle(cornerRadius: SweeprRadius.card, style: .continuous)
                     .stroke(SweeprColor.separator, lineWidth: 1)
             )
+            .sweeprElevation(elevation)
     }
 }
 

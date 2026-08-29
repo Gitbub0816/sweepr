@@ -104,6 +104,45 @@ public struct Annotation: MapContent {
     ) {}
 }
 
+// A polyline overlay drawn through an ordered list of coordinates. SKIP maps
+// this to a maps-compose `Polyline`.
+public struct MapPolyline: MapContent {
+    public init(coordinates: [CLLocationCoordinate2D]) {}
+    public init(points: [MKMapPoint]) {}
+}
+
+public struct MKMapPoint: Sendable {
+    public init() {}
+    public init(_ coordinate: CLLocationCoordinate2D) {}
+}
+
+// MARK: - MapContent styling modifiers (chainable, mirror the real API)
+
+public extension MapContent {
+    func stroke<S: ShapeStyle>(_ style: S, lineWidth: CGFloat = 1) -> _AnyMapContent { _AnyMapContent() }
+    func foregroundStyle<S: ShapeStyle>(_ style: S) -> _AnyMapContent { _AnyMapContent() }
+    func tint(_ color: Color) -> _AnyMapContent { _AnyMapContent() }
+    func annotationTitles(_ visibility: Visibility) -> _AnyMapContent { _AnyMapContent() }
+}
+
+// MARK: - MKMapItem / launch handoff (external turn-by-turn)
+
+public final class MKMapItem: @unchecked Sendable {
+    public var name: String?
+    public let placemark: MKPlacemark
+    public init(placemark: MKPlacemark) { self.placemark = placemark }
+    public static func openMaps(with items: [MKMapItem], launchOptions: [String: Any]? = nil) -> Bool { false }
+    public func openInMaps(launchOptions: [String: Any]? = nil) -> Bool { false }
+    public static let openInMapsLaunchOptionsDirectionsModeKey = "MKLaunchOptionsDirectionsModeKey"
+    public static let openInMapsLaunchOptionsDirectionsModeDriving = "Driving"
+    public static let openInMapsLaunchOptionsDirectionsModeWalking = "Walking"
+}
+
+public final class MKPlacemark: @unchecked Sendable {
+    public let coordinate: CLLocationCoordinate2D
+    public init(coordinate: CLLocationCoordinate2D) { self.coordinate = coordinate }
+}
+
 // MARK: - Map view (modern position-based API)
 
 public struct Map: View {

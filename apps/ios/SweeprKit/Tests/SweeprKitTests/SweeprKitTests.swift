@@ -184,4 +184,32 @@ final class SweeprKitTests: XCTestCase {
                                   jobsCount: 2, includesTips: true)
         XCTAssertEqual(payout.amount.dollarsString, "$184.00")
     }
+
+    func testDirectionsURLBuildsAppleMapsHandoff() {
+        let url = SweeprMaps.directionsURL(latitude: 39.7392, longitude: -104.9903, label: "Home Clean")
+        let s = url?.absoluteString ?? ""
+        XCTAssertTrue(s.hasPrefix("https://maps.apple.com/?daddr=39.7392,-104.9903"))
+        XCTAssertTrue(s.contains("dirflg=d"))          // directions mode
+        XCTAssertTrue(s.contains("q=Home%20Clean"))    // label is percent-encoded
+    }
+
+    func testSmartEntryLocationSerializesCamelCaseBody() {
+        // The backend locationSchema validates camelCase keys; guard the body.
+        let loc = CleanerAPI.SmartEntryLocation(
+            latitude: 39.7, longitude: -104.9, accuracyMeters: 12,
+            capturedAt: "2026-08-29T17:00:00Z", sessionId: "sess-1"
+        )
+        let obj = loc.jsonObject
+        XCTAssertEqual(obj["latitude"] as? Double, 39.7)
+        XCTAssertEqual(obj["accuracyMeters"] as? Double, 12)
+        XCTAssertEqual(obj["sessionId"] as? String, "sess-1")
+        // Optional fields are omitted when nil (zod treats absent as nullish).
+        XCTAssertNil(obj["deviceReference"])
+        XCTAssertNil(obj["reauthenticatedAt"])
+    }
+
+    func testAccessActionResultSucceededFlag() {
+        XCTAssertTrue(CleanerAPI.AccessActionResult(status: .success, message: nil, eventId: "e1").succeeded)
+        XCTAssertFalse(CleanerAPI.AccessActionResult(status: .failed, message: "down", eventId: nil).succeeded)
+    }
 }

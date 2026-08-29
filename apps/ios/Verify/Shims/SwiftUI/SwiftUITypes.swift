@@ -86,6 +86,17 @@ public struct GeometryProxy {
 // MARK: - Enumerated style tokens
 
 public enum TextAlignment: Hashable, Sendable { case leading, center, trailing }
+public enum ColorScheme: Hashable, Sendable, CaseIterable { case light, dark }
+
+public struct Angle: Hashable, Sendable {
+    public var radians: Double
+    public init() { self.radians = 0 }
+    public init(radians: Double) { self.radians = radians }
+    public init(degrees: Double) { self.radians = degrees * .pi / 180 }
+    public static func degrees(_ degrees: Double) -> Angle { Angle(degrees: degrees) }
+    public static func radians(_ radians: Double) -> Angle { Angle(radians: radians) }
+    public static let zero = Angle()
+}
 public enum RoundedCornerStyle: Hashable, Sendable { case circular, continuous }
 public enum Visibility: Hashable, Sendable { case automatic, visible, hidden }
 public enum NavigationBarTitleDisplayMode: Hashable, Sendable { case automatic, inline, large }
@@ -110,6 +121,7 @@ public struct _ButtonStyle: Sendable { public static let plain = _ButtonStyle();
 public struct _ListStyle: Sendable { public static let plain = _ListStyle(); public static let insetGrouped = _ListStyle(); public static let grouped = _ListStyle(); public static let automatic = _ListStyle() }
 public struct _PickerStyle: Sendable { public static let segmented = _PickerStyle(); public static let menu = _PickerStyle(); public static let automatic = _PickerStyle(); public static let inline = _PickerStyle() }
 public struct _DatePickerStyle: Sendable { public static let graphical = _DatePickerStyle(); public static let compact = _DatePickerStyle(); public static let wheel = _DatePickerStyle(); public static let automatic = _DatePickerStyle() }
+public struct _ProgressViewStyle: Sendable { public static let circular = _ProgressViewStyle(); public static let linear = _ProgressViewStyle(); public static let automatic = _ProgressViewStyle() }
 
 // MARK: - ShapeStyle / Color
 
