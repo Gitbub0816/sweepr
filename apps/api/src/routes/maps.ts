@@ -10,25 +10,16 @@
 
 import { Hono } from "hono";
 import type { AppBindings } from "../types";
-import { signAppleMapsToken, AppleMapsNotConfiguredError } from "../lib/appleMapsToken";
-
-export const mapsRouter = new Hono<AppBindings>();
 
 /**
- * Public endpoint consumed by mapkit.init's authorizationCallback in every
- * frontend app. Returns only a short-lived signed JWT — the Apple Maps
- * private key never leaves this Worker. No user auth required (this is the
- * same trust level as a public Mapbox token) but rate-limited like other
- * polled endpoints since mapkit re-calls this on token refresh.
+ * Maps router.
+ *
+ * Formerly minted short-lived Apple MapKit JS auth tokens (`/apple-token`).
+ * The frontends now use Mapbox GL JS with a public access token baked in at
+ * build time (`VITE_MAPBOX_TOKEN`), so there is no server-side token to sign
+ * and this router has no endpoints. Kept (mounted) as a stable seam for any
+ * future server-mediated maps concern.
  */
-mapsRouter.get("/apple-token", async (c) => {
-  try {
-    const { token, expiresAt } = await signAppleMapsToken(c.env);
-    return c.json({ token, expiresAt });
-  } catch (err) {
-    if (err instanceof AppleMapsNotConfiguredError) {
-      return c.json({ error: "Apple Maps is not configured" }, 503);
-    }
-    throw err;
-  }
-});
+export const mapsRouter = new Hono<AppBindings>();
+
+mapsRouter.get("/health", (c) => c.json({ ok: true }));

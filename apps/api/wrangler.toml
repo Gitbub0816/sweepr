@@ -45,11 +45,6 @@ preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
 # SENTRY_AUTH_TOKEN           (Organization Auth Token — powers the admin Integrations tile)
 # SENTRY_ORG / SENTRY_PROJECT (optional slugs; default sweepr-45 / javascript-nextjs)
 # ACCESS_CODE_ENCRYPTION_KEY  (32-byte hex key: openssl rand -hex 32)
-# APPLE_MAPS_TEAM_ID          (Apple Developer portal, top-right)
-# APPLE_MAPS_KEY_ID           (shown when the Maps key was created)
-# APPLE_MAPS_PRIVATE_KEY      (contents of the downloaded .p8 file, PEM/PKCS8 —
-#                              printf the whole file including BEGIN/END lines,
-#                              never echo, this key can never be regenerated)
 # DIDIT_API_KEY               (x-api-key for hosted session creation)
 # DIDIT_WEBHOOK_SECRET        (HMAC-SHA256 webhook signature secret)
 # R2_ACCOUNT_ID             (Cloudflare account ID)
