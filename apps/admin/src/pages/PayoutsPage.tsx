@@ -37,7 +37,7 @@ import { useAuth } from "@clerk/clerk-react";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 
-type Tab = "overview" | "transactions" | "payouts" | "fee-config" | "contractor-earnings" | "disputes" | "settings";
+type Tab = "overview" | "transactions" | "payouts" | "crew-splits" | "fee-config" | "contractor-earnings" | "disputes" | "settings";
 
 const STATUS_VARIANT: Record<string, "success" | "warning" | "error" | "info"> = {
   paid: "success",
@@ -552,6 +552,158 @@ function DisputesTab() {
   );
 }
 
+// ─── Crew Splits (per-member payout visibility) ───────────────────────────────
+
+type CrewSeatStatus =
+  | "CANDIDATE" | "INVITED" | "ACCEPTED" | "DECLINED" | "EXPIRED"
+  | "CANCELLED" | "REMOVED" | "NO_SHOW" | "COMPLETED";
+
+interface CrewSeatRow {
+  id: string;
+  cleanerId: string | null;
+  role: "LEAD" | "MEMBER";
+  seatIndex: number;
+  status: CrewSeatStatus;
+  earningsCents: number;
+  stripeTransferId: string | null;
+}
+
+interface CrewLookup {
+  booking: { id: string; crewStatus: string | null };
+  seats: CrewSeatRow[];
+}
+
+const SEAT_VARIANT: Record<string, "success" | "warning" | "error" | "info"> = {
+  ACCEPTED: "success",
+  COMPLETED: "success",
+  INVITED: "info",
+  CANDIDATE: "warning",
+  DECLINED: "error",
+  EXPIRED: "warning",
+  CANCELLED: "error",
+  REMOVED: "error",
+  NO_SHOW: "error",
+};
+
+function CrewSplitsTab() {
+  const { getToken } = useAuth();
+  const [bookingId, setBookingId] = useState("");
+  const [data, setData] = useState<CrewLookup | null>(null);
+  const [names, setNames] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function lookup() {
+    const id = bookingId.trim();
+    if (!id) return;
+    setLoading(true);
+    setError(null);
+    setData(null);
+    try {
+      const token = await getToken();
+      const auth = { Authorization: `Bearer ${token}` };
+      const [crewRes, clRes] = await Promise.all([
+        fetch(`${API}/bookings/${id}/crew`, { headers: auth }),
+        fetch(`${API}/admin/cleaners?status=approved`, { headers: auth }),
+      ]);
+      if (!crewRes.ok) throw new Error(crewRes.status === 404 ? "Booking not found." : `Error ${crewRes.status}`);
+      const crew = (await crewRes.json()) as CrewLookup;
+      setData(crew);
+      if (clRes.ok) {
+        const cleaners = ((await clRes.json()) as { cleaners: { id: string; first_name: string | null; last_name: string | null }[] }).cleaners ?? [];
+        const map: Record<string, string> = {};
+        for (const c of cleaners) map[c.id] = [c.first_name, c.last_name].filter(Boolean).join(" ") || c.id.slice(0, 8);
+        setNames(map);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Lookup failed.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const isCrew = !!data && (data.booking.crewStatus != null || data.seats.length > 0);
+  const poolTotal = (data?.seats ?? []).reduce((s, r) => s + (r.earningsCents ?? 0), 0);
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div className="rounded-xl border border-slate-200 p-6 space-y-3">
+        <h3 className="font-semibold text-slate-800 dark:text-white">Crew payout breakdown</h3>
+        <p className="text-xs text-slate-500">
+          Look up a booking to see each crew member's share of the cleaner payout pool. Tips are
+          separate and stay 100% to the tipped cleaner.
+        </p>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-charcoal dark:text-white"
+            placeholder="Booking ID"
+            value={bookingId}
+            onChange={(e) => setBookingId(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") void lookup(); }}
+            aria-label="Booking ID"
+          />
+          <Button onClick={lookup} loading={loading}>Look up</Button>
+        </div>
+        {error && <p className="text-sm text-red-600">{error}</p>}
+      </div>
+
+      {data && !isCrew && (
+        <div className="rounded-lg border border-slate-200 p-6 text-center text-sm text-slate-600">
+          This is a solo booking. Its payout appears in the Payouts and Transactions tabs.
+        </div>
+      )}
+
+      {data && isCrew && (
+        <div className="rounded-xl border border-slate-200 p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-slate-800 dark:text-white">
+              {data.seats.length} seat{data.seats.length === 1 ? "" : "s"}
+            </h3>
+            <span className="text-sm text-slate-500">Pool: {formatCurrency(poolTotal / 100)}</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-left text-xs text-slate-500">
+                  <th className="pb-2 pr-3 font-medium">Role</th>
+                  <th className="pb-2 pr-3 font-medium">Cleaner</th>
+                  <th className="pb-2 pr-3 font-medium">Status</th>
+                  <th className="pb-2 pr-3 text-right font-medium">Share</th>
+                  <th className="pb-2 font-medium">Transfer</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.seats.map((s) => (
+                  <tr key={s.id} className="border-b border-slate-50">
+                    <td className="py-2.5 pr-3">
+                      <Badge variant={s.role === "LEAD" ? "info" : "default"}>{s.role === "LEAD" ? "Lead" : "Helper"}</Badge>
+                    </td>
+                    <td className="py-2.5 pr-3 font-medium">
+                      {s.cleanerId ? (names[s.cleanerId] ?? s.cleanerId.slice(0, 8)) : "Open seat"}
+                    </td>
+                    <td className="py-2.5 pr-3">
+                      <Badge variant={SEAT_VARIANT[s.status] ?? "warning"}>{s.status}</Badge>
+                    </td>
+                    <td className="py-2.5 pr-3 text-right font-semibold tabular-nums">
+                      {s.earningsCents ? formatCurrency(s.earningsCents / 100) : "—"}
+                    </td>
+                    <td className="py-2.5">
+                      {s.stripeTransferId
+                        ? <span className="text-green-600 text-xs">Sent</span>
+                        : <span className="text-slate-400 text-xs">Not sent</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Settings (tiers + audit) ─────────────────────────────────────────────────
 
 interface TierRow { tier: string; multiplier: number; label: string; description: string | null; }
@@ -662,6 +814,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "overview",             label: "Overview",            icon: Wallet },
   { id: "transactions",         label: "Transactions",        icon: DollarSign },
   { id: "payouts",              label: "Payouts",             icon: CheckCircle2 },
+  { id: "crew-splits",          label: "Crew Splits",         icon: Users },
   { id: "fee-config",           label: "Fee Configuration",   icon: Settings },
   { id: "contractor-earnings",  label: "Contractor Earnings", icon: Users },
   { id: "disputes",             label: "Disputes",            icon: ShieldAlert },
@@ -699,6 +852,7 @@ export function PayoutsPage() {
         {tab === "overview"            && <OverviewTab />}
         {tab === "transactions"        && <TransactionsTab />}
         {tab === "payouts"             && <PayoutsListTab />}
+        {tab === "crew-splits"         && <CrewSplitsTab />}
         {tab === "fee-config"          && <FeeConfigTab />}
         {tab === "contractor-earnings" && <ContractorEarningsTab />}
         {tab === "disputes"            && <DisputesTab />}

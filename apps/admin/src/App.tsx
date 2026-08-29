@@ -52,6 +52,7 @@ import {
   Gauge,
   Orbit,
   FileUp,
+  UsersRound,
 } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -99,6 +100,7 @@ import { MailPage } from "./pages/MailPage";
 import { ScopeReviewPage } from "./pages/ScopeReviewPage";
 import { ScopeReviewDetailPage } from "./pages/ScopeReviewDetailPage";
 import { TrustSafetyPage } from "./pages/TrustSafetyPage";
+import { CrewConfigPage } from "./pages/CrewConfigPage";
 
 // Lazy: Site Analytics carries three.js (React Three Fiber KPIs) — keep it
 // out of the main admin bundle.
@@ -188,6 +190,7 @@ const navGroups = [
       { to: "/automation", label: "Automation", icon: Zap },
       { to: "/admins", label: "Admin Team", icon: Users2 },
       { to: "/access-control", label: "Access Control", icon: KeyRound },
+      { to: "/team-cleans", label: "Team Cleans", icon: UsersRound },
       { to: "/settings", label: "Settings", icon: Settings },
     ],
   },
@@ -357,6 +360,7 @@ export default function App() {
       <Route path="/automation" element={<Guarded><AutomationPage /></Guarded>} />
       <Route path="/admins" element={<Guarded><AdminsPage /></Guarded>} />
       <Route path="/access-control" element={<Guarded><AccessControlPage /></Guarded>} />
+      <Route path="/team-cleans" element={<Guarded><CrewConfigPage /></Guarded>} />
       <Route path="/settings" element={<Guarded><SettingsPage /></Guarded>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

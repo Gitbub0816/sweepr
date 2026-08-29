@@ -56,6 +56,9 @@ export const ROUTE_SCREEN: Record<string, string> = {
   "/automation": screenKey("automation"),
   "/admins": screenKey("admins"),
   "/access-control": screenKey("access_control"),
+  // Team Cleans config edits payout splits + feature flags: gate with the
+  // platform Settings screen (full-admin), matching the existing pattern.
+  "/team-cleans": screenKey("settings"),
   "/settings": screenKey("settings"),
 };
 
