@@ -38,6 +38,7 @@ import { recordLedgerEntry, applyBookingPriceAdjustment } from "../lib/bookingLe
 import { autoApplyBestCoupon } from "../lib/coupons";
 import { foundingCustomerDiscountPct } from "../lib/foundingMember";
 import { loadZipMultiplierPct } from "../lib/zipPricing";
+import { loadActivePricingVersion } from "../lib/quoteEngine/service";
 import { applyMembershipDiscount } from "../lib/smartEntryBilling";
 import { revokeSmartEntry } from "../lib/smartEntry";
 import { normalizedGreylistKey } from "../lib/scopeReviewEngine";
@@ -491,8 +492,21 @@ function pricingLineItemsJson(p: AssembledPricing, input: CreateInput): string |
 }
 
 /** Reject any add-on key not in the canonical @sweepr/utils catalogue. */
-function unknownAddOnKeys(keys: string[]): string[] {
-  return keys.filter((k) => !getAddOn(k));
+async function unknownAddOnKeys(
+  sql: ReturnType<typeof getDb>,
+  keys: string[],
+): Promise<string[]> {
+  if (keys.length === 0) return [];
+  // Static-catalogue keys are always valid. When a Pricing v2 version is
+  // Active, the add-ons the customer wizard offers come from that version's
+  // extras, so its active extra keys are valid too — the v2 engine prices them
+  // by key. This lets a published version introduce brand-new add-ons without a
+  // code change to the static ADD_ONS list.
+  const active = await loadActivePricingVersion(sql, "default", "USD").catch(() => null);
+  const v2Keys = active
+    ? new Set(active.config.extras.filter((e) => e.active).map((e) => e.key))
+    : null;
+  return keys.filter((k) => !getAddOn(k) && !v2Keys?.has(k));
 }
 
 // Customers may only cancel via the status endpoint.
@@ -588,7 +602,7 @@ bookingsRouter.post(
 
   // Reject unknown add-on keys up front (all pricing paths) so a mismatched
   // key surfaces a 400 rather than being silently priced at $0 downstream.
-  const unknownKeys = unknownAddOnKeys(input.addOnKeys);
+  const unknownKeys = await unknownAddOnKeys(sql, input.addOnKeys);
   if (unknownKeys.length > 0) {
     return c.json(
       { error: "unknown_addon", message: `Unknown add-ons: ${unknownKeys.join(", ")}` },
@@ -863,7 +877,7 @@ bookingsRouter.post("/quote", zValidator("json", createSchema), async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const catalogue = getAddOnCatalogue();
 
-  const unknownKeys = unknownAddOnKeys(input.addOnKeys);
+  const unknownKeys = await unknownAddOnKeys(sql, input.addOnKeys);
   if (unknownKeys.length > 0) {
     return c.json(
       { error: "unknown_addon", message: `Unknown add-ons: ${unknownKeys.join(", ")}` },

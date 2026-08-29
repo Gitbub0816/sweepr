@@ -8,7 +8,7 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, Plus, Info } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -22,12 +22,42 @@ import {
   SELECTABLE_OPTION_DISABLED,
 } from "../../lib/selectableOption";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8787";
+
+/** The only presentation the wizard shows for an add-on is its key + name. */
+type OfferedAddOn = { key: string; name: string };
+
+/** Static fallback used until the live catalogue loads (or if it fails). */
+const STATIC_ADDONS: OfferedAddOn[] = ADD_ONS.map((a) => ({ key: a.key, name: a.name }));
+
 export function AddOnsStep() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const serviceType = useBookingStore((s) => s.serviceType);
   const addOnKeys = useBookingStore((s) => s.addOnKeys);
   const toggleAddOn = useBookingStore((s) => s.toggleAddOn);
+
+  // Add-ons offered come from the Active pricing version when one is published
+  // (so a new add-on introduced in a version shows up here without a code
+  // change); otherwise the static catalogue. Falls back to static on any error
+  // so the step always renders.
+  const [offered, setOffered] = useState<OfferedAddOn[]>(STATIC_ADDONS);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API_URL}/pricing/addons`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((data: { addOns?: OfferedAddOn[] }) => {
+        if (!cancelled && Array.isArray(data.addOns) && data.addOns.length > 0) {
+          setOffered(data.addOns);
+        }
+      })
+      .catch(() => {
+        /* keep the static fallback */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Guard: a package must be chosen before this step is meaningful.
   useEffect(() => {
@@ -43,7 +73,7 @@ export function AddOnsStep() {
       onNext={() => navigate("/book/schedule")}
     >
       <div className="grid gap-3 sm:grid-cols-2">
-        {ADD_ONS.map((addOn) => {
+        {offered.map((addOn) => {
           const included = isAddOnIncludedInPackage(addOn.key, serviceType);
           const isSelected = addOnKeys.includes(addOn.key);
           return (

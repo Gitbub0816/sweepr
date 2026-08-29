@@ -11,10 +11,11 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { recurringDisplayPrice, getAddOn } from "@sweepr/utils";
+import { recurringDisplayPrice, getAddOn, ADD_ONS } from "@sweepr/utils";
 import { getDb } from "../lib/db";
 import { calculateBookingPrice, UnknownAddOnError } from "../lib/pricingEngine";
 import { resolveBookingPricing } from "../lib/resolvePricing";
+import { loadActivePricingVersion } from "../lib/quoteEngine/service";
 import { logger } from "../lib/logger";
 import type { AppBindings } from "../types";
 
@@ -52,6 +53,38 @@ export const pricingRouter = new Hono<AppBindings>();
  * is intentionally left untouched. The customer only ever sees the display
  * price (dollars); internal audit fields are never returned.
  */
+/**
+ * Public add-on catalogue for the booking wizard. When a Pricing v2 version is
+ * Active, the offered add-ons come from THAT version's active extras (so a
+ * published version can introduce brand-new add-ons with no code change);
+ * names reuse the static ADD_ONS presentation where a key matches, else the
+ * extra's own label. When no v2 version is Active, the static ADD_ONS list is
+ * returned unchanged (legacy behavior). Only key + display name are exposed —
+ * per-add-on prices are never shown to customers (final total is server-side).
+ */
+pricingRouter.get("/addons", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  try {
+    const active = await loadActivePricingVersion(sql, "default", "USD");
+    if (active) {
+      const addOns = active.config.extras
+        .filter((e) => e.active)
+        .map((e) => ({ key: e.key, name: getAddOn(e.key)?.name ?? e.label }));
+      return c.json({ addOns, source: "v2" as const });
+    }
+  } catch (err) {
+    // Fall back to the static catalogue on any lookup failure — the wizard must
+    // always render something.
+    logger.warn("GET /pricing/addons: active version lookup failed, using static catalogue", {
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
+  return c.json({
+    addOns: ADD_ONS.map((a) => ({ key: a.key, name: a.name })),
+    source: "legacy" as const,
+  });
+});
+
 pricingRouter.post("/quote", zValidator("json", quoteSchema), async (c) => {
   const input = c.req.valid("json");
   const sql = getDb(c.env.DATABASE_URL);
