@@ -80,50 +80,7 @@ public actor CleanerAPI {
         _ = try await session.data(for: req)
     }
 
-    // MARK: - Smart Entry (Seam-backed access, per CLAUDE.md "Smart Entry")
-
-    public struct AccessReveal: Sendable {
-        public let code: String?
-        public let instructions: String?
-        public let expiresInSeconds: Int
-
-        public init(code: String?, instructions: String?, expiresInSeconds: Int) {
-            self.code = code
-            self.instructions = instructions
-            self.expiresInSeconds = expiresInSeconds
-        }
-    }
-
-    /// GET /cleaner/bookings/:id/access — reveal the access code/instructions.
-    /// Only callable once the cleaner is checked in; the server re-validates
-    /// this server-side regardless of client-side gating.
-    public func revealAccess(bookingId: String) async throws -> AccessReveal {
-        let req = try await makeRequest(method: "GET", path: "cleaner/bookings/\(bookingId)/access")
-        let (data, response) = try await session.data(for: req)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw SweeprAPIError.http(status: (response as? HTTPURLResponse)?.statusCode ?? -1,
-                                       body: String(data: data, encoding: .utf8) ?? "")
-        }
-        struct Wire: Decodable { let code: String?; let instructions: String?; let expiresInSeconds: Int? }
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        let wire = try decoder.decode(Wire.self, from: data)
-        return AccessReveal(code: wire.code, instructions: wire.instructions,
-                             expiresInSeconds: wire.expiresInSeconds ?? 45)
-    }
-
-    /// POST /cleaner/bookings/:id/access/unlock — momentary remote unlock via
-    /// Seam. `lock: false` unlocks, `lock: true` re-secures on checkout.
-    public func setLock(bookingId: String, locked: Bool) async throws {
-        let req = try await makeRequest(
-            method: "POST",
-            path: "cleaner/bookings/\(bookingId)/access/unlock",
-            jsonBody: ["lock": locked]
-        )
-        _ = try await session.data(for: req)
-    }
-
-    // MARK: - Smart Entry v2 (backend-driven, matches routes/cleanerAccess.ts)
+    // MARK: - Smart Entry (backend-driven, matches routes/cleanerAccess.ts)
     //
     // The real backend (`app.route("/cleaner", cleanerAccessRouter)`) exposes
     // THREE POST endpoints, each guarded by the full `authorizeHomeAccess`
@@ -166,6 +123,32 @@ public actor CleanerAPI {
             self.reauthenticatedAt = reauthenticatedAt
             self.sessionId = sessionId
             self.deviceReference = deviceReference
+        }
+
+        /// Builds a proof-of-presence body stamped with the current time.
+        /// `capturedAt`/`reauthenticatedAt` are ISO-8601 (fractional seconds).
+        /// In production `latitude`/`longitude`/`accuracyMeters` come from
+        /// CoreLocation; callers without a live fix pass the job coordinate.
+        public static func now(
+            latitude: Double,
+            longitude: Double,
+            accuracyMeters: Double,
+            sessionId: String,
+            reauthenticated: Bool = false,
+            deviceReference: String? = nil
+        ) -> SmartEntryLocation {
+            let f = ISO8601DateFormatter()
+            f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            let stamp = f.string(from: Date())
+            return SmartEntryLocation(
+                latitude: latitude,
+                longitude: longitude,
+                accuracyMeters: accuracyMeters,
+                capturedAt: stamp,
+                reauthenticatedAt: reauthenticated ? stamp : nil,
+                sessionId: sessionId,
+                deviceReference: deviceReference
+            )
         }
 
         var jsonObject: [String: Any] {
@@ -376,6 +359,30 @@ public actor CleanerAPI {
             didit: .init(rawValue: wire.didit) ?? .notStarted,
             yardstik: .init(rawValue: wire.yardstik) ?? .notStarted
         )
+    }
+
+    // MARK: - Account deletion (App Store Guideline 5.1.1(v))
+    //
+    // Maps to `POST /account/delete` in `apps/api/src/routes/account.ts`
+    // (`accountRouter`, guarded by `requireAuth`). The server re-verifies the
+    // signed-in user by requiring their exact email in `confirmEmail`, then
+    // HARD-deletes the account (FK ON DELETE CASCADE removes dependent rows) and
+    // deletes the Clerk identity. `scope` is "account_and_data" (default) or
+    // "account". Throws on a non-2xx so the UI can surface a mismatch/failure.
+
+    public func requestAccountDeletion(confirmEmail: String, scope: String = "account_and_data") async throws {
+        let req = try await makeRequest(
+            method: "POST",
+            path: "account/delete",
+            jsonBody: ["confirmEmail": confirmEmail, "scope": scope]
+        )
+        let (data, response) = try await session.data(for: req)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw SweeprAPIError.http(
+                status: (response as? HTTPURLResponse)?.statusCode ?? -1,
+                body: String(data: data, encoding: .utf8) ?? ""
+            )
+        }
     }
 
     // MARK: - Photo uploads (STUB — real capture/upload to R2 not implemented;

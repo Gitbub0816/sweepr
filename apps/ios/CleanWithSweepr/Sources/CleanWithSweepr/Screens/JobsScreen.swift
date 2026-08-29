@@ -9,9 +9,6 @@
 //
 import SwiftUI
 import SweeprKit
-#if os(iOS)
-import UIKit
-#endif
 
 // Jobs list — Today / Upcoming / Available (offer inbox) segments. Address is
 // masked to an area label until the cleaner is en route. A job mid-shift is
@@ -20,12 +17,18 @@ public struct JobsScreen: View {
     @EnvironmentObject private var env: AppEnvironment
     @State private var jobs: [Job] = []
     @State private var isLoading = true
+    @State private var loadFailed = false
     @State private var segment: JobSegment = .today
     @State private var decidingOfferId: String?
 
     public init() {}
 
     private var activeShiftJob: Job? { jobs.first(where: \.isActiveShift) }
+
+    private var todayCount: Int {
+        jobs.filter { !$0.isOffer && isToday($0.booking.scheduledAt) }.count
+    }
+    private var offerCount: Int { jobs.filter(\.isOffer).count }
 
     private var segmentedJobs: [Job] {
         switch segment {
@@ -40,22 +43,20 @@ public struct JobsScreen: View {
 
     public var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                if let active = activeShiftJob {
-                    inShiftBanner(active)
-                }
-                Picker("Segment", selection: $segment) {
-                    ForEach(JobSegment.allCases) { seg in
-                        Text(seg.rawValue).tag(seg)
+            ScrollView {
+                VStack(spacing: SweeprSpacing.md) {
+                    summaryHeader
+                    if let active = activeShiftJob {
+                        inShiftBanner(active)
                     }
+                    segmentControl
+                    content
                 }
-                .pickerStyle(.segmented)
                 .padding(SweeprSpacing.md)
-
-                content
             }
             .background(SweeprColor.background.ignoresSafeArea())
             .navigationTitle("Jobs")
+            .refreshable { await load() }
         }
         .task {
             await load()
@@ -63,149 +64,222 @@ public struct JobsScreen: View {
         }
     }
 
+    // MARK: - Header
+
+    private var summaryHeader: some View {
+        SweeprCard(elevation: .medium) {
+            HStack(spacing: SweeprSpacing.lg) {
+                SweeprStat(
+                    value: "\(todayCount)",
+                    caption: "Jobs today",
+                    systemIcon: "sun.max.fill"
+                )
+                SweeprDivider().frame(width: 1, height: 44)
+                SweeprStat(
+                    value: "\(offerCount)",
+                    caption: "New offers",
+                    systemIcon: "sparkles"
+                )
+            }
+        }
+    }
+
+    private var segmentControl: some View {
+        SweeprSegmentedControl(
+            selection: $segment,
+            options: JobSegment.allCases.map { (value: $0, label: $0.rawValue) }
+        )
+    }
+
+    // MARK: - Content
+
     @ViewBuilder private var content: some View {
         if isLoading {
-            ScrollView {
-                VStack(spacing: SweeprSpacing.sm) {
-                    ForEach(0..<4, id: \.self) { _ in SkeletonBlock(height: 88) }
-                }
-                .padding(SweeprSpacing.md)
+            VStack(spacing: SweeprSpacing.md) {
+                ForEach(0..<3, id: \.self) { _ in SkeletonBlock(height: 116) }
             }
+        } else if loadFailed && jobs.isEmpty {
+            SweeprErrorState(
+                message: "We couldn't load your jobs. Check your connection and try again.",
+                onRetry: { Task { await load() } }
+            )
         } else if segmentedJobs.isEmpty {
             emptyState
         } else {
-            ScrollView {
-                LazyVStack(spacing: SweeprSpacing.md) {
-                    ForEach(segmentedJobs) { job in
-                        if job.isOffer {
-                            offerCard(job)
-                        } else {
-                            NavigationLink(destination: JobDetailScreen(job: job)) {
-                                jobCard(job)
-                            }
-                            .buttonStyle(.plain)
+            LazyVStack(spacing: SweeprSpacing.md) {
+                ForEach(segmentedJobs) { job in
+                    if job.isOffer {
+                        offerCard(job)
+                    } else {
+                        NavigationLink(destination: JobDetailScreen(job: job)) {
+                            jobCard(job)
                         }
+                        .buttonStyle(SweeprPressableButtonStyle())
                     }
                 }
-                .padding(SweeprSpacing.md)
             }
-            .refreshable { await load() }
         }
     }
 
     private var emptyState: some View {
         let (title, message, icon): (String, String, String) = {
             switch segment {
-            case .today: return ("No jobs today", "Nothing scheduled for today yet. Pull to refresh.", "sun.max")
-            case .upcoming: return ("Nothing upcoming", "Your accepted jobs will show up here.", "calendar")
+            case .today: return ("No jobs today", "Nothing scheduled for today yet. Pull down to refresh.", "sun.max")
+            case .upcoming: return ("Nothing upcoming", "Jobs you accept will show up here so you can plan ahead.", "calendar")
             case .available: return ("No new offers", "We'll notify you the moment a job matches your area.", "tray")
             }
         }()
-        return ScrollView {
-            ContentUnavailableView {
-                Label(title, systemImage: icon)
-            } description: {
-                Text(message)
-            }
-            .padding(.top, SweeprSpacing.xl)
-        }
-        .refreshable { await load() }
+        return SweeprEmptyState(systemIcon: icon, title: title, message: message)
+            .padding(.top, SweeprSpacing.lg)
     }
+
+    // MARK: - In-shift banner
 
     private func inShiftBanner(_ job: Job) -> some View {
         NavigationLink(destination: JobDetailScreen(job: job)) {
-            HStack(spacing: SweeprSpacing.sm) {
+            HStack(spacing: SweeprSpacing.md) {
                 Image(systemName: "bolt.fill")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(width: 40, height: 40)
+                    .background(Color.white.opacity(0.18))
+                    .clipShape(Circle())
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("In progress — \(job.booking.packageDisplayName)")
-                        .font(SweeprFont.body().weight(.semibold))
-                    Text(job.maskedAreaLabel).font(SweeprFont.caption())
+                    Text("In progress")
+                        .font(SweeprFont.footnote())
+                        .foregroundColor(.white.opacity(0.85))
+                    Text(job.booking.packageDisplayName)
+                        .font(SweeprFont.subheading())
+                        .foregroundColor(.white)
+                    Text(job.maskedAreaLabel)
+                        .font(SweeprFont.caption())
+                        .foregroundColor(.white.opacity(0.85))
+                        .lineLimit(1)
                 }
-                Spacer()
+                Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white.opacity(0.9))
             }
-            .foregroundColor(.white)
             .padding(SweeprSpacing.md)
             .frame(maxWidth: .infinity)
-            .background(SweeprColor.brand)
+            .background(
+                LinearGradient(
+                    colors: [SweeprColor.seafoam600, SweeprColor.brand],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: SweeprRadius.card, style: .continuous))
+            .sweeprElevation(.medium)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SweeprPressableButtonStyle())
     }
+
+    // MARK: - Cards
 
     private func jobCard(_ job: Job) -> some View {
         SweeprCard {
             VStack(alignment: .leading, spacing: SweeprSpacing.sm) {
-                HStack {
-                    Text(job.booking.packageDisplayName).font(SweeprFont.heading())
+                HStack(alignment: .firstTextBaseline) {
+                    Text(job.booking.packageDisplayName)
+                        .font(SweeprFont.subheading())
                         .foregroundColor(SweeprColor.textPrimary)
                     Spacer()
                     if let payout = job.payoutEstimate {
-                        Text(payout.dollarsString).font(SweeprFont.heading())
+                        Text(payout.dollarsString)
+                            .font(SweeprFont.heading())
                             .foregroundColor(SweeprColor.brand)
                     }
                 }
                 if let when = job.booking.scheduledAt {
-                    Text(when.formatted(date: .abbreviated, time: .shortened))
-                        .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
+                    Label(when.formatted(date: .abbreviated, time: .shortened), systemImage: "clock")
+                        .font(SweeprFont.caption())
+                        .foregroundColor(SweeprColor.textSecondary)
                 }
-                Text(job.maskedAreaLabel).font(SweeprFont.caption())
+                Label(job.maskedAreaLabel, systemImage: "mappin.and.ellipse")
+                    .font(SweeprFont.caption())
                     .foregroundColor(SweeprColor.textSecondary)
+                    .lineLimit(1)
+                SweeprDivider()
                 HStack(spacing: SweeprSpacing.sm) {
                     SweeprBadge(status: job.booking.status)
                     if let d = job.distanceMeters {
-                        SweeprBadge(String(format: "%.1f mi", d / 1609.34), tone: .neutral)
+                        SweeprBadge(String(format: "%.1f mi away", d / 1609.34), tone: .neutral)
                     }
+                    Spacer()
+                    Text("View")
+                        .font(SweeprFont.caption().weight(.semibold))
+                        .foregroundColor(SweeprColor.brand)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(SweeprColor.brand)
                 }
             }
         }
     }
 
     private func offerCard(_ job: Job) -> some View {
-        SweeprCard {
-            VStack(alignment: .leading, spacing: SweeprSpacing.sm) {
+        let isDeciding = decidingOfferId == job.id
+        return SweeprCard(elevation: .medium) {
+            VStack(alignment: .leading, spacing: SweeprSpacing.md) {
                 HStack {
-                    Text(job.booking.packageDisplayName).font(SweeprFont.heading())
-                        .foregroundColor(SweeprColor.textPrimary)
+                    SweeprBadge("New offer", tone: .brand)
                     Spacer()
                     if let payout = job.payoutEstimate {
-                        Text(payout.dollarsString).font(SweeprFont.heading())
+                        Text(payout.dollarsString)
+                            .font(SweeprFont.title())
                             .foregroundColor(SweeprColor.brand)
                     }
                 }
-                if let when = job.booking.scheduledAt {
-                    Text(when.formatted(date: .abbreviated, time: .shortened))
-                        .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
+                Text(job.booking.packageDisplayName)
+                    .font(SweeprFont.heading())
+                    .foregroundColor(SweeprColor.textPrimary)
+                VStack(alignment: .leading, spacing: SweeprSpacing.xs) {
+                    if let when = job.booking.scheduledAt {
+                        Label(when.formatted(date: .abbreviated, time: .shortened), systemImage: "clock")
+                            .font(SweeprFont.caption())
+                            .foregroundColor(SweeprColor.textSecondary)
+                    }
+                    Label(job.maskedAreaLabel, systemImage: "mappin.and.ellipse")
+                        .font(SweeprFont.caption())
+                        .foregroundColor(SweeprColor.textSecondary)
+                    if let d = job.distanceMeters {
+                        Label(String(format: "%.1f mi from you", d / 1609.34), systemImage: "location")
+                            .font(SweeprFont.caption())
+                            .foregroundColor(SweeprColor.textSecondary)
+                    }
                 }
-                Text(job.maskedAreaLabel).font(SweeprFont.caption())
-                    .foregroundColor(SweeprColor.textSecondary)
                 HStack(spacing: SweeprSpacing.sm) {
                     SweeprButton("Decline", style: .secondary) {
                         respond(job, accept: false)
                     }
-                    SweeprButton("Accept", style: .primary) {
+                    SweeprButton(isDeciding ? "…" : "Accept", style: .primary, isLoading: isDeciding) {
                         respond(job, accept: true)
                     }
                 }
-                .disabled(decidingOfferId == job.id)
+                .disabled(isDeciding)
             }
         }
     }
 
+    // MARK: - Actions
+
     private func respond(_ job: Job, accept: Bool) {
         decidingOfferId = job.id
-        #if os(iOS)
-        UIImpactFeedbackGenerator(style: accept ? .medium : .light).impactOccurred()
-        #endif
+        SweeprHaptics.impact(accept ? .medium : .light)
         Task {
             do {
                 if accept {
                     try await env.cleanerAPI.acceptOffer(jobId: job.id)
+                    env.toasts.show("Offer accepted — see you there!", kind: .success)
                 } else {
                     try await env.cleanerAPI.declineOffer(jobId: job.id)
+                    env.toasts.show("Offer declined", kind: .info)
                 }
             } catch {
                 // Offer response failed server-side (e.g. already claimed by
                 // another cleaner) — re-sync from the source of truth below.
+                env.toasts.show("That offer is no longer available.", kind: .warning)
             }
             await load()
             decidingOfferId = nil
@@ -219,8 +293,14 @@ public struct JobsScreen: View {
 
     private func load() async {
         isLoading = true
-        do { jobs = try await env.api.cleanerJobs() }
-        catch { jobs = SweeprMock.jobs }
+        do {
+            jobs = try await env.api.cleanerJobs()
+            loadFailed = false
+        } catch {
+            jobs = SweeprMock.jobs
+            loadFailed = true
+        }
+        env.activeJob = activeShiftJob
         isLoading = false
     }
 }

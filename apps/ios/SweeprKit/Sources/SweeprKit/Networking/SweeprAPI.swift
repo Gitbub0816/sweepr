@@ -229,6 +229,26 @@ public actor SweeprAPI {
         try await request(.PUT, "smart-entry/booking/\(bookingId)", body: req, as: SetBookingAccessResponse.self)
     }
 
+    // MARK: - Account (privacy / right to erasure)
+
+    /// POST /account/delete — App Store Guideline 5.1.1(v) in-app account
+    /// deletion. HARD-deletes the account and (by default) every associated
+    /// record via FK cascade, and removes the Clerk identity so the user can't
+    /// sign back into a ghost account (`routes/account.ts`). The server
+    /// re-verifies identity: `confirmEmail` MUST equal the signed-in account's
+    /// email or the call is rejected 400.
+    @discardableResult
+    public func requestAccountDeletion(
+        confirmEmail: String,
+        scope: AccountDeletionScope = .accountAndData
+    ) async throws -> AccountDeletionResponse {
+        try await request(
+            .POST, "account/delete",
+            body: AccountDeletionRequest(confirmEmail: confirmEmail, scope: scope),
+            as: AccountDeletionResponse.self
+        )
+    }
+
     // MARK: - Cleaner (day-of-service) endpoints
 
     /// GET /cleaner-dashboard/my-jobs — the cleaner's assigned/active jobs

@@ -16,6 +16,12 @@ public final class AppEnvironment: ObservableObject {
     public let api: SweeprAPI
     public let cleanerAPI: CleanerAPI
     public let tokenProvider: AuthTokenProvider
+    /// App-wide transient banner center (attach `.sweeprToast(env.toasts)` once
+    /// at the root; call `env.toasts.show(...)` from anywhere).
+    public let toasts = ToastCenter()
+    /// A stable per-launch identifier used as the Smart Entry session id on
+    /// proof-of-presence bodies (mirrors `locationSchema.sessionId`).
+    public let smartEntrySessionId = UUID().uuidString
     /// True while the cleaner is actively mid-shift on a job — drives the
     /// pinned in-shift banner on the Jobs tab.
     @Published public var activeJob: Job?

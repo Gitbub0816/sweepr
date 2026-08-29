@@ -13,7 +13,9 @@ import SweeprKit
 // The booking wizard, mirroring apps/customer/src/booking/. Steps:
 // address → home details → package/level → add-ons → schedule → access method
 // → review (server quote) → pay. The quote and the final charge always come
-// from the server — the client never computes totals.
+// from the server — the client NEVER computes totals. Premium chrome: a labeled
+// progress bar, per-step validation, animated step transitions, and a sticky
+// summary/total on the footer once a quote lands.
 public struct BookFlowScreen: View {
     @EnvironmentObject private var env: AppEnvironment
     @Environment(\.dismiss) private var dismiss
@@ -27,6 +29,15 @@ public struct BookFlowScreen: View {
     private let stepTitles = [
         "Address", "Your home", "Package", "Add-ons", "Schedule", "Access", "Review"
     ]
+    private let stepSubtitles = [
+        "Where are we cleaning?",
+        "Tell us about the space.",
+        "Pick a package and level.",
+        "Add any extra scope.",
+        "Choose a date and time.",
+        "How should we get in?",
+        "Review your server-priced quote.",
+    ]
 
     public init() {}
 
@@ -34,11 +45,16 @@ public struct BookFlowScreen: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            progressBar
+            progressHeader
             ScrollView {
                 VStack(alignment: .leading, spacing: SweeprSpacing.lg) {
-                    Text(stepTitles[step]).font(SweeprFont.title())
-                        .foregroundColor(SweeprColor.textPrimary)
+                    VStack(alignment: .leading, spacing: SweeprSpacing.xs) {
+                        Text(stepTitles[step]).font(SweeprFont.title())
+                            .foregroundColor(SweeprColor.textPrimary)
+                            .accessibilityAddTraits(.isHeader)
+                        Text(stepSubtitles[step]).font(SweeprFont.body())
+                            .foregroundColor(SweeprColor.textSecondary)
+                    }
                     stepContent
                         .transition(.asymmetric(
                             insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -59,18 +75,22 @@ public struct BookFlowScreen: View {
 
     // MARK: - Progress
 
-    private var progressBar: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule().fill(SweeprColor.separator).frame(height: 6)
-                Capsule().fill(SweeprColor.brand)
-                    .frame(width: geo.size.width * CGFloat(step + 1) / CGFloat(stepTitles.count), height: 6)
-                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: step)
+    private var progressHeader: some View {
+        VStack(alignment: .leading, spacing: SweeprSpacing.sm) {
+            HStack {
+                Text("Step \(step + 1) of \(stepTitles.count)")
+                    .font(SweeprFont.footnote()).foregroundColor(SweeprColor.textSecondary)
+                Spacer()
+                Text(stepTitles[step].uppercased())
+                    .font(SweeprFont.footnote()).foregroundColor(SweeprColor.brand)
             }
+            SweeprProgressBar(value: Double(step + 1) / Double(stepTitles.count), height: 6)
         }
-        .frame(height: 6)
         .padding(.horizontal, SweeprSpacing.md)
         .padding(.top, SweeprSpacing.sm)
+        .padding(.bottom, SweeprSpacing.sm)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Step \(step + 1) of \(stepTitles.count), \(stepTitles[step])")
     }
 
     // MARK: - Step content
@@ -137,7 +157,7 @@ public struct BookFlowScreen: View {
 
     private var addOnsStep: some View {
         VStack(alignment: .leading, spacing: SweeprSpacing.md) {
-            Text("Add extra scope. Included items are handled automatically.")
+            Text("Add extra scope. Package-included items are handled automatically.")
                 .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
             ForEach(BookingDraft.addOnCatalogue, id: \.key) { item in
                 SweeprChoiceRow(
@@ -223,7 +243,7 @@ public struct BookFlowScreen: View {
     }
 
     @ViewBuilder private var quoteCard: some View {
-        SweeprCard {
+        SweeprCard(elevation: .medium) {
             VStack(alignment: .leading, spacing: SweeprSpacing.sm) {
                 SweeprSectionTitle("Price")
                 if let q = quote {
@@ -235,7 +255,7 @@ public struct BookFlowScreen: View {
                                 .foregroundColor(SweeprColor.textPrimary)
                         }
                     }
-                    Divider().background(SweeprColor.separator)
+                    SweeprDivider()
                     HStack {
                         Text("Total").font(SweeprFont.body().weight(.semibold))
                         Spacer()
@@ -243,10 +263,11 @@ public struct BookFlowScreen: View {
                     }
                     .foregroundColor(SweeprColor.textPrimary)
                     Text("Authorized now, charged after your cleaning.")
-                        .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
+                        .font(SweeprFont.footnote()).foregroundColor(SweeprColor.textSecondary)
                 } else {
-                    SkeletonBlock(height: 20)
-                    SkeletonBlock(height: 20)
+                    SkeletonBlock(height: 18)
+                    SkeletonBlock(height: 18)
+                    SkeletonBlock(height: 18)
                     SkeletonBlock(height: 28)
                 }
             }
@@ -256,15 +277,19 @@ public struct BookFlowScreen: View {
     private var payStub: some View {
         SweeprCard {
             HStack(spacing: SweeprSpacing.md) {
-                Image(systemName: "creditcard.fill").foregroundColor(SweeprColor.brand)
+                Image(systemName: "creditcard.fill")
+                    .font(.system(size: 17, weight: .semibold)).foregroundColor(SweeprColor.brand)
+                    .frame(width: 36, height: 36)
+                    .background(SweeprColor.seafoam100)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Visa •••• 4242").font(SweeprFont.body().weight(.semibold))
                         .foregroundColor(SweeprColor.textPrimary)
                     Text("Manual capture — pay after service").font(SweeprFont.caption())
                         .foregroundColor(SweeprColor.textSecondary)
                 }
-                Spacer()
-                Image(systemName: "chevron.right").foregroundColor(SweeprColor.textSecondary)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").foregroundColor(SweeprColor.separator)
             }
         }
     }
@@ -272,20 +297,41 @@ public struct BookFlowScreen: View {
     // MARK: - Footer
 
     private var footer: some View {
-        HStack(spacing: SweeprSpacing.md) {
-            if step > 0 {
-                SweeprButton("Back", style: .secondary) {
-                    SweeprHaptics.selection()
-                    withAnimation { step -= 1 }
+        VStack(spacing: SweeprSpacing.sm) {
+            if isLastStep, let q = quote {
+                HStack {
+                    Text("Total due").font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
+                    Spacer()
+                    Text(q.totalMoney.dollarsString).font(SweeprFont.heading())
+                        .foregroundColor(SweeprColor.textPrimary)
                 }
             }
-            SweeprButton(isLastStep ? "Confirm & pay" : "Continue") {
-                Task { await advance() }
+            HStack(spacing: SweeprSpacing.md) {
+                if step > 0 {
+                    SweeprButton("Back", style: .secondary) {
+                        SweeprHaptics.selection()
+                        withAnimation(SweeprMotion.snappy) { step -= 1 }
+                    }
+                }
+                SweeprButton(isLastStep ? "Confirm & pay" : "Continue", isLoading: isWorking) {
+                    Task { await advance() }
+                }
+                .disabled(isWorking || !canContinue)
             }
         }
         .padding(SweeprSpacing.md)
         .background(SweeprColor.surface.ignoresSafeArea(edges: .bottom))
-        .disabled(isWorking)
+    }
+
+    // MARK: - Validation
+
+    private var canContinue: Bool {
+        switch step {
+        case 0:
+            return !draft.street.trimmed.isEmpty && !draft.city.trimmed.isEmpty && !draft.zip.trimmed.isEmpty
+        default:
+            return true
+        }
     }
 
     // MARK: - Flow
@@ -296,7 +342,7 @@ public struct BookFlowScreen: View {
             await submit()
             return
         }
-        withAnimation { step += 1 }
+        withAnimation(SweeprMotion.snappy) { step += 1 }
         if step == stepTitles.count - 1 {
             await fetchQuote()
         }
@@ -387,11 +433,15 @@ public struct BookFlowScreen: View {
     private func reviewRow(_ label: String, _ value: String) -> some View {
         HStack(alignment: .top) {
             Text(label).font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
-            Spacer()
+            Spacer(minLength: SweeprSpacing.md)
             Text(value).font(SweeprFont.body()).foregroundColor(SweeprColor.textPrimary)
                 .multilineTextAlignment(.trailing)
         }
     }
+}
+
+private extension String {
+    var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
 }
 
 // MARK: - Draft model (client-side wizard state; pricing stays server-side)

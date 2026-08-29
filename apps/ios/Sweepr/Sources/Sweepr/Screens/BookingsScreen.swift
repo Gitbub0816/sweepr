@@ -10,14 +10,16 @@
 import SwiftUI
 import SweeprKit
 
-// Bookings: a segmented Upcoming/Past control, status badges, and swipe-to-cancel
-// on active bookings. Reads the shared BookingStore.
+// Bookings — a branded Upcoming/Past segmented control, elevated booking cards
+// with status badges and a live "Track" affordance on active jobs, swipe-to-
+// cancel with a confirmation dialog, and first-class loading / empty / error
+// states. Reads the shared BookingStore so it stays in lockstep with Home.
 public struct BookingsScreen: View {
     @EnvironmentObject private var env: AppEnvironment
     @State private var segment: Segment = .upcoming
     @State private var pendingCancel: Booking?
 
-    enum Segment: String, CaseIterable, Identifiable {
+    enum Segment: String, CaseIterable, Identifiable, Hashable {
         case upcoming = "Upcoming"
         case past = "Past"
         var id: String { rawValue }
@@ -34,12 +36,13 @@ public struct BookingsScreen: View {
     public var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                Picker("View", selection: $segment) {
-                    ForEach(Segment.allCases) { Text($0.rawValue).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .padding(SweeprSpacing.md)
-                .onChange(of: segment) { _, _ in SweeprHaptics.selection() }
+                SweeprSegmentedControl(
+                    selection: $segment,
+                    options: Segment.allCases.map { (value: $0, label: $0.rawValue) }
+                )
+                .padding(.horizontal, SweeprSpacing.md)
+                .padding(.top, SweeprSpacing.sm)
+                .padding(.bottom, SweeprSpacing.sm)
 
                 content
             }
@@ -65,12 +68,34 @@ public struct BookingsScreen: View {
 
     @ViewBuilder private var content: some View {
         switch store.state {
-        case .loading:
-            VStack(spacing: SweeprSpacing.sm) {
-                ForEach(0..<4, id: \.self) { _ in SkeletonBlock(height: 76) }
+        case .loading where store.bookings.isEmpty:
+            ScrollView {
+                VStack(spacing: SweeprSpacing.md) {
+                    ForEach(0..<4, id: \.self) { _ in
+                        SweeprCard(elevation: .low) {
+                            HStack(spacing: SweeprSpacing.md) {
+                                SkeletonBlock(height: 44)
+                                    .frame(width: 44)
+                                VStack(alignment: .leading, spacing: SweeprSpacing.sm) {
+                                    SkeletonBlock(height: 14)
+                                    SkeletonBlock(height: 12)
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(SweeprSpacing.md)
             }
-            .padding(SweeprSpacing.md)
-            Spacer()
+            .scrollIndicators(.hidden)
+        case .failed where store.bookings.isEmpty:
+            ScrollView {
+                SweeprErrorState(
+                    message: "We couldn't load your bookings. Pull to refresh or try again.",
+                    onRetry: { Task { await store.refresh() } }
+                )
+                .padding(.top, SweeprSpacing.xxl)
+            }
+            .scrollIndicators(.hidden)
         default:
             if rows.isEmpty {
                 emptyState
@@ -98,51 +123,69 @@ public struct BookingsScreen: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: SweeprSpacing.md) {
-            Spacer()
-            Image(systemName: segment == .upcoming ? "calendar.badge.plus" : "clock.arrow.circlepath")
-                .font(.system(size: 40)).foregroundColor(SweeprColor.textSecondary)
-            Text(segment == .upcoming ? "No upcoming cleanings" : "No past cleanings")
-                .font(SweeprFont.heading()).foregroundColor(SweeprColor.textPrimary)
-            if segment == .upcoming {
-                NavigationLink(destination: BookFlowScreen()) {
-                    SweeprButton("Book a cleaning", systemIcon: "plus") {}
-                        .allowsHitTesting(false)
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, SweeprSpacing.xl)
-            }
-            Spacer()
+        ScrollView {
+            SweeprEmptyState(
+                systemIcon: segment == .upcoming ? "calendar.badge.plus" : "clock.arrow.circlepath",
+                title: segment == .upcoming ? "No upcoming cleanings" : "No past cleanings",
+                message: segment == .upcoming
+                    ? "When you book a cleaning it'll show up here — with live tracking on the day."
+                    : "Your completed cleanings will collect here.",
+                actionTitle: segment == .upcoming ? "Book a cleaning" : nil,
+                action: segment == .upcoming ? {
+                    SweeprHaptics.impact(.medium)
+                    tabToBook()
+                } : nil
+            )
+            .padding(.top, SweeprSpacing.xxl)
         }
-        .frame(maxWidth: .infinity)
+        .scrollIndicators(.hidden)
     }
 
     private func row(_ booking: Booking) -> some View {
         NavigationLink(destination: BookingDetailScreen(bookingId: booking.id, initial: booking)) {
-            SweeprCard {
-                HStack(spacing: SweeprSpacing.md) {
-                    Image(systemName: "sparkles")
-                        .foregroundColor(SweeprColor.brand)
-                        .frame(width: 40, height: 40)
-                        .background(SweeprColor.seafoam100)
-                        .clipShape(Circle())
-                    VStack(alignment: .leading, spacing: SweeprSpacing.xs) {
-                        Text(booking.packageDisplayName).font(SweeprFont.body().weight(.semibold))
-                            .foregroundColor(SweeprColor.textPrimary)
-                        if let when = booking.scheduledAt {
-                            Text(when.formatted(date: .abbreviated, time: .shortened))
-                                .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
-                        } else if let addr = booking.address {
-                            Text(addr.oneLine).font(SweeprFont.caption())
-                                .foregroundColor(SweeprColor.textSecondary).lineLimit(1)
+            SweeprCard(elevation: .low) {
+                VStack(alignment: .leading, spacing: SweeprSpacing.md) {
+                    HStack(spacing: SweeprSpacing.md) {
+                        Image(systemName: booking.status.isActive ? "sparkles" : "checkmark.seal.fill")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(SweeprColor.brand)
+                            .frame(width: 44, height: 44)
+                            .background(SweeprColor.seafoam100)
+                            .clipShape(Circle())
+                        VStack(alignment: .leading, spacing: SweeprSpacing.xs) {
+                            Text(booking.packageDisplayName)
+                                .font(SweeprFont.body().weight(.semibold))
+                                .foregroundColor(SweeprColor.textPrimary)
+                            if let when = booking.scheduledAt {
+                                Text(when.formatted(date: .abbreviated, time: .shortened))
+                                    .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
+                            } else if let addr = booking.address {
+                                Text(addr.oneLine).font(SweeprFont.caption())
+                                    .foregroundColor(SweeprColor.textSecondary).lineLimit(1)
+                            }
                         }
+                        Spacer(minLength: 0)
+                        SweeprBadge(status: booking.status)
                     }
-                    Spacer()
-                    SweeprBadge(status: booking.status)
+                    if booking.status.isTrackable {
+                        SweeprDivider()
+                        HStack(spacing: SweeprSpacing.sm) {
+                            Image(systemName: "location.fill")
+                                .font(.system(size: 12, weight: .bold))
+                            Text("Live — track your cleaner")
+                                .font(SweeprFont.caption().weight(.semibold))
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right").font(.system(size: 11, weight: .bold))
+                        }
+                        .foregroundColor(SweeprColor.brand)
+                    }
                 }
             }
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel("\(booking.packageDisplayName), \(booking.status.displayLabel)")
     }
 
     private func cancel(_ booking: Booking) async {
@@ -152,5 +195,11 @@ public struct BookingsScreen: View {
         } catch {
             env.toast.show("Couldn't cancel — try again", kind: .error)
         }
+    }
+
+    /// Jump to the Book tab. The TabView owns navigation, so surface a nudge and
+    /// let the customer tap Book — deep tab selection isn't wired in the shim UI.
+    private func tabToBook() {
+        env.toast.show("Tap Book to start a new cleaning", kind: .info)
     }
 }

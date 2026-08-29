@@ -325,3 +325,31 @@ public struct SetBookingAccessResponse: Codable, Sendable {
     public let smartEntryFeeCents: Int?
     public var fee: Money? { smartEntryFeeCents.map { Money(cents: $0) } }
 }
+
+// MARK: - Account deletion (POST /account/delete — GDPR/CCPA right to erasure)
+
+/// What a deletion removes. Mirrors the `scope` enum on `routes/account.ts`:
+/// `account_and_data` hard-deletes the account and every dependent row (FK
+/// cascade), `account` removes the login while retaining anonymized records.
+public enum AccountDeletionScope: String, Codable, Hashable, Sendable {
+    case account
+    case accountAndData = "account_and_data"
+}
+
+/// Request body for `POST /account/delete`. The backend re-verifies identity by
+/// requiring the caller to type their exact account email in `confirmEmail`
+/// (camelCase — the API encoder does NOT snake_case request bodies).
+public struct AccountDeletionRequest: Codable, Hashable, Sendable {
+    public let confirmEmail: String
+    public let scope: AccountDeletionScope
+    public init(confirmEmail: String, scope: AccountDeletionScope = .accountAndData) {
+        self.confirmEmail = confirmEmail
+        self.scope = scope
+    }
+}
+
+/// `POST /account/delete` → `{ ok, deleted }`.
+public struct AccountDeletionResponse: Codable, Sendable {
+    public let ok: Bool
+    public let deleted: Bool?
+}

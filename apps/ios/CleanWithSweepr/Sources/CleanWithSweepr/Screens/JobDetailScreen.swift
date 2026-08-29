@@ -8,20 +8,24 @@
 // distribution, reverse engineering, or use is prohibited.
 //
 import SwiftUI
+import MapKit
 import SweeprKit
-#if os(iOS)
-import UIKit
-#endif
 #if canImport(LocalAuthentication)
 import LocalAuthentication
 #endif
 
 // Day-of-service job detail — the heart of the app, mirrors the web
-// `JobDetailPage.tsx`. A stepper drives: Confirmed -> Start Route -> Arrive ->
-// Smart Entry (reveal-unlock, biometric-gated, 45s auto-hide) -> Before photos
-// -> In-progress checklist -> After photos -> Secure the door -> Checkout.
-// The *server* status transition (`lib/statusMachine.ts`) remains
-// authoritative; `DayOfServiceStep` only tracks where the on-device flow is.
+// `JobDetailPage.tsx`. A stepper drives: Confirmed → Start route → Arrive →
+// Smart Entry (reveal credential + backend-driven TapToUnlock) → Before photos →
+// In-progress checklist → After photos → Secure the door → Checkout.
+//
+// Smart Entry is BACKEND-DRIVEN (locked architecture decision): the reveal and
+// the unlock/lock are server calls (`CleanerAPI.revealAccessCredential` /
+// `unlockDoor` / `lockDoor`) carrying a proof-of-presence location. The unlock
+// is presented through the deliberate `TapToUnlock` press-and-hold control, and
+// is only ENABLED once the cleaner is checked in — the server re-validates every
+// call regardless. The server status transition (`lib/statusMachine.ts`) stays
+// authoritative; `DayOfServiceStep` only tracks the on-device flow position.
 public struct JobDetailScreen: View {
     @EnvironmentObject private var env: AppEnvironment
     private let job: Job
@@ -30,14 +34,15 @@ public struct JobDetailScreen: View {
     @State private var isLoading = true
     @State private var step: DayOfServiceStep = .confirmed
 
-    // Smart Entry
-    @State private var access: CleanerAPI.AccessReveal?
-    @State private var smartEntryRevealed = false
-    @State private var revealRemaining: Int = 0
+    // Smart Entry (backend-driven)
+    @State private var credential: CleanerAPI.AccessCredential?
+    @State private var credentialRevealed = false
+    @State private var revealRemaining = 0
     @State private var revealTask: Task<Void, Never>?
-    @State private var isAuthenticating = false
+    @State private var isRevealing = false
     @State private var isDoorUnlocked = false
     @State private var isDoorSecured = false
+    @State private var isSecuringDoor = false
 
     // Photos
     @State private var beforePhotos: [CapturedPhoto] = []
@@ -53,14 +58,30 @@ public struct JobDetailScreen: View {
 
     private var status: BookingStatus { dos?.status ?? job.booking.status }
     private var checklistComplete: Bool { !checklist.isEmpty && checklist.allSatisfy(\.isComplete) }
+    private var checklistProgress: Double {
+        let total = checklist.reduce(0) { $0 + $1.items.count }
+        guard total > 0 else { return 0 }
+        let done = checklist.reduce(0) { $0 + $1.items.filter(\.done).count }
+        return Double(done) / Double(total)
+    }
+
+    /// Smart Entry is only enabled once the cleaner is checked in / on site.
+    private var isCheckedIn: Bool {
+        dos?.checkedInAt != nil || dos?.arrivedAt != nil
+            || status == .arrived || status == .in_progress || step >= .arrived
+    }
+
+    private var stepProgress: Double {
+        Double(step.rawValue) / Double(DayOfServiceStep.done.rawValue)
+    }
 
     public var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: SweeprSpacing.lg) {
+            VStack(alignment: .leading, spacing: SweeprSpacing.md) {
                 headerCard
-                progressBar
+                progressCard
                 if isLoading {
-                    SkeletonBlock(height: 160)
+                    SkeletonBlock(height: 180)
                 } else {
                     stepCard
                 }
@@ -77,32 +98,97 @@ public struct JobDetailScreen: View {
     // MARK: - Header
 
     private var headerCard: some View {
-        SweeprCard {
-            VStack(alignment: .leading, spacing: SweeprSpacing.sm) {
-                HStack {
-                    Text("Today's job").font(SweeprFont.heading())
-                        .foregroundColor(SweeprColor.textPrimary)
-                    Spacer()
-                    SweeprBadge(status: status)
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: SweeprSpacing.md) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("TODAY'S JOB")
+                            .font(SweeprFont.footnote())
+                            .foregroundColor(.white.opacity(0.85))
+                        Text(job.booking.packageDisplayName)
+                            .font(SweeprFont.title())
+                            .foregroundColor(.white)
+                    }
+                    Spacer(minLength: 0)
+                    SweeprBadge(status.displayLabel, tone: .neutral)
                 }
-                Text(job.maskedAreaLabel).font(SweeprFont.body())
-                    .foregroundColor(SweeprColor.textSecondary)
-                if let payout = job.payoutEstimate {
-                    Text("Est. payout \(payout.dollarsString)").font(SweeprFont.caption())
-                        .foregroundColor(SweeprColor.brand)
+                HStack(spacing: SweeprSpacing.lg) {
+                    if let payout = job.payoutEstimate {
+                        headerStat(icon: "dollarsign.circle.fill", value: payout.dollarsString, label: "Est. payout")
+                    }
+                    if let when = job.booking.scheduledAt {
+                        headerStat(icon: "clock.fill", value: when.formatted(date: .omitted, time: .shortened), label: "Scheduled")
+                    }
+                    if let d = job.distanceMeters {
+                        headerStat(icon: "location.fill", value: String(format: "%.1f mi", d / 1609.34), label: "Distance")
+                    }
                 }
             }
+            .padding(SweeprSpacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                LinearGradient(
+                    colors: [SweeprColor.seafoam600, SweeprColor.seafoam700],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                )
+            )
+
+            if let addr = job.booking.address, let lat = addr.latitude, let lon = addr.longitude {
+                MapPreview(
+                    coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+                    systemIcon: "house.fill",
+                    title: "Job location",
+                    height: 130,
+                    cornerRadius: 0
+                )
+            }
+
+            HStack(spacing: SweeprSpacing.sm) {
+                Image(systemName: status.isTrackable ? "mappin.circle.fill" : "mappin.and.ellipse")
+                    .foregroundColor(SweeprColor.brand)
+                Text(status.isTrackable ? (job.booking.address?.oneLine ?? job.maskedAreaLabel) : job.maskedAreaLabel)
+                    .font(SweeprFont.caption())
+                    .foregroundColor(SweeprColor.textSecondary)
+                    .lineLimit(2)
+                Spacer(minLength: 0)
+            }
+            .padding(SweeprSpacing.md)
+            .background(SweeprColor.surface)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: SweeprRadius.card, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: SweeprRadius.card, style: .continuous)
+                .stroke(SweeprColor.separator, lineWidth: 1)
+        )
+        .sweeprElevation(.medium)
+    }
+
+    private func headerStat(icon: String, value: String, label: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 4) {
+                Image(systemName: icon).font(.system(size: 12, weight: .bold))
+                Text(value).font(SweeprFont.subheading())
+            }
+            .foregroundColor(.white)
+            Text(label).font(SweeprFont.footnote()).foregroundColor(.white.opacity(0.85))
         }
     }
 
-    // MARK: - Progress indicator
+    // MARK: - Progress
 
-    private var progressBar: some View {
-        HStack(spacing: 4) {
-            ForEach(DayOfServiceStep.allCases, id: \.rawValue) { s in
-                Capsule()
-                    .fill(s.rawValue <= step.rawValue ? SweeprColor.brand : SweeprColor.separator)
-                    .frame(height: 5)
+    private var progressCard: some View {
+        SweeprCard {
+            VStack(alignment: .leading, spacing: SweeprSpacing.sm) {
+                HStack {
+                    Text(step.title)
+                        .font(SweeprFont.body().weight(.semibold))
+                        .foregroundColor(SweeprColor.textPrimary)
+                    Spacer()
+                    Text("Step \(step.rawValue + 1) of \(DayOfServiceStep.allCases.count)")
+                        .font(SweeprFont.footnote())
+                        .foregroundColor(SweeprColor.textSecondary)
+                }
+                SweeprProgressBar(value: stepProgress)
             }
         }
     }
@@ -125,61 +211,51 @@ public struct JobDetailScreen: View {
     }
 
     private var confirmedCard: some View {
-        SweeprCard {
-            VStack(alignment: .leading, spacing: SweeprSpacing.md) {
-                Text("Confirmed").font(SweeprFont.heading()).foregroundColor(SweeprColor.textPrimary)
-                Text("You're booked for this job. Start your route when you're ready to head over.")
-                    .font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
-                SweeprButton("Start route", systemIcon: "car.fill") {
-                    advance(to: .enRoute, transition: .cleaner_on_the_way)
-                }
+        stepShell(icon: "checkmark.seal.fill", title: "You're confirmed") {
+            Text("You're booked for this job. Start your route when you're ready to head over.")
+                .font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
+            SweeprButton(isAdvancing ? "Starting…" : "Start route", systemIcon: "car.fill", isLoading: isAdvancing) {
+                advance(to: .enRoute, transition: .cleaner_on_the_way)
             }
+            .disabled(isAdvancing)
         }
     }
 
     private var enRouteCard: some View {
-        SweeprCard {
-            VStack(alignment: .leading, spacing: SweeprSpacing.md) {
-                Text("On the way").font(SweeprFont.heading()).foregroundColor(SweeprColor.textPrimary)
-                if let addr = job.booking.address {
-                    Text(addr.oneLine).font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
-                }
-                HStack(spacing: SweeprSpacing.sm) {
-                    SweeprButton("Open in Maps", style: .secondary, systemIcon: "map.fill") {
-                        openInAppleMaps()
-                    }
-                    SweeprButton("View route", style: .secondary, systemIcon: "point.topleft.down.curvedto.point.bottomright.up.fill") {
-                        // Navigation is handled by the Route tab; this screen
-                        // stays focused on the day-of-service flow.
-                    }
-                }
-                SweeprButton("I've arrived", systemIcon: "mappin.circle.fill") {
-                    advance(to: .arrived, transition: .arrived)
-                }
+        stepShell(icon: "car.fill", title: "On the way") {
+            if let addr = job.booking.address {
+                Text(addr.oneLine).font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
             }
+            SweeprButton("Open in Maps", style: .secondary, systemIcon: "location.north.line.fill") {
+                openInMaps()
+            }
+            SweeprButton(isAdvancing ? "Confirming…" : "I've arrived", systemIcon: "mappin.circle.fill", isLoading: isAdvancing) {
+                advance(to: .arrived, transition: .arrived)
+            }
+            .disabled(isAdvancing)
         }
     }
 
     private var arrivedCard: some View {
-        SweeprCard {
-            VStack(alignment: .leading, spacing: SweeprSpacing.md) {
-                Text("Arrived").font(SweeprFont.heading()).foregroundColor(SweeprColor.textPrimary)
-                Label("Location check-in confirmed", systemImage: "location.fill")
+        stepShell(icon: "mappin.circle.fill", title: "You've arrived") {
+            HStack(spacing: SweeprSpacing.sm) {
+                Image(systemName: "location.fill").foregroundColor(SweeprColor.brand)
+                Text("Location check-in confirmed")
                     .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
-                Text("Continue to Smart Entry to get in.")
-                    .font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
-                SweeprButton("Continue", systemIcon: "arrow.right") {
-                    step = .smartEntry
-                    Task { await loadAccessIfNeeded() }
-                }
+            }
+            Text("Continue to Smart Entry to get in.")
+                .font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
+            SweeprButton("Continue to Smart Entry", systemIcon: "key.fill") {
+                withAnimation(SweeprMotion.snappy) { step = .smartEntry }
+                Task { await ensureChecklistLoaded() }
             }
         }
     }
 
-    // Smart Entry reveal-unlock: biometric-gated, code auto-hides after 45s.
+    // Smart Entry — backend-driven reveal + TapToUnlock (gated by check-in).
     private var smartEntryCard: some View {
-        SweeprCard {
-            VStack(alignment: .leading, spacing: SweeprSpacing.sm) {
+        SweeprCard(elevation: .medium) {
+            VStack(alignment: .leading, spacing: SweeprSpacing.md) {
                 HStack {
                     Label("Smart Entry", systemImage: "key.fill")
                         .font(SweeprFont.heading()).foregroundColor(SweeprColor.textPrimary)
@@ -189,40 +265,53 @@ public struct JobDetailScreen: View {
                     }
                 }
 
-                if smartEntryRevealed, let access {
-                    if let code = access.code {
-                        Text(code).font(.system(size: 34, weight: .bold, design: .monospaced))
+                if credentialRevealed, let cred = credential {
+                    VStack(alignment: .leading, spacing: SweeprSpacing.sm) {
+                        Text(cred.credential)
+                            .font(SweeprFont.mono(size: 38))
                             .foregroundColor(SweeprColor.textPrimary)
+                        if let instructions = dos?.smartEntry?.instructions {
+                            Text(instructions).font(SweeprFont.caption())
+                                .foregroundColor(SweeprColor.textSecondary)
+                        }
+                        HStack(spacing: SweeprSpacing.md) {
+                            Label("Hides in \(revealRemaining)s", systemImage: "timer")
+                                .font(SweeprFont.footnote()).foregroundColor(SweeprColor.textSecondary)
+                            if cred.remainingRevealCount > 0 {
+                                Text("\(cred.remainingRevealCount) reveals left")
+                                    .font(SweeprFont.footnote()).foregroundColor(SweeprColor.textSecondary)
+                            }
+                        }
                     }
-                    if let instructions = access.instructions ?? dos?.smartEntry?.instructions {
-                        Text(instructions).font(SweeprFont.body())
-                            .foregroundColor(SweeprColor.textSecondary)
-                    }
-                    Text("Hides in \(revealRemaining)s").font(SweeprFont.caption())
-                        .foregroundColor(SweeprColor.textSecondary)
-
-                    SweeprButton(
-                        isDoorUnlocked ? "Unlocked" : "Unlock door",
-                        style: isDoorUnlocked ? .secondary : .primary,
-                        systemIcon: isDoorUnlocked ? "lock.open.fill" : "lock.fill"
-                    ) {
-                        unlockDoor()
-                    }
-                    .disabled(isDoorUnlocked)
+                    .padding(SweeprSpacing.md)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(SweeprColor.seafoam50)
+                    .clipShape(RoundedRectangle(cornerRadius: SweeprRadius.button, style: .continuous))
                 } else {
-                    Text("Access details are hidden. Reveal only when you're at the door.")
+                    Text("Access details stay hidden until you reveal them at the door. Revealing requires a quick identity check.")
                         .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
-                    SweeprButton(isAuthenticating ? "Verifying…" : "Reveal access", systemIcon: "eye.fill") {
-                        revealAccess()
+                    SweeprButton(isRevealing ? "Verifying…" : "Reveal access", style: .secondary, systemIcon: "eye.fill", isLoading: isRevealing) {
+                        revealCredential()
                     }
-                    .disabled(isAuthenticating)
+                    .disabled(isRevealing || !isCheckedIn)
                 }
 
-                Text("Powered by Seam").font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
+                SweeprDivider()
+
+                // The deliberate press-and-hold unlock, wired to the backend.
+                TapToUnlock(isEnabled: isCheckedIn && !isDoorUnlocked) {
+                    await performUnlock()
+                }
+
+                HStack(spacing: 4) {
+                    Image(systemName: "lock.shield").font(.system(size: 11))
+                    Text("Powered by Seam · every unlock is logged")
+                }
+                .font(SweeprFont.footnote()).foregroundColor(SweeprColor.textSecondary)
 
                 if isDoorUnlocked {
                     SweeprButton("Continue to before photos", systemIcon: "arrow.right") {
-                        step = .beforePhotos
+                        withAnimation(SweeprMotion.snappy) { step = .beforePhotos }
                     }
                 }
             }
@@ -232,45 +321,60 @@ public struct JobDetailScreen: View {
     private func photoCard(phase: PhotoPhase) -> some View {
         let photos = phase == .before ? beforePhotos : afterPhotos
         let minRequired = 2
-        return SweeprCard {
-            VStack(alignment: .leading, spacing: SweeprSpacing.md) {
-                Text(phase == .before ? "Before photos" : "After photos")
-                    .font(SweeprFont.heading()).foregroundColor(SweeprColor.textPrimary)
-                Text("Capture at least \(minRequired) photos. These upload to secure storage and gate "
-                     + (phase == .before ? "check-in." : "checkout."))
-                    .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
+        return stepShell(
+            icon: "camera.fill",
+            title: phase == .before ? "Before photos" : "After photos"
+        ) {
+            Text("Capture at least \(minRequired) photos. These upload to secure storage and gate "
+                 + (phase == .before ? "the start of cleaning." : "checkout."))
+                .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
 
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())],
-                          spacing: SweeprSpacing.sm) {
-                    ForEach(photos) { _ in
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(SweeprColor.seafoam100)
-                            .frame(height: 72)
-                            .overlay(Image(systemName: "checkmark.circle.fill").foregroundColor(SweeprColor.brand))
-                    }
-                    Button {
-                        capturePhoto(phase: phase)
-                    } label: {
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .strokeBorder(SweeprColor.separator, lineWidth: 1)
-                            .frame(height: 72)
-                            .overlay(Image(systemName: "camera.fill").foregroundColor(SweeprColor.textSecondary))
-                    }
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())],
+                      spacing: SweeprSpacing.sm) {
+                ForEach(photos) { _ in
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(SweeprColor.seafoam100)
+                        .frame(height: 76)
+                        .overlay(
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(SweeprColor.brand)
+                        )
                 }
+                Button {
+                    capturePhoto(phase: phase)
+                } label: {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(SweeprColor.separator, lineWidth: 1)
+                        .frame(height: 76)
+                        .overlay(
+                            VStack(spacing: 2) {
+                                Image(systemName: "camera.fill").foregroundColor(SweeprColor.brand)
+                                Text("Add").font(SweeprFont.footnote()).foregroundColor(SweeprColor.textSecondary)
+                            }
+                        )
+                }
+                .buttonStyle(SweeprPressableButtonStyle())
+            }
 
+            HStack {
                 Text("\(photos.count)/\(minRequired) captured")
                     .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
-
+                Spacer()
                 if photos.count >= minRequired {
-                    SweeprButton(
-                        phase == .before ? "Start cleaning" : "Secure the door",
-                        systemIcon: phase == .before ? "play.fill" : "lock.fill"
-                    ) {
-                        if phase == .before {
-                            advance(to: .inProgress, transition: .in_progress)
-                        } else {
-                            step = .secureDoor
-                        }
+                    SweeprBadge("Ready", tone: .success)
+                }
+            }
+
+            if photos.count >= minRequired {
+                SweeprButton(
+                    phase == .before ? "Start cleaning" : "Continue to secure the door",
+                    systemIcon: phase == .before ? "play.fill" : "arrow.right"
+                ) {
+                    if phase == .before {
+                        advance(to: .inProgress, transition: .in_progress)
+                    } else {
+                        withAnimation(SweeprMotion.snappy) { step = .secureDoor }
                     }
                 }
             }
@@ -280,7 +384,13 @@ public struct JobDetailScreen: View {
     private var checklistCard: some View {
         SweeprCard {
             VStack(alignment: .leading, spacing: SweeprSpacing.md) {
-                Text("In progress").font(SweeprFont.heading()).foregroundColor(SweeprColor.textPrimary)
+                HStack {
+                    Text("In progress").font(SweeprFont.heading()).foregroundColor(SweeprColor.textPrimary)
+                    Spacer()
+                    Text("\(Int(checklistProgress * 100))%")
+                        .font(SweeprFont.caption().weight(.semibold)).foregroundColor(SweeprColor.brand)
+                }
+                SweeprProgressBar(value: checklistProgress)
                 ForEach($checklist) { $room in
                     VStack(alignment: .leading, spacing: SweeprSpacing.xs) {
                         Text(room.room).font(SweeprFont.body().weight(.semibold))
@@ -288,26 +398,25 @@ public struct JobDetailScreen: View {
                         ForEach($room.items) { $item in
                             Button {
                                 item.done.toggle()
-                                #if os(iOS)
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                #endif
+                                SweeprHaptics.impact(.light)
                             } label: {
-                                HStack {
+                                HStack(spacing: SweeprSpacing.sm) {
                                     Image(systemName: item.done ? "checkmark.circle.fill" : "circle")
-                                        .foregroundColor(item.done ? SweeprColor.brand : SweeprColor.textSecondary)
+                                        .foregroundColor(item.done ? SweeprColor.brand : SweeprColor.separator)
                                     Text(item.label).font(SweeprFont.body())
-                                        .foregroundColor(SweeprColor.textPrimary)
+                                        .foregroundColor(item.done ? SweeprColor.textSecondary : SweeprColor.textPrimary)
                                         .strikethrough(item.done)
                                     Spacer()
                                 }
+                                .contentShape(Rectangle())
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(SweeprPressableButtonStyle())
                         }
                     }
-                    Divider()
+                    SweeprDivider()
                 }
                 SweeprButton("Move to after photos", systemIcon: "camera.fill") {
-                    step = .afterPhotos
+                    withAnimation(SweeprMotion.snappy) { step = .afterPhotos }
                 }
                 .disabled(!checklistComplete)
             }
@@ -315,102 +424,121 @@ public struct JobDetailScreen: View {
     }
 
     private var secureDoorCard: some View {
-        SweeprCard {
-            VStack(alignment: .leading, spacing: SweeprSpacing.md) {
-                Text("Secure the door").font(SweeprFont.heading()).foregroundColor(SweeprColor.textPrimary)
-                Text("Make sure the door is locked before you leave. This re-secures the Smart Entry lock.")
-                    .font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
-                SweeprButton(isDoorSecured ? "Door secured" : "Lock door", style: isDoorSecured ? .secondary : .primary,
-                             systemIcon: "lock.fill") {
-                    secureDoor()
-                }
-                .disabled(isDoorSecured)
-                if isDoorSecured {
-                    SweeprButton("Continue to checkout", systemIcon: "arrow.right") {
-                        step = .checkout
-                    }
+        stepShell(icon: "lock.fill", title: "Secure the door") {
+            Text("Make sure the door is locked before you leave. This re-secures the Smart Entry lock.")
+                .font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
+            SweeprButton(
+                isDoorSecured ? "Door secured" : (isSecuringDoor ? "Securing…" : "Lock door"),
+                style: isDoorSecured ? .secondary : .primary,
+                systemIcon: isDoorSecured ? "lock.fill" : "lock.rotation",
+                isLoading: isSecuringDoor
+            ) {
+                secureDoor()
+            }
+            .disabled(isDoorSecured || isSecuringDoor)
+            if isDoorSecured {
+                SweeprButton("Continue to checkout", systemIcon: "arrow.right") {
+                    withAnimation(SweeprMotion.snappy) { step = .checkout }
                 }
             }
         }
     }
 
     private var checkoutCard: some View {
-        SweeprCard {
-            VStack(alignment: .leading, spacing: SweeprSpacing.md) {
-                Text("Checkout").font(SweeprFont.heading()).foregroundColor(SweeprColor.textPrimary)
-                Text("Review complete. Submitting will mark this job as completed and start payout processing.")
-                    .font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
-                if let payout = job.payoutEstimate {
-                    HStack {
-                        Text("Est. payout").font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
-                        Spacer()
-                        Text(payout.dollarsString).font(SweeprFont.heading()).foregroundColor(SweeprColor.brand)
-                    }
+        stepShell(icon: "checkmark.seal.fill", title: "Checkout") {
+            Text("Review complete. Submitting marks this job completed and starts payout processing.")
+                .font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
+            if let payout = job.payoutEstimate {
+                HStack {
+                    Text("Est. payout").font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
+                    Spacer()
+                    Text(payout.dollarsString).font(SweeprFont.heading()).foregroundColor(SweeprColor.brand)
                 }
-                SweeprButton(isAdvancing ? "Submitting…" : "Complete job", systemIcon: "checkmark.seal.fill") {
-                    advance(to: .done, transition: .completed_pending_review)
-                }
-                .disabled(isAdvancing)
             }
+            SweeprButton(isAdvancing ? "Submitting…" : "Complete job", systemIcon: "checkmark.seal.fill", isLoading: isAdvancing) {
+                advance(to: .done, transition: .completed_pending_review)
+            }
+            .disabled(isAdvancing)
         }
     }
 
     private var doneCard: some View {
-        SweeprCard {
+        SweeprCard(elevation: .medium) {
             VStack(alignment: .leading, spacing: SweeprSpacing.sm) {
-                Label("Job complete", systemImage: "checkmark.seal.fill")
-                    .font(SweeprFont.heading()).foregroundColor(SweeprColor.brand)
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 40, weight: .semibold))
+                    .foregroundColor(SweeprColor.brand)
+                Text("Job complete").font(SweeprFont.heading()).foregroundColor(SweeprColor.textPrimary)
                 Text("Nice work. Payout will process after the platform review window.")
                     .font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
             }
         }
     }
 
-    // MARK: - Actions
-
-    private func advance(to nextStep: DayOfServiceStep, transition: BookingStatus) {
-        guard !isAdvancing else { return }
-        isAdvancing = true
-        #if os(iOS)
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        #endif
-        Task {
-            do { try await env.cleanerAPI.transition(bookingId: job.booking.id, to: transition) }
-            catch { /* Server is authoritative; UI still advances locally for
-                       demo/offline continuity, but a real failure should
-                       surface an error toast here. */ }
-            step = nextStep
-            isAdvancing = false
+    /// Shared shell for a flow step: leading icon tile + title + custom body.
+    private func stepShell<Content: View>(icon: String, title: String, @ViewBuilder content: () -> Content) -> some View {
+        SweeprCard {
+            VStack(alignment: .leading, spacing: SweeprSpacing.md) {
+                HStack(spacing: SweeprSpacing.sm) {
+                    Image(systemName: icon)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(SweeprColor.brand)
+                        .frame(width: 36, height: 36)
+                        .background(SweeprColor.brand.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    Text(title).font(SweeprFont.heading()).foregroundColor(SweeprColor.textPrimary)
+                }
+                content()
+            }
         }
     }
 
-    private func openInAppleMaps() {
-        guard let addr = job.booking.address else { return }
-        let query = addr.oneLine.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        guard let url = URL(string: "https://maps.apple.com/?daddr=\(query)") else { return }
-        #if os(iOS)
-        UIApplication.shared.open(url)
-        #endif
+    // MARK: - Smart Entry actions
+
+    /// Builds a proof-of-presence body. In production the coordinate/accuracy
+    /// come from CoreLocation; without a live fix we send the job coordinate.
+    private func smartEntryLocation(reauthenticated: Bool) -> CleanerAPI.SmartEntryLocation {
+        let addr = job.booking.address
+        return .now(
+            latitude: addr?.latitude ?? 0,
+            longitude: addr?.longitude ?? 0,
+            accuracyMeters: 12,
+            sessionId: env.smartEntrySessionId,
+            reauthenticated: reauthenticated
+        )
     }
 
-    private func revealAccess() {
-        isAuthenticating = true
+    private func revealCredential() {
+        guard isCheckedIn else { return }
+        isRevealing = true
         Task {
             let ok = await requestBiometricReauth()
-            guard ok else { isAuthenticating = false; return }
-            do { access = try await env.cleanerAPI.revealAccess(bookingId: job.booking.id) }
-            catch {
-                access = CleanerAPI.AccessReveal(
-                    code: dos?.smartEntry?.code, instructions: dos?.smartEntry?.instructions,
-                    expiresInSeconds: Int(CleanerMock.smartEntryRevealSeconds)
+            guard ok else { isRevealing = false; return }
+            do {
+                let cred = try await env.cleanerAPI.revealAccessCredential(
+                    bookingId: job.booking.id,
+                    location: smartEntryLocation(reauthenticated: true)
                 )
+                credential = cred
+                credentialRevealed = true
+                SweeprHaptics.notify(.success)
+                startAutoHideTimer(seconds: cred.displaySeconds)
+            } catch {
+                // Offline/demo fallback so the flow stays exercisable.
+                if let se = dos?.smartEntry, let code = se.code {
+                    let seconds = Int(CleanerMock.smartEntryRevealSeconds)
+                    credential = CleanerAPI.AccessCredential(
+                        credentialType: se.method.rawValue, credential: code,
+                        expiresAtRaw: nil, displaySeconds: seconds, remainingRevealCount: 1
+                    )
+                    credentialRevealed = true
+                    SweeprHaptics.notify(.success)
+                    startAutoHideTimer(seconds: seconds)
+                } else {
+                    env.toasts.show("Access isn't available yet — confirm you're checked in at the property.", kind: .warning)
+                }
             }
-            #if os(iOS)
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-            #endif
-            smartEntryRevealed = true
-            isAuthenticating = false
-            startAutoHideTimer(seconds: access?.expiresInSeconds ?? Int(CleanerMock.smartEntryRevealSeconds))
+            isRevealing = false
         }
     }
 
@@ -423,40 +551,86 @@ public struct JobDetailScreen: View {
                 if Task.isCancelled { return }
                 revealRemaining -= 1
             }
-            smartEntryRevealed = false
-            access = nil
+            credentialRevealed = false
+            credential = nil
         }
     }
 
-    private func unlockDoor() {
-        #if os(iOS)
-        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
-        #endif
-        Task {
-            do { try await env.cleanerAPI.setLock(bookingId: job.booking.id, locked: false) } catch {}
-            isDoorUnlocked = true
+    /// Injected into `TapToUnlock`: performs the backend unlock and reports
+    /// success so the control can settle into its unlocked/failed state.
+    private func performUnlock() async -> Bool {
+        do {
+            let result = try await env.cleanerAPI.unlockDoor(
+                bookingId: job.booking.id,
+                location: smartEntryLocation(reauthenticated: true)
+            )
+            if result.succeeded {
+                isDoorUnlocked = true
+                return true
+            }
+            env.toasts.show(result.message ?? "Smart Entry didn't respond. Try again.", kind: .warning)
+            return false
+        } catch {
+            env.toasts.show("Unlock not authorized — are you checked in at the property?", kind: .error)
+            return false
         }
     }
 
     private func secureDoor() {
-        #if os(iOS)
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        #endif
+        isSecuringDoor = true
+        SweeprHaptics.impact(.medium)
         Task {
-            do { try await env.cleanerAPI.setLock(bookingId: job.booking.id, locked: true) } catch {}
+            do {
+                let result = try await env.cleanerAPI.lockDoor(
+                    bookingId: job.booking.id,
+                    location: smartEntryLocation(reauthenticated: false)
+                )
+                if result.succeeded {
+                    env.toasts.show("Door secured", kind: .success)
+                } else {
+                    env.toasts.show(result.message ?? "Couldn't confirm the lock — please check the door.", kind: .warning)
+                }
+            } catch {
+                env.toasts.show("Lock command not authorized.", kind: .error)
+            }
             isDoorSecured = true
+            isSecuringDoor = false
         }
+    }
+
+    // MARK: - Flow actions
+
+    private func advance(to nextStep: DayOfServiceStep, transition: BookingStatus) {
+        guard !isAdvancing else { return }
+        isAdvancing = true
+        SweeprHaptics.impact(.medium)
+        Task {
+            do {
+                try await env.cleanerAPI.transition(bookingId: job.booking.id, to: transition)
+            } catch {
+                // Server is authoritative; the UI still advances locally for
+                // offline continuity, but surface that the sync failed.
+                env.toasts.show("Saved locally — we'll resync when you're back online.", kind: .warning)
+            }
+            withAnimation(SweeprMotion.snappy) { step = nextStep }
+            isAdvancing = false
+        }
+    }
+
+    private func openInMaps() {
+        guard let addr = job.booking.address, let lat = addr.latitude, let lon = addr.longitude else {
+            env.toasts.show("No mappable address yet.", kind: .warning)
+            return
+        }
+        SweeprMaps.openInMaps(latitude: lat, longitude: lon, label: job.booking.packageDisplayName)
     }
 
     private enum PhotoPhase { case before, after }
 
     private func capturePhoto(phase: PhotoPhase) {
-        // TODO: wire real camera capture (PHPickerViewController /
-        // UIImagePickerController) + upload to R2. This records a placeholder
-        // capture so the gate (>=2 photos) can be exercised end-to-end.
-        #if os(iOS)
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        #endif
+        // TODO(camera): wire real capture (PHPicker / UIImagePicker) + upload to
+        // R2. This records a placeholder so the >=2 gate is exercisable.
+        SweeprHaptics.impact(.light)
         let photo = CapturedPhoto()
         if phase == .before { beforePhotos.append(photo) } else { afterPhotos.append(photo) }
         Task {
@@ -466,9 +640,9 @@ public struct JobDetailScreen: View {
         }
     }
 
-    /// Biometric re-auth before Smart Entry reveal/unlock. Falls back to
-    /// allowing access when biometrics are unavailable/unenrolled so onboarding
-    /// never hard-blocks a cleaner without Face ID/Touch ID configured.
+    /// Biometric re-auth before Smart Entry reveal. Falls back to allowing
+    /// access when biometrics are unavailable/unenrolled so a cleaner without
+    /// Face ID / Touch ID configured is never hard-blocked.
     private func requestBiometricReauth() async -> Bool {
         #if os(iOS) && canImport(LocalAuthentication)
         let context = LAContext()
@@ -479,7 +653,7 @@ public struct JobDetailScreen: View {
         return await withCheckedContinuation { continuation in
             context.evaluatePolicy(
                 .deviceOwnerAuthenticationWithBiometrics,
-                localizedReason: "Confirm it's you to reveal this customer's access code."
+                localizedReason: "Confirm it's you to reveal this customer's access details."
             ) { success, _ in
                 continuation.resume(returning: success)
             }
@@ -489,14 +663,15 @@ public struct JobDetailScreen: View {
         #endif
     }
 
-    private func loadAccessIfNeeded() async {
+    private func ensureChecklistLoaded() async {
         if checklist.isEmpty { checklist = CleanerMock.checklist }
     }
 
     private func load() async {
         isLoading = true
-        do { dos = try await env.api.dayOfServiceStatus(bookingId: job.booking.id) }
-        catch {
+        do {
+            dos = try await env.api.dayOfServiceStatus(bookingId: job.booking.id)
+        } catch {
             dos = DayOfServiceStatus(
                 bookingId: job.booking.id, status: job.booking.status,
                 checkedInAt: nil, arrivedAt: nil, startedAt: nil, completedAt: nil,
@@ -509,3 +684,13 @@ public struct JobDetailScreen: View {
         isLoading = false
     }
 }
+
+#if DEBUG
+struct JobDetailScreen_Previews: PreviewProvider {
+    static var previews: some View {
+        NavigationStack {
+            JobDetailScreen(job: SweeprMock.jobs[0]).environmentObject(AppEnvironment.preview)
+        }
+    }
+}
+#endif

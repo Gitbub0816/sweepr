@@ -10,7 +10,8 @@
 import SwiftUI
 import SweeprKit
 
-// Cleaner tab bar: Jobs, Route (map), Earnings, Account.
+// Cleaner tab bar: Jobs, Route (map), Earnings, Account. The shared toast
+// center is rendered once here so any screen can surface a transient banner.
 public struct RootView: View {
     @EnvironmentObject private var env: AppEnvironment
 
@@ -31,6 +32,8 @@ public struct RootView: View {
             AccountScreen()
                 .tabItem { Label("Account", systemImage: "person.crop.circle") }
         }
+        .tint(SweeprColor.brand)
+        .sweeprToast(env.toasts)
     }
 }
 
