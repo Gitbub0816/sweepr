@@ -17,6 +17,7 @@ import { sendEmail, wrapBodyInTemplate, SENDERS } from "../lib/mailer";
 import { requireAuth } from "../middleware/auth";
 import { requireAdmin } from "../middleware/adminRoles";
 import { yardstikClient, adverseActionEarliestDate } from "../lib/yardstik";
+import { enrollSorMonitoringIfApproved } from "../lib/sorMonitoring";
 import { audit } from "../lib/audit";
 import { logger } from "../lib/logger";
 import { enroll as enrollFounding } from "../lib/foundingMember";
@@ -578,6 +579,9 @@ adminRouter.post(
       await sql`
         UPDATE cleaners SET yardstik_status = 'clear', updated_at = NOW() WHERE id = ${cleanerId}
       `;
+      // Approved → auto-enroll in continuous SOR monitoring (idempotent no-op
+      // when unconfigured or already enrolled).
+      await enrollSorMonitoringIfApproved(sql, c.env, cleanerId);
     } else if (adjudication === "pre_adverse_action") {
       await client.createAdverseAction(
         cleaner.yardstik_report_id,

@@ -65,6 +65,10 @@ preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
 #                              DATABASE_URL-derived key when unset.)
 # YARDSTIK_API_KEY          (omit for mock mode)
 # YARDSTIK_ACCOUNT_PACKAGE_ID
+# YARDSTIK_SOR_MONITOR_PACKAGE_ID  (account_package_id of the ongoing SOR monitoring
+#                            package; approved cleaners are auto-enrolled in continuous
+#                            Sex Offender Registry monitoring when set — leave unset to
+#                            disable enrollment)
 # YARDSTIK_API_URL          (optional — defaults to https://api.yardstik.com; set to
 #                            https://api.yardstik-staging.com for a staging account)
 # YARDSTIK_WEBHOOK_SIGNATURE (value of a Yardstik dashboard API key literally named

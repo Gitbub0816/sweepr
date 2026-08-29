@@ -24,6 +24,7 @@ import {
   type YardstikWebhookBody,
 } from "../lib/yardstik";
 import { adjudicateConsiderReport } from "../lib/adjudication";
+import { enrollSorMonitoringIfApproved } from "../lib/sorMonitoring";
 import { hasAcknowledgedAdjudicationPolicy } from "./adjudication";
 import { serverTrack } from "../lib/posthog";
 import type { AppBindings } from "../types";
@@ -312,6 +313,29 @@ const yardstikWebhookHandler = async (c: Context<AppBindings>) => {
       return c.json({ received: true });
     }
 
+    // A cleaner has TWO reports against the same candidate: the initial
+    // screening report and the ongoing SOR monitoring report. Events for the
+    // monitoring report must NOT drive yardstik_status (which tracks the
+    // screening decision) — otherwise a monitor update would clobber an
+    // approved cleaner's 'clear' status. Skip status mutation for those.
+    const reportRows = (await sql`
+      SELECT yardstik_report_id, yardstik_sor_monitor_report_id
+      FROM cleaners WHERE id = ${targetId} LIMIT 1
+    `) as { yardstik_report_id: string | null; yardstik_sor_monitor_report_id: string | null }[];
+    const monitorReportId = reportRows[0]?.yardstik_sor_monitor_report_id ?? null;
+    const screeningReportId = reportRows[0]?.yardstik_report_id ?? null;
+    if (
+      monitorReportId &&
+      payload.resource_id === monitorReportId &&
+      payload.resource_id !== screeningReportId
+    ) {
+      logger.info("Yardstik webhook: SOR monitor report event (status untouched)", {
+        cleanerId: targetId,
+        status: payload.status,
+      });
+      return c.json({ received: true });
+    }
+
     const normalized = mapReportStatus(payload.status);
 
     if (payload.event === "created") {
@@ -360,6 +384,7 @@ const yardstikWebhookHandler = async (c: Context<AppBindings>) => {
               await client.proceedReport(candidateId, payload.resource_id);
               await sql`UPDATE cleaners SET yardstik_status = 'clear' WHERE id = ${targetId}`;
               logger.info("Haiku adjudicated: engage", { reportId: payload.resource_id, reasoning: haiku.reasoning });
+              await enrollSorMonitoringIfApproved(sql, c.env, targetId);
               autoEngaged = true;
             }
           } catch (err) {
@@ -385,6 +410,9 @@ const yardstikWebhookHandler = async (c: Context<AppBindings>) => {
       }
 
       if (normalized === "clear") {
+        // Approved → auto-enroll in continuous SOR monitoring (idempotent
+        // no-op when unconfigured or already enrolled).
+        await enrollSorMonitoringIfApproved(sql, c.env, targetId);
         serverTrack(c.env, targetId, "yardstik_report_completed", { status: normalized });
       }
     }

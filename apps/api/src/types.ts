@@ -62,6 +62,10 @@ export interface Env {
   CUSTOMER_URL?: string;
   YARDSTIK_API_KEY?: string;
   YARDSTIK_ACCOUNT_PACKAGE_ID?: string;
+  /** account_package_id of the ongoing SOR (Sex Offender Registry) monitoring
+   * package. When set, approved cleaners are auto-enrolled in continuous
+   * monitoring; when unset, enrollment is skipped (no behavior change). */
+  YARDSTIK_SOR_MONITOR_PACKAGE_ID?: string;
   /** Optional override for staging/sandbox Yardstik hosts. Defaults to https://api.yardstik.com. */
   YARDSTIK_API_URL?: string;
   /** Value of the Yardstik dashboard API key literally named WEBHOOK_SIGNATURE. */

@@ -135,7 +135,7 @@ function normalizeBaseUrl(rawBaseUrl?: string): string {
 
 // ─── Mock implementation ──────────────────────────────────────────────────────
 
-function mockClient(accountPackageId: string) {
+function mockClient(accountPackageId: string, sorMonitorPackageId?: string) {
   return {
     async createCandidate(email: string, firstName: string, lastName: string, externalId?: string): Promise<YardstikCandidate> {
       return {
@@ -162,6 +162,21 @@ function mockClient(accountPackageId: string) {
         completed_at: null,
         applyUrl: `${base}/yardstik-simulate?inv=${id}&pkg=${accountPackageId}`,
         expiresAt: expires.toISOString(),
+      };
+    },
+
+    async createMonitorReport(candidateId: string, externalId?: string): Promise<YardstikOrderedReport> {
+      const id = `mock_mon_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
+      return {
+        id,
+        status: "created",
+        candidate_id: candidateId,
+        external_id: externalId ?? null,
+        package_name: sorMonitorPackageId ?? "mock_sor_monitor",
+        created_at: new Date().toISOString(),
+        completed_at: null,
+        applyUrl: "",
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       };
     },
 
@@ -209,7 +224,7 @@ function mockClient(accountPackageId: string) {
 
 // ─── Live implementation ──────────────────────────────────────────────────────
 
-function liveClient(apiKey: string, accountPackageId: string, explicitBaseUrl?: string) {
+function liveClient(apiKey: string, accountPackageId: string, explicitBaseUrl?: string, sorMonitorPackageId?: string) {
   const base = normalizeBaseUrl(explicitBaseUrl);
 
   async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -240,6 +255,27 @@ function liveClient(apiKey: string, accountPackageId: string, explicitBaseUrl?: 
       const report = await req<YardstikReport>("POST", "/reports", {
         candidate_id: candidateId,
         account_package_id: accountPackageId,
+        external_id: externalId ?? undefined,
+      });
+      const applyUrl = report.meta?.apply ?? "";
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      return { ...report, applyUrl, expiresAt };
+    },
+
+    /**
+     * Order the ongoing SOR (Sex Offender Registry) monitoring package against
+     * an EXISTING candidate. The candidate already supplied the PII the monitor
+     * needs (name + DOB) when they completed the initial screening report, so
+     * Yardstik reuses it — no second hosted apply step for the cleaner. Throws
+     * if no SOR monitoring package id is configured (caller gates on this).
+     */
+    async createMonitorReport(candidateId: string, externalId?: string): Promise<YardstikOrderedReport> {
+      if (!sorMonitorPackageId) {
+        throw new Error("Yardstik SOR monitor package id not configured");
+      }
+      const report = await req<YardstikReport>("POST", "/reports", {
+        candidate_id: candidateId,
+        account_package_id: sorMonitorPackageId,
         external_id: externalId ?? undefined,
       });
       const applyUrl = report.meta?.apply ?? "";
@@ -290,14 +326,22 @@ function liveClient(apiKey: string, accountPackageId: string, explicitBaseUrl?: 
 export function yardstikClient(env: {
   YARDSTIK_API_KEY?: string;
   YARDSTIK_ACCOUNT_PACKAGE_ID?: string;
+  YARDSTIK_SOR_MONITOR_PACKAGE_ID?: string;
   YARDSTIK_API_URL?: string;
 }) {
   // Trim wrapping quotes / stray whitespace a dashboard or `wrangler secret
   // put` paste can leave on the value — an invisible trailing newline here
   // otherwise produces a malformed account_package_id and a 422 from Yardstik.
   const packageId = stripWrappingQuotes(env.YARDSTIK_ACCOUNT_PACKAGE_ID ?? "").trim();
-  if (!env.YARDSTIK_API_KEY) return mockClient(packageId);
-  return liveClient(env.YARDSTIK_API_KEY, packageId, stripWrappingQuotes(env.YARDSTIK_API_URL ?? "").trim() || undefined);
+  const sorMonitorPackageId =
+    stripWrappingQuotes(env.YARDSTIK_SOR_MONITOR_PACKAGE_ID ?? "").trim() || undefined;
+  if (!env.YARDSTIK_API_KEY) return mockClient(packageId, sorMonitorPackageId);
+  return liveClient(
+    env.YARDSTIK_API_KEY,
+    packageId,
+    stripWrappingQuotes(env.YARDSTIK_API_URL ?? "").trim() || undefined,
+    sorMonitorPackageId,
+  );
 }
 
 // ─── Webhook signature verification ──────────────────────────────────────────
