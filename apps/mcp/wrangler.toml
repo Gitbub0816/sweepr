@@ -1,0 +1,50 @@
+name = "sweepr-mcp"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# MCP pricing-sandbox worker (mcp.getsweepr.com): lets an external LLM
+# (ChatGPT / Claude, via OAuth against the ADMIN Clerk instance) explore
+# pricing config read-only, tweak a QUARANTINED simulator config
+# (mcp_simulator_configs), run quote simulations, and emit a JSON payload a
+# human admin later uploads in the admin console. NO write path to live data.
+#
+# NOTE: `routes` must sit ABOVE the first [section] header — TOML scopes keys
+# to the preceding table, so a routes array under [vars] silently becomes an
+# env var named "routes" and wrangler attaches nothing (see apps/api note).
+routes = [
+  { pattern = "mcp.getsweepr.com", custom_domain = true }
+]
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+
+[vars]
+ENVIRONMENT = "production"
+MCP_ENABLED = "true"
+
+# Secrets stored in Cloudflare (set via `printf 'value' | wrangler secret put NAME`
+# in apps/mcp — printf, never echo: a trailing newline has broken integrations):
+# DATABASE_URL            (Neon connection string — same DB as sweepr-api; this
+#                          worker only READS config tables and writes ONLY the
+#                          quarantined mcp_simulator_configs / mcp_action_log)
+# CLERK_ADMIN_SECRET_KEY  (sk_live_… of the SEPARATE admin Clerk app,
+#                          clerk.admin.getsweepr.com — verifies the staff
+#                          sign-in during the OAuth authorize step)
+# MCP_TOKEN_SECRET        (long random string, e.g. openssl rand -hex 32 —
+#                          HMAC key for ALL OAuth state: client registrations,
+#                          auth codes, access/refresh tokens, simulator share
+#                          links. Rotating it invalidates every outstanding
+#                          token/connection, which is the intended kill move.)
+#
+# Vars (not secrets):
+# MCP_ENABLED             kill switch — every endpoint returns 503 unless this
+#                         is exactly "true". Set below; flip via dashboard or
+#                         `wrangler deploy --var MCP_ENABLED:false` to disable.
+
+[env.production]
+vars = { ENVIRONMENT = "production", MCP_ENABLED = "true" }
