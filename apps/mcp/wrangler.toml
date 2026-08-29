@@ -27,6 +27,13 @@ invocation_logs = true
 ENVIRONMENT = "production"
 MCP_ENABLED = "true"
 
+# All three secrets below must ALSO exist as GitHub repo secrets of the same
+# name so the deploy-mcp job's "Sync worker secrets" step can push them to a
+# fresh version on every deploy (its put() helper silently skips any that are
+# empty). CLERK_ADMIN_SECRET_KEY in particular was historically set only on
+# sweepr-api, not as a repo secret — add it in GitHub too, or a redeploy won't
+# resync it and the worker fails closed with "not configured".
+#
 # Secrets stored in Cloudflare (set via `printf 'value' | wrangler secret put NAME`
 # in apps/mcp — printf, never echo: a trailing newline has broken integrations):
 # DATABASE_URL            (Neon connection string — same DB as sweepr-api; this
