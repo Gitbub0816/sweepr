@@ -130,6 +130,107 @@ export interface RevealedCleaner {
 /** A booking with the (optionally) revealed cleaner identity attached. */
 export type BookingWithCleaner = Booking & { revealedCleaner?: RevealedCleaner | null };
 
+/**
+ * A crew seat as exposed to the customer by GET /bookings/:id/crew. Only seat
+ * shape + role/status + the (nullable) cleaner id are returned; the endpoint
+ * does NOT include a member's customer-safe name/rating/cleans count today
+ * (see fetchCrew note). Solo bookings return an empty or single-LEAD roster.
+ */
+export interface CrewSeatView {
+  id: string;
+  cleanerId: string | null;
+  role: "LEAD" | "MEMBER";
+  seatIndex: number;
+  status: string;
+  checkInAt: string | null;
+  checkOutAt: string | null;
+}
+
+export interface BookingCrew {
+  crewStatus: string | null;
+  requiredCrewSize: number | null;
+  targetCrewSize: number | null;
+  extraCleanerRequested: boolean;
+  seats: CrewSeatView[];
+}
+
+/** Seat statuses that mean a real, authorized person holds the seat. */
+const ASSIGNED_SEAT_STATUSES = new Set(["ACCEPTED", "COMPLETED"]);
+
+/** True when this booking is staffed as a team (more than one seat). */
+export function isTeamBooking(crew: BookingCrew | null): boolean {
+  if (!crew) return false;
+  const target = crew.targetCrewSize ?? crew.requiredCrewSize ?? 0;
+  return target > 1 || crew.seats.some((s) => s.role === "MEMBER");
+}
+
+/** The seats to display to the customer: only authorized (assigned) people. */
+export function assignedSeats(crew: BookingCrew | null): CrewSeatView[] {
+  if (!crew) return [];
+  return crew.seats
+    .filter((s) => s.cleanerId != null && ASSIGNED_SEAT_STATUSES.has(s.status))
+    .sort((a, b) => a.seatIndex - b.seatIndex);
+}
+
+/**
+ * Fetch the crew roster for a booking. Returns null for solo bookings, when
+ * Team Cleans is disabled, or on any error, so callers fall back to the
+ * single-cleaner experience unchanged.
+ *
+ * NOTE (backend follow-up): this endpoint returns only cleaner ids for member
+ * seats, never a customer-safe name/rating/cleans count. The LEAD's "First L."
+ * identity still comes from GET /bookings/:id (revealedCleaner). Member
+ * identities are shown as "Verified Sweepr cleaner" until a customer-safe crew
+ * reveal is added server-side.
+ */
+export async function fetchCrew(
+  getToken: () => Promise<string | null>,
+  id: string,
+): Promise<BookingCrew | null> {
+  if (!API_URL) return null;
+  try {
+    const token = await getToken();
+    const res = await fetch(`${API_URL}/bookings/${id}/crew`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      booking?: {
+        crewStatus?: string | null;
+        requiredCrewSize?: number | null;
+        targetCrewSize?: number | null;
+        extraCleanerRequested?: boolean | null;
+      };
+      seats?: Array<{
+        id: string;
+        cleanerId: string | null;
+        role: "LEAD" | "MEMBER";
+        seatIndex: number;
+        status: string;
+        checkInAt: string | null;
+        checkOutAt: string | null;
+      }>;
+    };
+    return {
+      crewStatus: data.booking?.crewStatus ?? null,
+      requiredCrewSize: data.booking?.requiredCrewSize ?? null,
+      targetCrewSize: data.booking?.targetCrewSize ?? null,
+      extraCleanerRequested: Boolean(data.booking?.extraCleanerRequested),
+      seats: (data.seats ?? []).map((s) => ({
+        id: s.id,
+        cleanerId: s.cleanerId,
+        role: s.role,
+        seatIndex: s.seatIndex,
+        status: s.status,
+        checkInAt: s.checkInAt,
+        checkOutAt: s.checkOutAt,
+      })),
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Fetch a single booking by id. */
 export async function fetchBooking(
   getToken: () => Promise<string | null>,

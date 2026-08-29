@@ -33,8 +33,16 @@ import {
 } from "@sweepr/utils";
 import { useAuth } from "@clerk/clerk-react";
 import { useAppToken } from "@/lib/appToken";
-import { fetchBooking, type BookingWithCleaner } from "../data/bookings";
+import {
+  fetchBooking,
+  fetchCrew,
+  isTeamBooking,
+  assignedSeats,
+  type BookingWithCleaner,
+  type BookingCrew,
+} from "../data/bookings";
 import { CleanerTracker } from "../components/CleanerTracker";
+import { CrewTeamCard } from "../components/CrewTeamCard";
 import { TipCard } from "../components/TipCard";
 import { AddServicesCard } from "../components/AddServicesCard";
 import { SmartEntryCard } from "../components/SmartEntryCard";
@@ -233,6 +241,7 @@ export function BookingDetailPage() {
   const { id } = useParams();
   const { getToken } = useAppToken();
   const [booking, setBooking] = useState<BookingWithCleaner | null>(null);
+  const [crew, setCrew] = useState<BookingCrew | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
@@ -244,6 +253,7 @@ export function BookingDetailPage() {
   const reload = () => {
     if (!id) return;
     fetchBooking(getToken, id).then((b) => setBooking(b));
+    fetchCrew(getToken, id).then((c) => setCrew(c));
   };
 
   useEffect(() => {
@@ -254,6 +264,9 @@ export function BookingDetailPage() {
       setBooking(b);
       setReviewOpen(b?.status === "completed_pending_review");
       setLoading(false);
+    });
+    fetchCrew(getToken, id).then((c) => {
+      if (active) setCrew(c);
     });
     return () => { active = false; };
   }, [id, getToken]);
@@ -323,26 +336,30 @@ export function BookingDetailPage() {
     >
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-6">
-          {booking.revealedCleaner && (
-            <Card>
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-seafoam-100 text-lg font-semibold text-seafoam-700 dark:bg-seafoam-900/40 dark:text-seafoam-300">
-                  {booking.revealedCleaner.displayName.charAt(0).toUpperCase()}
+          {isTeamBooking(crew) && assignedSeats(crew).length > 0 ? (
+            <CrewTeamCard crew={crew!} revealedLead={booking.revealedCleaner} />
+          ) : (
+            booking.revealedCleaner && (
+              <Card>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-seafoam-100 text-lg font-semibold text-seafoam-700 dark:bg-seafoam-900/40 dark:text-seafoam-300">
+                    {booking.revealedCleaner.displayName.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Your cleaner</p>
+                    <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-charcoal dark:text-white">
+                      {booking.revealedCleaner.displayName}
+                      {booking.revealedCleaner.foundingMember && (
+                        <FoundingMemberBadge
+                          founderId={booking.revealedCleaner.foundingMemberId}
+                          showTooltip={false}
+                        />
+                      )}
+                    </p>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Your cleaner</p>
-                  <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-charcoal dark:text-white">
-                    {booking.revealedCleaner.displayName}
-                    {booking.revealedCleaner.foundingMember && (
-                      <FoundingMemberBadge
-                        founderId={booking.revealedCleaner.foundingMemberId}
-                        showTooltip={false}
-                      />
-                    )}
-                  </p>
-                </div>
-              </div>
-            </Card>
+              </Card>
+            )
           )}
 
           {authToken && id && (booking.status === "cleaner_on_the_way" || booking.status === "arrived" || booking.status === "in_progress") && (

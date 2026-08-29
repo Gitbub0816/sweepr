@@ -13,12 +13,14 @@ import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, MapPin, CalendarClock, UserCheck, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Users } from "lucide-react";
 import { Button, Card } from "@sweepr/ui";
 import { formatDateTime } from "@sweepr/utils";
 import { useAuth } from "@clerk/clerk-react";
 import { useAppToken } from "@/lib/appToken";
 import { useBookingStore } from "../../store/booking";
-import { fetchBooking } from "../../data/bookings";
+import { fetchBooking, fetchCrew, isTeamBooking, assignedSeats, type BookingCrew } from "../../data/bookings";
+import { CrewTeamCard } from "../../components/CrewTeamCard";
 import type { Booking } from "@sweepr/types";
 
 export function ConfirmedStep() {
@@ -28,6 +30,7 @@ export function ConfirmedStep() {
   const state = useBookingStore();
   const { address, serviceType, scheduledFor, bookingId, reset } = state;
   const [dbBooking, setDbBooking] = useState<Booking | null>(null);
+  const [crew, setCrew] = useState<BookingCrew | null>(null);
 
   // Load the real booking from the DB so we can show cleaner assignment status.
   useEffect(() => {
@@ -35,9 +38,12 @@ export function ConfirmedStep() {
     fetchBooking(getToken, bookingId).then((b) => {
       if (b) setDbBooking(b);
     });
+    fetchCrew(getToken, bookingId).then((c) => setCrew(c));
   }, [bookingId, getToken]);
 
   const cleanerAssigned = !!dbBooking?.cleanerId;
+  const teamBooking = isTeamBooking(crew);
+  const hasTeamSeats = assignedSeats(crew).length > 0;
 
   return (
     <div className="min-h-screen bg-offwhite px-4 py-16 dark:bg-slate-950">
@@ -54,19 +60,37 @@ export function ConfirmedStep() {
           {t("booking.confirmed.title")}
         </h1>
         <p className="mt-2 text-slate-500">
-          {cleanerAssigned
-            ? t("booking.confirmed.cleanerAssigned")
-            : t("booking.confirmed.findingCleaner")}
+          {teamBooking
+            ? t("booking.confirmed.teamConfirming", {
+                defaultValue: "Your Sweepr team is being confirmed.",
+              })
+            : cleanerAssigned
+              ? t("booking.confirmed.cleanerAssigned")
+              : t("booking.confirmed.findingCleaner")}
         </p>
 
         {/* Cleaner assignment status */}
         <div className={`mt-6 flex items-center justify-center gap-3 overflow-hidden rounded-2xl px-5 py-4 ${
-          cleanerAssigned
+          teamBooking || cleanerAssigned
             ? "bg-seafoam-50 dark:bg-seafoam-900/20"
             : "bg-amber-50 dark:bg-amber-900/20"
         }`}>
           <AnimatePresence mode="wait">
-            {cleanerAssigned ? (
+            {teamBooking ? (
+              <motion.div
+                key="team"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.18 }}
+                className="flex items-center gap-3 motion-reduce:transition-none"
+              >
+                <Users className="h-5 w-5 text-seafoam-700" />
+                <span className="text-sm font-semibold text-seafoam-800 dark:text-seafoam-200">
+                  {t("booking.confirmed.teamBadge", { defaultValue: "Building your team" })}
+                </span>
+              </motion.div>
+            ) : cleanerAssigned ? (
               <motion.div
                 key="assigned"
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -97,6 +121,12 @@ export function ConfirmedStep() {
             )}
           </AnimatePresence>
         </div>
+
+        {teamBooking && hasTeamSeats && crew && (
+          <div className="mt-6 text-left">
+            <CrewTeamCard crew={crew} />
+          </div>
+        )}
 
         {(serviceType || dbBooking) && (scheduledFor || dbBooking) && (
           <Card className="mt-8 text-left">
