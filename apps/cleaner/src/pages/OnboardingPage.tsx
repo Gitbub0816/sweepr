@@ -37,11 +37,11 @@ import {
   toast,
   track,
   Events,
-  loadMapkit,
 } from "@sweepr/ui";
 import type { ServiceType, AddOn } from "@sweepr/types";
 import { ADD_ONS, formatCurrency } from "@sweepr/utils";
 import { ServiceAreaMap } from "../components/ServiceAreaMap";
+import { geocode as geocodeCity } from "../lib/geocode";
 import {
   BusinessVerificationStep,
   type BusinessVerificationValue,
@@ -912,26 +912,6 @@ function StepBusinessInfo({ form, set }: { form: FormState; set: SetFn }) {
       />
     </div>
   );
-}
-
-async function geocodeCity(query: string): Promise<[number, number] | null> {
-  if (!query.trim()) return null;
-  try {
-    const mapkit = await loadMapkit(API_URL);
-    const search = new mapkit.Search();
-    return await new Promise<[number, number] | null>((resolve) => {
-      search.search(query, (error: unknown, data: { places?: Array<{ coordinate: { latitude: number; longitude: number } }> }) => {
-        if (error || !data.places?.length) {
-          resolve(null);
-          return;
-        }
-        const { latitude, longitude } = data.places[0].coordinate;
-        resolve([longitude, latitude]);
-      });
-    });
-  } catch {
-    return null;
-  }
 }
 
 function StepArea({

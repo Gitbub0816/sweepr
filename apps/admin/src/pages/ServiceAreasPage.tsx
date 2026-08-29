@@ -10,7 +10,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { DashboardShell, Card, Button, Input, toast, loadMapkit, bindMapTheme, CardListSkeleton } from "@sweepr/ui";
+import { DashboardShell, Card, Button, Input, toast, mapboxgl, createMapboxMap, bindMapTheme, CardListSkeleton } from "@sweepr/ui";
 import { Plus, Trash2, MapPin } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
@@ -51,71 +51,133 @@ const BAY_AREA: [number, number][] = [
   [-122.608,37.907],
 ];
 
+const AREA_FILL_SOURCE = "service-areas";
+const AREA_FILL_LAYER = "service-areas-fill";
+const AREA_LINE_LAYER = "service-areas-line";
+
+/** Closes a polygon ring (GeoJSON requires first === last point). */
+function closeRing(coords: [number, number][]): [number, number][] {
+  if (coords.length === 0) return coords;
+  const [fx, fy] = coords[0];
+  const [lx, ly] = coords[coords.length - 1];
+  return fx === lx && fy === ly ? coords : [...coords, coords[0]];
+}
+
+function areasToFeatureCollection(areas: ServiceArea[]): GeoJSON.FeatureCollection {
+  const list = areas.length > 0 ? areas : [
+    { id: "bf", name: "Bay Area", slug: "bay-area", status: "live" as const, polygon: BAY_AREA },
+  ];
+  return {
+    type: "FeatureCollection",
+    features: list.map((area) => ({
+      type: "Feature",
+      properties: { status: area.status, name: area.name },
+      geometry: {
+        type: "Polygon",
+        // area.polygon is stored as [lng, lat] pairs — GeoJSON order already.
+        coordinates: [closeRing(area.polygon ?? BAY_AREA)],
+      },
+    })),
+  };
+}
+
 function AreaMap({ areas, requests }: { areas: ServiceArea[]; requests: CityRequest[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<any>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const dataRef = useRef({ areas, requests });
   const [unavailable, setUnavailable] = useState(false);
 
-  useEffect(() => {
-    if (!containerRef.current) return;
-    let cancelled = false;
+  // Keep the latest data reachable from the style.load handler (which fires on
+  // theme flips, after bindMapTheme's setStyle drops all custom sources/layers).
+  dataRef.current = { areas, requests };
 
-    loadMapkit(API)
-      .then((mapkit) => {
-        if (cancelled || !containerRef.current || mapRef.current) return;
+  // (Re)draw the polygon fill/line layers and request markers onto the map.
+  function drawOverlays(map: mapboxgl.Map) {
+    const { areas: a, requests: r } = dataRef.current;
+    const fc = areasToFeatureCollection(a);
 
-        const map = new mapkit.Map(containerRef.current, {
-          center: new mapkit.Coordinate(37.75, -122.15),
-          cameraDistance: 400000,
-          showsMapTypeControl: false,
-        });
-        mapRef.current = map;
-        bindMapTheme(mapkit, map);
-
-        const allAreas = areas.length > 0 ? areas : [
-          { id: "bf", name: "Bay Area", slug: "bay-area", status: "live" as const, polygon: BAY_AREA },
-        ];
-
-        allAreas.forEach((area) => {
-          const coords = area.polygon ?? BAY_AREA;
-          const points = coords.map(([lng, lat]) => new mapkit.Coordinate(lat, lng));
-          const color = area.status === "live" ? "#14b8a6" : "#f59e0b";
-          const borderColor = area.status === "live" ? "#0d9488" : "#d97706";
-
-          map.addOverlay(new mapkit.PolygonOverlay(points, {
-            style: new mapkit.Style({ fillColor: color, fillOpacity: 0.12, lineWidth: 0 }),
-          }));
-          map.addOverlay(new mapkit.PolylineOverlay(points, {
-            style: new mapkit.Style({ strokeColor: color, lineWidth: 8, strokeOpacity: 0.15 }),
-          }));
-          map.addOverlay(new mapkit.PolylineOverlay(points, {
-            style: new mapkit.Style({ strokeColor: borderColor, lineWidth: 1.5, strokeOpacity: 0.8 }),
-          }));
-        });
-
-        const pinned = requests.filter((r) => r.lat && r.lng);
-        if (pinned.length > 0) {
-          const annotations = pinned.map((r) => new mapkit.MarkerAnnotation(
-            new mapkit.Coordinate(r.lat!, r.lng!),
-            { color: "#f59e0b", glyphColor: "#fff", title: r.input, calloutEnabled: true }
-          ));
-          map.addAnnotations(annotations);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setUnavailable(true);
+    const src = map.getSource(AREA_FILL_SOURCE) as mapboxgl.GeoJSONSource | undefined;
+    if (src) {
+      src.setData(fc);
+    } else {
+      map.addSource(AREA_FILL_SOURCE, { type: "geojson", data: fc });
+      const fillColor: mapboxgl.ExpressionSpecification = [
+        "match", ["get", "status"], "live", "#14b8a6", "#f59e0b",
+      ];
+      const lineColor: mapboxgl.ExpressionSpecification = [
+        "match", ["get", "status"], "live", "#0d9488", "#d97706",
+      ];
+      map.addLayer({
+        id: AREA_FILL_LAYER,
+        type: "fill",
+        source: AREA_FILL_SOURCE,
+        paint: { "fill-color": fillColor, "fill-opacity": 0.12 },
       });
+      map.addLayer({
+        id: AREA_LINE_LAYER,
+        type: "line",
+        source: AREA_FILL_SOURCE,
+        layout: { "line-join": "round" },
+        paint: { "line-color": lineColor, "line-width": 1.5, "line-opacity": 0.85 },
+      });
+    }
+
+    // Request pins — cleared and rebuilt so they survive style reloads.
+    markersRef.current.forEach((m) => m.remove());
+    markersRef.current = [];
+    r.filter((req) => req.lat != null && req.lng != null).forEach((req) => {
+      const marker = new mapboxgl.Marker({ color: "#f59e0b" })
+        .setLngLat([req.lng!, req.lat!])
+        .setPopup(new mapboxgl.Popup({ offset: 24 }).setText(req.input))
+        .addTo(map);
+      markersRef.current.push(marker);
+    });
+  }
+
+  // Init the map once.
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+
+    const map = createMapboxMap(containerRef.current, {
+      center: [-122.15, 37.75],
+      zoom: 7.5,
+    });
+    if (!map) {
+      setUnavailable(true);
+      return;
+    }
+    mapRef.current = map;
+    const unbindTheme = bindMapTheme(map);
+
+    const onFirstLoad = () => drawOverlays(map);
+    map.on("load", onFirstLoad);
+    // bindMapTheme's setStyle drops custom sources/layers — re-add every time
+    // the base style finishes (re)loading, including on a dark/light flip.
+    map.on("style.load", () => drawOverlays(map));
 
     return () => {
-      cancelled = true;
-      mapRef.current?.destroy();
+      unbindTheme();
+      markersRef.current.forEach((m) => m.remove());
+      markersRef.current = [];
+      map.remove();
       mapRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Re-render overlays when the underlying data changes.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (map.isStyleLoaded()) drawOverlays(map);
+    // If the style is still loading, the "load"/"style.load" handlers will draw.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [areas, requests]);
 
   if (unavailable) return (
-    <div className="flex h-full items-center justify-center bg-slate-100 rounded-xl">
-      <p className="text-slate-600 text-sm">Map unavailable</p>
+    <div className="flex h-full items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-xl">
+      <p className="text-slate-600 dark:text-slate-300 text-sm">Map unavailable</p>
     </div>
   );
 

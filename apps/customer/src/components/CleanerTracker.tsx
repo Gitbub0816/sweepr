@@ -9,10 +9,8 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { loadMapkit, bindMapTheme } from "@sweepr/ui";
+import { MapboxMap, getMapboxToken, type MapboxMarker } from "@sweepr/ui";
 import { Clock, Navigation2 } from "lucide-react";
-
-const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
 const POLL_INTERVAL_MS = 15_000;
 
@@ -29,29 +27,41 @@ function fmtDuration(s: number): string {
   return `${Math.floor(m / 60)}h ${m % 60}m away`;
 }
 
-function fetchEta(
-  mapkit: any,
+interface RouteResult {
+  durationSec: number;
+  geometry: GeoJSON.Geometry;
+}
+
+/**
+ * Fetch a driving route + ETA from the Mapbox Directions API. Returns the
+ * duration in seconds and the route geometry (GeoJSON) so the caller can both
+ * show the ETA and draw the line. Resolves null on any error — the tracker just
+ * shows the moving dot without a line in that case.
+ */
+async function fetchRoute(
   cleanerLng: number,
   cleanerLat: number,
   destLng: number,
-  destLat: number
-): Promise<number | null> {
-  const directions = new mapkit.Directions();
-  return new Promise((resolve) => {
-    directions.route(
-      {
-        origin: new mapkit.Coordinate(cleanerLat, cleanerLng),
-        destination: new mapkit.Coordinate(destLat, destLng),
-      },
-      (error: unknown, data: { routes?: Array<{ expectedTravelTime: number }> }) => {
-        if (error || !data.routes?.length) {
-          resolve(null);
-          return;
-        }
-        resolve(data.routes[0].expectedTravelTime / 1000);
-      }
-    );
-  });
+  destLat: number,
+): Promise<RouteResult | null> {
+  const token = getMapboxToken();
+  if (!token) return null;
+  try {
+    const url =
+      `https://api.mapbox.com/directions/v5/mapbox/driving/` +
+      `${cleanerLng},${cleanerLat};${destLng},${destLat}` +
+      `?geometries=geojson&overview=full&access_token=${token}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      routes?: Array<{ duration: number; geometry: GeoJSON.Geometry }>;
+    };
+    const route = data.routes?.[0];
+    if (!route) return null;
+    return { durationSec: route.duration, geometry: route.geometry };
+  } catch {
+    return null;
+  }
 }
 
 export interface CleanerTrackerProps {
@@ -65,15 +75,10 @@ export interface CleanerTrackerProps {
 }
 
 export function CleanerTracker({ bookingId, token, apiUrl, destLat, destLng, dayStatus }: CleanerTrackerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<any>(null);
-  const mapkitRef = useRef<any>(null);
-  const cleanerMarkerRef = useRef<any>(null);
-  const destMarkerRef = useRef<any>(null);
   const [location, setLocation] = useState<Location | null>(null);
   const [etaSec, setEtaSec] = useState<number | null>(null);
+  const [routeGeoJSON, setRouteGeoJSON] = useState<GeoJSON.Feature | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [unavailable, setUnavailable] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchLocation = useCallback(async () => {
@@ -88,9 +93,15 @@ export function CleanerTracker({ bookingId, token, apiUrl, destLat, destLng, day
         setLocation(loc);
         setLastUpdated(new Date());
 
-        if (mapkitRef.current && destLat && destLng) {
-          const dur = await fetchEta(mapkitRef.current, loc.lng, loc.lat, destLng, destLat);
-          setEtaSec(dur);
+        if (destLat != null && destLng != null) {
+          const route = await fetchRoute(loc.lng, loc.lat, destLng, destLat);
+          if (route) {
+            setEtaSec(route.durationSec);
+            setRouteGeoJSON({ type: "Feature", properties: {}, geometry: route.geometry });
+          } else {
+            setEtaSec(null);
+            setRouteGeoJSON(null);
+          }
         }
       }
     } catch {
@@ -110,77 +121,17 @@ export function CleanerTracker({ bookingId, token, apiUrl, destLat, destLng, day
     };
   }, [shouldTrack, fetchLocation]);
 
-  // Init map
-  useEffect(() => {
-    if (!containerRef.current || destLat == null || destLng == null) return;
-    let cancelled = false;
-
-    loadMapkit(API)
-      .then((mapkit) => {
-        if (cancelled || !containerRef.current || mapRef.current) return;
-        mapkitRef.current = mapkit;
-
-        const map = new mapkit.Map(containerRef.current, {
-          center: new mapkit.Coordinate(destLat, destLng),
-          cameraDistance: 3000,
-          showsMapTypeControl: false,
-        });
-        mapRef.current = map;
-        bindMapTheme(mapkit, map);
-
-        // Destination (home) marker
-        destMarkerRef.current = new mapkit.MarkerAnnotation(
-          new mapkit.Coordinate(destLat, destLng),
-          { color: "#14b8a6", title: "Your home", glyphText: "\u{1F3E0}" }
-        );
-        map.addAnnotation(destMarkerRef.current);
-      })
-      .catch(() => {
-        if (!cancelled) setUnavailable(true);
-      });
-
-    return () => {
-      cancelled = true;
-      mapRef.current?.destroy();
-      mapRef.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Update cleaner marker when location changes
-  useEffect(() => {
-    const map = mapRef.current;
-    const mapkit = mapkitRef.current;
-    if (!map || !mapkit || !location) return;
-
-    const coord = new mapkit.Coordinate(location.lat, location.lng);
-    if (!cleanerMarkerRef.current) {
-      cleanerMarkerRef.current = new mapkit.MarkerAnnotation(coord, {
-        color: "#0f172a",
-        title: "Your Sweepr",
-        glyphColor: "#14b8a6",
-      });
-      map.addAnnotation(cleanerMarkerRef.current);
-    } else {
-      cleanerMarkerRef.current.coordinate = coord;
-    }
-
-    // Fit to show both cleaner and destination
-    if (destLat !== undefined && destLng !== undefined) {
-      const items = [cleanerMarkerRef.current, destMarkerRef.current].filter(Boolean);
-      map.showItems(items, { animate: true, padding: new mapkit.Padding(80, 80, 80, 80) });
-    }
-  }, [location, destLat, destLng]);
-
-  if (unavailable) {
-    return (
-      <div className="flex h-48 items-center justify-center rounded-2xl border border-slate-200 bg-seafoam-50 text-sm text-slate-600 dark:border-slate-700">
-        Live tracker unavailable
-      </div>
-    );
-  }
-
   if (!shouldTrack) return null;
+  if (destLat == null || destLng == null) return null;
+
+  // Destination (home) marker; the cleaner is the pulsing live dot.
+  const markers: MapboxMarker[] = [
+    { lngLat: [destLng, destLat], color: "#14b8a6", label: "Your home" },
+  ];
+  const liveLocation: [number, number] | null = location ? [location.lng, location.lat] : null;
+  const fitTo: [number, number][] = location
+    ? [[location.lng, location.lat], [destLng, destLat]]
+    : [[destLng, destLat]];
 
   return (
     <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm">
@@ -213,7 +164,15 @@ export function CleanerTracker({ bookingId, token, apiUrl, destLat, destLng, day
         )}
       </div>
 
-      <div ref={containerRef} className="h-[280px] w-full" role="img" aria-label="Live map showing your cleaner's location" />
+      <MapboxMap
+        className="h-[280px] w-full"
+        center={[destLng, destLat]}
+        zoom={13}
+        markers={markers}
+        liveLocation={liveLocation}
+        routeGeoJSON={dayStatus === "en_route" ? routeGeoJSON : null}
+        fitTo={fitTo}
+      />
     </div>
   );
 }

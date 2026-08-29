@@ -126,7 +126,7 @@ export function PrivacyPolicy() {
           <li><strong>Firebase / Google</strong>, real-time notifications;</li>
           <li><strong>Cloudflare</strong>, CDN, hosting, and security services;</li>
           <li><strong>MailerSend</strong>, transactional email delivery;</li>
-          <li><strong>Mapbox</strong>, mapping and geocoding services;</li>
+          <li><strong>Mapbox</strong>, map rendering, geocoding, and directions;</li>
           <li><strong>Twilio</strong>, SMS message delivery;</li>
           <li><strong>PostHog</strong>, product analytics (opt-in via the cookie banner; no third-party sale);</li>
           <li><strong>IPinfo</strong>, IP-address classification for site analytics and fraud prevention (ISP name, connection type, VPN/proxy detection).</li>

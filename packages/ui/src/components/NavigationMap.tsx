@@ -27,6 +27,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import type { Feature, LineString } from "geojson";
 import { Clock, MapPin, Navigation } from "lucide-react";
 import {
   mapboxgl,
@@ -41,7 +42,7 @@ const ROUTE_SOURCE = "nav-route";
 const ROUTE_LAYER = "nav-route-line";
 
 interface RouteResult {
-  geometry: GeoJSON.LineString;
+  geometry: LineString;
   distanceM: number;
   durationS: number;
 }
@@ -59,7 +60,7 @@ async function fetchRoute(
     const res = await fetch(url);
     if (!res.ok) return null;
     const data = (await res.json()) as {
-      routes?: Array<{ geometry: GeoJSON.LineString; distance: number; duration: number }>;
+      routes?: Array<{ geometry: LineString; distance: number; duration: number }>;
     };
     const route = data.routes?.[0];
     if (!route) return null;
@@ -161,7 +162,7 @@ export function NavigationMap({ destination, currentLat, currentLng }: Navigatio
       if (cancelled || !result) return;
       setRoute(result);
       const drawLine = () => {
-        const feature: GeoJSON.Feature = {
+        const feature: Feature = {
           type: "Feature",
           properties: {},
           geometry: result.geometry,

@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useRef } from "react";
+import type { Feature } from "geojson";
 import {
   mapboxgl,
   createMapboxMap,
@@ -31,7 +32,7 @@ export interface MapboxMapProps {
   zoom?: number;
   markers?: MapboxMarker[];
   /** A GeoJSON LineString/Feature to draw as a route line, or null. */
-  routeGeoJSON?: GeoJSON.Feature | null;
+  routeGeoJSON?: Feature | null;
   /** A pulsing live-location dot at [lng, lat], or null. */
   liveLocation?: [number, number] | null;
   /** Whether the map responds to drag/zoom. Defaults to true. */
@@ -151,7 +152,7 @@ export function MapboxMap({
         return;
       }
       if (existing) {
-        existing.setData(routeGeoJSON as GeoJSON.Feature);
+        existing.setData(routeGeoJSON as Feature);
         return;
       }
       map.addSource(ROUTE_SOURCE, { type: "geojson", data: routeGeoJSON });

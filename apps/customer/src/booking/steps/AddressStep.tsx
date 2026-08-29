@@ -14,7 +14,7 @@ import { useAuth } from "@clerk/clerk-react";
 import { useAppToken } from "@/lib/appToken";
 import { MapPin, Plus, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Input, loadMapkit } from "@sweepr/ui";
+import { Input, getMapboxToken } from "@sweepr/ui";
 import { cn } from "@sweepr/utils";
 import type { Address } from "@sweepr/types";
 import { useBookingStore } from "../../store/booking";
@@ -79,38 +79,56 @@ const US_STATE_ABBREVS: Record<string, string> = {
   Wisconsin: "WI", Wyoming: "WY", "District of Columbia": "DC",
 };
 
-interface MapkitStructuredAddress {
-  administrativeArea?: string;
-  administrativeAreaCode?: string;
-  locality?: string;
-  postCode?: string;
-  thoroughfare?: string;
-  subThoroughfare?: string;
-  fullThoroughfare?: string;
+/** One entry in a Mapbox geocoding feature's `context` array (city, state,
+ *  postcode, etc.), identified by an `id` prefix like `place.` / `region.`. */
+interface MapboxContextEntry {
+  id: string;
+  text?: string;
+  /** Present on region entries, e.g. "US-CA". */
+  short_code?: string;
 }
 
-interface MapkitPlace {
-  name?: string;
-  formattedAddress?: string;
-  coordinate: { latitude: number; longitude: number };
-  structuredAddress?: MapkitStructuredAddress;
+/** A Mapbox Geocoding API address feature. */
+interface MapboxFeature {
+  id: string;
+  place_name?: string;
+  text?: string;
+  /** House / street number for `address` features. */
+  address?: string;
+  center: [number, number];
+  context?: MapboxContextEntry[];
 }
 
 /** Lightweight suggestion shape used by the dropdown — one per resolved
- *  MapKit place. */
+ *  Mapbox place. */
 interface GeoFeature {
   id: string;
   label: string;
-  place: MapkitPlace;
+  place: MapboxFeature;
+}
+
+function contextText(f: MapboxFeature, prefix: string): MapboxContextEntry | undefined {
+  return f.context?.find((c) => c.id.startsWith(prefix));
 }
 
 function parseFeature(f: GeoFeature): Address | null {
-  const sa = f.place.structuredAddress;
-  const stateCode = sa?.administrativeAreaCode ?? (sa?.administrativeArea ? US_STATE_ABBREVS[sa.administrativeArea] : undefined) ?? "";
-  const zip = sa?.postCode ?? "";
-  const city = sa?.locality ?? "";
-  const line1 = sa?.fullThoroughfare ?? [sa?.subThoroughfare, sa?.thoroughfare].filter(Boolean).join(" ");
-  const { latitude: lat, longitude: lng } = f.place.coordinate;
+  const place = f.place;
+  const zip = contextText(place, "postcode")?.text ?? "";
+  const city = contextText(place, "place")?.text ?? "";
+
+  const region = contextText(place, "region");
+  // Prefer the ISO short code (e.g. "US-CA" → "CA"); fall back to the full
+  // region name mapped through our abbreviation table.
+  const stateCode =
+    region?.short_code?.split("-")[1]?.toUpperCase() ??
+    (region?.text ? US_STATE_ABBREVS[region.text] : undefined) ??
+    "";
+
+  // `text` is the street name; `address` is the house number.
+  const line1 = [place.address, place.text].filter(Boolean).join(" ") ||
+    place.place_name?.split(",")[0] || "";
+
+  const [lng, lat] = place.center;
 
   return {
     id: `addr_${zip || Date.now()}`,
@@ -220,18 +238,25 @@ export function AddressStep() {
       setShowDropdown(false);
       return;
     }
+    const token = getMapboxToken();
+    if (!token) {
+      setSuggestions([]);
+      setShowDropdown(false);
+      return;
+    }
     setLoading(true);
     try {
-      const mapkit = await loadMapkit(API_URL);
-      const search = new mapkit.Search({ region: undefined });
-      const places = await new Promise<MapkitPlace[]>((resolve) => {
-        search.search(trimmed, (error: unknown, data: { places?: MapkitPlace[] }) => {
-          resolve(error ? [] : (data.places ?? []).slice(0, 6));
-        });
-      });
-      const features: GeoFeature[] = places.map((place, i) => ({
-        id: `${place.formattedAddress ?? place.name ?? "place"}-${i}`,
-        label: place.formattedAddress ?? place.name ?? trimmed,
+      const url =
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/` +
+        `${encodeURIComponent(trimmed)}.json` +
+        `?access_token=${token}&autocomplete=true&country=us&types=address&limit=5`;
+      const res = await fetch(url);
+      const data = res.ok
+        ? ((await res.json()) as { features?: MapboxFeature[] })
+        : { features: [] };
+      const features: GeoFeature[] = (data.features ?? []).map((place, i) => ({
+        id: place.id ?? `${place.place_name ?? "place"}-${i}`,
+        label: place.place_name ?? place.text ?? trimmed,
         place,
       }));
       setSuggestions(features);

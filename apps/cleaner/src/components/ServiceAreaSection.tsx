@@ -11,32 +11,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { useAppToken } from "@/lib/appToken";
-import { Card, Input, Button, toast, loadMapkit } from "@sweepr/ui";
+import { Card, Input, Button, toast } from "@sweepr/ui";
 import { MapPin } from "lucide-react";
 import { ServiceAreaMap } from "./ServiceAreaMap";
+import { geocode } from "../lib/geocode";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
-
-/** Forward-geocode an address/city to [lng, lat] via Apple MapKit JS search. */
-async function geocode(query: string): Promise<[number, number] | null> {
-  try {
-    const mapkit = await loadMapkit(API_URL);
-    const search = new mapkit.Search();
-    return await new Promise<[number, number] | null>((resolve) => {
-      search.search(query, (error: unknown, data: { places?: Array<{ coordinate: { latitude: number; longitude: number } }> }) => {
-        if (error || !data.places?.length) {
-          resolve(null);
-          return;
-        }
-        const { latitude, longitude } = data.places[0].coordinate;
-        resolve([longitude, latitude]);
-      });
-    });
-  } catch {
-    /* geocode is best-effort */
-  }
-  return null;
-}
 
 // Default map center (continental US) until the cleaner sets an address.
 const DEFAULT_CENTER: [number, number] = [-98.5795, 39.8283];

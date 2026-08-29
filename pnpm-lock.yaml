@@ -76,6 +76,9 @@ importers:
       lucide-react:
         specifier: ^0.469.0
         version: 0.469.0(react@18.3.1)
+      mapbox-gl:
+        specifier: ^3.0.0
+        version: 3.29.0
       posthog-js:
         specifier: ^1.398.0
         version: 1.398.0
@@ -113,6 +116,9 @@ importers:
       '@sweepr/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@types/geojson':
+        specifier: ^7946.0.14
+        version: 7946.0.16
       '@types/node':
         specifier: ^22.10.5
         version: 22.20.0
@@ -366,6 +372,9 @@ importers:
       lucide-react:
         specifier: ^0.469.0
         version: 0.469.0(react@18.3.1)
+      mapbox-gl:
+        specifier: ^3.0.0
+        version: 3.29.0
       posthog-js:
         specifier: ^1.398.0
         version: 1.398.0
@@ -406,6 +415,9 @@ importers:
       '@sweepr/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@types/geojson':
+        specifier: ^7946.0.14
+        version: 7946.0.16
       '@types/node':
         specifier: ^22.10.5
         version: 22.20.0
@@ -487,6 +499,9 @@ importers:
       lucide-react:
         specifier: ^0.469.0
         version: 0.469.0(react@18.3.1)
+      mapbox-gl:
+        specifier: ^3.0.0
+        version: 3.29.0
       posthog-js:
         specifier: ^1.398.0
         version: 1.398.0
@@ -524,6 +539,9 @@ importers:
       '@sweepr/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@types/geojson':
+        specifier: ^7946.0.14
+        version: 7946.0.16
       '@types/node':
         specifier: ^22.10.5
         version: 22.20.0
@@ -579,6 +597,9 @@ importers:
       '@sweepr/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@types/geojson':
+        specifier: ^7946.0.14
+        version: 7946.0.16
       '@types/react':
         specifier: ^18.3.5
         version: 18.3.31
@@ -645,6 +666,9 @@ importers:
       lucide-react:
         specifier: ^0.469.0
         version: 0.469.0(react@18.3.1)
+      mapbox-gl:
+        specifier: ^3.0.0
+        version: 3.29.0
       posthog-js:
         specifier: ^1.398.0
         version: 1.398.0
@@ -682,6 +706,9 @@ importers:
       '@sweepr/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@types/geojson':
+        specifier: ^7946.0.14
+        version: 7946.0.16
       '@types/node':
         specifier: ^22.10.5
         version: 22.20.0

@@ -10,14 +10,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { MapPin, Moon, Sun } from "lucide-react";
-import { DashboardShell, Card, Input, NavigationMap, loadMapkit } from "@sweepr/ui";
+import { DashboardShell, Card, Input, NavigationMap, getMapboxToken } from "@sweepr/ui";
 
-const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
-
-interface MapkitPlace {
-  name?: string;
-  formattedAddress?: string;
-  coordinate: { latitude: number; longitude: number };
+/** Shape of a feature from the Mapbox Geocoding API (v5 places endpoint). */
+interface MapboxFeature {
+  id: string;
+  place_name?: string;
+  text?: string;
+  center: [number, number];
 }
 
 interface Suggestion {
@@ -44,7 +44,7 @@ function isDarkTheme(): boolean {
 /**
  * Internal QA tool: type an address, get live turn-by-turn directions to it
  * rendered by the same NavigationMap component cleaners see on a real job,
- * so Apple MapKit JS directions + dark/light basemap switching can be
+ * so Mapbox GL directions + dark/light basemap switching can be
  * verified without waiting for a live booking to reach en_route.
  */
 export function MapTestDirectionsPage() {
@@ -110,24 +110,30 @@ export function MapTestDirectionsPage() {
       setShowDropdown(false);
       return;
     }
+    const token = getMapboxToken();
+    if (!token) {
+      setSuggestions([]);
+      setShowDropdown(false);
+      return;
+    }
     setLoading(true);
     try {
-      const mapkit = await loadMapkit(API);
-      const search = new mapkit.Search();
-      const places = await new Promise<MapkitPlace[]>((resolve) => {
-        search.search(trimmed, (error: unknown, data: { places?: MapkitPlace[] }) => {
-          resolve(error ? [] : (data.places ?? []).slice(0, 6));
-        });
-      });
+      const url =
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(trimmed)}.json` +
+        `?access_token=${token}&autocomplete=true&country=us&types=address&limit=5`;
+      const res = await fetch(url);
+      const features: MapboxFeature[] = res.ok
+        ? ((await res.json()) as { features?: MapboxFeature[] }).features ?? []
+        : [];
       setSuggestions(
-        places.map((place, i) => ({
-          id: `${place.formattedAddress ?? place.name ?? "place"}-${i}`,
-          label: place.formattedAddress ?? place.name ?? trimmed,
-          lat: place.coordinate.latitude,
-          lng: place.coordinate.longitude,
+        features.map((feature, i) => ({
+          id: feature.id || `${feature.place_name ?? feature.text ?? "place"}-${i}`,
+          label: feature.place_name ?? feature.text ?? trimmed,
+          lat: feature.center[1],
+          lng: feature.center[0],
         }))
       );
-      setShowDropdown(places.length > 0);
+      setShowDropdown(features.length > 0);
     } catch {
       setSuggestions([]);
     } finally {
@@ -152,7 +158,7 @@ export function MapTestDirectionsPage() {
   return (
     <DashboardShell
       title="Map test — turn-by-turn directions"
-      description="QA tool: type an address and watch live Apple MapKit turn-by-turn directions render, in both light and dark mode."
+      description="QA tool: type an address and watch a live Mapbox route preview render, in both light and dark mode."
     >
       <div className="space-y-6">
         <Card className="p-5">

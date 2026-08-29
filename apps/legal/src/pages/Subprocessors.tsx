@@ -43,7 +43,7 @@ const SUBS: Sub[] = [
   { vendor: "OpenAI", purpose: "AI photo scope review (customer-uploaded cleaning photos analyzed for scope/quality)", data: "Uploaded photos, related booking metadata", region: "US", role: "Processor", status: "Active" },
   { vendor: "Anthropic", purpose: "AI assistance for background-check adjudication (human-reviewed)", data: "Screening/adjudication data", region: "US", role: "Processor", status: "Active" },
   { vendor: "Twilio", purpose: "Masked voice calling", data: "Phone numbers, call metadata", region: "US", role: "Processor", status: "Optional" },
-  { vendor: "Mapbox", purpose: "Maps, geocoding, routing", data: "Address/location data", region: "US", role: "Processor", status: "Active" },
+  { vendor: "Mapbox", purpose: "Map rendering, geocoding, and directions", data: "Address/location data", region: "US", role: "Processor", status: "Active" },
   { vendor: "PostHog", purpose: "Product analytics", data: "Usage & device data", region: "US/EU", role: "Processor", status: "Active" },
   { vendor: "IPinfo", purpose: "IP classification for site analytics & fraud prevention (ISP, VPN/proxy detection)", data: "IP-derived network metadata", region: "US", role: "Processor", status: "Active" },
 ];

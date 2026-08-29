@@ -9,7 +9,13 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { loadMapkit, bindMapTheme, validateEmail } from "@sweepr/ui";
+import {
+  mapboxgl,
+  createMapboxMap,
+  getMapboxToken,
+  bindMapTheme,
+  validateEmail,
+} from "@sweepr/ui";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 const BROOM_PIN_URL = "/assets/sweepr-broom-pin.png";
@@ -38,105 +44,164 @@ interface StatusData {
   cityRequestPins?: Array<{ lat: number; lng: number }>;
 }
 
-/** Resolves once we know whether the broom pin image loads successfully. */
-function checkBroomPinLoads(): Promise<boolean> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve(true);
-    img.onerror = () => resolve(false);
-    img.src = BROOM_PIN_URL;
+/** A DOM element for a city-request marker: the broom pin image, falling back
+ *  to a plain amber circle if the image fails to load. */
+function createPinElement(): HTMLElement {
+  const el = document.createElement("div");
+  el.style.cssText = "width:28px;height:28px;line-height:0;";
+  const img = document.createElement("img");
+  img.src = BROOM_PIN_URL;
+  img.width = 28;
+  img.height = 28;
+  img.alt = "Requested city";
+  img.style.cssText = "width:28px;height:28px;display:block;";
+  img.onerror = () => {
+    el.innerHTML = "";
+    el.style.cssText =
+      "width:16px;height:16px;border-radius:50%;background:#f59e0b;" +
+      "border:2px solid #fff;box-shadow:0 0 0 3px rgba(245,158,11,0.3);";
+  };
+  el.appendChild(img);
+  return el;
+}
+
+/** Adds the seafoam coverage polygons (fill + layered glow/mid/border lines)
+ *  for every service area. Called on each `style.load` — Mapbox drops custom
+ *  sources/layers whenever the base style is swapped (e.g. on theme flip), so
+ *  they must be re-added. `drawn` tracks the layer/source ids currently on the
+ *  map within a single style so a shrinking area list leaves nothing stale. */
+function drawCoverage(
+  map: mapboxgl.Map,
+  areas: ServiceArea[],
+  drawn: { layers: string[]; sources: string[] },
+) {
+  drawn.layers.forEach((id) => {
+    if (map.getLayer(id)) map.removeLayer(id);
+  });
+  drawn.sources.forEach((id) => {
+    if (map.getSource(id)) map.removeSource(id);
+  });
+  drawn.layers = [];
+  drawn.sources = [];
+
+  areas.forEach((area, i) => {
+    const coords = area.polygon ?? BAY_AREA_COORDS;
+    const srcId = `coverage-${i}`;
+    const fillId = `coverage-fill-${i}`;
+    const glowId = `coverage-glow-${i}`;
+    const midId = `coverage-mid-${i}`;
+    const lineId = `coverage-line-${i}`;
+    const fillOpacity = area.status === "live" ? 0.22 : 0.1;
+
+    map.addSource(srcId, {
+      type: "geojson",
+      data: {
+        type: "Feature",
+        properties: {},
+        geometry: { type: "Polygon", coordinates: [coords] },
+      },
+    });
+    map.addLayer({
+      id: fillId,
+      type: "fill",
+      source: srcId,
+      paint: { "fill-color": "#14b8a6", "fill-opacity": fillOpacity },
+    });
+    // Outer halo, mid ring, crisp inner border — three line passes for the glow.
+    map.addLayer({
+      id: glowId,
+      type: "line",
+      source: srcId,
+      paint: { "line-color": "#14b8a6", "line-width": 16, "line-opacity": 0.12 },
+    });
+    map.addLayer({
+      id: midId,
+      type: "line",
+      source: srcId,
+      paint: { "line-color": "#14b8a6", "line-width": 6, "line-opacity": 0.35 },
+    });
+    map.addLayer({
+      id: lineId,
+      type: "line",
+      source: srcId,
+      paint: { "line-color": "#0d9488", "line-width": 1.5, "line-opacity": 0.85 },
+    });
+
+    drawn.sources.push(srcId);
+    drawn.layers.push(fillId, glowId, midId, lineId);
   });
 }
 
 function CoverageMap({ areas, pins }: { areas: ServiceArea[]; pins: Array<{ lat: number; lng: number }> }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<any>(null);
-  const mapkitRef = useRef<any>(null);
-  const pinAnnotationsRef = useRef<any[]>([]);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const areasRef = useRef<ServiceArea[]>([]);
+  const drawnRef = useRef<{ layers: string[]; sources: string[] }>({ layers: [], sources: [] });
   const [unavailable, setUnavailable] = useState(false);
 
+  // Keep the latest areas available to the imperative `style.load` handler.
+  areasRef.current = areas.length > 0
+    ? areas
+    : [{ id: "bay-area-fallback", name: "Bay Area", slug: "bay-area", status: "live", polygon: BAY_AREA_COORDS }];
+
+  // Create the map once. createMapboxMap returns null when no token is
+  // configured, in which case we show the graceful fallback.
   useEffect(() => {
     if (!containerRef.current) return;
-    let cancelled = false;
 
-    loadMapkit(API)
-      .then((mapkit) => {
-        if (cancelled || !containerRef.current) return;
-        mapkitRef.current = mapkit;
+    const map = createMapboxMap(containerRef.current, {
+      center: [-121.95, 37.5],
+      zoom: 8,
+      interactive: true,
+    });
+    if (!map) {
+      setUnavailable(true);
+      return;
+    }
+    mapRef.current = map;
+    const unbindTheme = bindMapTheme(map);
 
-        const map = new mapkit.Map(containerRef.current, {
-          center: new mapkit.Coordinate(37.5, -121.95),
-          cameraDistance: 500000,
-          showsMapTypeControl: false,
-        });
-        mapRef.current = map;
-        bindMapTheme(mapkit, map);
-
-        // Draw each service area polygon with seafoam glow (outer halo, mid
-        // ring, crisp inner border — layered as separate overlays since
-        // MapKit overlays don't support multiple stroke passes per shape).
-        const allAreas = areas.length > 0 ? areas : [
-          { id: "bay-area-fallback", name: "Bay Area", slug: "bay-area", status: "live" as const, polygon: BAY_AREA_COORDS }
-        ];
-
-        allAreas.forEach((area) => {
-          const coords = area.polygon ?? BAY_AREA_COORDS;
-          const points = coords.map(([lng, lat]) => new mapkit.Coordinate(lat, lng));
-          const fillOpacity = area.status === "live" ? 0.22 : 0.1;
-
-          map.addOverlay(new mapkit.PolygonOverlay(points, {
-            style: new mapkit.Style({ fillColor: "#14b8a6", fillOpacity, lineWidth: 0 }),
-          }));
-          map.addOverlay(new mapkit.PolylineOverlay(points, {
-            style: new mapkit.Style({ strokeColor: "#14b8a6", lineWidth: 16, strokeOpacity: 0.12 }),
-          }));
-          map.addOverlay(new mapkit.PolylineOverlay(points, {
-            style: new mapkit.Style({ strokeColor: "#14b8a6", lineWidth: 6, strokeOpacity: 0.35 }),
-          }));
-          map.addOverlay(new mapkit.PolylineOverlay(points, {
-            style: new mapkit.Style({ strokeColor: "#0d9488", lineWidth: 1.5, strokeOpacity: 0.85 }),
-          }));
-        });
-
-        // City request pins — custom broom pin image, falling back to a
-        // plain circle marker if the image fails to load.
-        if (pins.length > 0) {
-          checkBroomPinLoads().then((loaded) => {
-            if (cancelled) return;
-            pinAnnotationsRef.current = pins.map((p) => {
-              const coord = new mapkit.Coordinate(p.lat, p.lng);
-              if (loaded) {
-                return new mapkit.ImageAnnotation(coord, {
-                  url: { 1: BROOM_PIN_URL, 2: BROOM_PIN_URL },
-                  size: { width: 28, height: 28 },
-                  anchorOffset: new DOMPoint(0, -14),
-                });
-              }
-              return new mapkit.MarkerAnnotation(coord, {
-                color: "#f59e0b",
-                glyphColor: "#fff",
-              });
-            });
-            map.addAnnotations(pinAnnotationsRef.current);
-          });
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setUnavailable(true);
-      });
+    // `style.load` fires on the initial load and again after every theme swap;
+    // re-add the coverage polygons each time (setStyle drops custom sources).
+    const redraw = () => drawCoverage(map, areasRef.current, drawnRef.current);
+    map.on("style.load", redraw);
 
     return () => {
-      cancelled = true;
-      mapRef.current?.destroy();
+      unbindTheme();
+      map.off("style.load", redraw);
+      markersRef.current.forEach((m) => m.remove());
+      markersRef.current = [];
+      map.remove();
       mapRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [areas, pins]);
+  }, []);
+
+  // Redraw coverage when the fetched areas arrive/change after the initial load.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return; // style.load handles the not-yet-ready case
+    drawCoverage(map, areasRef.current, drawnRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [areas]);
+
+  // Sync city-request pins as DOM markers (unaffected by style swaps).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    markersRef.current.forEach((m) => m.remove());
+    markersRef.current = pins.map((p) =>
+      new mapboxgl.Marker({ element: createPinElement(), anchor: "bottom" })
+        .setLngLat([p.lng, p.lat])
+        .addTo(map),
+    );
+  }, [pins]);
 
   if (unavailable) {
     return (
-      <div className="flex h-full items-center justify-center bg-slate-100 rounded-2xl">
-        <p className="text-slate-600 text-sm">Map unavailable</p>
+      <div className="flex h-full items-center justify-center bg-slate-100 rounded-2xl dark:bg-slate-800">
+        <p className="text-slate-600 text-sm dark:text-slate-300">Map unavailable</p>
       </div>
     );
   }
@@ -165,19 +230,19 @@ export function CoverageMapSection() {
   }, []);
 
   async function geocode(query: string): Promise<{ lat: number; lng: number } | null> {
+    const token = getMapboxToken();
+    if (!token) return null;
     try {
-      const mapkit = await loadMapkit(API);
-      const search = new mapkit.Search();
-      return await new Promise((resolve) => {
-        search.search(query, (error: unknown, data: { places?: Array<{ coordinate: { latitude: number; longitude: number } }> }) => {
-          if (error || !data.places?.length) {
-            resolve(null);
-            return;
-          }
-          const { latitude, longitude } = data.places[0].coordinate;
-          resolve({ lat: latitude, lng: longitude });
-        });
-      });
+      const url =
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json` +
+        `?access_token=${token}&autocomplete=true&country=us&types=address&limit=5`;
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const data = (await res.json()) as { features?: Array<{ center?: [number, number] }> };
+      const center = data.features?.[0]?.center;
+      if (!center) return null;
+      const [lng, lat] = center;
+      return { lat, lng };
     } catch {
       return null;
     }
