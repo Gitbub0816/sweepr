@@ -24,6 +24,17 @@ import { NavigationMap } from "@sweepr/ui";
 import { NavigationScreen } from "../navigation/components/NavigationScreen";
 import { ScopeReviewSection } from "../components/ScopeReviewSection";
 import { SmartEntryAccess } from "../components/SmartEntryAccess";
+import { CrewRoster } from "../components/CrewRoster";
+import { MemberPinCard, LeadVouchCard } from "../components/VouchPinCard";
+import { PeerThumbsPrompt } from "../components/PeerThumbsPrompt";
+import { TeamTasks } from "../components/TeamTasks";
+import {
+  fetchCrewRoster,
+  fetchMySeat,
+  presentableSeats,
+  type CrewRoster as CrewRosterData,
+  type MySeat,
+} from "../lib/crew";
 import { Confetti } from "./TrainingPage";
 
 const API = import.meta.env.VITE_API_URL ?? "";
@@ -43,6 +54,7 @@ interface JobLive {
   service_type: string;
   total_price: number;
   scheduled_at: string;
+  cleaner_name?: string | null;
   // revealed after start-route
   address?: {
     street: string;
@@ -82,6 +94,12 @@ export function JobDetailPage() {
   const [photoType, setPhotoType] = useState<"before" | "after" | "checkout">("before");
   const [currentPos, setCurrentPos] = useState<{ lat: number; lng: number } | null>(null);
   const reducedMotion = useReducedMotion();
+
+  // ── Team Cleans state. All null for a solo booking (crew_status null), which
+  // leaves every branch below inert so the page renders exactly as before. ──
+  const [roster, setRoster] = useState<CrewRosterData | null>(null);
+  const [mySeat, setMySeat] = useState<MySeat | null>(null);
+  const myResolvedRef = useRef(false);
 
   // Tracks the step index so the circle that just BECAME active can get a
   // one-time pulse (not a permanent animation) — see pulseStepIdx below.
@@ -132,6 +150,15 @@ export function JobDetailPage() {
       if (!res.ok) { setError("Job not found"); return; }
       const data = (await res.json()) as { booking: JobLive };
       setJob(data.booking);
+      // Crew roster (null for solo bookings). Resolve the caller's own seat once
+      // so we know whether to show the lead or the member controls.
+      const r = await fetchCrewRoster(authFetch, id);
+      setRoster(r);
+      if (r && !myResolvedRef.current) {
+        myResolvedRef.current = true;
+        const ms = await fetchMySeat(authFetch, id, r);
+        if (ms) setMySeat(ms);
+      }
     } catch {
       setError("Failed to load job");
     } finally {
@@ -142,6 +169,23 @@ export function JobDetailPage() {
   useEffect(() => {
     loadJob();
   }, [id]);
+
+  // While a crew job is active, refresh the roster so teammates' arrival state
+  // stays current. Solo bookings (roster null) never start this poll.
+  useEffect(() => {
+    if (!id || !roster) return;
+    const active =
+      job?.day_status === "en_route" ||
+      job?.day_status === "arrived" ||
+      job?.day_status === "in_progress" ||
+      job?.day_status === "awaiting_checkout";
+    if (!active) return;
+    const timer = setInterval(async () => {
+      const r = await fetchCrewRoster(authFetch, id);
+      if (r) setRoster(r);
+    }, 20_000);
+    return () => clearInterval(timer);
+  }, [id, roster, job?.day_status, authFetch]);
 
   // Stream GPS while en_route or in_progress
   useEffect(() => {
@@ -288,6 +332,19 @@ export function JobDetailPage() {
   const stepIdx = STEP_ORDER.indexOf(dayStatus);
   const isCompleted = dayStatus === "completed";
 
+  // ── Team Cleans derived state (all inert for solo bookings) ──
+  const isCrew = !!roster;
+  const myRole = mySeat?.role ?? null;
+  const isLead = myRole === "LEAD";
+  const isMember = myRole === "MEMBER";
+  const mySeatLive = roster && mySeat ? roster.seats.find((s) => s.id === mySeat.assignmentId) ?? null : null;
+  const memberCheckedIn = !!mySeatLive?.checkInAt;
+  const crewSeats = roster ? presentableSeats(roster) : [];
+  const showMemberCheckIn =
+    isMember && !memberCheckedIn && (dayStatus === "en_route" || dayStatus === "arrived" || dayStatus === "in_progress");
+  const showLeadVouch = isLead && (dayStatus === "arrived" || dayStatus === "in_progress");
+  const showTasks = isCrew && (dayStatus === "in_progress" || dayStatus === "awaiting_checkout");
+
   return (
     <>
     <DashboardShell
@@ -362,8 +419,41 @@ export function JobDetailPage() {
         <SmartEntryAccess bookingId={id} getToken={getToken} apiUrl={API} eligible />
       )}
 
-      {/* Action buttons by step */}
-      {!isCompleted && (
+      {/* ── Team Cleans: your team roster (crew bookings only) ── */}
+      {isCrew && crewSeats.length > 0 && (
+        <CrewRoster seats={crewSeats} leadName={job.cleaner_name} mySeatId={mySeat?.assignmentId ?? null} />
+      )}
+
+      {/* LEAD: confirm each helper on-site via their PIN, or mark a no-show. */}
+      {id && showLeadVouch && roster && (
+        <LeadVouchCard
+          bookingId={id}
+          authFetch={authFetch}
+          memberSeats={roster.seats}
+          onChanged={loadJob}
+        />
+      )}
+
+      {/* MEMBER: show my rotating PIN + GPS self check-in until I'm on-site. */}
+      {id && showMemberCheckIn && (
+        <MemberPinCard bookingId={id} authFetch={authFetch} onCheckedIn={loadJob} />
+      )}
+
+      {/* Crew task board (my labor-balanced tasks). */}
+      {id && showTasks && (
+        <TeamTasks bookingId={id} authFetch={authFetch} myCleanerId={mySeat?.cleanerId ?? null} />
+      )}
+
+      {/* A checked-in member follows the lead; hide the lead-only day-of buttons. */}
+      {isMember && memberCheckedIn && !isCompleted && (
+        <Card className="flex items-center gap-3 border-seafoam-200 bg-seafoam-50 p-4 dark:border-seafoam-900/40 dark:bg-seafoam-900/10">
+          <ShieldCheck className="h-5 w-5 shrink-0 text-seafoam-700" />
+          <p className="text-sm text-seafoam-800 dark:text-seafoam-200">{t("cleaner.team.memberFollowLead")}</p>
+        </Card>
+      )}
+
+      {/* Action buttons by step — lead + solo only (members follow the lead). */}
+      {!isMember && !isCompleted && (
         <div className="space-y-3">
           {dayStatus === "confirmed" && (
             <Button fullWidth onClick={() => action("start-route", currentPos ?? {})} loading={busy}>
@@ -457,6 +547,16 @@ export function JobDetailPage() {
             <p className="text-sm text-emerald-700">Payment will be released after checkout review.</p>
           </div>
         </Card>
+      )}
+
+      {/* After a completed team clean, a quick peer thumbs (first pairing only). */}
+      {id && isCompleted && isCrew && roster && (
+        <PeerThumbsPrompt
+          bookingId={id}
+          authFetch={authFetch}
+          roster={roster}
+          myCleanerId={mySeat?.cleanerId ?? null}
+        />
       )}
 
       {/* Additional attention / refusal requests, only once checked in and job not completed */}

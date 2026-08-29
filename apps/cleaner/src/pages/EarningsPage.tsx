@@ -9,12 +9,13 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { Wallet, TrendingUp, BarChart3, DollarSign, Building2, ArrowRight, Gift } from "lucide-react";
+import { Wallet, TrendingUp, BarChart3, DollarSign, Building2, ArrowRight, Gift, Users } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
 import { useAppToken } from "@/lib/appToken";
 import { useTranslation } from "react-i18next";
-import { DashboardShell, StatCard, Card, Button, toast } from "@sweepr/ui";
+import { DashboardShell, StatCard, Card, Button, Badge, toast } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";
+import { fetchCrewRoster, crewSize } from "../lib/crew";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -38,21 +39,46 @@ export function EarningsPage() {
   const [data, setData] = useState<EarningSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
+  // Per-booking crew info for the recent payouts: bookingId → crew size. Absent
+  // means solo (or not yet loaded) and the row renders exactly as before.
+  const [crewByBooking, setCrewByBooking] = useState<Record<string, number>>({});
+
+  const authFetch = useCallback(
+    async (path: string, opts: RequestInit = {}) => {
+      const token = await getToken();
+      return fetch(`${API_URL}${path}`, {
+        ...opts,
+        headers: { ...(opts.headers ?? {}), Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
+    },
+    [getToken],
+  );
 
   const load = useCallback(async () => {
     if (!API_URL) { setLoading(false); return; }
     try {
-      const token = await getToken();
-      const res = await fetch(`${API_URL}/cleaner-dashboard/earnings`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) setData((await res.json()) as EarningSummary);
+      const res = await authFetch(`/cleaner-dashboard/earnings`);
+      if (res.ok) {
+        const summary = (await res.json()) as EarningSummary;
+        setData(summary);
+        // Tag which recent payouts were team cleans (per-seat earnings).
+        const ids = Array.from(new Set((summary.recent ?? []).map((r) => r.booking_id).filter(Boolean)));
+        const pairs = await Promise.all(
+          ids.map(async (bid): Promise<[string, number] | null> => {
+            const roster = await fetchCrewRoster(authFetch, bid);
+            return roster ? [bid, crewSize(roster)] : null;
+          }),
+        );
+        const map: Record<string, number> = {};
+        for (const p of pairs) if (p) map[p[0]] = p[1];
+        setCrewByBooking(map);
+      }
     } catch {
       /* leave null → empty state */
     } finally {
       setLoading(false);
     }
-  }, [getToken]);
+  }, [authFetch]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -156,8 +182,21 @@ export function EarningsPage() {
                 <tbody>
                   {data.recent.map((r) => (
                     <tr key={r.booking_id} className="border-b border-slate-50 last:border-0 dark:border-slate-800">
-                      <td className="px-4 py-2 text-slate-600 dark:text-slate-300">{new Date(r.date).toLocaleDateString()}</td>
-                      <td className="px-4 py-2 text-right font-medium">{formatCurrency(r.amount / 100)}</td>
+                      <td className="px-4 py-2 text-slate-600 dark:text-slate-300">
+                        <span className="block">{new Date(r.date).toLocaleDateString()}</span>
+                        {crewByBooking[r.booking_id] != null && (
+                          <Badge variant="info" className="mt-1 gap-1">
+                            <Users className="h-3 w-3" aria-hidden />
+                            {t("cleaner.team.crewOf", { count: crewByBooking[r.booking_id] })}
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-right font-medium">
+                        {formatCurrency(r.amount / 100)}
+                        {crewByBooking[r.booking_id] != null && (
+                          <span className="block text-[10px] font-normal text-slate-500">{t("cleaner.team.yourShare")}</span>
+                        )}
+                      </td>
                       <td className="px-4 py-2">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${r.status === "paid" || r.status === "transferred" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
                           {r.status}

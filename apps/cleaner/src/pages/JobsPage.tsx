@@ -18,8 +18,32 @@ import { useTranslation } from "react-i18next";
 import { DashboardShell, EmptyState, toast, useReducedMotion } from "@sweepr/ui";
 import type { ServiceType } from "@sweepr/types";
 import { JobCard, type AvailableJob } from "../components/JobCard";
+import { TeamOfferCard } from "../components/TeamOfferCard";
+import {
+  fetchCrewRoster,
+  crewSize,
+  estimatedElapsedMinutes,
+  estimatedSeatEarningsCents,
+  openInvitedSeat,
+  type CrewRole,
+} from "../lib/crew";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
+
+/** Crew metadata attached to an offer when the booking is a team clean. */
+interface TeamInfo {
+  role: CrewRole;
+  crewSize: number;
+  estElapsedMinutes: number | null;
+  estEarningsDollars: number | null;
+  /** The open seat to accept/decline via the crew endpoints, if crew-native. */
+  invitedSeatId: string | null;
+}
+
+interface OfferEntry {
+  job: AvailableJob;
+  team: TeamInfo | null;
+}
 
 interface JobRow {
   id: string;
@@ -74,29 +98,67 @@ export function JobsPage() {
   const reduced = useReducedMotion();
   const { getToken } = useAppToken();
   const [online, setOnline] = useState(true);
-  const [jobs, setJobs] = useState<AvailableJob[]>([]);
+  const [entries, setEntries] = useState<OfferEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [acceptedId, setAcceptedId] = useState<string | null>(null);
 
+  const authFetch = useCallback(
+    async (path: string, opts: RequestInit = {}) => {
+      const token = await getToken();
+      return fetch(`${API_URL}${path}`, {
+        ...opts,
+        headers: {
+          ...(opts.headers ?? {}),
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+    },
+    [getToken],
+  );
+
   const load = useCallback(async () => {
-    if (!API_URL) { setJobs([]); setLoading(false); return; }
+    if (!API_URL) { setEntries([]); setLoading(false); return; }
     setLoading(true);
     try {
-      const token = await getToken();
       // Offers live in assignment_queue (per-cleaner rows) until accepted, not
       // on bookings.cleaner_id — /available-offers reads that table directly.
-      const res = await fetch(`${API_URL}/cleaner-dashboard/available-offers`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await authFetch(`/cleaner-dashboard/available-offers`);
       if (!res.ok) throw new Error(`${res.status}`);
       const data = (await res.json()) as { jobs: JobRow[] };
-      setJobs((data.jobs ?? []).map(toAvailableJob));
+      const rows = data.jobs ?? [];
+
+      // Enrich each offer with its crew roster. Solo bookings (crew_status null)
+      // come back as team=null and render exactly the existing card.
+      const built = await Promise.all(
+        rows.map(async (row): Promise<OfferEntry> => {
+          const job = toAvailableJob(row);
+          const roster = await fetchCrewRoster(authFetch, row.id);
+          if (!roster) return { job, team: null };
+          const poolCents = row.cleaner_payout ?? Math.round(row.total_price * 0.8);
+          const invited = openInvitedSeat(roster);
+          const basisSeat = invited ?? roster.seats.find((s) => s.role === "LEAD") ?? null;
+          const role: CrewRole = invited?.role ?? basisSeat?.role ?? "LEAD";
+          const earningsCents = estimatedSeatEarningsCents(basisSeat, roster, poolCents);
+          return {
+            job,
+            team: {
+              role,
+              crewSize: crewSize(roster),
+              estElapsedMinutes: estimatedElapsedMinutes(roster),
+              estEarningsDollars: earningsCents != null ? earningsCents / 100 : null,
+              invitedSeatId: invited?.id ?? null,
+            },
+          };
+        }),
+      );
+      setEntries(built);
     } catch {
-      setJobs([]);
+      setEntries([]);
     } finally {
       setLoading(false);
     }
-  }, [getToken]);
+  }, [authFetch]);
 
   useEffect(() => {
     if (!online) return;
@@ -105,18 +167,21 @@ export function JobsPage() {
     return () => clearInterval(timer);
   }, [online, load]);
 
-  async function handleAccept(job: AvailableJob) {
+  async function handleAccept(entry: OfferEntry) {
+    const { job, team } = entry;
     setAcceptedId(job.id);
+    // A crew-native member/lead offer (an open INVITED seat) accepts through the
+    // crew endpoint; everything else keeps the existing assignment-queue path.
+    const useCrew = !!team?.invitedSeatId;
+    const path = useCrew
+      ? `/crew/${team!.invitedSeatId}/accept`
+      : `/cleaner-dashboard/jobs/${job.id}/accept`;
     try {
-      const token = await getToken();
-      const res = await fetch(`${API_URL}/cleaner-dashboard/jobs/${job.id}/accept`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await authFetch(path, { method: "POST" });
       if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as { error?: string; code?: string } | null;
+        const data = (await res.json().catch(() => null)) as { error?: string; code?: string; reason?: string } | null;
         setAcceptedId(null);
-        if (data?.code === "insurance_required") {
+        if (data?.code === "insurance_required" || data?.reason === "insurance_required") {
           toast.error("Valid insurance is required before accepting jobs.");
           navigate("/insurance");
         } else {
@@ -134,14 +199,16 @@ export function JobsPage() {
     }
   }
 
-  async function handlePass(id: string) {
-    setJobs((j) => j.filter((x) => x.id !== id));
+  async function handlePass(entry: OfferEntry) {
+    const { job, team } = entry;
+    setEntries((list) => list.filter((x) => x.job.id !== job.id));
+    const useCrew = !!team?.invitedSeatId;
+    const path = useCrew
+      ? `/crew/${team!.invitedSeatId}/decline`
+      : `/cleaner-dashboard/jobs/${job.id}/decline`;
     try {
-      const token = await getToken();
-      const res = await fetch(`${API_URL}/cleaner-dashboard/jobs/${id}/decline`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await authFetch(path, { method: "POST" });
+      if (useCrew) return; // crew declines carry no free/penalized signal
       // One free decline per day; further declines lower your acceptance rate.
       const data = (await res.json().catch(() => ({}))) as { declineWasFree?: boolean };
       if (data.declineWasFree === false) {
@@ -188,7 +255,7 @@ export function JobsPage() {
 
       {loading ? (
         <div className="h-48 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />
-      ) : jobs.length === 0 ? (
+      ) : entries.length === 0 ? (
         <EmptyState
           title={t("cleaner.jobs.noJobsTitle")}
           description={t("cleaner.jobs.noJobsDesc")}
@@ -196,22 +263,36 @@ export function JobsPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           <AnimatePresence mode="popLayout">
-            {jobs.map((job) => (
+            {entries.map((entry) => (
               <motion.div
-                key={job.id}
+                key={entry.job.id}
                 layout={!reduced}
                 initial={reduced ? { opacity: 0 } : { opacity: 0, y: 16, scale: 0.97 }}
                 animate={reduced ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
                 exit={reduced ? { opacity: 0 } : { opacity: 0, x: -60, transition: { duration: 0.2 } }}
                 transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 320, damping: 28 }}
               >
-                <JobCard
-                  job={job}
-                  accepted={acceptedId === job.id}
-                  onAccept={() => handleAccept(job)}
-                  onPass={() => handlePass(job.id)}
-                  onExpire={() => handlePass(job.id)}
-                />
+                {entry.team ? (
+                  <TeamOfferCard
+                    job={entry.job}
+                    role={entry.team.role}
+                    crewSize={entry.team.crewSize}
+                    estElapsedMinutes={entry.team.estElapsedMinutes}
+                    estEarningsDollars={entry.team.estEarningsDollars}
+                    accepted={acceptedId === entry.job.id}
+                    onAccept={() => handleAccept(entry)}
+                    onPass={() => handlePass(entry)}
+                    onExpire={() => handlePass(entry)}
+                  />
+                ) : (
+                  <JobCard
+                    job={entry.job}
+                    accepted={acceptedId === entry.job.id}
+                    onAccept={() => handleAccept(entry)}
+                    onPass={() => handlePass(entry)}
+                    onExpire={() => handlePass(entry)}
+                  />
+                )}
               </motion.div>
             ))}
           </AnimatePresence>
