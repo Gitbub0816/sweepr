@@ -16,6 +16,30 @@ import type { AppBindings } from "../types";
 // source of truth across Cloudflare's many isolates.
 const memory = new Map<string, { count: number; resetAt: number }>();
 
+// KV write coalescing (strict path). Cloudflare's free KV plan allows ~1,000
+// writes/day but ~100,000 reads/day, so reads are ~100× cheaper. The strict
+// limiter previously wrote on EVERY request, which sustained low-volume traffic
+// (health probes, scanners hitting public endpoints) could exhaust the daily
+// write quota with zero real users. We keep reading KV every request — so the
+// shared count stays accurate across isolates — but only PERSIST a write when
+// it actually matters:
+//   • a new window (establish the window + reset for other isolates),
+//   • the near-limit security zone (top slice of the limit) and anything at or
+//     over the cap — written every request so a block is durable and stays
+//     pinned for the whole window, exactly as before,
+//   • otherwise, only once the local count has advanced WRITE_COALESCE_STEP
+//     beyond the value already in KV, so a busy-but-legit bucket flushes in
+//     steps instead of on every hit (and the shared counter can't silently
+//     stall — each isolate flushes its own progress).
+// Reads are unchanged, so accuracy near the limit (the only place it matters)
+// is preserved while the common under-limit case drops to ~1 write per window.
+const WRITE_COALESCE_STEP = 5;
+
+/** Requests from the top of the limit onward are always persisted (min 2). */
+function nearLimitFloor(limit: number): number {
+  return Math.max(0, limit - Math.max(2, Math.ceil(limit * 0.2)));
+}
+
 /**
  * Read the unverified `sub` (Clerk user id) claim from a Bearer token WITHOUT
  * cryptographic verification. Safe here ONLY because per-user rate-limit keys
@@ -93,8 +117,9 @@ export function rateLimit(opts: {
 
     try {
       if (opts.strict && kv) {
-        // Read-modify-write against KV every request. Read the shared count,
-        // increment, and write it straight back so other isolates observe it.
+        // Read the shared count every request (reads are cheap on KV's quota),
+        // then increment against the higher of KV and this isolate's local
+        // view so distributed traffic still accumulates.
         const raw = await kv.get(key, "text");
         const stored = raw
           ? (JSON.parse(raw) as { count: number; resetAt: number })
@@ -102,24 +127,37 @@ export function rateLimit(opts: {
 
         let count: number;
         let resetAt: number;
+        let isWindowRoll: boolean;
         if (!stored || stored.resetAt < now) {
           count = 1;
           resetAt = now + opts.windowMs;
+          isWindowRoll = true;
         } else {
-          count = stored.count + 1;
+          const local = memory.get(key);
+          const localCount = local && local.resetAt === stored.resetAt ? local.count : 0;
+          count = Math.max(stored.count, localCount) + 1;
           resetAt = stored.resetAt;
+          isWindowRoll = false;
         }
 
         blocked = count > opts.limit;
         remaining = Math.max(0, opts.limit - count);
         resetAtOut = resetAt;
-
-        // Persist the incremented count even when blocked, so hammering keeps
-        // the counter pinned above the limit for the whole window.
-        await kv.put(key, JSON.stringify({ count, resetAt }), {
-          expirationTtl: Math.ceil((resetAt - now) / 1000) + 60,
-        });
         memory.set(key, { count, resetAt });
+
+        // Coalesce writes (see WRITE_COALESCE_STEP note). Always persist a new
+        // window, the near-limit/over-limit zone (so a block is durable and
+        // stays pinned), or a local advance of a full step beyond what KV holds.
+        const persistedCount = stored && stored.resetAt >= now ? stored.count : 0;
+        const shouldPersist =
+          isWindowRoll ||
+          count >= nearLimitFloor(opts.limit) ||
+          count - persistedCount >= WRITE_COALESCE_STEP;
+        if (shouldPersist) {
+          await kv.put(key, JSON.stringify({ count, resetAt }), {
+            expirationTtl: Math.ceil((resetAt - now) / 1000) + 60,
+          });
+        }
       } else {
         // Best-effort path: local cache first, sync with KV only on window roll.
         const local = memory.get(key);
