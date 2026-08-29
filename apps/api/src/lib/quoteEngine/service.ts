@@ -17,8 +17,8 @@
 
 import type { Sql } from "@sweepr/db";
 import { logger } from "../logger";
-import type { PricingConfigV2, QuoteInputV2, QuoteResultV2 } from "./types";
-import { computeQuoteV2 } from "./engine";
+import type { PricingConfigV2, QuoteInputV2, QuoteResultV2 } from "@sweepr/quote-engine";
+import { computeQuoteV2 } from "@sweepr/quote-engine";
 
 export interface ActivePricingVersion {
   id: string;

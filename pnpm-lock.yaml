@@ -180,6 +180,9 @@ importers:
       '@sweepr/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@sweepr/quote-engine':
+        specifier: workspace:*
+        version: link:../../packages/quote-engine
       '@sweepr/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -836,6 +839,12 @@ importers:
       pg:
         specifier: ^8.13.1
         version: 8.22.0
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
+  packages/quote-engine:
+    devDependencies:
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
