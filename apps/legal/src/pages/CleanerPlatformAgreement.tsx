@@ -8,7 +8,6 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-// DRAFT — attorney review required before production use.
 import { Link } from "react-router-dom";
 import { DocPage } from "../components/DocPage";
 import { Section } from "../components/Section";
@@ -176,7 +175,7 @@ export function CleanerPlatformAgreement() {
           retroactively reduce payout for a booking you already accepted before an
           effective fee change, except as permitted under the{" "}
           <Link className="text-seafoam-700 underline" to="/platform-fee-policy">
-            Platform Fee Policy
+            Marketplace Services Fee Policy
           </Link>
           .
         </p>

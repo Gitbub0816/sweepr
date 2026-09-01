@@ -47,13 +47,13 @@ export * from "./components/NotificationBell";
 export * from "./components/SuccessCheck";
 export * from "./components/SweeprLoader";
 export * from "./components/SMSOptIn";
-export * from "./components/PrelaunchGate";
 export * from "./components/WaitlistForm";
 export * from "./components/NewsletterSubscribe";
 export * from "./components/ReportProblem";
 export * from "./components/AccountPrivacy";
 export * from "./components/CookieConsent";
 export * from "./components/FoundingMemberBadge";
+export * from "./components/InfoTip";
 export * from "./components/PromoWidget";
 export * from "./components/PromoHost";
 

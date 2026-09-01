@@ -208,9 +208,9 @@ describe("handleNoShow — NO_SHOW + AT_RISK + zero pay + re-plan", () => {
     const res = await handleNoShow(makeSql(), {
       bookingId: "bk", assignmentId: "member-seat", config: DEFAULT_CREW_CONFIG,
     });
-    // 600 / 1.85 ≈ 325, strictly less than the solo 600.
+    // 600 / 1.8 ≈ 334, strictly less than the solo 600.
     expect(res.revisedElapsedMinutes).toBeLessThan(600);
-    expect(res.revisedElapsedMinutes).toBe(Math.ceil(600 / 1.85));
+    expect(res.revisedElapsedMinutes).toBe(Math.ceil(600 / 1.8));
   });
 
   it("is not eligible when the member already checked in (claim returns nothing)", async () => {

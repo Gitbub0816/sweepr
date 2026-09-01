@@ -41,6 +41,7 @@ import {
 import type { ServiceType, AddOn } from "@sweepr/types";
 import { ADD_ONS, formatCurrency } from "@sweepr/utils";
 import { ServiceAreaMap } from "../components/ServiceAreaMap";
+import { CleaningTypeGuide, AcceptedJobTypesPicker } from "../components/CleaningTypeGuide";
 import { geocode as geocodeCity } from "../lib/geocode";
 import {
   BusinessVerificationStep,
@@ -54,20 +55,6 @@ import { BackgroundCheckStep } from "./onboarding/BackgroundCheckStep";
 import { Confetti } from "./TrainingPage";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
-const FORCE_PRELAUNCH = import.meta.env.VITE_PRELAUNCH_FORCE === "true";
-
-/** True while the cleaner-side prelaunch gate is active (env override OR DB toggle). */
-function usePrelaunch(): boolean {
-  const [active, setActive] = useState(FORCE_PRELAUNCH);
-  useEffect(() => {
-    if (FORCE_PRELAUNCH) return; // env hard-override, no need to fetch
-    fetch(`${API_URL}/status`)
-      .then((r) => r.json() as Promise<{ settings?: { prelaunch_cleaner?: boolean } }>)
-      .then((d) => setActive(d.settings?.prelaunch_cleaner ?? false))
-      .catch(() => {}); // non-fatal, defaults to false (no gate)
-  }, []);
-  return active;
-}
 
 type OnboardingMode = "individual" | "business";
 
@@ -127,6 +114,9 @@ interface FormState {
   radiusMi: number;
   center: [number, number];
   services: ServiceType[];
+  /** Canonical job-type preferences (standard / move_in_out / vacation_rental).
+   *  Matching enforces these server-side; at least one is required. */
+  acceptedJobTypes: string[];
   addOns: string[];
   availability: Record<string, DayAvail>;
   certifyAccurate: boolean;
@@ -151,6 +141,7 @@ const initialState: FormState = {
   radiusMi: 15,
   center: [-117.1611, 32.7157],
   services: ["standard"],
+  acceptedJobTypes: ["standard", "move_in_out", "vacation_rental"],
   addOns: [],
   availability: Object.fromEntries(DAYS.map((d) => [d, "unavailable"])),
   certifyAccurate: false,
@@ -224,7 +215,18 @@ export function OnboardingPage() {
   })();
   const [step, setStep] = useState(initialStep);
   const [direction, setDirection] = useState(1);
-  const [form, setForm] = useState<FormState>(savedDraft?.form ?? initialState);
+  const [form, setForm] = useState<FormState>(() => {
+    if (!savedDraft?.form) return initialState;
+    // Drafts saved before the job-type preference step lack acceptedJobTypes;
+    // default to all types accepted (matches the server default).
+    return {
+      ...savedDraft.form,
+      acceptedJobTypes:
+        Array.isArray(savedDraft.form.acceptedJobTypes) && savedDraft.form.acceptedJobTypes.length > 0
+          ? savedDraft.form.acceptedJobTypes
+          : initialState.acceptedJobTypes,
+    };
+  });
 
   const STEPS = mode === "business" ? BUSINESS_STEPS : INDIVIDUAL_STEPS;
   // Guard against an out-of-range deep link (e.g. a business step index while
@@ -252,7 +254,6 @@ export function OnboardingPage() {
     setDirection(1);
     track(Events.CLEANER_ONBOARDING_STARTED, { mode: next });
   }
-  const isPrelaunch = usePrelaunch();
   const [backgroundCheckStatus, setBackgroundCheckStatus] = useState<StatusFlow>("idle");
   const [diditStatus, setDiditStatus] = useState<StatusFlow>("idle");
   const [diditUrl, setDiditUrl] = useState<string | null>(null);
@@ -333,7 +334,7 @@ export function OnboardingPage() {
           form.businessType.length > 0
         );
       case "Services & Pricing":
-        return form.services.length > 0;
+        return form.services.length > 0 && form.acceptedJobTypes.length > 0;
       case "Business Verification":
         return (
           /^\d{2}-\d{7}$/.test(form.businessVerification.ein) &&
@@ -348,10 +349,8 @@ export function OnboardingPage() {
           form.authorizedRep.email.trim().length > 0
         );
       case "Background Check":
-        // During prelaunch the training gate is lifted so early applicants
-        // can complete their background check without finishing training first.
-        // Once prelaunch ends this condition automatically re-engages.
-        if (!isPrelaunch && !trainingComplete) return false;
+        // Training must be complete before the background check step unlocks.
+        if (!trainingComplete) return false;
         // Allow continuing once the Yardstik report was ordered (pending = check in progress)
         return backgroundCheckStatus === "submitted" || backgroundCheckStatus === "pending";
       case "Identity":
@@ -476,6 +475,7 @@ export function OnboardingPage() {
               email: form.authorizedRep.email,
             },
             serviceTypes: form.services,
+            acceptedJobTypes: form.acceptedJobTypes,
             addOnKeys: form.addOns,
             availability: form.availability,
             smsOptIn: form.smsOptIn,
@@ -499,6 +499,7 @@ export function OnboardingPage() {
             basedIn: form.basedIn,
             radiusMi: form.radiusMi,
             services: form.services,
+            acceptedJobTypes: form.acceptedJobTypes,
             addOns: form.addOns,
             availability: form.availability,
             smsOptIn: form.smsOptIn,
@@ -655,7 +656,6 @@ export function OnboardingPage() {
                     n={step + 1}
                     getToken={getToken}
                     trainingComplete={trainingComplete}
-                    isPrelaunch={isPrelaunch}
                     onComplete={() => {
                       setBackgroundCheckStatus("pending");
                       goNext();
@@ -1037,6 +1037,23 @@ function StepServices({
             );
           })}
         </div>
+      </div>
+      <div>
+        <p className="mb-1 text-sm font-medium text-charcoal dark:text-slate-200">
+          {t("cleaningTypes.guideTitle")}
+        </p>
+        <p className="mb-3 text-xs text-slate-500">{t("cleaningTypes.guideIntro")}</p>
+        <CleaningTypeGuide />
+      </div>
+      <div>
+        <p className="mb-1 text-sm font-medium text-charcoal dark:text-slate-200">
+          {t("cleaningTypes.acceptTitle")}
+        </p>
+        <p className="mb-3 text-xs text-slate-500">{t("cleaningTypes.acceptSubtitle")}</p>
+        <AcceptedJobTypesPicker
+          value={form.acceptedJobTypes}
+          onChange={(next) => set("acceptedJobTypes", next)}
+        />
       </div>
       <div>
         <p className="mb-3 text-sm font-medium text-charcoal dark:text-slate-200">

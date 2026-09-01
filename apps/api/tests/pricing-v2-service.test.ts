@@ -265,6 +265,100 @@ describe("admin pricing v2 routes", () => {
     expect(res.status).toBe(400);
   });
 
+  it("lists MCP sandbox proposals without config bodies", async () => {
+    handler = (text) => {
+      if (text.includes("FROM mcp_simulator_configs")) {
+        return [
+          {
+            id: "5a9d1a1e-0000-4000-8000-00000000000a",
+            admin_email: "owner@getsweepr.com",
+            name: "fall-rates",
+            notes: "raise rate to $70",
+            based_on_version_id: null,
+            created_at: "2026-08-30",
+            updated_at: "2026-08-31",
+          },
+        ];
+      }
+      return [];
+    };
+    const r = await router();
+    const res = await r.request("/proposals", {}, ENV);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { proposals: Array<{ name: string }> };
+    expect(body.proposals).toHaveLength(1);
+    expect(body.proposals[0].name).toBe("fall-rates");
+    // The listing query must not fetch config bodies (word-boundary check —
+    // the table name itself contains "configs").
+    const listCall = sqlCalls.find((c) => c.text.includes("FROM mcp_simulator_configs"));
+    expect(listCall!.text).not.toMatch(/\bconfig\b/);
+  });
+
+  it("imports a proposal as a pre-filled draft and records mcp provenance in the audit trail", async () => {
+    handler = (text) => {
+      if (text.includes("FROM mcp_simulator_configs WHERE id")) {
+        return [
+          {
+            id: "5a9d1a1e-0000-4000-8000-00000000000a",
+            admin_email: "owner@getsweepr.com",
+            name: "fall-rates",
+            config: cfg,
+            notes: "raise rate to $70",
+            based_on_version_id: null,
+            updated_at: "2026-08-31",
+          },
+        ];
+      }
+      if (text.includes("INSERT INTO pricing_versions")) {
+        return [{ id: "new-draft-1", name: "fall-rates", status: "draft" }];
+      }
+      return [];
+    };
+    const r = await router();
+    const res = await r.request(
+      "/proposals/5a9d1a1e-0000-4000-8000-00000000000a/import",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) },
+      ENV,
+    );
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { version: { id: string }; validation: { ok: boolean } };
+    expect(body.version.id).toBe("new-draft-1");
+    expect(body.validation.ok).toBe(true);
+    // The draft is created with the proposal's full config (autofill source)…
+    const insert = sqlCalls.find((c) => c.text.includes("INSERT INTO pricing_versions"));
+    expect(insert).toBeDefined();
+    expect(insert!.values.some((v) => typeof v === "string" && v.includes("laborMatrix"))).toBe(true);
+    // …and provenance lands in the append-only audit trail.
+    const audit = sqlCalls.find((c) => c.text.includes("INSERT INTO pricing_audit_events"));
+    expect(audit).toBeDefined();
+    const detail = audit!.values.find((v) => typeof v === "string" && v.includes("mcp_proposal")) as string;
+    expect(detail).toBeDefined();
+    expect(JSON.parse(detail)).toMatchObject({
+      source: "mcp_proposal",
+      proposalName: "fall-rates",
+      proposalAdmin: "owner@getsweepr.com",
+    });
+  });
+
+  it("import refuses unknown or malformed proposal ids", async () => {
+    handler = () => [];
+    const r = await router();
+    const missing = await r.request(
+      "/proposals/5a9d1a1e-0000-4000-8000-00000000000b/import",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) },
+      ENV,
+    );
+    expect(missing.status).toBe(404);
+    const malformed = await r.request(
+      "/proposals/not-a-uuid/import",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) },
+      ENV,
+    );
+    expect(malformed.status).toBe(400);
+    // Neither attempt may create a version.
+    expect(sqlCalls.some((c) => c.text.includes("INSERT INTO pricing_versions"))).toBe(false);
+  });
+
   it("preview rejects an invalid inline config instead of quoting with it", async () => {
     const bad = structuredClone(cfg);
     bad.rates.customerLaborRateCentsPerHour = -5;

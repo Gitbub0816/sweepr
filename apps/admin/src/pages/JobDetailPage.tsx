@@ -37,10 +37,28 @@ const statusOptions = (Object.keys(JOB_STATUS_LABELS) as JobStatus[]).map(
   (s) => ({ label: JOB_STATUS_LABELS[s], value: s })
 );
 
+/** True when the booking's persisted pricing breakdown carries the Pricing v2
+ *  deep-clean stamp (written at creation; heavier workload, same scope). */
+function isDeepCleanJob(job: { pricing_line_items_json?: unknown }): boolean {
+  const items = job.pricing_line_items_json;
+  return (
+    Array.isArray(items) &&
+    items.some(
+      (i) =>
+        i !== null &&
+        typeof i === "object" &&
+        (i as { label?: unknown }).label === "deep_clean" &&
+        (i as { applied?: unknown }).applied === true,
+    )
+  );
+}
+
 interface Job {
   id: string;
   status: string;
   service_type: string | null;
+  /** Persisted pricing breakdown; carries the v2 deep-clean stamp. */
+  pricing_line_items_json?: unknown;
   bedrooms: number | null;
   bathrooms: number | null;
   sqft: number | null;
@@ -596,6 +614,108 @@ function CrewSection({
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+// ─── Access-delay / lockout fee (day-of-service admin action) ────────────────
+// Charges the master ruleset's NON-CUMULATIVE fee schedule ($0 up to 15 min,
+// $25 up to 30, $50 up to 60, $85 beyond, with possible cancellation) through
+// the booking price ledger. Re-charging replaces (delta), never stacks.
+// Allocation at payout: 80% cleaner team / 20% Sweepr.
+const ACCESS_DELAY_BRACKETS: Array<{ max: number | null; feeCents: number }> = [
+  { max: 15, feeCents: 0 },
+  { max: 30, feeCents: 2500 },
+  { max: 60, feeCents: 5000 },
+  { max: null, feeCents: 8500 },
+];
+
+function accessDelayFeeCents(delayMinutes: number): number {
+  for (const b of ACCESS_DELAY_BRACKETS) {
+    if (b.max == null || delayMinutes <= b.max) return b.feeCents;
+  }
+  return 0;
+}
+
+function AccessDelayFeeCard({ jobId, onCharged }: { jobId: string; onCharged: () => void }) {
+  const { getToken } = useAuth();
+  const [delay, setDelay] = useState("");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const delayMinutes = Number(delay);
+  const valid = delay !== "" && Number.isInteger(delayMinutes) && delayMinutes >= 0;
+  const feeCents = valid ? accessDelayFeeCents(delayMinutes) : null;
+
+  async function charge() {
+    if (!valid) return;
+    setBusy(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_URL}/admin/jobs/${jobId}/access-delay-fee`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ delayMinutes, reason: reason.trim() || undefined }),
+      });
+      const data = (await res.json().catch(() => null)) as
+        | { error?: string; feeCents?: number; adjustmentCents?: number; unchanged?: boolean }
+        | null;
+      if (!res.ok) throw new Error(data?.error ?? "Charge failed");
+      if (data?.unchanged) {
+        toast.success("Booking already carries this bracket's fee. No change.");
+      } else {
+        toast.success(
+          `Access-delay fee set to ${formatCurrency((data?.feeCents ?? 0) / 100)} (adjustment ${formatCurrency((data?.adjustmentCents ?? 0) / 100)}).`,
+        );
+      }
+      setDelay("");
+      setReason("");
+      onCharged();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not charge the access-delay fee.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card className="space-y-3">
+      <h2 className="text-sm font-semibold text-charcoal dark:text-white">Access delay fee</h2>
+      <p className="text-xs text-slate-500">
+        Cleaner arrived but could not get in. Non-cumulative: $0 up to 15 min, $25 up to 30, $50 up
+        to 60, $85 beyond (job may be cancelled). Split 80% cleaner team / 20% Sweepr at payout.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block text-xs font-medium text-slate-500">
+          Access delayed (minutes)
+          <input
+            type="number"
+            min={0}
+            step={1}
+            value={delay}
+            onChange={(e) => setDelay(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+          />
+        </label>
+        <label className="block text-xs font-medium text-slate-500">
+          Note (optional)
+          <input
+            type="text"
+            maxLength={500}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+          />
+        </label>
+      </div>
+      {feeCents != null && (
+        <p className="text-xs text-slate-500">
+          Bracket fee: <span className="font-medium text-charcoal dark:text-white">{formatCurrency(feeCents / 100)}</span>
+          {delayMinutes > 60 ? " · job may be cancelled" : ""}
+        </p>
+      )}
+      <Button variant="secondary" onClick={charge} loading={busy} disabled={!valid}>
+        Apply fee
+      </Button>
+    </Card>
+  );
+}
+
 export function JobDetailPage() {
   const { id } = useParams();
   const { getToken } = useAuth();
@@ -692,7 +812,7 @@ export function JobDetailPage() {
   return (
     <DashboardShell
       title={job.id.slice(0, 8) + "…"}
-      description={job.service_type ? SERVICE_LABELS[job.service_type as ServiceType] ?? job.service_type : "Job"}
+      description={`${job.service_type ? SERVICE_LABELS[job.service_type as ServiceType] ?? job.service_type : "Job"}${isDeepCleanJob(job) ? " · Deep Clean" : ""}`}
       actions={<StatusBadge status={status} />}
     >
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -760,6 +880,8 @@ export function JobDetailPage() {
               Save changes
             </Button>
           </Card>
+
+          <AccessDelayFeeCard jobId={job.id} onCharged={load} />
         </div>
       </div>
     </DashboardShell>

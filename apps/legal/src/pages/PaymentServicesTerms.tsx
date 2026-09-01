@@ -8,7 +8,6 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-// DRAFT — attorney review required before production use.
 import { Link } from "react-router-dom";
 import { DocPage } from "../components/DocPage";
 import { Section } from "../components/Section";
@@ -87,15 +86,12 @@ export function PaymentServicesTerms() {
         </p>
       </Section>
 
-      {/*
-        DRAFT — attorney review required (limited payment collection agency
-        framing and customer-discharge provision).
-      */}
       <Section id="collection" title="5. Collection on Behalf of Cleaners">
         <p>
           Each customer charge is a single payment that Sweepr allocates
           internally among the Cleaner's earnings for the service, Sweepr's
-          platform fee, applicable taxes and fees, tips, and any adjustments.
+          Marketplace Services Fee, applicable taxes and fees, tips, and any
+          adjustments.
           Sweepr, through its payment processor, collects the Cleaner's
           earnings as the Cleaner's limited payment collection agent under the
           Independent Contractor Agreement. A customer's payment through the
@@ -120,7 +116,7 @@ export function PaymentServicesTerms() {
           disputes, validated damage claims, or as required by law. Fee and payout
           changes follow the{" "}
           <Link className="text-seafoam-700 underline" to="/platform-fee-policy">
-            Platform Fee Policy
+            Marketplace Services Fee Policy
           </Link>
           .
         </p>
@@ -155,9 +151,9 @@ export function PaymentServicesTerms() {
 
       <Section id="fees" title="11. Fees">
         <p>
-          Platform fees, commissions, and processing costs are described in the{" "}
+          The Marketplace Services Fee, commissions, and processing costs are described in the{" "}
           <Link className="text-seafoam-700 underline" to="/platform-fee-policy">
-            Platform Fee Policy
+            Marketplace Services Fee Policy
           </Link>
           . Tax forms and reporting are described in the{" "}
           <Link className="text-seafoam-700 underline" to="/tax-reporting">

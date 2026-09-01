@@ -110,6 +110,8 @@ let booking: BookingRec;
 let seatSeq = 0;
 /** person-minutes returned by the v2 quote lookup for this booking. */
 let personMinutes = 700;
+/** quote-result snapshot returned by the v2 quote lookup (carries requiredTeamSize). */
+let quoteResult: unknown = null;
 
 function clone<T>(o: T): T {
   return JSON.parse(JSON.stringify(o)) as T;
@@ -152,9 +154,9 @@ function handler(text: string, values: unknown[]): unknown {
   if (text.includes("FROM users WHERE role = 'admin'")) return [];
   if (text.includes("FROM customers c JOIN users u")) return [];
 
-  // ── v2 person-minutes lookup (planAndStartStaffing → loadPersonMinutes) ──
+  // ── v2 labor-context lookup (planAndStartStaffing → loadBookingLaborContext) ──
   if (text.includes("FROM pricing_quotes_v2")) {
-    return [{ expected_labor_minutes: personMinutes, config: null }];
+    return [{ expected_labor_minutes: personMinutes, result: quoteResult, config: null }];
   }
   if (text.includes("FROM pricing_versions")) {
     return [{ config: null }];
@@ -168,7 +170,7 @@ function handler(text: string, values: unknown[]): unknown {
   if (text.includes("FROM cleaners WHERE id =")) {
     return [{ id: values[0], status: "active", user_id: `u-${values[0]}`, tier: "standard", total_jobs: 10, rating: "4.5" }];
   }
-  if (text.includes("FROM platform_fee_settings")) return []; // → default 20%
+  if (text.includes("FROM platform_fee_settings")) return []; // → default 30%
   if (text.includes("founding_member")) return [{ founding_member: false, founding_member_revoked: false }];
   if (text.includes("FROM cleaner_tier_multipliers")) return []; // → 1.0
 
@@ -440,6 +442,7 @@ beforeEach(() => {
   seats = [];
   seatSeq = 0;
   personMinutes = 700;
+  quoteResult = null;
   sqlCalls.length = 0;
   vi.clearAllMocks();
   booking = {
@@ -549,6 +552,33 @@ describe("3-person staffing flow → CONFIRMED", () => {
 
     const accepted = seats.filter((s) => s.status === "ACCEPTED");
     expect(accepted).toHaveLength(3);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// 3b. Engine staffing contract: the quote's requiredTeamSize is consumed.
+// ════════════════════════════════════════════════════════════════════════════
+describe("quote requiredTeamSize drives crew size (engine staffing contract)", () => {
+  it("a low-labor airbnb quote requiring a team of 3 staffs 3 seats", async () => {
+    personMinutes = 200; // labor alone would size to 1
+    quoteResult = { requiredTeamSize: 3 }; // staffing matrix + turnover window said 3
+    booking.service_type = "vacation_rental";
+    vi.mocked(rankLeadCandidates).mockResolvedValue(candidateScores(["L1"]));
+    vi.mocked(rankCrewCandidates).mockResolvedValue(candidateScores(["M1", "M2", "M3"]));
+
+    const res = await planAndStartStaffing(sql, booking.id);
+    expect(res.mode).toBe("crew");
+    expect(res.requiredCrewSize).toBe(3);
+    expect(seats).toHaveLength(3);
+    expect(booking.required_crew_size).toBe(3);
+  });
+
+  it("requiredTeamSize 1 leaves a small job solo", async () => {
+    personMinutes = 200;
+    quoteResult = { requiredTeamSize: 1 };
+    const res = await planAndStartStaffing(sql, booking.id);
+    expect(res.mode).toBe("solo");
+    expect(seats).toHaveLength(0);
   });
 });
 
@@ -726,7 +756,7 @@ describe("no-show → NO_SHOW + reduced-crew recompute + zero pay", () => {
   it("marks NO_SHOW (zero pay), sets AT_RISK, recomputes elapsed, and excludes the seat from the split", async () => {
     booking.crew_status = "CONFIRMED";
     booking.cleaner_id = "L";
-    booking.total_price = 7500; // pool = 6000¢ after default 20% fee
+    booking.total_price = 7500; // pool = 5250¢ after default 30% fee
     seats = [
       makeSeat({ role: "LEAD", seat_index: 0, status: "ACCEPTED", cleaner_id: "L", person_minutes: 350, check_in_at: new Date().toISOString() }),
       makeSeat({ role: "MEMBER", seat_index: 1, status: "ACCEPTED", cleaner_id: "M1", person_minutes: 350 }),
@@ -748,28 +778,57 @@ describe("no-show → NO_SHOW + reduced-crew recompute + zero pay", () => {
     // The no-show is excluded from the pool split: the lone present lead earns the whole pool.
     const earnings = await computeCrewEarnings(sql, booking.id);
     expect(earnings.presentCrewSize).toBe(1);
-    expect(earnings.poolCents).toBe(6000);
+    expect(earnings.poolCents).toBe(5250);
     expect(earnings.seats[0].cleanerId).toBe("L");
-    expect(earnings.seats[0].earningsCents).toBe(6000);
+    expect(earnings.seats[0].earningsCents).toBe(5250);
     expect(seatAt(1).earnings_cents).toBe(0); // no-show still zero
+  });
+
+  it("3-person crew: a no-show recomputes for the two remaining and they split 54/46", async () => {
+    booking.crew_status = "CONFIRMED";
+    booking.cleaner_id = "L";
+    booking.total_price = 10000; // pool = 7000¢ after default 30% fee
+    seats = [
+      makeSeat({ role: "LEAD", seat_index: 0, status: "ACCEPTED", cleaner_id: "L", person_minutes: 300, check_in_at: new Date().toISOString() }),
+      makeSeat({ role: "MEMBER", seat_index: 1, status: "ACCEPTED", cleaner_id: "M1", person_minutes: 300, check_in_at: new Date().toISOString() }),
+      makeSeat({ role: "MEMBER", seat_index: 2, status: "ACCEPTED", cleaner_id: "M2", person_minutes: 300 }),
+    ];
+
+    const noShow = await handleNoShow(sql, {
+      bookingId: booking.id,
+      assignmentId: seatAt(2).id,
+      config: DEFAULT_CREW_CONFIG,
+    });
+    expect(noShow.ok).toBe(true);
+    expect(noShow.presentCrewSize).toBe(2);
+    expect(noShow.personMinutes).toBe(900); // total labor unchanged
+    // Two remaining cleaners at the fallback curve (2 → 1800 permille).
+    expect(noShow.revisedElapsedMinutes).toBe(Math.ceil(900 / 1.8));
+
+    // The two present seats split the SAME pool 54/46; the no-show earns 0.
+    const earnings = await computeCrewEarnings(sql, booking.id);
+    expect(earnings.presentCrewSize).toBe(2);
+    expect(earnings.poolCents).toBe(7000);
+    expect(earnings.seats.map((s) => s.earningsCents)).toEqual([3780, 3220]);
+    expect(seatAt(2).earnings_cents).toBe(0);
   });
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-// 10. Payout split 60/40 and 40/30/30, one transfer per present member.
+// 10. Payout split 54/46 and 36/32/32, one transfer per present member.
 // ════════════════════════════════════════════════════════════════════════════
-describe("payout split 60/40 and 40/30/30", () => {
-  it("60/40 two-person: split written per seat + one transfer each", async () => {
+describe("payout split 54/46 and 36/32/32", () => {
+  it("54/46 two-person: split written per seat + one transfer each", async () => {
     booking.cleaner_id = "cl-lead";
-    booking.total_price = 7500; // pool 6000¢
+    booking.total_price = 7500; // pool 5250¢
     seats = [
       makeSeat({ role: "LEAD", seat_index: 0, status: "COMPLETED", cleaner_id: "cl-lead" }),
       makeSeat({ role: "MEMBER", seat_index: 1, status: "COMPLETED", cleaner_id: "cl-mem" }),
     ];
 
     const earnings = await computeCrewEarnings(sql, booking.id);
-    expect(earnings.poolCents).toBe(6000);
-    expect(earnings.seats.map((s) => s.earningsCents)).toEqual([3600, 2400]);
+    expect(earnings.poolCents).toBe(5250);
+    expect(earnings.seats.map((s) => s.earningsCents)).toEqual([2835, 2415]);
 
     const created: Array<{ params: Record<string, unknown>; opts: { idempotencyKey: string } }> = [];
     const stripe = {
@@ -783,29 +842,29 @@ describe("payout split 60/40 and 40/30/30", () => {
 
     const summary = await releaseCrewPayouts(sql, stripe, booking.id);
     expect(summary.allSucceeded).toBe(true);
-    expect(created.map((c) => c.params.amount)).toEqual([3600, 2400]);
+    expect(created.map((c) => c.params.amount)).toEqual([2835, 2415]);
     expect(new Set(created.map((c) => c.opts.idempotencyKey)).size).toBe(2);
     expect(created.every((c) => c.params.transfer_group === `booking_${booking.id}`)).toBe(true);
   });
 
-  it("40/30/30 three-person: pool split conserved exactly", async () => {
+  it("36/32/32 three-person: pool split conserved exactly", async () => {
     booking.cleaner_id = "cl-lead";
-    booking.total_price = 12500; // pool 10000¢
+    booking.total_price = 12500; // pool 8750¢
     seats = [
       makeSeat({ role: "LEAD", seat_index: 0, status: "COMPLETED", cleaner_id: "cl-lead" }),
       makeSeat({ role: "MEMBER", seat_index: 1, status: "COMPLETED", cleaner_id: "cl-m1" }),
       makeSeat({ role: "MEMBER", seat_index: 2, status: "COMPLETED", cleaner_id: "cl-m2" }),
     ];
     const earnings = await computeCrewEarnings(sql, booking.id);
-    expect(earnings.poolCents).toBe(10000);
-    expect(earnings.seats.map((s) => s.earningsCents)).toEqual([4000, 3000, 3000]);
-    expect(earnings.seats.reduce((sum, s) => sum + s.earningsCents, 0)).toBe(10000);
+    expect(earnings.poolCents).toBe(8750);
+    expect(earnings.seats.map((s) => s.earningsCents)).toEqual([3150, 2800, 2800]);
+    expect(earnings.seats.reduce((sum, s) => sum + s.earningsCents, 0)).toBe(8750);
   });
 
   it("split fractions come from crew config (primary first, sum to 1)", () => {
-    expect(payoutSplitFractions(DEFAULT_CREW_CONFIG, 2)).toEqual([0.6, 0.4]);
-    expect(payoutSplitFractions(DEFAULT_CREW_CONFIG, 3)).toEqual([0.4, 0.3, 0.3]);
-    expect(splitPoolCents(6000, [0.6, 0.4])).toEqual([3600, 2400]);
+    expect(payoutSplitFractions(DEFAULT_CREW_CONFIG, 2)).toEqual([0.54, 0.46]);
+    expect(payoutSplitFractions(DEFAULT_CREW_CONFIG, 3)).toEqual([0.36, 0.32, 0.32]);
+    expect(splitPoolCents(6000, [0.54, 0.46])).toEqual([3240, 2760]);
   });
 });
 
@@ -878,14 +937,14 @@ describe("migration 101 backfill: solo booking → one LEAD seat", () => {
 
   it("a backfilled solo LEAD is a valid degenerate crew of one: it earns the whole pool", async () => {
     booking.cleaner_id = "cl-1";
-    booking.total_price = 7500; // pool 6000¢
+    booking.total_price = 7500; // pool 5250¢
     booking.crew_status = null; // stays solo/legacy
     seats = [makeSeat({ role: "LEAD", seat_index: 0, status: "COMPLETED", cleaner_id: "cl-1" })];
 
     const earnings = await computeCrewEarnings(sql, booking.id);
     expect(earnings.presentCrewSize).toBe(1);
-    expect(earnings.poolCents).toBe(6000);
-    expect(earnings.seats[0].earningsCents).toBe(6000); // 100% to the lead
+    expect(earnings.poolCents).toBe(5250);
+    expect(earnings.seats[0].earningsCents).toBe(5250); // 100% to the lead
   });
 
   it("a booking with no cleaner is not backfilled", () => {

@@ -265,6 +265,14 @@ const applySchema = z.object({
   basedIn: z.string().optional(),
   radiusMi: z.number().optional(),
   services: z.array(z.string()).optional(),
+  // Canonical job-type preferences (migration 107): which of the three
+  // canonical types the cleaner accepts. At least one required when provided;
+  // omitted = all types accepted (the column default).
+  acceptedJobTypes: z
+    .array(z.enum(["standard", "move_in_out", "vacation_rental"]))
+    .min(1)
+    .max(3)
+    .optional(),
   addOns: z.array(z.string()).optional(),
   availability: z.record(z.string()).optional(),
   // Explicit SMS opt-in from the (never pre-checked) onboarding checkbox.
@@ -288,15 +296,17 @@ cleanersRouter.post("/apply", zValidator("json", applySchema), async (c) => {
         phone      = COALESCE(${input.phone ?? null}, phone),
         bio        = COALESCE(${input.bio ?? null}, bio),
         avatar_url = COALESCE(${input.avatarUrl ?? null}, avatar_url),
+        accepted_job_types = COALESCE(${input.acceptedJobTypes ?? null}, accepted_job_types),
         status     = 'pending'
       WHERE user_id = ${user.id}
     `;
   } else {
     await sql`
-      INSERT INTO cleaners (user_id, first_name, last_name, phone, bio, avatar_url, status)
+      INSERT INTO cleaners (user_id, first_name, last_name, phone, bio, avatar_url, accepted_job_types, status)
       VALUES (
         ${user.id}, ${firstName || null}, ${lastName || null},
         ${input.phone ?? null}, ${input.bio ?? null}, ${input.avatarUrl ?? null},
+        ${input.acceptedJobTypes ?? ["standard", "move_in_out", "vacation_rental"]},
         'pending'
       )
     `;
@@ -341,6 +351,12 @@ const businessApplySchema = z.object({
     // DOB and address are collected directly by Yardstik — never by Sweepr.
   }),
   serviceTypes: z.array(z.string()).optional(),
+  // Canonical job-type preferences (see applySchema.acceptedJobTypes).
+  acceptedJobTypes: z
+    .array(z.enum(["standard", "move_in_out", "vacation_rental"]))
+    .min(1)
+    .max(3)
+    .optional(),
   addOnKeys: z.array(z.string()).optional(),
   availability: z.record(z.string()).optional(),
   // Explicit SMS opt-in from the (never pre-checked) onboarding checkbox.
@@ -389,6 +405,7 @@ cleanersRouter.post(
           ein_provided = true,
           kyb_status = 'pending',
           stripe_connect_id = COALESCE(${connectId}, stripe_connect_id),
+          accepted_job_types = COALESCE(${input.acceptedJobTypes ?? null}, accepted_job_types),
           status = 'pending'
         WHERE user_id = ${user.id}
       `;
@@ -397,12 +414,14 @@ cleanersRouter.post(
         INSERT INTO cleaners (
           user_id, first_name, last_name, account_type, business_name,
           business_type, state_of_incorporation, authorized_rep_name,
-          authorized_rep_title, ein_provided, kyb_status, stripe_connect_id, status
+          authorized_rep_title, ein_provided, kyb_status, stripe_connect_id,
+          accepted_job_types, status
         ) VALUES (
           ${user.id}, ${firstName || null}, ${lastName || null}, 'business',
           ${input.businessName}, ${input.businessType},
           ${input.stateOfIncorporation}, ${input.authorizedRep.name},
-          ${input.authorizedRep.title}, true, 'pending', ${connectId}, 'pending'
+          ${input.authorizedRep.title}, true, 'pending', ${connectId},
+          ${input.acceptedJobTypes ?? ["standard", "move_in_out", "vacation_rental"]}, 'pending'
         )
       `;
     }

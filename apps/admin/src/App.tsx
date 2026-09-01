@@ -48,11 +48,13 @@ import {
   Award,
   Gavel,
   CalendarClock,
+  CalendarRange,
   DoorOpen,
   Gauge,
   Orbit,
   FileUp,
   UsersRound,
+  Flag,
 } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -101,6 +103,9 @@ import { ScopeReviewPage } from "./pages/ScopeReviewPage";
 import { ScopeReviewDetailPage } from "./pages/ScopeReviewDetailPage";
 import { TrustSafetyPage } from "./pages/TrustSafetyPage";
 import { CrewConfigPage } from "./pages/CrewConfigPage";
+import { ReportsPage } from "./pages/ReportsPage";
+import { ReportDetailPage } from "./pages/ReportDetailPage";
+import { BookingCalendarPage } from "./pages/BookingCalendarPage";
 
 // Lazy: Site Analytics carries three.js (React Three Fiber KPIs) — keep it
 // out of the main admin bundle.
@@ -132,6 +137,7 @@ const navGroups = [
     items: [
       { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
       { to: "/jobs", label: "Jobs", icon: Briefcase },
+      { to: "/booking-calendar", label: "Booking Calendar", icon: CalendarRange },
       { to: "/scope-review", label: "Scope Review", icon: ScanEye },
       { to: "/disputes", label: "Disputes", icon: AlertTriangle },
       { to: "/service-areas", label: "Service Areas", icon: Map },
@@ -173,6 +179,7 @@ const navGroups = [
     label: "Trust & Safety",
     items: [
       { to: "/trust-safety", label: "Trust & Safety", icon: ShieldBan },
+      { to: "/reports", label: "User Reports", icon: Flag },
       { to: "/security", label: "Security", icon: ShieldAlert },
       { to: "/approvals", label: "Approvals", icon: GitPullRequest },
       { to: "/legal-archive", label: "Legal Archive", icon: Gavel },
@@ -271,6 +278,7 @@ export default function App() {
       <Route path="/" element={<Guarded><DashboardPage /></Guarded>} />
       <Route path="/jobs" element={<Guarded><JobsPage /></Guarded>} />
       <Route path="/jobs/:id" element={<Guarded><JobDetailPage /></Guarded>} />
+      <Route path="/booking-calendar" element={<Guarded><BookingCalendarPage /></Guarded>} />
       <Route path="/customers" element={<Guarded><CustomersPage /></Guarded>} />
       <Route path="/cleaners" element={<Guarded><CleanersPage /></Guarded>} />
       <Route path="/applications" element={<Guarded><ApplicationsPage /></Guarded>} />
@@ -357,6 +365,8 @@ export default function App() {
       <Route path="/scope-review" element={<Guarded><ScopeReviewPage /></Guarded>} />
       <Route path="/scope-review/:id" element={<Guarded><ScopeReviewDetailPage /></Guarded>} />
       <Route path="/trust-safety" element={<Guarded><TrustSafetyPage /></Guarded>} />
+      <Route path="/reports" element={<Guarded><ReportsPage /></Guarded>} />
+      <Route path="/reports/:id" element={<Guarded><ReportDetailPage /></Guarded>} />
       <Route path="/automation" element={<Guarded><AutomationPage /></Guarded>} />
       <Route path="/admins" element={<Guarded><AdminsPage /></Guarded>} />
       <Route path="/access-control" element={<Guarded><AccessControlPage /></Guarded>} />

@@ -24,6 +24,7 @@ import { useAuth } from "@clerk/clerk-react";
 import {
   Archive,
   BadgeDollarSign,
+  BedDouble,
   CalendarClock,
   ClipboardCheck,
   Clock,
@@ -31,15 +32,18 @@ import {
   FlaskConical,
   Grid3x3,
   History,
+  Inbox,
   LayoutDashboard,
   Plus,
   Rocket,
   Settings2,
   Sparkles,
+  Truck,
   Wand2,
 } from "lucide-react";
 import { Button, Card, Modal, toast } from "@sweepr/ui";
 import { cn } from "@sweepr/utils";
+import { buildDefaultExtendedRules, type ExtendedRulesV2 } from "@sweepr/quote-engine";
 import { usePermissions } from "../lib/permissions";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
@@ -59,8 +63,14 @@ const LEVEL_LABELS = [
   "4 · Heavy condition",
 ];
 
-// Mirrors PricingConfigV2 (apps/api/src/lib/quoteEngine/types.ts).
+// Mirrors PricingConfigV2 (packages/quote-engine/src/types.ts).
 interface Config {
+  /** 2 = extended multi-service ruleset; absent/1 = legacy standard-only. */
+  formatVersion?: 1 | 2;
+  /** Multi-service rules (Move-In/Out, Airbnb/STR, deep clean, short-notice
+   *  tiers, location tiers, extras overrides). Unknown sections round-trip
+   *  untouched — the Studio edits only what it renders. */
+  extendedRules?: ExtendedRulesV2;
   laborMatrix: Record<RoomType, [number, number, number, number]>;
   clutter: {
     minutesByType: Record<RoomType, [number, number, number]>;
@@ -86,7 +96,8 @@ interface Config {
   rates: {
     customerLaborRateCentsPerHour: number;
     fixedServiceCents: number;
-    minimumBookingCents: number;
+    /** Optional job-total floor (pre-tax); absent/0 = no minimum. */
+    minimumBookingCents?: number;
     maxAutoQuoteCents: number;
     taxRateBps: number;
     roundTotalUpToEndingDigit: number | null;
@@ -250,8 +261,12 @@ type Tab =
   | "adjustments"
   | "extras"
   | "rates"
+  | "moveinout"
+  | "airbnb"
+  | "rules"
   | "scheduling"
   | "test"
+  | "proposals"
   | "publish"
   | "history";
 
@@ -262,8 +277,12 @@ const TABS: Array<{ id: Tab; label: string; icon: typeof Grid3x3 }> = [
   { id: "adjustments", label: "Clutter & size", icon: Sparkles },
   { id: "extras", label: "Extras", icon: Plus },
   { id: "rates", label: "Rates & payout", icon: BadgeDollarSign },
+  { id: "moveinout", label: "Move-In/Out", icon: Truck },
+  { id: "airbnb", label: "Airbnb / STR", icon: BedDouble },
+  { id: "rules", label: "Tiers & rules", icon: CalendarClock },
   { id: "scheduling", label: "Scheduling", icon: Clock },
   { id: "test", label: "Test quote", icon: FlaskConical },
+  { id: "proposals", label: "Proposals", icon: Inbox },
   { id: "publish", label: "Review & publish", icon: Rocket },
   { id: "history", label: "History", icon: History },
 ];
@@ -429,7 +448,17 @@ export function PricingStudioPage() {
         </div>
       )}
 
-      {!config ? (
+      {tab === "proposals" ? (
+        <ProposalsTab
+          api={api}
+          onImported={(id) => {
+            void loadVersions().then(() => {
+              setSelectedId(id);
+              setTab("overview");
+            });
+          }}
+        />
+      ) : !config ? (
         <Card>
           <p className="py-10 text-center text-sm text-slate-500">
             {versions.length === 0
@@ -445,6 +474,9 @@ export function PricingStudioPage() {
           {tab === "adjustments" && <AdjustmentsTab config={config} patch={patchConfig} editable={editable} />}
           {tab === "extras" && <ExtrasTab config={config} patch={patchConfig} editable={editable} />}
           {tab === "rates" && <RatesTab config={config} patch={patchConfig} editable={editable} />}
+          {tab === "moveinout" && <MoveInOutTab config={config} patch={patchConfig} editable={editable} />}
+          {tab === "airbnb" && <AirbnbTab config={config} patch={patchConfig} editable={editable} />}
+          {tab === "rules" && <RulesTab config={config} patch={patchConfig} editable={editable} />}
           {tab === "scheduling" && <SchedulingTab config={config} patch={patchConfig} editable={editable} />}
           {tab === "test" && <TestQuoteTab api={api} versionId={selectedId} />}
           {tab === "publish" && (
@@ -506,8 +538,10 @@ function OverviewTab({
           </p>
         </Card>
         <Card>
-          <p className="text-sm text-slate-500">Minimum booking</p>
-          <p className="mt-1 text-2xl font-bold text-charcoal dark:text-white">{dollars(config.rates.minimumBookingCents)}</p>
+          <p className="text-sm text-slate-500">Minimum job total</p>
+          <p className="mt-1 text-2xl font-bold text-charcoal dark:text-white">
+            {(config.rates.minimumBookingCents ?? 0) > 0 ? dollars(config.rates.minimumBookingCents) : "None"}
+          </p>
         </Card>
         <Card>
           <p className="text-sm text-slate-500">Cleaner payout basis</p>
@@ -580,6 +614,134 @@ function ScenarioTable({ scenarios }: { scenarios: Scenario[] }) {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// MCP proposals (payload → Studio autofill bridge)
+// ---------------------------------------------------------------------------
+
+interface Proposal {
+  id: string;
+  admin_email: string;
+  name: string;
+  notes: string | null;
+  based_on_version_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Lists the LLM-drafted configs sitting in the quarantined MCP sandbox
+ * (mcp_simulator_configs). "Load into Studio" imports one as a DRAFT pricing
+ * version with every field pre-filled — it then behaves like any other draft:
+ * tweak field by field across the tabs, test-quote, and publish (humans only;
+ * the MCP itself can never create or publish a pricing version).
+ */
+function ProposalsTab({
+  api,
+  onImported,
+}: {
+  api: ReturnType<typeof useApi>;
+  onImported: (versionId: string) => void;
+}) {
+  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api("proposals");
+      if (res.ok) {
+        const data = (await res.json()) as { proposals: Proposal[] };
+        setProposals(data.proposals);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [api]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function importProposal(p: Proposal) {
+    setImporting(p.id);
+    try {
+      const res = await api(`proposals/${p.id}/import`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      const data = (await res.json().catch(() => null)) as
+        | { version?: { id: string }; validation?: { ok: boolean; errors: string[] }; error?: string; message?: string }
+        | null;
+      if (!res.ok || !data?.version?.id) {
+        toast.error(data?.message ?? data?.error ?? "Import failed");
+        return;
+      }
+      if (data.validation && !data.validation.ok) {
+        toast.error(
+          `Draft created with ${data.validation.errors.length} validation error(s) — fix them before publishing.`,
+        );
+      } else {
+        toast.success("Draft created — every field is now editable in the Studio tabs.");
+      }
+      onImported(data.version.id);
+    } finally {
+      setImporting(null);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <h3 className="mb-1 text-sm font-semibold text-charcoal dark:text-white">
+          MCP sandbox proposals
+        </h3>
+        <p className="mb-3 text-xs text-slate-500">
+          Pricing configs drafted through the MCP assistant land here automatically. Loading one
+          creates a DRAFT with every field pre-filled and editable across the Studio tabs — nothing
+          reaches customers until a human reviews and publishes it. (The paste-a-payload path still
+          exists under Pricing → Import Payload.)
+        </p>
+        {loading ? (
+          <p className="py-8 text-center text-sm text-slate-500">Loading proposals…</p>
+        ) : proposals.length === 0 ? (
+          <p className="py-8 text-center text-sm text-slate-500">
+            No sandbox proposals yet. Ask the pricing assistant (MCP) to store one with
+            set_simulator_config — it appears here immediately.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {proposals.map((p) => (
+              <li
+                key={p.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 px-3 py-2.5 text-sm dark:border-slate-800"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-charcoal dark:text-white">
+                    {p.name}
+                    <span className="ml-2 text-xs font-normal text-slate-500">{p.admin_email}</span>
+                  </p>
+                  <p className="truncate text-xs text-slate-500">
+                    {p.notes ?? "No notes"} · updated {new Date(p.updated_at).toLocaleString()}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  loading={importing === p.id}
+                  disabled={importing !== null && importing !== p.id}
+                  onClick={() => void importProposal(p)}
+                >
+                  <Inbox className="mr-1 h-3.5 w-3.5" /> Load into Studio
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
     </div>
   );
 }
@@ -1062,6 +1224,7 @@ function ExtrasTab({
   editable: boolean;
 }) {
   return (
+    <div className="space-y-4">
     <Card>
       <h3 className="mb-1 text-sm font-semibold text-charcoal dark:text-white">Extras</h3>
       <p className="mb-3 text-xs text-slate-500">
@@ -1145,6 +1308,101 @@ function ExtrasTab({
         </table>
       </div>
     </Card>
+    <ExtrasOverridesCard config={config} patch={patch} editable={editable} />
+    </div>
+  );
+}
+
+/**
+ * App-side extras overrides (extendedRules.extrasAppSideOverrides): the
+ * decoupled/fixed-price rules the engine applies ON TOP of the catalog at
+ * resolve time — the stored catalog rows above stay untouched.
+ */
+function ExtrasOverridesCard({
+  config,
+  patch,
+  editable,
+}: {
+  config: Config;
+  patch: (mut: (c: Config) => Config) => void;
+  editable: boolean;
+}) {
+  const o = config.extendedRules?.extrasAppSideOverrides;
+  if (!config.extendedRules) {
+    return (
+      <EnableExtendedCard
+        patch={patch}
+        editable={editable}
+        note="Extras overrides (fixed-price oven and sliding door, decoupled laundry and Light Tidying, pet-hair tiers, patio exclusivity) are part of the multi-service ruleset."
+      />
+    );
+  }
+  const ov = (c: Config) => {
+    c.extendedRules = c.extendedRules ?? {};
+    c.extendedRules.extrasAppSideOverrides = c.extendedRules.extrasAppSideOverrides ?? {};
+    return c.extendedRules.extrasAppSideOverrides;
+  };
+  const tiers = o?.petHair?.percentageTiers ?? [5, 15, 25];
+  return (
+    <Card>
+      <h3 className="mb-1 text-sm font-semibold text-charcoal dark:text-white">App-side overrides</h3>
+      <p className="mb-3 text-xs text-slate-500">
+        Applied on top of the catalog when quoting. Laundry and Light Tidying are DECOUPLED: the
+        customer pays the fixed price while their active minutes only book scheduling time (machine
+        cycles never bill as labor and never block the cleaner). Pet hair prices as a percentage of
+        the base workload instead of the flat placeholder.
+      </p>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <NumField label="Inside oven price" unit="fixed, includes 35 min active labor" money
+          value={o?.insideOven?.customerPriceCents ?? 4000} disabled={!editable}
+          onChange={(v) => patch((c) => { const x = ov(c); x.insideOven = { ...(x.insideOven ?? { activeLaborMinutes: 35 }), customerPriceCents: Math.max(0, v) }; return c; })} />
+        <NumField label="Laundry price" unit="per load (wash, dry, fold)" money
+          value={o?.laundry?.customerPriceCentsPerLoad ?? 2500} disabled={!editable}
+          onChange={(v) => patch((c) => { const x = ov(c); x.laundry = { ...(x.laundry ?? { maxLoads: 2 }), customerPriceCentsPerLoad: Math.max(0, v) }; return c; })} />
+        <NumField label="Laundry max loads" unit="loads per visit"
+          value={o?.laundry?.maxLoads ?? 2} disabled={!editable}
+          onChange={(v) => patch((c) => { const x = ov(c); x.laundry = { ...(x.laundry ?? {}), maxLoads: Math.max(1, Math.round(v)) }; return c; })} />
+        <NumField label="Light Tidying price" unit="per 30-minute block" money
+          value={o?.lightTidying?.customerPriceCentsPer30MinuteBlock ?? 2500} disabled={!editable}
+          onChange={(v) => patch((c) => { const x = ov(c); x.lightTidying = { ...(x.lightTidying ?? { minutesPerBlock: 30 }), customerPriceCentsPer30MinuteBlock: Math.max(0, v) }; return c; })} />
+        <NumField label="Sliding glass door price" unit="fixed, includes its track" money
+          value={o?.slidingGlassDoor?.detailPriceCents ?? 2000} disabled={!editable}
+          onChange={(v) => patch((c) => { const x = ov(c); x.slidingGlassDoor = { ...(x.slidingGlassDoor ?? { includesTrack: true, suppressDuplicateTrackAddon: true }), detailPriceCents: Math.max(0, v) }; return c; })} />
+        <div className="flex flex-wrap items-end gap-3">
+          {(["light", "moderate", "heavy"] as const).map((lvl, i) => (
+            <NumField key={lvl} label={`Pet hair ${lvl}`} unit="% of base workload" step={1}
+              value={tiers[i] ?? 0} disabled={!editable}
+              onChange={(v) => patch((c) => {
+                const x = ov(c);
+                const next = [...(x.petHair?.percentageTiers ?? [5, 15, 25])];
+                next[i] = Math.max(0, Math.min(100, Math.round(v)));
+                x.petHair = { ...(x.petHair ?? {}), useFlat39DollarPlaceholder: false, percentageTiers: next };
+                return c;
+              })} />
+          ))}
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-5 text-sm text-slate-600 dark:text-slate-300">
+        <label className="flex items-center gap-2">
+          <input type="checkbox" className="h-4 w-4 rounded border-slate-300 accent-teal-500"
+            checked={o?.patio?.basicAndCobwebDetailMutuallyExclusive === true} disabled={!editable}
+            onChange={(e) => patch((c) => { const x = ov(c); x.patio = { ...(x.patio ?? {}), basicAndCobwebDetailMutuallyExclusive: e.target.checked }; return c; })} />
+          Basic patio sweep and patio + cobweb detail are mutually exclusive
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" className="h-4 w-4 rounded border-slate-300 accent-teal-500"
+            checked={o?.bedLinensAndLaundry?.preventDoubleChargeForOverlappingWork === true} disabled={!editable}
+            onChange={(e) => patch((c) => { const x = ov(c); x.bedLinensAndLaundry = { ...(x.bedLinensAndLaundry ?? {}), preventDoubleChargeForOverlappingWork: e.target.checked }; return c; })} />
+          Prevent bed-linens vs laundry double charge
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" className="h-4 w-4 rounded border-slate-300 accent-teal-500"
+            checked={o?.slidingGlassDoor?.suppressDuplicateTrackAddon === true} disabled={!editable}
+            onChange={(e) => patch((c) => { const x = ov(c); x.slidingGlassDoor = { ...(x.slidingGlassDoor ?? { detailPriceCents: 2000, includesTrack: true }), suppressDuplicateTrackAddon: e.target.checked }; return c; })} />
+          Suppress duplicate window-track charge for sliding doors
+        </label>
+      </div>
+    </Card>
   );
 }
 
@@ -1170,7 +1428,8 @@ function RatesTab({
             onChange={(v) => patch((c) => { c.rates.customerLaborRateCentsPerHour = Math.max(0, v); return c; })} />
           <NumField label="Fixed service visit" unit="per booking (trip/supplies)" money value={config.rates.fixedServiceCents} disabled={!editable}
             onChange={(v) => patch((c) => { c.rates.fixedServiceCents = Math.max(0, v); return c; })} />
-          <NumField label="Minimum booking total" unit="floor applied pre-tax" money value={config.rates.minimumBookingCents} disabled={!editable}
+          <NumField label="Minimum job total" unit="floor applied pre-tax · $0 = no minimum" money value={config.rates.minimumBookingCents ?? 0} disabled={!editable}
+            help="Supports hourly-rate-plus-minimum pricing (e.g. $25/labor-hour but at least $40 per job). Floors the whole pre-tax subtotal — labor, service visit, extras, area/rush adjustments — before tax and rounding; the test-quote breakdown shows a 'Minimum booking total' line when it kicks in."
             onChange={(v) => patch((c) => { c.rates.minimumBookingCents = Math.max(0, v); return c; })} />
           <NumField label="Automatic quote limit" unit="above this → manual review" money value={config.rates.maxAutoQuoteCents} disabled={!editable}
             onChange={(v) => patch((c) => { c.rates.maxAutoQuoteCents = Math.max(0, v); return c; })} />
@@ -1200,9 +1459,13 @@ function RatesTab({
         </div>
       </Card>
       <Card>
-        <h3 className="mb-3 text-sm font-semibold text-charcoal dark:text-white">Cleaner payout</h3>
+        <h3 className="mb-3 text-sm font-semibold text-charcoal dark:text-white">Cleaner payout (planning estimate)</h3>
         <p className="mb-3 text-xs text-slate-500">
-          Independent of the customer price: changing one never silently changes the other.
+          Independent of the customer price: changing one never silently changes the other. This is
+          a MODELING estimate for margin checks. Actual cleaner pay is the standard 70/30 split: the
+          cleaner/team pool earns 70% of captured booking proceeds and the 30% Marketplace Services
+          Fee is Sweepr's share (Payouts fee settings), plus 100% of tips to the cleaner outside the
+          split. It is not set here and cleaners are never paid hourly.
         </p>
         <div className="space-y-4">
           <label className="block">
@@ -1284,6 +1547,7 @@ function TestQuoteTab({ api, versionId }: { api: ReturnType<typeof useApi>; vers
     recommendedTeamSize: number;
     warnings: string[];
     manualReviewRequired: boolean;
+    minimumApplied?: boolean;
   } | null>(null);
   const [running, setRunning] = useState(false);
 
@@ -1379,8 +1643,17 @@ function TestQuoteTab({ api, versionId }: { api: ReturnType<typeof useApi>; vers
                 <span>Customer total</span><span className="tabular-nums">{dollars(result.totalCents)}</span>
               </div>
               <div className="mt-1 flex justify-between text-slate-500">
-                <span>Cleaner payout</span><span className="tabular-nums">{dollars(result.cleanerPayoutCents)}</span>
+                <span title="Planning estimate from this config's payout model. Actual cleaner pay is 70% of captured proceeds (the 30% Marketplace Services Fee is Sweepr's share), plus 100% of tips.">
+                  Modeled cleaner payout (est.)
+                </span>
+                <span className="tabular-nums">{dollars(result.cleanerPayoutCents)}</span>
               </div>
+              {result.minimumApplied && (
+                <p className="mt-1 rounded-lg bg-sky-50 px-2 py-1 text-xs font-medium text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
+                  Minimum applied — this job priced below the configured minimum and was topped up
+                  to it (see the “Minimum booking total” line above).
+                </p>
+              )}
               <p className="mt-2 text-xs text-slate-500">
                 {minutesLabel(result.expectedLaborMinutes)} expected · {minutesLabel(result.scheduledLaborMinutes)} scheduled ·{" "}
                 ~{minutesLabel(result.estimatedElapsedMinutes)} on site · team of {result.recommendedTeamSize}
@@ -1649,6 +1922,702 @@ function HistoryTab({
           {audit.length === 0 && <p className="py-6 text-center text-sm text-slate-500">No events yet.</p>}
         </ul>
       </Card>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Extended multi-service ruleset tabs (formatVersion 2)
+// ---------------------------------------------------------------------------
+
+/** Shown wherever an extended section is edited but the draft is still a
+ *  legacy standard-only config. One click seeds the approved defaults. */
+function EnableExtendedCard({
+  patch,
+  editable,
+  note,
+}: {
+  patch: (mut: (c: Config) => Config) => void;
+  editable: boolean;
+  note: string;
+}) {
+  return (
+    <Card className="border-amber-300 dark:border-amber-800">
+      <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+        This draft is a legacy standard-only config.
+      </p>
+      <p className="mt-1 text-sm text-amber-800/80 dark:text-amber-200/80">{note}</p>
+      <Button
+        size="sm"
+        className="mt-3"
+        disabled={!editable}
+        onClick={() =>
+          patch((c) => {
+            c.formatVersion = 2;
+            c.extendedRules = buildDefaultExtendedRules();
+            return c;
+          })
+        }
+      >
+        <Sparkles className="mr-1 h-3.5 w-3.5" /> Enable multi-service pricing
+      </Button>
+      {!editable && (
+        <p className="mt-2 text-xs text-amber-800/70 dark:text-amber-200/70">
+          Read only. Clone this version to a draft to enable it.
+        </p>
+      )}
+    </Card>
+  );
+}
+
+/** "3BR_2BA" → "3 bed / 2 bath" for display. */
+function comboLabel(key: string): string {
+  return key
+    .replace("Studio_or_1BR", "Studio or 1 bed")
+    .replace(/(\d+)BR/, "$1 bed")
+    .replace(/_(\d+)BA/, " / $1 bath");
+}
+
+const LEVEL_COLUMNS = ["L1", "L2", "L3", "L4"] as const;
+
+function MoveInOutTab({
+  config,
+  patch,
+  editable,
+}: {
+  config: Config;
+  patch: (mut: (c: Config) => Config) => void;
+  editable: boolean;
+}) {
+  const rules = config.extendedRules?.moveInOut;
+  if (!rules) {
+    return (
+      <EnableExtendedCard
+        patch={patch}
+        editable={editable}
+        note="Move-in / move-out pricing (BR/BA base matrix, condition multipliers, oversized-home guardrail) requires the multi-service ruleset."
+      />
+    );
+  }
+  const mio = (c: Config) => c.extendedRules!.moveInOut!;
+
+  function addRow() {
+    const key = window.prompt('New BR/BA key (e.g. "6BR_4BA"):');
+    if (!key) return;
+    if (!/^(Studio_or_1BR|\d+BR)_\d+BA$/.test(key.trim())) {
+      toast.error('Key must look like "3BR_2BA" or "Studio_or_1BR_1BA".');
+      return;
+    }
+    patch((c) => {
+      mio(c).basePriceMatrixCents = { ...mio(c).basePriceMatrixCents, [key.trim()]: 49900 };
+      return c;
+    });
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <h3 className="mb-1 text-sm font-semibold text-charcoal dark:text-white">
+          Move-in / move-out base prices
+        </h3>
+        <p className="mb-3 text-xs text-slate-500">
+          Flat matrix price by bedrooms and bathrooms for an empty or almost-empty home. No
+          standard size scaling applies; unusually large homes pay the guardrail below. Combos not
+          listed price from the closest entry (the quote carries a warning).
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {Object.entries(rules.basePriceMatrixCents ?? {}).map(([key, cents]) => (
+            <NumField
+              key={key}
+              label={comboLabel(key)}
+              unit="per clean"
+              money
+              value={typeof cents === "number" ? cents : 0}
+              disabled={!editable}
+              onChange={(v) =>
+                patch((c) => {
+                  mio(c).basePriceMatrixCents = {
+                    ...mio(c).basePriceMatrixCents,
+                    [key]: Math.max(0, v),
+                  };
+                  return c;
+                })
+              }
+            />
+          ))}
+        </div>
+        {editable && (
+          <Button size="sm" variant="secondary" className="mt-3" onClick={addRow}>
+            <Plus className="mr-1 h-3.5 w-3.5" /> Add BR/BA combo
+          </Button>
+        )}
+      </Card>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card>
+          <h3 className="mb-1 text-sm font-semibold text-charcoal dark:text-white">
+            Condition multipliers
+          </h3>
+          <p className="mb-3 text-xs text-slate-500">
+            Percent added to the matrix base at each reported condition level.
+          </p>
+          <div className="flex flex-wrap items-end gap-4">
+            {LEVEL_COLUMNS.map((lvl) => (
+              <NumField
+                key={lvl}
+                label={`Level ${lvl.slice(1)}`}
+                unit="% of base"
+                step={1}
+                value={rules.conditionMultipliersPercent?.[lvl] ?? 0}
+                disabled={!editable}
+                onChange={(v) =>
+                  patch((c) => {
+                    mio(c).conditionMultipliersPercent = {
+                      ...(mio(c).conditionMultipliersPercent ?? {}),
+                      [lvl]: Math.max(0, Math.min(100, Math.round(v))),
+                    };
+                    return c;
+                  })
+                }
+              />
+            ))}
+          </div>
+        </Card>
+        <Card>
+          <h3 className="mb-1 text-sm font-semibold text-charcoal dark:text-white">
+            Oversized-home guardrail
+          </h3>
+          <p className="mb-3 text-xs text-slate-500">
+            Charged only when the home is unusually large for its room count (included square
+            footage comes from the shared per-bedroom table on the Airbnb tab unless overridden).
+          </p>
+          <NumField
+            label="Price per additional 250 sq ft"
+            unit="above the included allowance"
+            money
+            value={rules.oversizedHomeGuardrail?.priceCentsPerAdditional250Sqft ?? 1500}
+            disabled={!editable}
+            onChange={(v) =>
+              patch((c) => {
+                mio(c).oversizedHomeGuardrail = {
+                  ...(mio(c).oversizedHomeGuardrail ?? {}),
+                  priceCentsPerAdditional250Sqft: Math.max(0, v),
+                };
+                return c;
+              })
+            }
+          />
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function AirbnbTab({
+  config,
+  patch,
+  editable,
+}: {
+  config: Config;
+  patch: (mut: (c: Config) => Config) => void;
+  editable: boolean;
+}) {
+  const rules = config.extendedRules?.airbnbSTR;
+  if (!rules) {
+    return (
+      <EnableExtendedCard
+        patch={patch}
+        editable={editable}
+        note="Airbnb / short-term-rental turnover pricing (base matrix, size guardrail, dirtiness adjustments, staffing matrix, turnover-window rules, repeat/volume discounts, scope suppression) requires the multi-service ruleset."
+      />
+    );
+  }
+  const str = (c: Config) => c.extendedRules!.airbnbSTR!;
+  const suppression = (rules.scopeAndSuppressionRules ?? {}) as Record<string, unknown>;
+
+  function addRow() {
+    const key = window.prompt('New BR/BA key (e.g. "6BR_4BA"):');
+    if (!key) return;
+    if (!/^(Studio_or_1BR|\d+BR)_\d+BA$/.test(key.trim())) {
+      toast.error('Key must look like "3BR_2BA" or "Studio_or_1BR_1BA".');
+      return;
+    }
+    patch((c) => {
+      str(c).basePriceMatrixCents = { ...str(c).basePriceMatrixCents, [key.trim()]: 29900 };
+      return c;
+    });
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <h3 className="mb-1 text-sm font-semibold text-charcoal dark:text-white">
+          Turnover base prices
+        </h3>
+        <p className="mb-3 text-xs text-slate-500">
+          Flat turnover price by bedrooms and bathrooms. Bed making, a dishwasher load, and the
+          basic patio sweep are included in the base; suppressed add-ons never charge again.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {Object.entries(rules.basePriceMatrixCents ?? {}).map(([key, cents]) => (
+            <NumField
+              key={key}
+              label={comboLabel(key)}
+              unit="per turnover"
+              money
+              value={typeof cents === "number" ? cents : 0}
+              disabled={!editable}
+              onChange={(v) =>
+                patch((c) => {
+                  str(c).basePriceMatrixCents = {
+                    ...str(c).basePriceMatrixCents,
+                    [key]: Math.max(0, v),
+                  };
+                  return c;
+                })
+              }
+            />
+          ))}
+        </div>
+        {editable && (
+          <Button size="sm" variant="secondary" className="mt-3" onClick={addRow}>
+            <Plus className="mr-1 h-3.5 w-3.5" /> Add BR/BA combo
+          </Button>
+        )}
+      </Card>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card>
+          <h3 className="mb-1 text-sm font-semibold text-charcoal dark:text-white">
+            Size guardrail
+          </h3>
+          <p className="mb-3 text-xs text-slate-500">
+            Included square footage per bedroom count; larger properties pay per additional 250 sq
+            ft. This table is also the "typical size" reference for the move-in/out guardrail.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {Object.entries(rules.sizeGuardrail?.includedSqftByBedroomCount ?? {}).map(
+              ([key, sqft]) => (
+                <NumField
+                  key={key}
+                  label={key.replace("Studio_or_1BR", "Studio or 1 bed").replace(/(\d+)BR/, "$1 bed")}
+                  unit="sq ft included"
+                  value={typeof sqft === "number" ? sqft : 0}
+                  disabled={!editable}
+                  onChange={(v) =>
+                    patch((c) => {
+                      const g = (str(c).sizeGuardrail = { ...(str(c).sizeGuardrail ?? {}) });
+                      g.includedSqftByBedroomCount = {
+                        ...(g.includedSqftByBedroomCount ?? {}),
+                        [key]: Math.max(0, Math.round(v)),
+                      };
+                      return c;
+                    })
+                  }
+                />
+              ),
+            )}
+            <NumField
+              label="Price per additional 250 sq ft"
+              unit="above the allowance"
+              money
+              value={rules.sizeGuardrail?.priceCentsPerAdditional250Sqft ?? 1200}
+              disabled={!editable}
+              onChange={(v) =>
+                patch((c) => {
+                  str(c).sizeGuardrail = {
+                    ...(str(c).sizeGuardrail ?? {}),
+                    priceCentsPerAdditional250Sqft: Math.max(0, v),
+                  };
+                  return c;
+                })
+              }
+            />
+          </div>
+        </Card>
+        <Card>
+          <h3 className="mb-1 text-sm font-semibold text-charcoal dark:text-white">
+            Dirtiness adjustments
+          </h3>
+          <p className="mb-3 text-xs text-slate-500">
+            Percent added to base + size guardrail by reported condition. Severe or unsafe mess is
+            never auto-priced; it routes to manual review.
+          </p>
+          <div className="flex flex-wrap items-end gap-4">
+            {LEVEL_COLUMNS.map((lvl) => (
+              <NumField
+                key={lvl}
+                label={`Level ${lvl.slice(1)}`}
+                unit="%"
+                step={1}
+                value={rules.dirtinessAdjustmentPercent?.[lvl] ?? 0}
+                disabled={!editable}
+                onChange={(v) =>
+                  patch((c) => {
+                    str(c).dirtinessAdjustmentPercent = {
+                      ...(str(c).dirtinessAdjustmentPercent ?? {}),
+                      [lvl]: Math.max(0, Math.min(100, Math.round(v))),
+                    };
+                    return c;
+                  })
+                }
+              />
+            ))}
+          </div>
+          <h4 className="mb-1 mt-4 text-sm font-semibold text-charcoal dark:text-white">
+            Repeat & volume discounts
+          </h4>
+          <p className="mb-3 text-xs text-slate-500">
+            Highest only, never stacking; base service + size guardrail only; applied before the
+            70/30 split. Resolved from real completed-turnover history at quote time.
+          </p>
+          <div className="flex flex-wrap items-end gap-4">
+            <NumField
+              label="Repeat property (2nd+ turnover)"
+              unit="% off"
+              step={1}
+              value={rules.repeatVolumeDiscounts?.secondAndLaterSamePropertyPercent ?? 5}
+              disabled={!editable}
+              onChange={(v) =>
+                patch((c) => {
+                  str(c).repeatVolumeDiscounts = {
+                    ...(str(c).repeatVolumeDiscounts ?? {}),
+                    secondAndLaterSamePropertyPercent: Math.max(0, Math.min(50, Math.round(v))),
+                  };
+                  return c;
+                })
+              }
+            />
+            <NumField
+              label="Host volume threshold"
+              unit="completed turnovers / 30 days"
+              value={rules.repeatVolumeDiscounts?.hostRolling30DayCompletedTurnoversThreshold ?? 10}
+              disabled={!editable}
+              onChange={(v) =>
+                patch((c) => {
+                  str(c).repeatVolumeDiscounts = {
+                    ...(str(c).repeatVolumeDiscounts ?? {}),
+                    hostRolling30DayCompletedTurnoversThreshold: Math.max(1, Math.round(v)),
+                  };
+                  return c;
+                })
+              }
+            />
+            <NumField
+              label="Host volume discount"
+              unit="% off"
+              step={1}
+              value={rules.repeatVolumeDiscounts?.hostRolling30DayDiscountPercent ?? 10}
+              disabled={!editable}
+              onChange={(v) =>
+                patch((c) => {
+                  str(c).repeatVolumeDiscounts = {
+                    ...(str(c).repeatVolumeDiscounts ?? {}),
+                    hostRolling30DayDiscountPercent: Math.max(0, Math.min(50, Math.round(v))),
+                  };
+                  return c;
+                })
+              }
+            />
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card>
+          <h3 className="mb-1 text-sm font-semibold text-charcoal dark:text-white">
+            Staffing matrix
+          </h3>
+          <p className="mb-3 text-xs text-slate-500">
+            Required cleaners by property size and condition. The turnover window then adjusts:
+            under 4h staffs up one and requires review; a 4h window adds one cleaner to borderline
+            jobs; 5h is the default; 6h+ may reduce one cleaner for borderline level 1/2 jobs,
+            never level 3/4.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700">
+                  <th className="py-2 pr-3 font-medium">Property</th>
+                  {LEVEL_COLUMNS.map((lvl) => (
+                    <th key={lvl} className="py-2 pr-3 text-right font-medium">
+                      {lvl}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(rules.staffingMatrix ?? {}).map(([key, row]) => (
+                  <tr key={key} className="border-b border-slate-100 last:border-0 dark:border-slate-800">
+                    <td className="py-2 pr-3 font-medium text-charcoal dark:text-white">
+                      {comboLabel(key)}
+                    </td>
+                    {LEVEL_COLUMNS.map((lvl) => (
+                      <td key={lvl} className="py-1.5 pr-3 text-right">
+                        <input
+                          type="number"
+                          min={1}
+                          max={5}
+                          value={row?.[lvl] ?? 1}
+                          disabled={!editable}
+                          onChange={(e) =>
+                            patch((c) => {
+                              const m = (str(c).staffingMatrix = { ...(str(c).staffingMatrix ?? {}) });
+                              m[key] = {
+                                ...(m[key] ?? {}),
+                                [lvl]: Math.max(1, Math.min(5, Number.parseInt(e.target.value || "1", 10))),
+                              };
+                              return c;
+                            })
+                          }
+                          className="w-14 rounded-lg border border-slate-200 px-2 py-1 text-right text-sm tabular-nums disabled:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:disabled:bg-slate-800"
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+        <Card>
+          <h3 className="mb-1 text-sm font-semibold text-charcoal dark:text-white">
+            Turnover scope
+          </h3>
+          <p className="mb-3 text-xs text-slate-500">
+            Included in every turnover (their add-ons suppress to $0 automatically):
+          </p>
+          <div className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
+            {[
+              ["suppressChangeBedLinensAddonWhenIncluded", "Bed making / linen change included"],
+              ["suppressLoadDishwasherAddonWhenIncluded", "Dishwasher load included"],
+              ["suppressBasicPatioSweepAddonWhenIncluded", "Basic patio sweep included"],
+            ].map(([field, label]) => (
+              <label key={field} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-slate-300 accent-teal-500"
+                  checked={suppression[field] === true}
+                  disabled={!editable}
+                  onChange={(e) =>
+                    patch((c) => {
+                      str(c).scopeAndSuppressionRules = {
+                        ...(str(c).scopeAndSuppressionRules ?? {}),
+                        [field]: e.target.checked,
+                      };
+                      return c;
+                    })
+                  }
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-slate-500">
+            Still paid add-ons: garage sweep, interior windows, window tracks, and the sliding
+            glass door detail (which includes its own track).
+          </p>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function RulesTab({
+  config,
+  patch,
+  editable,
+}: {
+  config: Config;
+  patch: (mut: (c: Config) => Config) => void;
+  editable: boolean;
+}) {
+  const ext = config.extendedRules;
+  if (!ext) {
+    return (
+      <EnableExtendedCard
+        patch={patch}
+        editable={editable}
+        note="Short-notice tiers, location tiers, deep-clean auto-classification, and the manual-review triggers require the multi-service ruleset."
+      />
+    );
+  }
+  const tiers = ext.shortNotice?.tiers ?? [];
+  const sqftTrigger = ext.manualReview?.triggerIfAny?.find(
+    (t) => typeof (t as Record<string, unknown>).sqftAtLeast === "number",
+  ) as { sqftAtLeast: number } | undefined;
+
+  function tierBand(t: Record<string, unknown>): string {
+    if (t.hoursBeforeServiceMaxExclusive != null && t.hoursBeforeServiceMinInclusive == null) {
+      return `Within ${t.hoursBeforeServiceMaxExclusive} hours`;
+    }
+    if (t.hoursBeforeServiceMinInclusive != null && t.hoursBeforeServiceMaxInclusive != null) {
+      return `${t.hoursBeforeServiceMinInclusive} to ${t.hoursBeforeServiceMaxInclusive} hours ahead`;
+    }
+    if (t.hoursBeforeServiceMinExclusive != null) {
+      return `More than ${t.hoursBeforeServiceMinExclusive} hours ahead`;
+    }
+    return "Tier";
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card>
+          <h3 className="mb-1 text-sm font-semibold text-charcoal dark:text-white">
+            Short-notice tiers
+          </h3>
+          <p className="mb-3 text-xs text-slate-500">
+            Replace the single rush surcharge. Exactly one tier applies to a booking (never
+            stacking), based on hours between booking and service start.
+          </p>
+          <div className="space-y-2">
+            {tiers.map((t, i) => (
+              <div key={i} className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 px-3 py-2 text-sm dark:border-slate-800">
+                <span className="text-slate-600 dark:text-slate-300">{tierBand(t as Record<string, unknown>)}</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    max={50}
+                    value={(t as { surchargePercent?: number }).surchargePercent ?? 0}
+                    disabled={!editable}
+                    onChange={(e) =>
+                      patch((c) => {
+                        const list = [...(c.extendedRules!.shortNotice!.tiers ?? [])];
+                        list[i] = {
+                          ...list[i],
+                          surchargePercent: Math.max(0, Math.min(50, Number.parseInt(e.target.value || "0", 10))),
+                        };
+                        c.extendedRules!.shortNotice = { ...(c.extendedRules!.shortNotice ?? {}), tiers: list };
+                        return c;
+                      })
+                    }
+                    className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-right text-sm tabular-nums disabled:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:disabled:bg-slate-800"
+                  />
+                  <span className="text-xs text-slate-500">% surcharge</span>
+                </div>
+              </div>
+            ))}
+            {tiers.length === 0 && (
+              <p className="py-4 text-center text-sm text-slate-500">
+                No tiers configured; the legacy single surcharge applies.
+              </p>
+            )}
+          </div>
+        </Card>
+        <Card>
+          <h3 className="mb-1 text-sm font-semibold text-charcoal dark:text-white">
+            Location tiers (ZIP)
+          </h3>
+          <p className="mb-3 text-xs text-slate-500">
+            Percent tiers assigned per ZIP in the existing ZIP pricing table (Money → ZIP
+            pricing); that table feeds this engine automatically. While these tiers are active,
+            legacy NEGATIVE ZIP discounts are superseded (treated as 0%).
+          </p>
+          <div className="flex flex-wrap items-end gap-4">
+            {Object.entries(ext.locationPricing?.tiersPercent ?? {}).map(([name, pct]) => (
+              <NumField
+                key={name}
+                label={name.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
+                unit="%"
+                step={1}
+                value={typeof pct === "number" ? pct : 0}
+                disabled={!editable}
+                onChange={(v) =>
+                  patch((c) => {
+                    const lp = (c.extendedRules!.locationPricing = {
+                      ...(c.extendedRules!.locationPricing ?? {}),
+                    });
+                    lp.tiersPercent = {
+                      ...(lp.tiersPercent ?? {}),
+                      [name]: Math.max(0, Math.min(lp.initialCapPercent ?? 10, Math.round(v))),
+                    };
+                    return c;
+                  })
+                }
+              />
+            ))}
+            <NumField
+              label="Cap"
+              unit="% maximum area uplift"
+              step={1}
+              value={ext.locationPricing?.initialCapPercent ?? 10}
+              disabled={!editable}
+              onChange={(v) =>
+                patch((c) => {
+                  c.extendedRules!.locationPricing = {
+                    ...(c.extendedRules!.locationPricing ?? {}),
+                    initialCapPercent: Math.max(0, Math.min(25, Math.round(v))),
+                  };
+                  return c;
+                })
+              }
+            />
+          </div>
+        </Card>
+      </div>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card>
+          <h3 className="mb-1 text-sm font-semibold text-charcoal dark:text-white">
+            Deep clean auto-classification
+          </h3>
+          <p className="mb-3 text-xs text-slate-500">
+            A standard job becomes a Deep Clean when any trigger fires: at least one level-4 room,
+            two or more level-3 rooms, or 40%+ of counted rooms at level 3/4. Add-ons never
+            trigger it. The allowance is extra labor inside the one labor line; customers see the
+            "Deep Clean" label, never a separate surcharge line.
+          </p>
+          <NumField
+            label="Base workload allowance"
+            unit="% added to base cleaning workload"
+            step={1}
+            value={ext.deepClean?.baseWorkloadMultiplierPercent ?? 10}
+            disabled={!editable}
+            onChange={(v) =>
+              patch((c) => {
+                c.extendedRules!.deepClean = {
+                  ...(c.extendedRules!.deepClean ?? {}),
+                  baseWorkloadMultiplierPercent: Math.max(0, Math.min(100, Math.round(v))),
+                };
+                return c;
+              })
+            }
+          />
+        </Card>
+        <Card>
+          <h3 className="mb-1 text-sm font-semibold text-charcoal dark:text-white">
+            Manual review triggers
+          </h3>
+          <p className="mb-3 text-xs text-slate-500">
+            Flagged quotes block instant auto-booking and route to review with formal customer
+            copy: homes at or above the square-footage threshold, totals above the automatic quote
+            limit (Rates tab), substantially obstructed clutter, reported unsafe conditions, and a
+            material arrival mismatch (set day-of-service).
+          </p>
+          <NumField
+            label="Square footage threshold"
+            unit="sq ft and above"
+            value={sqftTrigger?.sqftAtLeast ?? 4000}
+            disabled={!editable}
+            onChange={(v) =>
+              patch((c) => {
+                const mr = (c.extendedRules!.manualReview = {
+                  ...(c.extendedRules!.manualReview ?? {}),
+                });
+                const list = [...(mr.triggerIfAny ?? [])];
+                const idx = list.findIndex(
+                  (t) => typeof (t as Record<string, unknown>).sqftAtLeast === "number",
+                );
+                const entry = { sqftAtLeast: Math.max(0, Math.round(v)) };
+                if (idx >= 0) list[idx] = entry;
+                else list.push(entry);
+                mr.triggerIfAny = list;
+                return c;
+              })
+            }
+          />
+        </Card>
+      </div>
     </div>
   );
 }

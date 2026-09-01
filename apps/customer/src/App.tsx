@@ -24,7 +24,7 @@ import {
   KeyRound,
   DoorOpen,
 } from "lucide-react";
-import { AppShell, PrelaunchGate, ReportProblem, CookieConsent, PromoHost } from "@sweepr/ui";
+import { AppShell, ReportProblem, CookieConsent, PromoHost } from "@sweepr/ui";
 import { useAuth } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
 import { OnboardingPage } from "./pages/OnboardingPage";
@@ -145,8 +145,6 @@ function OnboardingGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-const FORCE_PRELAUNCH = import.meta.env.VITE_PRELAUNCH_FORCE === "true";
-
 /**
  * Last-used language persistence — hard rule, no save button:
  *  - Every language switch is written to the server immediately, so
@@ -216,11 +214,9 @@ function LanguagePersistence() {
 
 function GateLayout() {
   return (
-    <PrelaunchGate type="customer" apiUrl={API_URL} forcePrelaunch={FORCE_PRELAUNCH}>
-      <OnboardingGate>
-        <Outlet />
-      </OnboardingGate>
-    </PrelaunchGate>
+    <OnboardingGate>
+      <Outlet />
+    </OnboardingGate>
   );
 }
 
@@ -235,20 +231,20 @@ export default function App() {
       <CookieConsent />
       <div id="main" tabIndex={-1} className="contents">
       <Routes>
-        {/* OAuth SSO callback, outside prelaunch gate, handles token exchange */}
+        {/* OAuth SSO callback, outside the onboarding gate, handles token exchange */}
         <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback continueSignUpUrl="/sign-up/continue" />} />
 
         {/* Smart Entry provider-consent return tab. Static confirmation, no API
-            calls or PII, so it sits outside the auth/prelaunch gates and always
-            renders after the provider redirect. It signals the opener tab's poll. */}
+            calls or PII, so it sits outside the auth gates and always renders
+            after the provider redirect. It signals the opener tab's poll. */}
         <Route path="/smart-entry/connect/return" element={<SmartEntryConnectReturn />} />
 
-        {/* Auth routes, outside gate so sign-in is always accessible */}
+        {/* Auth routes, outside the onboarding gate so sign-in is always accessible */}
         <Route path="/sign-in" element={CENTRAL_AUTH_ENABLED ? <RedirectToCentralLogin /> : <SignInPage />} />
         <Route path="/sign-up" element={CENTRAL_AUTH_ENABLED ? <RedirectToCentralLogin /> : <SignUpPage />} />
         <Route path="/sign-up/continue" element={<ContinueSignUp />} />
 
-        {/* Onboarding, protected but outside prelaunch gate */}
+        {/* Onboarding, protected, outside the onboarding gate to avoid loops */}
         <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
 
         <Route element={<GateLayout />}>

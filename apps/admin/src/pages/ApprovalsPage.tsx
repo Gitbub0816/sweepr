@@ -62,11 +62,18 @@ const STATUS_OPTIONS = [
   { value: "declined", label: "Declined" },
 ];
 
+/** Display name for a fee_type value. Internal keys stay as-is; the platform
+ *  fee is presented as the Marketplace Services Fee everywhere user-facing. */
+function feeTypeLabel(v: string | null | undefined): string {
+  if (!v) return "";
+  return v === "platform_fee" ? "Marketplace Services Fee" : v.replace(/_/g, " ");
+}
+
 const FEE_TYPES = [
   "customer_service_fee", "platform_fee", "cleaner_commission", "insurance_admin_fee",
   "cancellation_fee", "reschedule_fee", "adjustment_fee", "marketplace_fee",
   "payment_processing_pass_through", "other",
-].map((v) => ({ value: v, label: v.replace(/_/g, " ") }));
+].map((v) => ({ value: v, label: feeTypeLabel(v) }));
 
 const PARTIES = ["customers", "cleaners", "both", "internal_only"].map((v) => ({ value: v, label: v.replace(/_/g, " ") }));
 const METHODS = ["flat_amount", "percentage", "tiered_percentage", "dynamic_formula", "market_based", "city_based", "service_type_based"]
@@ -146,7 +153,7 @@ export function ApprovalsPage() {
 
   const columns: Column<Proposal>[] = [
     { header: "Title", cell: (r) => <span className="font-medium text-charcoal dark:text-white">{r.title}</span> },
-    { header: "Fee type", cell: (r) => r.fee_type?.replace(/_/g, " ") },
+    { header: "Fee type", cell: (r) => feeTypeLabel(r.fee_type) },
     { header: "Affects", cell: (r) => r.affected_party?.replace(/_/g, " ") },
     { header: "Effective", cell: (r) => r.proposed_effective_at ? new Date(r.proposed_effective_at).toLocaleDateString() : ", " },
     { header: "Status", cell: (r) => <Badge variant={STATUS_VARIANT[r.status] ?? "info"}>{r.status.replace(/_/g, " ")}</Badge> },
@@ -196,7 +203,7 @@ export function ApprovalsPage() {
         }
       >
         <div className="space-y-3">
-          <Input label="Configuration name" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Standard platform fee, 2026 Q3" />
+          <Input label="Configuration name" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Standard Marketplace Services Fee, 2026 Q3" />
           <div className="grid grid-cols-2 gap-3">
             <Select label="Fee type" options={FEE_TYPES} value={form.fee_type} onChange={(e) => set("fee_type", e.target.value)} />
             <Select label="Affected party" options={PARTIES} value={form.affected_party} onChange={(e) => set("affected_party", e.target.value)} />

@@ -126,7 +126,7 @@ export async function notifyProposalCreated(sql: Sql, env: Env, proposal: Propos
           variables: {
             requester_name: requesterName,
             approval_title: proposal.title,
-            approval_type: "Platform Fees",
+            approval_type: "Marketplace Services Fee",
             approval_url: actionLink,
             approval_expires_at: formatEmailTimestamp(new Date(Date.now() + 72 * 3600_000)),
             notification_settings_url: `${adminUrl(env)}/settings`,

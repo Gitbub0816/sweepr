@@ -95,10 +95,10 @@ export function TermsOfService() {
       </Section>
 
       <Section id="pricing" title="7. Pricing and Fees">
-        <p><strong>7.1 Transparent Pricing.</strong> <strong>All prices displayed on the Platform are final and all-inclusive. There are no hidden fees.</strong> The price shown at checkout is the total amount you will be charged, including the service fee, supply fee, and any applicable taxes.</p>
+        <p><strong>7.1 Transparent Pricing.</strong> <strong>All prices displayed on the Platform are final and all-inclusive. There are no hidden fees.</strong> The price shown at checkout is the total amount you will be charged, including the Marketplace Services Fee, supply fee, and any applicable taxes.</p>
         <p><strong>7.2</strong> Sweepr sets all pricing displayed on the Platform. Cleaners do not negotiate or adjust prices directly with Customers.</p>
         <p><strong>7.3</strong> Subscription plans are billed at the per-visit price displayed at enrollment for the selected cadence (e.g., weekly, biweekly). Prices are subject to change upon thirty (30) days' written notice.</p>
-        <p><strong>7.4</strong> The Company reserves the right to modify pricing and fees prospectively. Changes will not affect Bookings that have already been confirmed, and changes to Cleaner payout-affecting fees will not reduce payment for bookings already accepted by a Cleaner before the effective date, except as permitted under the <a className="text-seafoam-700 underline" href="/platform-fee-policy">Platform Fee Policy</a>. Material fee changes are provided with advance notice as described in the Platform Fee Policy and the <a className="text-seafoam-700 underline" href="/legal-updates">Legal Updates Policy</a>.</p>
+        <p><strong>7.4</strong> The Company reserves the right to modify pricing and fees prospectively. Changes will not affect Bookings that have already been confirmed, and changes to Cleaner payout-affecting fees will not reduce payment for bookings already accepted by a Cleaner before the effective date, except as permitted under the <a className="text-seafoam-700 underline" href="/platform-fee-policy">Marketplace Services Fee Policy</a>. Material fee changes are provided with advance notice as described in the Marketplace Services Fee Policy and the <a className="text-seafoam-700 underline" href="/legal-updates">Legal Updates Policy</a>.</p>
       </Section>
 
       <Section id="payment" title="8. Payment Processing">

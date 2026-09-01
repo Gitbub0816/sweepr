@@ -55,7 +55,7 @@ const REQUIRED_TABLES = [
   "automation_runs",
   // Verification
   "consent_log",
-  // Pre-launch / status
+  // Status / site settings
   "site_settings",
   "status_incidents",
   "status_updates",

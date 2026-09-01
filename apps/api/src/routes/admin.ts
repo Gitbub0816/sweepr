@@ -493,6 +493,89 @@ adminRouter.patch(
   }
 );
 
+// ─── Access-delay / lockout fee (admin-triggered, day-of-service) ─────────────
+// Charges the master ruleset's NON-CUMULATIVE access-delay fee ($0 ≤15 min,
+// $25 ≤30, $50 ≤60, $85 beyond — lib/accessDelayFee.ts) through the booking
+// price ledger. Re-invoking with a longer delay records only the DELTA to the
+// new bracket fee (and a shorter delay refunds the difference), so the booking
+// only ever carries the single bracket fee. Payout allocation is 80% cleaner
+// team / 20% Sweepr, applied in the payout paths (payments.ts release-payout +
+// crewPayout.computeCrewPoolCents) — never as a standard 70/30 split.
+adminRouter.post(
+  "/jobs/:id/access-delay-fee",
+  zValidator("json", z.object({
+    delayMinutes: z.number().int().min(0).max(24 * 60),
+    reason: z.string().max(500).optional(),
+  })),
+  async (c) => {
+    const sql = getDb(c.env.DATABASE_URL);
+    const bookingId = c.req.param("id");
+    const { delayMinutes, reason } = c.req.valid("json");
+
+    const bookings = (await sql`
+      SELECT id, status, total_price FROM bookings WHERE id = ${bookingId} LIMIT 1
+    `) as Array<{ id: string; status: string; total_price: number | null }>;
+    const booking = bookings[0];
+    if (!booking) return c.json({ error: "Not found" }, 404);
+    if (["cancelled_by_customer", "cancelled_by_cleaner", "cancelled", "refunded"].includes(booking.status)) {
+      return c.json({ error: `Cannot charge an access-delay fee on a '${booking.status}' booking` }, 409);
+    }
+
+    // Once the payout has been (or is being) released the 80/20 allocation can
+    // no longer flow through — block instead of silently mis-allocating.
+    const paid = (await sql`
+      SELECT 1 FROM payouts
+      WHERE booking_id = ${bookingId} AND status IN ('paid', 'transferred', 'processing')
+      LIMIT 1
+    `) as Array<unknown>;
+    if (paid[0]) {
+      return c.json({ error: "Payout already released for this booking; adjust manually via finance." }, 409);
+    }
+
+    const { accessDelayFeeCentsForDelay, sumAccessDelayFeeCents } = await import("../lib/accessDelayFee");
+    const targetFeeCents = accessDelayFeeCentsForDelay(delayMinutes);
+    const chargedFeeCents = await sumAccessDelayFeeCents(sql, bookingId);
+    const adjustmentCents = targetFeeCents - chargedFeeCents;
+    if (adjustmentCents === 0) {
+      return c.json({ ok: true, feeCents: targetFeeCents, adjustmentCents: 0, unchanged: true });
+    }
+
+    const { applyBookingPriceAdjustment } = await import("../lib/bookingLedger");
+    const { getStripe } = await import("../lib/stripe");
+    const stripe = getStripe(c.env.STRIPE_SECRET_KEY);
+    const result = await applyBookingPriceAdjustment(sql, stripe, {
+      bookingId,
+      adjustmentCents,
+      eventType: "access_delay_fee",
+      reason:
+        `Access delay ${delayMinutes} min → non-cumulative fee $${(targetFeeCents / 100).toFixed(2)}` +
+        (reason ? ` — ${reason}` : ""),
+      source: "admin",
+      approvedBy: c.get("user").clerkId,
+    });
+
+    await audit(sql, {
+      action: "booking.access_delay_fee",
+      actorClerkId: c.get("user").clerkId,
+      targetType: "booking",
+      targetId: bookingId,
+      metadata: { delayMinutes, targetFeeCents, adjustmentCents, newTotal: result.newTotal, reason: reason ?? null },
+      ipAddress: c.req.header("CF-Connecting-IP"),
+      userAgent: c.req.header("User-Agent"),
+      timestamp: new Date().toISOString(),
+    });
+
+    return c.json({
+      ok: true,
+      feeCents: targetFeeCents,
+      adjustmentCents,
+      previousTotal: result.previousTotal,
+      newTotal: result.newTotal,
+      paymentIntentSynced: result.paymentIntentSynced,
+    });
+  }
+);
+
 // ─── Application (cleaner) detail ──────────────────────────────────────────────
 adminRouter.get("/applications/:id", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);

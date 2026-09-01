@@ -8,7 +8,6 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-// DRAFT — attorney review required before production use.
 import { DocPage } from "../components/DocPage";
 import { Section } from "../components/Section";
 import { LEGAL_EMAIL } from "../docs";
@@ -87,16 +86,17 @@ export function FoundingMemberTerms() {
         </p>
         <ul className="list-disc space-y-1 pl-6">
           <li>
-            A <strong>permanent 5% discount on the platform fee</strong>, applied automatically to
-            every booking's total price. For example, on a $100 cleaning where the standard platform
-            fee is $20 (and a non-Founding cleaning professional would earn $80), a Founding customer
-            pays $95 instead of $100 — the cleaning professional's earnings are unaffected.
+            A <strong>permanent 5% discount on the Marketplace Services Fee</strong>, applied
+            automatically to every booking's total price. For example, on a $100 cleaning where the
+            standard Marketplace Services Fee is $20 (and a non-Founding cleaning professional would
+            earn $80), a Founding customer pays $95 instead of $100. The cleaning professional's
+            earnings are unaffected.
           </li>
           <li>A permanent recognition badge and founder number, displayed on their profile.</li>
           <li>Recognition as a Founding Member "since" the year they enrolled.</li>
         </ul>
         <p>
-          <strong>This discount reduces only the platform fee portion of a booking; it never reduces
+          <strong>This discount reduces only the Marketplace Services Fee portion of a booking; it never reduces
           what the assigned cleaning professional is paid.</strong> Sweepr absorbs the discount out of
           its own fee. The discount is calculated on the booking total before any separately itemized
           taxes and does not apply to tips, which are always paid to the cleaning professional in
@@ -124,7 +124,7 @@ export function FoundingMemberTerms() {
           Sweepr's Trust & Safety team may revoke Founding Member status for cause, including fraud,
           abuse of the program, repeated policy violations, or a permanent account ban. A revoked
           member's founder number is retained for audit purposes but is no longer displayed, and all
-          perks (the earnings bonus or platform-fee discount, and badge display) stop immediately.
+          perks (the earnings bonus or Marketplace Services Fee discount, and badge display) stop immediately.
         </p>
         <p>
           A revoked member may have their status restored at Sweepr's discretion, in which case their
@@ -134,7 +134,7 @@ export function FoundingMemberTerms() {
 
       <Section id="changes" title="7. Program Changes">
         <p>
-          Sweepr may modify the earnings bonus percentage, the platform-fee discount percentage,
+          Sweepr may modify the earnings bonus percentage, the Marketplace Services Fee discount percentage,
           enrollment cutoffs, or membership caps, or close enrollment entirely, at any time and at its
           sole discretion. Any such change applies prospectively, to bookings and payouts occurring
           after the change takes effect. <strong>Sweepr will not retroactively reduce the bonus or
@@ -151,7 +151,7 @@ export function FoundingMemberTerms() {
       <Section id="relationship" title="8. Relationship to Other Terms">
         <p>
           These terms supplement, and do not replace, the Sweepr Terms of Service, the Cleaner
-          Agreement (for cleaning professionals), the Payment Terms, and the Platform Fee Policy.
+          Agreement (for cleaning professionals), the Payment Terms, and the Marketplace Services Fee Policy.
           Where these terms are silent, those agreements govern. Promotions that grant Founding Member
           status are also governed by the Promotions & Coupons Terms.
         </p>

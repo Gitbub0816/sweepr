@@ -41,9 +41,184 @@
  * on the assumptions list in docs/PRICING_V2.md requiring business approval.
  */
 
-import type { PricingConfigV2 } from "./types";
+import type { ExtendedRulesV2, PricingConfigV2 } from "./types";
 
 export const COLD_START_MODEL_VERSION = "coldstart-2026.08";
+
+/**
+ * Default extended multi-service ruleset (formatVersion 2), mirroring the
+ * approved master pricing ruleset (SweeprExtendedPricingRuleset). Used to
+ * seed the Studio's extended sections on a legacy draft and as the test
+ * baseline. Marketplace economics: 70% cleaner/team pool, 30% Sweepr — the
+ * Marketplace Services Fee; tips are 100% to the cleaner outside the split.
+ */
+export function buildDefaultExtendedRules(): ExtendedRulesV2 {
+  return {
+    standardResidential: {
+      minimumBookingCents: 13900,
+      largeHomeScaling: { manualReviewAtOrAboveSqft: 4000 },
+    },
+    deepClean: {
+      classification: {
+        triggerIfAny: [
+          { level4RoomCountAtLeast: 1 },
+          { level3RoomCountAtLeast: 2 },
+          { percentOfCountedRoomsLevel3Or4AtLeast: 40 },
+        ],
+        addOnsDoNotTriggerDeepClean: true,
+      },
+      baseWorkloadMultiplierPercent: 10,
+      appliesToBaseCleaningWorkloadOnly: true,
+      separatelyPurchasedAddOnsExcludedFromMultiplier: true,
+      customerFacingSeparateDeepSurchargeLine: false,
+    },
+    moveInOut: {
+      serviceTypeSeparateFromDeepClean: true,
+      basePriceMatrixCents: {
+        "1BR_1BA": 29900,
+        "2BR_1BA": 33900,
+        "2BR_2BA": 36900,
+        "3BR_2BA": 41900,
+        "3BR_3BA": 45900,
+        "4BR_2BA": 47900,
+        "4BR_3BA": 51900,
+        "5BR_3BA": 58900,
+      },
+      conditionMultipliersPercent: { L1: 0, L2: 10, L3: 20, L4: 30 },
+      useStandardResidentialSizeScaling: false,
+      oversizedHomeGuardrail: {
+        priceCentsPerAdditional250Sqft: 1500,
+        appliesWhenUnusuallyLargeForRoomCount: true,
+      },
+    },
+    airbnbSTR: {
+      basePriceMatrixCents: {
+        Studio_or_1BR_1BA: 14900,
+        "2BR_1BA": 17900,
+        "2BR_2BA": 19900,
+        "3BR_2BA": 23900,
+        "3BR_3BA": 26900,
+        "4BR_2BA": 28900,
+        "4BR_3BA": 31900,
+        "5BR_3BA": 37900,
+      },
+      sizeGuardrail: {
+        includedSqftByBedroomCount: {
+          Studio_or_1BR: 1000,
+          "2BR": 1250,
+          "3BR": 1500,
+          "4BR": 2000,
+          "5BR": 2500,
+        },
+        priceCentsPerAdditional250Sqft: 1200,
+        incrementSqft: 250,
+        useStandardResidentialSizeScaling: false,
+      },
+      dirtinessAdjustmentPercent: { L1: 0, L2: 0, L3: 20, L4: 35 },
+      severeOrUnsafeMess: "manual_review_or_decline",
+      repeatVolumeDiscounts: {
+        firstCompletedTurnoverAtPropertyPercent: 0,
+        secondAndLaterSamePropertyPercent: 5,
+        hostRolling30DayCompletedTurnoversThreshold: 10,
+        hostRolling30DayDiscountPercent: 10,
+        highestOnlyNoStacking: true,
+        appliesTo: ["base_service", "airbnb_size_guardrail"],
+        doesNotApplyTo: ["abnormal_mess", "rush", "laundry", "pet_hair", "specialty_addons"],
+        applyDiscountBeforeCleanerSweeprSplit: true,
+      },
+      turnoverWindow: {
+        hostProvidesCheckoutAndCheckin: true,
+        under4Hours: "manual_review_or_require_more_staffing",
+        fourHours: "minimum_normal_same_day_window_and_borderline_jobs_add_one_cleaner",
+        fiveHours: "standard_default_staffing",
+        sixPlusHours: "certain_borderline_L1_L2_jobs_may_reduce_one_cleaner_if_workload_fits",
+        L3_L4NeverReduceSolelyForLongerWindow: true,
+      },
+      staffingMatrix: {
+        Studio_or_1BR_1BA: { L1: 1, L2: 1, L3: 2, L4: 2 },
+        "2BR_1BA": { L1: 1, L2: 1, L3: 2, L4: 2 },
+        "2BR_2BA": { L1: 1, L2: 1, L3: 2, L4: 2 },
+        "3BR_1BA": { L1: 2, L2: 2, L3: 2, L4: 3 },
+        "3BR_2BA": { L1: 2, L2: 2, L3: 3, L4: 3 },
+        "3BR_3BA": { L1: 2, L2: 2, L3: 3, L4: 3 },
+        "4BR_2BA": { L1: 2, L2: 3, L3: 3, L4: 3 },
+        "4BR_3BA": { L1: 3, L2: 3, L3: 3, L4: 3 },
+        "5BR_3BA": { L1: 3, L2: 3, L3: 3, L4: 3 },
+      },
+      scopeAndSuppressionRules: {
+        bedMakingIncluded: true,
+        suppressChangeBedLinensAddonWhenIncluded: true,
+        loadDishwasherIncluded: true,
+        suppressLoadDishwasherAddonWhenIncluded: true,
+        basicPatioSweepIncluded: true,
+        suppressBasicPatioSweepAddonWhenIncluded: true,
+        garageSweepIsPaidAddon: true,
+        interiorWindowsArePaidAddon: true,
+        windowTracksArePaidAddon: true,
+        slidingGlassDoorDetailIsPaidAddon: true,
+        slidingGlassDoorDetailIncludesItsTrack: true,
+        suppressDuplicateWindowTrackChargeForSlidingDoor: true,
+      },
+    },
+    shortNotice: {
+      tiers: [
+        { hoursBeforeServiceMaxExclusive: 24, surchargePercent: 15 },
+        {
+          hoursBeforeServiceMinInclusive: 24,
+          hoursBeforeServiceMaxInclusive: 48,
+          surchargePercent: 5,
+        },
+        { hoursBeforeServiceMinExclusive: 48, surchargePercent: 0 },
+      ],
+      neverStack: true,
+    },
+    locationPricing: {
+      model: "zip_to_multiplier",
+      tiersPercent: { coreEastBay: 0, higherCostNearby: 5, premiumPeninsulaOrSF: 10 },
+      initialCapPercent: 10,
+      removeOrSupersedeLegacy94541Minus5Percent: true,
+    },
+    manualReview: {
+      triggerIfAny: [
+        { sqftAtLeast: 4000 },
+        { calculatedCleaningPriceCentsAtLeast: 100000 },
+        { substantiallyObstructedOrHoardingLevelClutter: true },
+        {
+          unsafeOrSpecialConditions: [
+            "human_waste",
+            "animal_waste",
+            "significant_mold",
+            "pests",
+            "needles_or_biohazard",
+            "hazardous_materials",
+          ],
+        },
+        { arrivalConditionMateriallyOutsideBookedConditionOrScope: true },
+      ],
+      unsafeJobsMayBeDeclinedRatherThanRepriced: true,
+    },
+    payoutAndMarketplaceEconomics: {
+      standardBookingSplitPercent: { cleanerTeamPool: 70, sweepr: 30 },
+      tips: { cleanerPercent: 100, outsideStandardSplit: true },
+      threeCleanerProductivityPermille: 2500,
+      twoCleanerProductivityPermille: 1800,
+      oneCleanerProductivityPermille: 1000,
+    },
+    extrasAppSideOverrides: {
+      insideOven: { customerPriceCents: 4000, activeLaborMinutes: 35 },
+      laundry: { customerPriceCentsPerLoad: 2500, maxLoads: 2 },
+      lightTidying: { customerPriceCentsPer30MinuteBlock: 2500, minutesPerBlock: 30 },
+      petHair: { useFlat39DollarPlaceholder: false, percentageTiers: [5, 15, 25] },
+      patio: { basicAndCobwebDetailMutuallyExclusive: true },
+      slidingGlassDoor: {
+        detailPriceCents: 2000,
+        includesTrack: true,
+        suppressDuplicateTrackAddon: true,
+      },
+      bedLinensAndLaundry: { preventDoubleChargeForOverlappingWork: true },
+    },
+  };
+}
 
 export function buildColdStartConfig(): PricingConfigV2 {
   return {

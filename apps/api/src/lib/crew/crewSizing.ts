@@ -18,17 +18,32 @@ import type { CrewSizePlan, CrewSizeReasonCode } from "./types";
  *
  * Person labor (how much cleaning work) is distinct from elapsed duration (how
  * long the crew is on-site). Multiple cleaners do NOT scale linearly — the team
- * efficiency curve comes from the active pricing version's
- * scheduling.teamProductivityPermille, so sizing and pricing stay consistent
- * and versioned together.
+ * efficiency curve comes from the quote engine's STAFFING CONTRACT
+ * (@sweepr/quote-engine `resolveTeamProductivityPermille(config)`, see the
+ * contract doc at the top of packages/quote-engine/src/index.ts): the pricing
+ * version's scheduling.teamProductivityPermille merged with the
+ * marketplace-economics team sizes (e.g. a team of 3 at 2500 permille). The
+ * caller (crewStaffing.loadBookingLaborContext) resolves the map from the
+ * booking's stamped pricing version, so sizing and pricing stay consistent and
+ * versioned together.
+ *
+ * The engine also emits `QuoteResultV2.requiredTeamSize` — for airbnb /
+ * vacation-rental quotes it is the staffing-matrix + turnover-window sizing
+ * (computeAirbnbTeamSize), for standard/move-in-out the two-person-threshold
+ * rule. When available it is a FLOOR here (`engineRequiredTeamSize`): the
+ * quote promised the customer that team, so sizing never staffs below it.
  */
 
-/** Default effective-worker curve (permille) when a pricing version omits it. */
+/**
+ * Default effective-worker curve (permille) when no pricing version supplies
+ * one. Mirrors the quote engine's PRODUCTIVITY_FALLBACK (1000 / 1800 / 2500)
+ * so fallback sizing agrees with fallback pricing; sizes past the table
+ * extrapolate by the last marginal step (3→4 adds 700).
+ */
 const DEFAULT_TEAM_PRODUCTIVITY_PERMILLE: Record<string, number> = {
   "1": 1000,
-  "2": 1850,
-  "3": 2550,
-  "4": 3150,
+  "2": 1800,
+  "3": 2500,
 };
 
 /** Effective concurrent-worker capacity for a crew of `size` (e.g. 2 → ~1.85). */
@@ -70,8 +85,20 @@ export interface CrewSizingInput {
   /** Predicted labor from the v2 quote (expectedLaborMinutes). NULL if v2 was
    *  not active for this booking — sizing then defers to solo. */
   personMinutes: number | null;
-  /** teamProductivityPermille from the active pricing version's config. */
+  /** RESOLVED team-productivity map for the booking's pricing version —
+   *  `resolveTeamProductivityPermille(config)` from @sweepr/quote-engine
+   *  (scheduling.teamProductivityPermille merged with the marketplace-economics
+   *  team sizes). Falls back to the engine-mirroring default above. */
   productivityPermille?: Record<string, number>;
+  /**
+   * `QuoteResultV2.requiredTeamSize` from the booking's stamped v2 quote —
+   * for airbnb/vacation-rental this is the staffing matrix (BR/BA × condition)
+   * adjusted by the turnover-window rules (computeAirbnbTeamSize); for
+   * standard/move-in-out it is the two-person-threshold rule. Acts as a hard
+   * FLOOR on the recommendation (the customer was quoted this team), capped by
+   * config.maxCrewSize. Null/undefined when the booking has no v2 quote.
+   */
+  engineRequiredTeamSize?: number | null;
   /** The customer explicitly bought one extra cleaner (speed upsell). */
   extraCleanerRequested?: boolean;
   config: CrewConfig;
@@ -119,10 +146,20 @@ export function computeCrewPlan(input: CrewSizingInput): CrewSizePlan {
 
   const pm = input.personMinutes;
 
+  // Engine floor: the v2 quote's requiredTeamSize (staffing matrix + turnover
+  // window for airbnb; two-person threshold for standard/move-in-out). The
+  // customer's quote promised this team, so it outranks the min-useful cap and
+  // the labor bands — capped only by the app-enforced max crew size.
+  const floorFromEngine =
+    input.engineRequiredTeamSize != null && Number.isFinite(input.engineRequiredTeamSize)
+      ? Math.max(1, Math.min(cfg.maxCrewSize, Math.round(input.engineRequiredTeamSize)))
+      : 1;
+  if (floorFromEngine >= 2) reasonCodes.push("QUOTE_REQUIRED_TEAM_SIZE");
+
   // Cap by minimum-useful-work-per-cleaner: never add a cleaner who would have
-  // less than the configured meaningful workload.
+  // less than the configured meaningful workload (the engine floor still wins).
   const byUseful = Math.max(1, Math.floor(pm / Math.max(1, cfg.minUsefulMinutesPerCleaner)));
-  const maxUsefulCrewSize = Math.max(1, Math.min(cfg.maxCrewSize, byUseful));
+  const maxUsefulCrewSize = Math.max(floorFromEngine, Math.min(cfg.maxCrewSize, byUseful));
 
   // Elapsed time for every candidate size (for admin comparison + selection).
   const elapsedBySize: Record<number, number> = {};
@@ -142,10 +179,11 @@ export function computeCrewPlan(input: CrewSizingInput): CrewSizePlan {
     reasonCodes.push("LONG_SOLO_DURATION");
   }
 
-  const minCrewSize = Math.max(1, floorFromDuration);
+  const minCrewSize = Math.max(1, floorFromDuration, floorFromEngine);
 
-  // Start from the higher of the two floors.
-  let recommended = Math.max(floorFromLabor, floorFromDuration);
+  // Start from the highest of the three floors (labor bands, solo-duration
+  // ceiling, engine-required team size).
+  let recommended = Math.max(floorFromLabor, floorFromDuration, floorFromEngine);
 
   // Force UP only when the appointment would be intolerably long — the target is
   // soft, with tolerance, so a 2-person clean slightly over target is preferred

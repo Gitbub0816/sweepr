@@ -66,6 +66,7 @@ import { initiateAssignment } from "../assignment";
 import { sendNotification } from "../notifications";
 import { logger } from "../logger";
 import { serverTrack } from "../posthog";
+import { resolveTeamProductivityPermille, type PricingConfigV2 } from "@sweepr/quote-engine";
 
 // ── Analytics (best-effort; never breaks a crew flow) ────────────────────────
 // env is optional and threaded from the route/cron caller; without POSTHOG_KEY
@@ -127,26 +128,25 @@ export async function planAndStartStaffing(
 
   // Person-minutes are only trustworthy when v2 was active at booking time
   // (pricing_version_id NOT NULL). Otherwise sizing defers to solo.
-  let personMinutes: number | null = null;
-  let productivityPermille: Record<string, number> | undefined;
+  let labor: BookingLaborContext = { personMinutes: null };
   if (booking.pricing_version_id) {
-    const pm = await loadPersonMinutes(db, booking);
-    personMinutes = pm.personMinutes;
-    productivityPermille = pm.productivityPermille;
+    labor = await loadBookingLaborContext(db, booking);
   }
 
   const cfg = await loadCrewConfig(db);
   const autoSizing = await isTeamFlagEnabled(db, "autoSizing");
   const plan = computeCrewPlan({
-    personMinutes,
-    productivityPermille,
+    personMinutes: labor.personMinutes,
+    productivityPermille: labor.productivityPermille,
+    engineRequiredTeamSize: labor.engineRequiredTeamSize,
     extraCleanerRequested: booking.extra_cleaner_requested,
     config: cfg,
   });
 
   await emitCrewEvent(env, "crew_size_calculated", bookingId, {
     crew_size: plan.recommendedCrewSize,
-    person_minutes: personMinutes,
+    person_minutes: labor.personMinutes,
+    engine_required_team_size: labor.engineRequiredTeamSize ?? null,
     elapsed_estimate: plan.estimatedElapsedMinutes,
     min_crew_size: plan.minCrewSize,
     max_useful_crew_size: plan.maxUsefulCrewSize,
@@ -154,10 +154,15 @@ export async function planAndStartStaffing(
     extra_cleaner_requested: booking.extra_cleaner_requested,
   });
 
-  // Without auto-sizing enabled we only ever crew when the customer explicitly
-  // bought an extra cleaner; otherwise the job stays solo.
+  // Without auto-sizing enabled, labor-driven auto-sizing is off — but a crew
+  // still forms when the customer explicitly bought an extra cleaner OR the v2
+  // quote itself REQUIRED a team (requiredTeamSize ≥ 2: the airbnb staffing
+  // matrix / turnover window, or the two-person threshold — the customer was
+  // quoted and priced for that team, so it is honored like a purchase).
   let requiredCrewSize = plan.recommendedCrewSize;
-  if (!autoSizing && !booking.extra_cleaner_requested) requiredCrewSize = 1;
+  if (!autoSizing && !booking.extra_cleaner_requested) {
+    requiredCrewSize = Math.max(1, labor.engineRequiredTeamSize ?? 1);
+  }
   requiredCrewSize = Math.max(1, Math.min(requiredCrewSize, cfg.maxCrewSize));
 
   if (requiredCrewSize === 1) {
@@ -169,11 +174,11 @@ export async function planAndStartStaffing(
   // ── CREW ──
   await emitCrewEvent(env, "team_clean_required", bookingId, {
     crew_size: requiredCrewSize,
-    person_minutes: personMinutes,
+    person_minutes: labor.personMinutes,
     min_crew_size: plan.minCrewSize,
   });
   const version = booking.crew_assignment_version ?? 1;
-  await createCrewSeats(db, bookingId, buildSeatSpecs(requiredCrewSize, personMinutes, cfg), version);
+  await createCrewSeats(db, bookingId, buildSeatSpecs(requiredCrewSize, labor.personMinutes, cfg), version);
   await db`
     UPDATE bookings
     SET required_crew_size = ${requiredCrewSize}, target_crew_size = ${requiredCrewSize},
@@ -557,14 +562,37 @@ async function currentLeadCleanerId(db: Sql, bookingId: string): Promise<string 
   return rows[0]?.cleaner_id ?? null;
 }
 
-async function loadPersonMinutes(
+export interface BookingLaborContext {
+  /** expected_labor_minutes from the stamped v2 quote (null when v2 was dark). */
+  personMinutes: number | null;
+  /** RESOLVED team-productivity map for the booking's pricing version, via the
+   *  quote engine's staffing contract (`resolveTeamProductivityPermille`) —
+   *  scheduling.teamProductivityPermille merged with the marketplace-economics
+   *  team sizes (e.g. threeCleanerProductivityPermille → "3": 2500). */
+  productivityPermille?: Record<string, number>;
+  /** The quote's `QuoteResultV2.requiredTeamSize` snapshot: airbnb staffing
+   *  matrix + turnover-window sizing, or the standard two-person-threshold
+   *  rule. Null when the quote predates the field or v2 was dark. */
+  engineRequiredTeamSize?: number | null;
+}
+
+/**
+ * Load the labor/staffing context the crew engine consumes from a booking's
+ * stamped Pricing v2 snapshot. Exported so day-of-service (no-show recompute)
+ * can re-plan with the SAME productivity curve sizing used.
+ */
+export async function loadBookingLaborContext(
   db: Sql,
-  booking: CrewBookingRow,
-): Promise<{ personMinutes: number | null; productivityPermille?: Record<string, number> }> {
-  let rows: Array<{ expected_labor_minutes?: number | string | null; config?: unknown }> = [];
+  booking: Pick<CrewBookingRow, "pricing_quote_v2_id" | "pricing_version_id">,
+): Promise<BookingLaborContext> {
+  let rows: Array<{
+    expected_labor_minutes?: number | string | null;
+    result?: unknown;
+    config?: unknown;
+  }> = [];
   if (booking.pricing_quote_v2_id) {
     rows = (await db`
-      SELECT q.expected_labor_minutes, v.config
+      SELECT q.expected_labor_minutes, q.result, v.config
       FROM pricing_quotes_v2 q
       JOIN pricing_versions v ON v.id = q.pricing_version_id
       WHERE q.id = ${booking.pricing_quote_v2_id} LIMIT 1
@@ -579,18 +607,38 @@ async function loadPersonMinutes(
     r?.expected_labor_minutes != null && Number.isFinite(Number(r.expected_labor_minutes))
       ? Number(r.expected_labor_minutes)
       : null;
+
+  // Productivity map: the ENGINE-RESOLVED merge (explicit scheduling entries
+  // win; marketplace-economics sizes fill the gaps). Defensive: a malformed
+  // stored config leaves it undefined → sizing uses its engine-mirroring default.
   let productivityPermille: Record<string, number> | undefined;
   try {
     const cfg = r?.config
-      ? ((typeof r.config === "string" ? JSON.parse(r.config) : r.config) as Record<string, unknown>)
+      ? ((typeof r.config === "string" ? JSON.parse(r.config) : r.config) as PricingConfigV2)
       : null;
-    const scheduling = cfg?.scheduling as Record<string, unknown> | undefined;
-    const table = scheduling?.teamProductivityPermille as Record<string, number> | undefined;
-    if (table && typeof table === "object") productivityPermille = table;
+    if (cfg && cfg.scheduling && typeof cfg.scheduling === "object") {
+      const resolved = resolveTeamProductivityPermille(cfg);
+      if (resolved && Object.keys(resolved).length > 0) productivityPermille = resolved;
+    }
   } catch {
     /* leave undefined → sizing uses its default productivity curve */
   }
-  return { personMinutes, productivityPermille };
+
+  // requiredTeamSize from the immutable quote-result snapshot.
+  let engineRequiredTeamSize: number | null = null;
+  try {
+    const result = r?.result
+      ? ((typeof r.result === "string" ? JSON.parse(r.result) : r.result) as Record<string, unknown>)
+      : null;
+    const raw = result?.requiredTeamSize;
+    if (typeof raw === "number" && Number.isFinite(raw) && raw >= 1) {
+      engineRequiredTeamSize = Math.round(raw);
+    }
+  } catch {
+    /* leave null → no engine floor */
+  }
+
+  return { personMinutes, productivityPermille, engineRequiredTeamSize };
 }
 
 function buildSeatSpecs(size: number, personMinutes: number | null, cfg: CrewConfig): SeatSpec[] {

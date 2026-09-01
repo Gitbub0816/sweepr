@@ -8,7 +8,7 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { Routes, Route, Navigate, Outlet } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { useCallback, useEffect, useRef } from "react";
 import { AuthenticateWithRedirectCallback, useAuth } from "@clerk/clerk-react";
 import { useAppToken } from "@/lib/appToken";
@@ -25,7 +25,7 @@ import {
   BookOpen,
   ShieldCheck,
 } from "lucide-react";
-import { AppShell, PrelaunchGate, ReportProblem, CookieConsent, PromoHost } from "@sweepr/ui";
+import { AppShell, ReportProblem, CookieConsent, PromoHost } from "@sweepr/ui";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -108,16 +108,6 @@ function Guarded({ children, jobsGated = false }: { children: React.ReactNode; j
   );
 }
 
-const FORCE_PRELAUNCH = import.meta.env.VITE_PRELAUNCH_FORCE === "true";
-
-function GateLayout() {
-  return (
-    <PrelaunchGate type="cleaner" apiUrl={API_URL} forcePrelaunch={FORCE_PRELAUNCH}>
-      <Outlet />
-    </PrelaunchGate>
-  );
-}
-
 /**
  * Last-used language persistence — hard rule, no save button:
  *  - Every language switch is written to the server immediately, so
@@ -190,7 +180,7 @@ export default function App() {
     <PromoHostMount />
     <CookieConsent />
     <Routes>
-      {/* OAuth SSO callback and mock Yardstik form bypass the prelaunch gate */}
+      {/* OAuth SSO callback and mock Yardstik form */}
       <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback continueSignUpUrl="/sign-up/continue" />} />
       <Route path="/sign-up/continue" element={<ContinueSignUp />} />
       <Route path="/yardstik-simulate" element={<YardstikSimulatePage />} />
@@ -198,8 +188,6 @@ export default function App() {
       {/* Didit QR callback, phone lands here after completing verification */}
       <Route path="/verify-done" element={<VerifyDonePage />} />
 
-      {/* Everything else is gated during prelaunch */}
-      <Route element={<GateLayout />}>
       {/* Auth */}
       <Route path="/sign-in" element={CENTRAL_AUTH_ENABLED ? <RedirectToCentralLogin /> : <SignInPage />} />
       <Route path="/sign-up" element={CENTRAL_AUTH_ENABLED ? <RedirectToCentralLogin /> : <SignUpPage />} />
@@ -243,7 +231,6 @@ export default function App() {
       <Route path="/insurance" element={<Guarded jobsGated><InsurancePage /></Guarded>} />
       <Route path="/profile" element={<Guarded><ProfilePage /></Guarded>} />
       <Route path="*" element={<Navigate to="/" replace />} />
-      </Route>{/* end GateLayout */}
     </Routes>
     </>
   );

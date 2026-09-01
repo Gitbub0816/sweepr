@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright © 2026–Present ClearKey Solutions, LLC.
+  All Rights Reserved. Proprietary and Confidential.
+
+  Capabilities for the Sweepr customer app (com.getsweepr.customer):
+    - aps-environment: Apple Push Notifications. Committed as "development";
+      Xcode/App Store distribution promotes this to "production" automatically
+      at export time. Do not hard-code "production" here.
+    - associated-domains: universal links from app.getsweepr.com (booking,
+      membership, and Smart Entry deep links open the app instead of Safari).
+  No keychain-access-groups: the app has no share/extension target and does not
+  share a keychain with another app, so none is declared (avoid over-scoping).
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>aps-environment</key>
+    <string>development</string>
+    <key>com.apple.developer.associated-domains</key>
+    <array>
+        <string>applinks:app.getsweepr.com</string>
+    </array>
+</dict>
+</plist>

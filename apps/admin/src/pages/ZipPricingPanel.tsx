@@ -141,7 +141,7 @@ export function ZipPricingPanel() {
         <p className="text-sm text-slate-600 dark:text-slate-400">
           A positive percentage raises a booking's whole total for that ZIP (the cleaner earns proportionally
           more too); a negative percentage lowers it the same way. This adjusts the base price, not just the
-          platform fee.
+          Marketplace Services Fee.
         </p>
         <button onClick={() => void load()} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400">
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh

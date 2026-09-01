@@ -31,7 +31,6 @@ interface Incident {
   status: string;
   severity: string;
   affected_features: string[];
-  is_prelaunch_update: boolean;
   created_at: string;
   updated_at: string;
   resolved_at: string | null;

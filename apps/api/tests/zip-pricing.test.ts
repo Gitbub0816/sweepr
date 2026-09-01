@@ -31,7 +31,7 @@ function makeSql(handler: (text: string, values: unknown[]) => unknown) {
 
 const SETTINGS: FeeSettings = {
   feeType: "percentage",
-  feeValue: 20,
+  feeValue: 30, // production Marketplace Services Fee (owner decision 2026-09)
   minimumPlatformFee: 0,
   maximumPlatformFee: null,
   processingFeeStrategy: "absorb",
@@ -77,15 +77,15 @@ describe("ZIP adjustment flowing through the whole booking total (not fee-only)"
     const adjustedGross = 11000; // $110, i.e. $100 * 1.10
     const breakdown = calculatePayout(adjustedGross, SETTINGS, 1.0);
     expect(breakdown.grossAmount).toBe(11000);
-    expect(breakdown.platformFee).toBe(2200); // 20% of $110
-    expect(breakdown.cleanerPayout).toBe(8800); // cleaner earns more, proportionally
+    expect(breakdown.platformFee).toBe(3300); // 30% of $110
+    expect(breakdown.cleanerPayout).toBe(7700); // cleaner earns more, proportionally
   });
 
   it("a -15% ZIP lowers both the customer total and the cleaner's payout proportionally", () => {
     const adjustedGross = 8500; // $100 * 0.85
     const breakdown = calculatePayout(adjustedGross, SETTINGS, 1.0);
     expect(breakdown.grossAmount).toBe(8500);
-    expect(breakdown.platformFee).toBe(1700);
-    expect(breakdown.cleanerPayout).toBe(6800); // cleaner earns less, unlike the founding-customer discount
+    expect(breakdown.platformFee).toBe(2550);
+    expect(breakdown.cleanerPayout).toBe(5950); // cleaner earns less, unlike the founding-customer discount
   });
 });

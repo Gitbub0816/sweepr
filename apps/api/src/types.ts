@@ -75,6 +75,10 @@ export interface Env {
   ALLOWED_ORIGINS?: string;
   POSTHOG_KEY?: string;
   RATE_LIMIT_KV: KVNamespace;
+  /** PRIVATE R2 bucket (sweepr-report-objects) for user-report photo evidence.
+   * Never publicly readable — uploads/reads stream through the API; retrieval
+   * is admin-only (routes/reports.ts + routes/adminReports.ts). */
+  REPORT_OBJECTS: R2Bucket;
   CLEANER_APP_URL?: string;
   ADMIN_URL?: string;
   R2_LEGAL_ACCESS_KEY_ID: string;

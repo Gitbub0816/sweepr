@@ -11,7 +11,7 @@
 /**
  * Admin Schedule — a month calendar of notes + scheduled automations.
  * Automations (broadcasts, status announcements, service-area launches,
- * prelaunch gate toggles, admin alerts) execute at their scheduled time via
+ * admin alerts) execute at their scheduled time via
  * the API cron; notes are plain calendar entries. Supports ICS import
  * (from a feed URL, SSRF-safe server-side) and ICS export.
  */

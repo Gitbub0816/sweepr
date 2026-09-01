@@ -39,6 +39,7 @@ import type Stripe from "stripe";
 import type { Sql } from "@sweepr/db";
 import { loadFeeSettings, calculatePayout, getTierMultiplier } from "../payoutEngine";
 import { foundingPayoutMultiplier } from "../foundingMember";
+import { sumAccessDelayFeeCents, splitAccessDelayFeeCents } from "../accessDelayFee";
 import { loadCrewConfig, payoutSplitFractions } from "./crewConfig";
 import { serverTrack } from "../posthog";
 
@@ -104,6 +105,11 @@ interface SeatRow {
  * Compute the total cleaner-payout pool for a booking — identical to the solo
  * calculation (`calculatePayout(...).cleanerPayout`), using the LEAD's tier and
  * founding multipliers (bookings.cleaner_id is the LEAD).
+ *
+ * Access-delay/lockout fees on the booking are carved out first and re-added
+ * at their fixed 80% cleaner-team share (ruleset 80/20 — NOT the standard
+ * 70/30 fee split, and NOT multiplied by tier/founding bonuses). The 80% joins
+ * the pool, so a crew splits it by the same configured fractions.
  */
 export async function computeCrewPoolCents(sql: Sql, booking: BookingPoolRow): Promise<number> {
   const gross = booking.total_price ?? 0;
@@ -122,13 +128,18 @@ export async function computeCrewPoolCents(sql: Sql, booking: BookingPoolRow): P
     foundingMult = await foundingPayoutMultiplier(sql, booking.cleaner_id);
   }
 
+  // 80/20 carve-out: run the standard payout math on the total NET of any
+  // access-delay fee, then add the fee's fixed cleaner-team share.
+  const accessFeeCents = Math.min(await sumAccessDelayFeeCents(sql, booking.id), gross);
+  const accessShare = splitAccessDelayFeeCents(accessFeeCents);
+
   const breakdown = calculatePayout(
-    gross,
+    gross - accessFeeCents,
     feeSettings,
     tierMultiplier * foundingMult,
     booking.founding_customer_discount_cents ?? 0,
   );
-  return breakdown.cleanerPayout;
+  return breakdown.cleanerPayout + accessShare.cleanerCents;
 }
 
 /**

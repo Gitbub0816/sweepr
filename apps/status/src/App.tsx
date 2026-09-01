@@ -31,7 +31,6 @@ interface Incident {
   status: IncidentStatus;
   severity: IncidentSeverity;
   affected_features: string[];
-  is_prelaunch_update: boolean;
   created_at: string;
   updated_at: string;
   resolved_at: string | null;
@@ -48,13 +47,7 @@ interface MaintenanceWindow {
   status: string;
 }
 
-interface SiteSettings {
-  prelaunch_cleaner: boolean;
-  prelaunch_customer: boolean;
-}
-
 interface StatusData {
-  settings: SiteSettings;
   incidents: Incident[];
   maintenance: MaintenanceWindow[];
 }
@@ -325,10 +318,6 @@ export default function App() {
     overallStatus = { label: "Minor Service Issues", color: "text-yellow-700", dot: "bg-yellow-400" };
   }
 
-  const isPrelaunch =
-    (data?.settings.prelaunch_cleaner ?? false) ||
-    (data?.settings.prelaunch_customer ?? false);
-
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
       <header className="border-b border-slate-200 bg-white">
@@ -341,12 +330,6 @@ export default function App() {
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-10">
-        {isPrelaunch && (
-          <div className="mb-8 rounded-xl border border-seafoam-100 bg-seafoam-50 px-6 py-4 text-center">
-            <p className="text-sm font-semibold text-seafoam-700">Sweepr is coming soon. Follow along below.</p>
-          </div>
-        )}
-
         {/* Overall status */}
         <div className="mb-8 rounded-xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
           <div className="flex items-center gap-3">

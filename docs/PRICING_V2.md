@@ -56,9 +56,74 @@ Scenario: 3 bed / 2 bath / 1 kitchen / 1 living, all reported Level 2,
 4. **Expected labor** = 189+28+32 = **249 min** (the single float→int boundary).
 5. **Money**: labor 249×6000/60 = 24 900¢ + fixed visit 4 900¢ = 29 800¢ →
    tax 8.25% = 2 459¢ → 32 259¢ → charm-round up to end in 9 → **$329.00**.
-6. **Payout** (independent): 249×3900/60 = 16 185¢ = $161.85.
+6. **Modeled payout estimate** (independent knob): 249×3900/60 = 16 185¢ =
+   $161.85. This is planning/margin math only — see "How cleaners are paid"
+   below; it is NOT what the cleaner receives.
 7. **Scheduling**: 75th-percentile posterior labor, rounded up to 15 min →
    255 min reserved; team of 2 above 240 min; elapsed ≈ 255/1.8 = 142 min.
+
+### Minimum job total (hourly rate + minimum)
+
+`rates.minimumBookingCents` expresses "an hourly labor rate PLUS a minimum"
+(e.g. $25/labor-hour but at least $40 per job). It is optional — absent or 0
+means no minimum — so configs stored before the field was first-class price
+identically.
+
+**Where it clamps (deliberate):** the minimum floors the ENTIRE pre-tax
+subtotal — labor + fixed service visit + extras + extra-cleaner fee — AFTER
+the zip-area and short-notice adjustments, and BEFORE tax and charm rounding
+(`packages/quote-engine/src/engine.ts`, the `policy.minimum` block). Why
+there:
+
+- **After the adjustments**, so a discounted zip area can never price a job
+  below the floor.
+- **Inclusive of extras** — standard minimum-order semantics: the customer
+  must spend at least the minimum per visit and every line item counts
+  toward it (a $30 core + $70 of add-ons meets a $99 minimum; flooring only
+  the core would surprise-charge minimum + add-ons).
+- **Pre-tax**, so tax is computed on what is actually charged and the
+  customer-facing total is always ≥ minimum + tax. Charm rounding then only
+  moves the total up.
+
+When it bites, the breakdown carries a `policy.minimum` component with the
+top-up amount and the result sets `minimumApplied: true` (surfaced in the
+Studio test quote and the MCP `simulate_quote` summary), so customer-facing
+explanations stay honest. Older stored quote snapshots predate the flag —
+treat a missing `minimumApplied` as false; their `policy.minimum` component
+already told the same story.
+
+## How cleaners are paid (and how pricing relates)
+
+**Cleaners are NOT paid hourly, and nothing in a pricing config sets their
+pay.** The authoritative payout math:
+
+- `apps/api/src/lib/payoutEngine.ts` — the standard split is **70% to the
+  cleaner/team pool and 30% to Sweepr** (the customer/cleaner-facing name of
+  Sweepr's share is the **Marketplace Services Fee**; overridable via
+  `platform_fee_settings`), adjusted by tier and founding-member multipliers.
+  Structural discounts (e.g. the Airbnb repeat/volume discounts) reduce the
+  service price BEFORE the 70/30 split.
+- `apps/api/src/routes/payments.ts` — the Stripe transfer at payout release
+  uses exactly that breakdown on the booking's captured total.
+- **Tips are 100% to the cleaner, outside the split** — separate
+  immediate-capture PIs, no Marketplace Services Fee, ever (CLAUDE.md
+  convention 4).
+
+Inside the pricing config:
+
+- `rates.customerLaborRateCentsPerHour` is a **pricing-model input**: a cost
+  per ESTIMATED labor hour that converts estimated labor minutes into a
+  CUSTOMER price. It is not a wage; no cleaner ever receives it.
+- The `payout` block (`per_labor_hour` / `percent_of_subtotal`) produces
+  `cleanerPayoutCents` on each quote — an **internal planning estimate** used
+  by the validator's negative-margin gate and by Studio margin columns, and
+  stamped on bookings as `estimated_cleaner_payout_cents`. No payout transfer
+  reads it.
+
+Raising customer prices raises cleaner pay automatically (70% of a bigger
+capture); the config's payout knob changes only the margin model. Every
+MCP-facing surface (tool descriptions, field guide, prompt) states this —
+keep it that way.
 
 Every component lands in `components[]` with code/label/minutes/cents; the
 `calculationFingerprint` (FNV-1a over version id + canonical input) makes
@@ -87,7 +152,14 @@ optional buffer) is capacity planning and is never billed.
 ## Admin guide (Pricing Studio, admin → Money → Pricing Studio)
 
 1. **New draft** starts from the current live pricing translated into minutes
-   (see below) — customers unaffected.
+   (see below) — customers unaffected. Or open **Proposals** to load an
+   MCP-drafted config: sandbox configs stored via the pricing MCP
+   (`mcp_simulator_configs`, migration 100) appear there automatically, and
+   "Load into Studio" imports one as a fully pre-filled draft (provenance is
+   recorded in the audit trail as `draft_created` / `source: mcp_proposal`).
+   The MCP itself can never create, import, or publish a version — both
+   bridges (Proposals and Pricing → Import Payload) are human, admin-gated
+   actions.
 2. Edit **Room labor** (minutes per room per condition; click a cell for the
    price effect), **Clutter & size**, **Extras** (overlap groups prevent
    double-billing), **Rates & payout** (every field carries its unit),
@@ -129,8 +201,8 @@ underpricing).
 | Level-1 base room minutes | K25 / B20 / Bed12 / L15 | old model had no per-room base |
 | Fixed service visit | $49 | replaces the $89 base fee + 10% service fee |
 | Operational minutes | 10+10+2/room | new concept |
-| Cleaner payout | $39 / labor-hour (~65%) | independent knob |
-| Minimum booking | $99 | old engine had none explicit |
+| Modeled cleaner-payout estimate | $39 / labor-hour (~65%) | planning knob only — actual pay is 70% of captured proceeds (payoutEngine; 30% Marketplace Services Fee) |
+| Minimum booking (minimum job total) | $99 | old engine had none explicit; optional field, 0/absent = none |
 | Auto-quote limit | $1,000 | above → manual review |
 | Scheduling percentile / buffer | 75th / 0% | capacity, not billed |
 | Clutter minutes + 50% unobserved factor | see defaults | new concept |
@@ -138,6 +210,59 @@ underpricing).
 | Tax 8.25%, ending-9 rounding | unchanged | |
 | Five formerly $0 add-ons now priced | garage/patio/walls/extra-bath/organization | live engine bug |
 | Effective date & areas | default/USD single market | |
+
+## formatVersion 2 — the extended multi-service ruleset
+
+A pricing config can carry an optional `extendedRules` block (formatVersion
+2, the `SweeprExtendedPricingRuleset` shape) turning v2 into a full
+multi-service pricing platform. A config WITHOUT the block prices
+byte-identically to the original engine (pinned by
+`apps/api/tests/pricing-v2-extended.test.ts` and the shadow test). The master
+ruleset is vendored at `apps/api/tests/fixtures/master-pricing-ruleset.json`
+and imports as-is through the MCP (`set_simulator_config`) and the Studio
+pipeline; unknown sections are preserved verbatim through JSONB storage and
+every round-trip.
+
+Service-type routing (`packages/quote-engine/src/engine.ts`):
+
+- **standard** — the labor-minutes model, unchanged, plus:
+  - **Deep-clean auto-classification**: ≥1 level-4 room, OR ≥2 level-3
+    rooms, OR ≥40% of counted rooms at level 3/4 (deterministic, from the
+    REPORTED inputs; add-ons never trigger it) → +10% base-workload labor
+    allowance (add-ons excluded), NO separate customer-facing surcharge
+    line, `deepCleanApplied` on the result, and a `deep_clean` marker
+    stamped into `pricing_line_items_json` at booking creation so job views
+    label the booking "Deep Clean".
+  - **Pet hair percentage tiers** (5/15/25% of base workload) replace the
+    flat placeholder; the wizard sends `petHairLevel`.
+- **moveInOut** (`serviceType: move_in_out`) — BR/BA base price matrix +
+  condition multipliers L1–L4 (0/10/20/30%) + oversized-home guardrail
+  ($15/extra 250 sqft over the per-bedroom allowance); NO standard size
+  scaling.
+- **airbnb** (`serviceType: vacation_rental`) — turnover matrix + per-bedroom
+  included-sqft guardrail ($12/250 sqft) + dirtiness adjustments (L1/L2 0%,
+  L3 +20%, L4 +35%; severe mess → manual review) + turnover-scope add-on
+  suppression (bed making, dishwasher load, basic patio sweep included) +
+  repeat/volume discounts (2nd+ turnover at the same property 5%; host with
+  10+ completed turnovers in rolling 30 days 10%; highest only, never
+  stacking; base + guardrail only; applied BEFORE the 70/30 split; resolved
+  from booking history in `bookingAdapter.resolveAirbnbDiscount`) + the
+  staffing matrix and turnover-window team sizing (crew contract documented
+  at the top of `packages/quote-engine/src/index.ts`).
+
+Cross-cutting: short-notice tiers (<24h +15%, 24–48h +5%, >48h 0%; never
+stacking; a legacy config's `emergencySurchargeBps` remains the <24h-tier
+behavior), location ZIP tiers (0/+5/+10 capped at +10% through the existing
+zip-multiplier table; legacy NEGATIVE zip rows — e.g. the production 94541
+-5% — are superseded/clamped to 0 while tiers are active and should be
+deactivated in `zip_pricing_multipliers` at deploy), decoupled extras
+(laundry $25/load with 25 min ACTIVE labor and machine cycles that never
+block or bill; Light Tidying activated at $25 per 30-minute block; inside
+oven $40 fixed / 35 min; sliding door $20 including its track with duplicate
+track suppression; patio pair mutually exclusive; linens/laundry overlap
+prevented), and manual-review triggers (sqft ≥ 4000, total ≥ $1,000,
+obstructed clutter, unsafe conditions, arrival mismatch flag) surfaced as
+`manualReviewReasons` with formal customer copy.
 
 ## Migration state & follow-ups
 

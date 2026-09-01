@@ -8,8 +8,7 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-// DRAFT — attorney review required before production use. Insurance terms must be
-// reconciled with Sweepr's actual policies and coverage before publication.
+// NOTE: Keep these terms reconciled with Sweepr's actual policies and coverage.
 import { Link } from "react-router-dom";
 import { DocPage } from "../components/DocPage";
 import { Section } from "../components/Section";

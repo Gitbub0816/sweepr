@@ -16,6 +16,7 @@ import { getDb } from "../lib/db";
 import { calculateBookingPrice, UnknownAddOnError } from "../lib/pricingEngine";
 import { resolveBookingPricing } from "../lib/resolvePricing";
 import { loadActivePricingVersion } from "../lib/quoteEngine/service";
+import { resolveEffectiveExtras } from "../lib/quoteEngine";
 import { logger } from "../lib/logger";
 import type { AppBindings } from "../types";
 
@@ -67,10 +68,28 @@ pricingRouter.get("/addons", async (c) => {
   try {
     const active = await loadActivePricingVersion(sql, "default", "USD");
     if (active) {
-      const addOns = active.config.extras
+      // EFFECTIVE definitions: the extended ruleset's app-side overrides are
+      // applied at resolve time (Light Tidying activated, the flat pet-hair
+      // placeholder retired when percentage tiers exist, patio pair made
+      // mutually exclusive, linens/laundry overlap prevented) — so the wizard
+      // offers exactly what the engine will price. Overlap metadata lets the
+      // client grey out conflicting picks; the engine still enforces.
+      const addOns = resolveEffectiveExtras(active.config)
         .filter((e) => e.active)
-        .map((e) => ({ key: e.key, name: getAddOn(e.key)?.name ?? e.label }));
-      return c.json({ addOns, source: "v2" as const });
+        .map((e) => ({
+          key: e.key,
+          name: getAddOn(e.key)?.name ?? e.label,
+          overlapGroup: e.overlapGroup,
+          incompatibleWith: e.incompatibleWith,
+        }));
+      const petHairOverride = active.config.extendedRules?.extrasAppSideOverrides?.petHair;
+      const petHairTiers =
+        petHairOverride?.useFlat39DollarPlaceholder === false &&
+        Array.isArray(petHairOverride.percentageTiers) &&
+        petHairOverride.percentageTiers.length === 3
+          ? petHairOverride.percentageTiers
+          : null;
+      return c.json({ addOns, petHairTiers, source: "v2" as const });
     }
   } catch (err) {
     // Fall back to the static catalogue on any lookup failure — the wizard must
@@ -81,6 +100,7 @@ pricingRouter.get("/addons", async (c) => {
   }
   return c.json({
     addOns: ADD_ONS.map((a) => ({ key: a.key, name: a.name })),
+    petHairTiers: null,
     source: "legacy" as const,
   });
 });

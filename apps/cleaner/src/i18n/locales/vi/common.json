@@ -326,7 +326,10 @@
         "confirmed": "Đã xác nhận",
         "en_route": "Đang trên đường",
         "in_progress": "Đang tiến hành"
-      }
+      },
+      "estPayAfterFee": "Est. pay after Marketplace Services Fee",
+      "marketplaceServicesFeeAbout": "About the Marketplace Services Fee",
+      "marketplaceServicesFeeInfo": "Supports the services required to operate each Sweepr booking, including marketplace technology, payment infrastructure, cleaner support and screening, insurance-related costs, customer support, and ongoing platform operations."
     },
     "earnings": {
       "title": "Thu nhập",
@@ -505,6 +508,48 @@
       "peerDown": "Had issues",
       "peerThanks": "Thanks for the feedback.",
       "peerError": "Could not send that. Try again."
+    },
+    "reports": {
+      "title": "Report an issue",
+      "desc": "If something went wrong with the customer or this job, you can file a formal report. Our Trust and Safety team reviews every report.",
+      "reportButton": "Report an issue",
+      "openReportNotice": "You have an open report on this job. We will email you when the review is complete.",
+      "case": "Case {{reference}}",
+      "modalTitle": "Report an issue",
+      "modalDesc": "Tell us what happened on this job. Reports are reviewed by our Trust and Safety team and treated as confidential.",
+      "categoryLabel": "What happened?",
+      "categoryPlaceholder": "Choose a category",
+      "descriptionLabel": "Describe what happened",
+      "descriptionPlaceholder": "Include what happened, when, and anything else that would help our review. At least 10 characters.",
+      "photosLabel": "Photos",
+      "photosOptional": "optional, up to {{max}}",
+      "addPhoto": "Add photo",
+      "removePhoto": "Remove photo",
+      "whatHappensNext": "What happens next: our Trust and Safety team reviews your report and any photos, and may contact you for more detail. You will get an email confirmation now and another when the review is complete. Reports are confidential and never shared with the other party as written.",
+      "submit": "Submit report",
+      "submittedTitle": "Report submitted",
+      "submittedMessage": "Thank you. Your report was submitted as case {{reference}}. Our Trust and Safety team will review it, and we sent a confirmation to your email.",
+      "photoWarning": "Some photos could not be uploaded. You can contact support to add them to your case.",
+      "duplicateError": "You already have an open report for this job.",
+      "genericError": "We could not submit your report. Please try again.",
+      "networkError": "Network error. Please try again.",
+      "photoTooLarge": "{{name}} is larger than 10MB.",
+      "categories": {
+        "safety_concern": "Safety concern",
+        "property_damage": "Property damage",
+        "theft": "Theft or missing item",
+        "harassment": "Harassment or inappropriate behavior",
+        "no_show": "Customer not present or no access",
+        "unprofessional_conduct": "Disrespectful conduct",
+        "payment_dispute": "Payment concern",
+        "other": "Something else"
+      },
+      "status": {
+        "submitted": "Submitted",
+        "underReview": "Under review",
+        "actionTaken": "Resolved",
+        "dismissed": "Closed"
+      }
     }
   },
   "onboarding": {
@@ -568,6 +613,33 @@
     "recurring": "Dọn dẹp định kỳ",
     "standard": "Dọn dẹp tiêu chuẩn",
     "vacation_rental": "Dọn dẹp luân chuyển nhà cho thuê nghỉ dưỡng"
+  },
+  "cleaningTypes": {
+    "guideTitle": "Cleaning types guide",
+    "guideIntro": "Sweepr jobs come in four cleaning types. Here is what each one involves, in plain language, so you know exactly what you are signing up for.",
+    "acceptTitle": "Job types you accept",
+    "acceptSubtitle": "Choose which kinds of jobs Sweepr may offer you. You can change this anytime in Settings. At least one type is required.",
+    "acceptStandardLabel": "Standard (includes Deep Clean)",
+    "acceptMoveLabel": "Move-In / Move-Out",
+    "acceptAirbnbLabel": "Airbnb / Turnover",
+    "atLeastOne": "You must accept at least one job type.",
+    "deepNote": "Deep Cleans are part of Standard jobs: when a home needs significantly more attention, the job carries a higher workload and pays accordingly, but it stays in the Standard category.",
+    "standard": {
+      "title": "Standard",
+      "body": "The everyday clean for lived-in homes: bathrooms, kitchen counters, bedrooms, living areas, vacuuming, and mopping. Most Sweepr jobs are Standard cleans."
+    },
+    "deep": {
+      "title": "Deep Clean",
+      "body": "A Standard job that is automatically classified as a Deep Clean when the home needs significantly more attention (heavier buildup, longer time between cleanings). Expect a noticeably higher workload; the job is priced accordingly and your pay reflects the extra work. You do not opt into Deep Cleans separately: they arrive as Standard jobs with the Deep Clean label."
+    },
+    "moveInOut": {
+      "title": "Move-In / Move-Out",
+      "body": "A deep-level service for an empty home between occupants, including inside cabinets, drawers, closets, and shelving. The scope is strict: cleaning only. Moving belongings, organizing, packing, or hauling items is never part of the job. If a home is not actually empty, report it rather than working around it."
+    },
+    "airbnb": {
+      "title": "Airbnb / Turnover",
+      "body": "A short-term rental turnover on a fixed time window between checkout and the next check-in. Bed-making with fresh linens, loading the dishwasher, and a basic patio sweep are included in the base scope. Window discipline is strict: the property must be guest-ready before the window closes, so plan the work to finish on time, every time."
+    }
   },
   "subscriptions": {
     "bookRecurring": "Đặt lịch dọn dẹp định kỳ",

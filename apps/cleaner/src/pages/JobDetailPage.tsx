@@ -22,6 +22,7 @@ import { DashboardShell, Card, Button, ErrorState, Skeleton, toast, useReducedMo
 import { formatCurrency } from "@sweepr/utils";
 import { NavigationMap } from "@sweepr/ui";
 import { ScopeReviewSection } from "../components/ScopeReviewSection";
+import { ReportUserSection } from "../components/ReportUserSection";
 import { SmartEntryAccess } from "../components/SmartEntryAccess";
 import { CrewRoster } from "../components/CrewRoster";
 import { MemberPinCard, LeadVouchCard } from "../components/VouchPinCard";
@@ -51,6 +52,9 @@ interface JobLive {
   day_status: DayStatus | null;
   status: string;
   service_type: string;
+  /** Pricing v2 deep-clean auto-classification, stamped at booking creation.
+   *  Heavier workload allowance, same package scope. */
+  deep_clean_applied?: boolean;
   total_price: number;
   scheduled_at: string;
   cleaner_name?: string | null;
@@ -349,8 +353,15 @@ export function JobDetailPage() {
       title={t(`serviceTypes.${job.service_type}`, { defaultValue: job.service_type })}
       description={`Job ${job.id.slice(0, 8).toUpperCase()}`}
       actions={
-        <span className="text-2xl font-bold text-charcoal dark:text-white">
-          {formatCurrency(job.total_price / 100)}
+        <span className="flex items-center gap-2">
+          {job.deep_clean_applied && (
+            <span className="inline-flex items-center rounded-full bg-seafoam-100 px-3 py-1 text-xs font-semibold text-seafoam-700 dark:bg-seafoam-900/40 dark:text-seafoam-300">
+              {t("jobs.deepCleanBadge", { defaultValue: "Deep Clean" })}
+            </span>
+          )}
+          <span className="text-2xl font-bold text-charcoal dark:text-white">
+            {formatCurrency(job.total_price / 100)}
+          </span>
         </span>
       }
     >
@@ -554,6 +565,11 @@ export function JobDetailPage() {
 
       {/* Additional attention / refusal requests, only once checked in and job not completed */}
       {job.arrival_verified_at && !isCompleted && <ScopeReviewSection bookingId={job.id} />}
+
+      {/* Formal Trust & Safety report against the customer on this booking.
+          Separate from scope review (no money movement); available for any
+          confirmed-or-later job, including after completion. */}
+      <ReportUserSection bookingId={job.id} />
 
       {/* Photos taken */}
       {job.photos && job.photos.length > 0 && (

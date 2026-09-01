@@ -15,7 +15,7 @@
 -- This file is GENERATED. Do not edit by hand — edit the migrations in
 -- src/migrations/ and re-run: node packages/db/build-schema.mjs
 --
--- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql, 034_fee_approval_engine.sql, 035_slack_user_tokens.sql, 036_pricing_engine.sql, 037_security_tickets.sql, 038_compact_ticket_ids.sql, 039_report_submitter.sql, 040_classification_and_templates.sql, 041_fix_security_templates.sql, 042_email_deliverability.sql, 043_slack_purpose_security.sql, 044_senior_admin_roles.sql, 045_status_autodetect.sql, 046_seed_pricing_rule.sql, 047_seed_super_admin_invite.sql, 048_customer_home_profile.sql, 049_reset_bootstrap_invite.sql, 050_customers_user_id_unique.sql, 051_preferred_language.sql, 052_payouts_booking_id_unique.sql, 053_sms_consent.sql, 054_strict_rls.sql, 055_mailbox_messages.sql, 056_admin_mail_center.sql, 057_public_privacy_intake.sql, 058_scope_review_engine.sql, 059_scope_review_links.sql, 060_performance_indexes.sql, 061_composite_query_indexes.sql, 062_atomicity_constraints.sql, 063_customers_updated_at.sql, 064_booking_arrival_window.sql, 065_str_calendar_sync.sql, 066_address_property_type.sql, 067_str_enrollment.sql, 068_availability_backfill.sql, 069_review_tags.sql, 070_error_telemetry_v2.sql, 071_mail_security_rework.sql, 072_assignment_queue_cleaner_cascade.sql, 073_customer_fk_cascade.sql, 074_cleaner_service_area_and_declines.sql, 075_admin_permission_overrides.sql, 076_cleaners_updated_at.sql, 077_adjudication_cases.sql, 078_ip_blocklist.sql, 079_admin_alerting.sql, 080_status_health_checks.sql, 081_yardstik.sql, 082_admin_schedule.sql, 083_adjudication_pre_adverse.sql, 084_yardstik_webhook_dedup.sql, 085_founding_and_promotions.sql, 086_founder_badge_color.sql, 087_coupons_engine.sql, 088_coupon_stacking_locks.sql, 089_smart_entry_and_sweepr_plus.sql, 090_platform_identity_workspaces.sql, 091_auth_broker.sql, 092_founding_customer_discount.sql, 093_zip_pricing_multipliers.sql, 094_legal_document_versions.sql, 095_legal_attorneys.sql, 096_site_analytics.sql, 097_pricing_v2.sql, 098_yardstik_sor_monitoring.sql, 099_price_ledger_quote_refresh.sql, 100_mcp_simulator.sql, 101_team_cleans.sql, 102_team_cleans_compensation.sql, 103_crew_tasks.sql, 104_seam_connected_accounts.sql
+-- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql, 034_fee_approval_engine.sql, 035_slack_user_tokens.sql, 036_pricing_engine.sql, 037_security_tickets.sql, 038_compact_ticket_ids.sql, 039_report_submitter.sql, 040_classification_and_templates.sql, 041_fix_security_templates.sql, 042_email_deliverability.sql, 043_slack_purpose_security.sql, 044_senior_admin_roles.sql, 045_status_autodetect.sql, 046_seed_pricing_rule.sql, 047_seed_super_admin_invite.sql, 048_customer_home_profile.sql, 049_reset_bootstrap_invite.sql, 050_customers_user_id_unique.sql, 051_preferred_language.sql, 052_payouts_booking_id_unique.sql, 053_sms_consent.sql, 054_strict_rls.sql, 055_mailbox_messages.sql, 056_admin_mail_center.sql, 057_public_privacy_intake.sql, 058_scope_review_engine.sql, 059_scope_review_links.sql, 060_performance_indexes.sql, 061_composite_query_indexes.sql, 062_atomicity_constraints.sql, 063_customers_updated_at.sql, 064_booking_arrival_window.sql, 065_str_calendar_sync.sql, 066_address_property_type.sql, 067_str_enrollment.sql, 068_availability_backfill.sql, 069_review_tags.sql, 070_error_telemetry_v2.sql, 071_mail_security_rework.sql, 072_assignment_queue_cleaner_cascade.sql, 073_customer_fk_cascade.sql, 074_cleaner_service_area_and_declines.sql, 075_admin_permission_overrides.sql, 076_cleaners_updated_at.sql, 077_adjudication_cases.sql, 078_ip_blocklist.sql, 079_admin_alerting.sql, 080_status_health_checks.sql, 081_yardstik.sql, 082_admin_schedule.sql, 083_adjudication_pre_adverse.sql, 084_yardstik_webhook_dedup.sql, 085_founding_and_promotions.sql, 086_founder_badge_color.sql, 087_coupons_engine.sql, 088_coupon_stacking_locks.sql, 089_smart_entry_and_sweepr_plus.sql, 090_platform_identity_workspaces.sql, 091_auth_broker.sql, 092_founding_customer_discount.sql, 093_zip_pricing_multipliers.sql, 094_legal_document_versions.sql, 095_legal_attorneys.sql, 096_site_analytics.sql, 097_pricing_v2.sql, 098_yardstik_sor_monitoring.sql, 099_price_ledger_quote_refresh.sql, 100_mcp_simulator.sql, 101_team_cleans.sql, 102_team_cleans_compensation.sql, 103_crew_tasks.sql, 104_seam_connected_accounts.sql, 105_user_reports.sql, 106_calendar_date_rules.sql, 107_payout_economics_and_job_type_prefs.sql
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -6650,3 +6650,335 @@ END $$;
 -- ── RLS parity (owner-bypass; matches migrations 089/100/101) ────────────────
 ALTER TABLE seam_connected_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE seam_webhook_events     ENABLE ROW LEVEL SECURITY;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 105_user_reports.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Copyright © 2026–Present ClearKey Solutions, LLC.
+-- Proprietary & Confidential. Internal Use Only.
+--
+-- 105_user_reports.sql
+-- Formal user-reporting and investigation system (Trust & Safety).
+--
+-- Customers and cleaners can formally report the OTHER PARTY on a booking they
+-- share (booking-scoped by design: the reporter must be the booking's customer
+-- or its assigned cleaner, and the reported user is the counterpart). Reports
+-- carry photo evidence stored in the PRIVATE `sweepr-report-objects` R2 bucket
+-- (never public; uploads and reads stream through the API, retrieval is
+-- admin-only) and are investigated by admins in the /reports console.
+--
+-- Lifecycle: submitted → under_review → action_taken | dismissed
+-- (dismissed may be reopened to under_review; action_taken is terminal).
+-- Transitions are enforced app-side in apps/api/src/lib/userReports.ts.
+
+-- ── Reports ──────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS user_reports (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id         UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+  -- Canonical users rows for both parties. Denormalized from the booking at
+  -- submission time so the report stays intact even if the booking's
+  -- assignment later changes.
+  reporter_user_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reported_user_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reporter_role      TEXT NOT NULL CHECK (reporter_role IN ('customer', 'cleaner')),
+  category           TEXT NOT NULL CHECK (category IN (
+    'safety_concern', 'property_damage', 'theft', 'harassment',
+    'no_show', 'unprofessional_conduct', 'payment_dispute', 'other'
+  )),
+  description        TEXT NOT NULL,
+  status             TEXT NOT NULL DEFAULT 'submitted' CHECK (status IN (
+    'submitted', 'under_review', 'action_taken', 'dismissed'
+  )),
+  -- Resolution fields, set together when an admin closes the investigation.
+  resolution_action  TEXT CHECK (resolution_action IS NULL OR resolution_action IN (
+    'none', 'warning_issued', 'suspension', 'other'
+  )),
+  resolution_note    TEXT,
+  -- Clerk id of the deciding admin (matches the admin_audit_log actor format).
+  resolved_by        TEXT,
+  resolved_at        TIMESTAMPTZ,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_reports_booking  ON user_reports (booking_id);
+CREATE INDEX IF NOT EXISTS idx_user_reports_reporter ON user_reports (reporter_user_id);
+CREATE INDEX IF NOT EXISTS idx_user_reports_reported ON user_reports (reported_user_id);
+CREATE INDEX IF NOT EXISTS idx_user_reports_status   ON user_reports (status);
+CREATE INDEX IF NOT EXISTS idx_user_reports_created  ON user_reports (created_at DESC);
+
+-- One OPEN report per (booking, reporter) — the duplicate-spam guard. The API
+-- pre-checks for a friendly 409, but this index is the race-safe arbiter.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_user_reports_open
+  ON user_reports (booking_id, reporter_user_id)
+  WHERE status IN ('submitted', 'under_review');
+
+COMMENT ON TABLE user_reports IS
+  'Formal booking-scoped reports a customer/cleaner files against the counterpart on their booking. Investigated by admins; lifecycle submitted → under_review → action_taken | dismissed.';
+
+-- ── Photo evidence (private bucket: sweepr-report-objects) ───────────────────
+CREATE TABLE IF NOT EXISTS user_report_photos (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  report_id     UUID NOT NULL REFERENCES user_reports(id) ON DELETE CASCADE,
+  -- Object key inside the sweepr-report-objects bucket (reports/{reportId}/…).
+  storage_key   TEXT NOT NULL UNIQUE,
+  content_type  TEXT NOT NULL,
+  size_bytes    INT  NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_report_photos_report ON user_report_photos (report_id);
+
+COMMENT ON TABLE user_report_photos IS
+  'Photo evidence attached to a user report. Objects live in the PRIVATE sweepr-report-objects R2 bucket; retrieval streams through the API behind requireAdmin.';
+
+-- ── Investigation notes (admin trail) ────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS user_report_notes (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  report_id       UUID NOT NULL REFERENCES user_reports(id) ON DELETE CASCADE,
+  -- Clerk id of the admin who wrote the note ('system' rows record automatic
+  -- lifecycle events like status transitions for the investigation timeline).
+  admin_clerk_id  TEXT NOT NULL,
+  note            TEXT NOT NULL,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_report_notes_report ON user_report_notes (report_id);
+
+COMMENT ON TABLE user_report_notes IS
+  'Admin investigation trail for a user report. Never exposed to the reporter or the reported party.';
+
+-- ── RLS parity (owner-bypass; matches migrations 089/100/101/104) ────────────
+ALTER TABLE user_reports       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_report_photos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_report_notes  ENABLE ROW LEVEL SECURITY;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 106_calendar_date_rules.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Copyright © 2026–Present ClearKey Solutions, LLC.
+-- Proprietary & Confidential. Internal Use Only.
+--
+-- 106_calendar_date_rules.sql
+-- Admin booking calendar: per-date operational rules (blocks, price
+-- adjustments, automatic date coupons), optionally scoped to one service area.
+--
+-- A rule row applies to exactly ONE calendar date (bulk creation in the admin
+-- UI expands ranges/weekday selections into individual rows server-side, so
+-- every applied date is a first-class, auditable, individually revocable row).
+-- Dates are matched against the CUSTOMER'S LOCAL calendar date of a booking
+-- (the date the customer picked in the wizard), not the UTC date of the
+-- scheduled instant — see apps/api/src/lib/localDate.ts.
+--
+-- Scope: service_area_id NULL = platform-wide; set = that service area only
+-- (resolved from the booking address's lat/lng against service_areas
+-- polygons). Stacking semantics (enforced by uq_calendar_date_rules_scope and
+-- apps/api/src/lib/calendarRules.ts):
+--   * at most ONE active rule per (date, scope, kind);
+--   * for price_adjustment and coupon, an area-specific rule OVERRIDES a
+--     platform-wide rule on the same date (they never stack);
+--   * for block, platform-wide and area rules union (either one blocks).
+--
+-- Kinds:
+--   * block            — the date accepts no NEW bookings/reschedules. Existing
+--                        bookings are untouched; the admin calendar surfaces
+--                        them as conflicts for manual action.
+--   * price_adjustment — adjustment_type 'percent' (adjustment_value = whole
+--                        percent, e.g. 10 = +10%, -15 = 15% off) or 'flat'
+--                        (adjustment_value = integer CENTS, negative =
+--                        discount). Applied server-side to the pre-tax service
+--                        subtotal after any engine minimum, on BOTH the legacy
+--                        chain and Pricing v2 (see bookings.ts
+--                        computeBookingPricing).
+--   * coupon           — an automatic date promotion. The rule carries a
+--                        coupon TEMPLATE (coupons are per-user grants in this
+--                        codebase, not shared codes — see lib/coupons.ts): on
+--                        a matching booking a one-use coupon is minted for the
+--                        customer (source 'calendar', source_ref = rule id,
+--                        once per customer per rule) and then competes in the
+--                        existing best-coupon auto-apply engine, so a better
+--                        coupon the customer already holds still wins and the
+--                        same coupon can never stack twice.
+
+-- ── Calendar date rules ──────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS calendar_date_rules (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  rule_date        DATE NOT NULL,
+  -- NULL = platform-wide; otherwise scoped to one service area.
+  service_area_id  UUID REFERENCES service_areas(id) ON DELETE CASCADE,
+  kind             TEXT NOT NULL CHECK (kind IN ('block', 'price_adjustment', 'coupon')),
+  -- price_adjustment payload (NULL for other kinds).
+  adjustment_type  TEXT CHECK (adjustment_type IS NULL OR adjustment_type IN ('percent', 'flat')),
+  adjustment_value INTEGER,
+  -- coupon template payload (NULL for other kinds). Percent value is 1–100;
+  -- amount value is integer cents.
+  coupon_kind      TEXT CHECK (coupon_kind IS NULL OR coupon_kind IN ('percent_off', 'amount_off')),
+  coupon_value     INTEGER,
+  -- Customer-facing label for price_adjustment/coupon rules (shown on the
+  -- quote breakdown / availability endpoint); display label for blocks in the
+  -- admin UI only. Keep it presentable.
+  label            TEXT NOT NULL,
+  -- Internal admin note. NEVER sent to customers.
+  reason           TEXT,
+  active           BOOLEAN NOT NULL DEFAULT TRUE,
+  -- Clerk id of the creating admin (matches the admin_audit_log actor format).
+  created_by       TEXT,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- Each kind carries exactly its own payload.
+  CHECK (kind <> 'price_adjustment' OR (
+    adjustment_type IS NOT NULL AND adjustment_value IS NOT NULL AND adjustment_value <> 0
+    AND coupon_kind IS NULL AND coupon_value IS NULL
+  )),
+  CHECK (kind <> 'coupon' OR (
+    coupon_kind IS NOT NULL AND coupon_value IS NOT NULL AND coupon_value > 0
+    AND adjustment_type IS NULL AND adjustment_value IS NULL
+  )),
+  CHECK (kind <> 'block' OR (
+    adjustment_type IS NULL AND adjustment_value IS NULL
+    AND coupon_kind IS NULL AND coupon_value IS NULL
+  )),
+  -- Percent bounds: never below -90% (a bigger discount is a config mistake)
+  -- and never above +300%.
+  CHECK (adjustment_type IS DISTINCT FROM 'percent' OR (adjustment_value BETWEEN -90 AND 300)),
+  CHECK (coupon_kind IS DISTINCT FROM 'percent_off' OR (coupon_value BETWEEN 1 AND 100))
+);
+
+-- Stacking guard: at most one ACTIVE rule per (date, scope, kind). NULL scope
+-- is folded to the zero uuid so two platform-wide rules of the same kind on
+-- the same date conflict (unique indexes treat NULLs as distinct otherwise).
+CREATE UNIQUE INDEX IF NOT EXISTS uq_calendar_date_rules_scope
+  ON calendar_date_rules (
+    rule_date,
+    COALESCE(service_area_id, '00000000-0000-0000-0000-000000000000'::uuid),
+    kind
+  )
+  WHERE active;
+
+-- Range queries (admin month grid, availability endpoint, booking checks).
+CREATE INDEX IF NOT EXISTS idx_calendar_date_rules_date
+  ON calendar_date_rules (rule_date) WHERE active;
+CREATE INDEX IF NOT EXISTS idx_calendar_date_rules_area
+  ON calendar_date_rules (service_area_id, rule_date) WHERE active;
+
+COMMENT ON TABLE calendar_date_rules IS
+  'Admin booking-calendar rules: one row per (date, scope, kind). block stops new bookings/reschedules on that local date; price_adjustment layers a labeled percent/flat operational adjustment onto the server quote; coupon auto-mints a per-customer coupon for bookings on that date. service_area_id NULL = platform-wide.';
+
+-- ── Date-coupon claim lock ───────────────────────────────────────────────────
+-- Mirrors migration 088's strict one-claim-per-identity locks for a new coupon
+-- source 'calendar' (source_ref = calendar_date_rules.id): each customer can
+-- be granted a given date-rule's coupon at most once, race-safe at the DB.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_coupons_source_user_once_calendar
+  ON coupons (source, source_ref, user_id)
+  WHERE user_id IS NOT NULL AND source = 'calendar';
+
+-- ── RLS parity (owner-bypass; matches migrations 089/100/104/105) ────────────
+ALTER TABLE calendar_date_rules ENABLE ROW LEVEL SECURITY;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 107_payout_economics_and_job_type_prefs.sql
+-- ─────────────────────────────────────────────────────────────────────────
+/*
+ * Copyright © 2026–Present ClearKey Solutions, LLC.
+ * All Rights Reserved.
+ *
+ * Proprietary and Confidential.
+ */
+
+-- 107_payout_economics_and_job_type_prefs.sql
+--
+-- Owner-decided payout economics (2026-09) + cleaner job-type preferences:
+--   1. Marketplace Services Fee 20% → 30% (standard bookings split 70%
+--      cleaner pool / 30% Sweepr; tips stay 100% to cleaner, outside the split).
+--   2. Crew pool splits: two-cleaner 54/46 Lead/Support (was 60/40),
+--      three-cleaner 36/32/32 (was 40/30/30). Patches any stored crew_config.
+--   3. Team Cleans enabled NOW: every team_* flag row seeded to 'true'
+--      (the code default is also ON for absent rows; admin can still turn off).
+--   4. booking_price_ledger admits 'access_delay_fee' (non-cumulative
+--      access-delay/lockout fee, allocated 80% cleaner team / 20% Sweepr at
+--      payout — lib/accessDelayFee.ts).
+--   5. cleaners.accepted_job_types — canonical job-type preferences over
+--      {standard, move_in_out, vacation_rental}. Default = ALL types accepted,
+--      so existing cleaners are unaffected (and become eligible for
+--      move-in/out + turnover jobs the legacy preferred_service_types default
+--      silently excluded them from). Deep Clean is auto-classified within
+--      Standard and counts as 'standard' for preference purposes.
+
+-- ─── 1. Marketplace Services Fee → 30% ───────────────────────────────────────
+-- Insert a fresh ACTIVE row at 30%, carrying forward every other knob from the
+-- most recent active row, then deactivate the superseded rows (history kept).
+INSERT INTO platform_fee_settings (
+  fee_type, fee_value, minimum_platform_fee, maximum_platform_fee,
+  processing_fee_strategy, processing_fee_split_pct, reserve_percentage,
+  payout_delay_days, notes
+)
+SELECT
+  'percentage', 30.0000, minimum_platform_fee, maximum_platform_fee,
+  processing_fee_strategy, processing_fee_split_pct, reserve_percentage,
+  payout_delay_days,
+  'Marketplace Services Fee 30% (owner decision 2026-09; standard bookings split 70% cleaner / 30% Sweepr)'
+FROM platform_fee_settings
+WHERE NOT EXISTS (
+  SELECT 1 FROM platform_fee_settings
+  WHERE active = TRUE AND fee_type = 'percentage' AND fee_value = 30.0000
+)
+ORDER BY active DESC, effective_from DESC
+LIMIT 1;
+
+UPDATE platform_fee_settings
+SET active = FALSE, updated_at = NOW()
+WHERE active = TRUE
+  AND NOT (fee_type = 'percentage' AND fee_value = 30.0000);
+
+-- ─── 2. Crew pool splits 54/46 and 36/32/32 ──────────────────────────────────
+-- The code default (DEFAULT_CREW_CONFIG) already carries the new splits; this
+-- patches a stored crew_config row (written by the admin Crew Config page)
+-- that would otherwise override with the old 60/40 / 40/30/30 values.
+UPDATE site_settings
+SET value = jsonb_set(
+      jsonb_set(value::jsonb, '{payoutSplitByCrewSize,2}', '[54,46]'::jsonb),
+      '{payoutSplitByCrewSize,3}', '[36,32,32]'::jsonb
+    )::text,
+    updated_at = NOW()
+WHERE key = 'crew_config'
+  AND value::jsonb ? 'payoutSplitByCrewSize';
+
+-- ─── 3. Team Cleans flags ON ─────────────────────────────────────────────────
+INSERT INTO site_settings (key, value) VALUES
+  ('team_cleans_enabled', 'true'),
+  ('team_auto_crew_sizing_enabled', 'true'),
+  ('team_auto_crew_matching_enabled', 'true'),
+  ('team_task_allocation_enabled', 'true'),
+  ('team_preferred_teammates_enabled', 'true')
+ON CONFLICT (key) DO UPDATE SET value = 'true', updated_at = NOW();
+
+-- ─── 4. Ledger event type for access-delay/lockout fees ──────────────────────
+ALTER TABLE booking_price_ledger DROP CONSTRAINT IF EXISTS booking_price_ledger_event_type_check;
+DO $$ BEGIN
+  ALTER TABLE booking_price_ledger ADD CONSTRAINT booking_price_ledger_event_type_check CHECK (event_type IN (
+    'initial_quote', 'addon_purchase', 'level_surcharge', 'additional_attention_fee',
+    'refusal_fee', 'admin_adjustment', 'tax_adjustment', 'coupon_discount',
+    'smart_entry_fee', 'membership_discount', 'quote_refresh', 'access_delay_fee'
+  ));
+EXCEPTION WHEN duplicate_object THEN NULL; WHEN duplicate_table THEN NULL;
+END $$;
+
+-- ─── 5. Cleaner job-type preferences ─────────────────────────────────────────
+-- Canonical job types match how the quote engine maps wire service types:
+-- move_in_out → move_in_out, vacation_rental → vacation_rental, everything
+-- else (standard, deep, recurring, …) → standard. Matching (solo + crew)
+-- hard-filters on this column; at least one accepted type is required
+-- (enforced by the CHECK and by zod at the API).
+ALTER TABLE cleaners
+  ADD COLUMN IF NOT EXISTS accepted_job_types TEXT[] NOT NULL
+    DEFAULT ARRAY['standard','move_in_out','vacation_rental']::TEXT[];
+
+ALTER TABLE cleaners DROP CONSTRAINT IF EXISTS cleaners_accepted_job_types_check;
+DO $$ BEGIN
+  ALTER TABLE cleaners ADD CONSTRAINT cleaners_accepted_job_types_check CHECK (
+    cardinality(accepted_job_types) >= 1
+    AND accepted_job_types <@ ARRAY['standard','move_in_out','vacation_rental']::TEXT[]
+  );
+EXCEPTION WHEN duplicate_object THEN NULL; WHEN duplicate_table THEN NULL;
+END $$;

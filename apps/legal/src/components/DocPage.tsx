@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Printer, AlertTriangle, FileDown, FileText } from "lucide-react";
+import { Printer, FileDown, FileText } from "lucide-react";
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? "https://api.getsweepr.com";
 
@@ -74,12 +74,6 @@ export interface DocMetaProps {
   effectiveDate?: string;
   /** Owner/contact email for this document. Defaults to legal@. */
   owner?: string;
-  /**
-   * When true, renders a prominent banner noting the document is a draft and
-   * requires attorney review before production use. Defaults to true for all
-   * documents generated from the legal audit until counsel signs off.
-   */
-  draft?: boolean;
 }
 
 export function DocPage({
@@ -89,7 +83,6 @@ export function DocPage({
   version,
   effectiveDate,
   owner = LEGAL_EMAIL,
-  draft = true,
   children,
 }: {
   title: string;
@@ -104,7 +97,7 @@ export function DocPage({
     document.title = `${title}, Sweepr Legal`;
     const slug = window.location.pathname.replace(/^\//, "");
     const url = `${LEGAL_URL}/${slug}`;
-    const description = intro ?? `${title} — Sweepr's official legal document.`;
+    const description = intro ?? `${title}, one of Sweepr's official legal documents.`;
     setMetaTag("name", "description", description);
     setMetaTag("property", "og:title", `${title}, Sweepr Legal`);
     setMetaTag("property", "og:description", description);
@@ -165,17 +158,6 @@ export function DocPage({
               </a>
             </span>
           </div>
-          {draft && (
-            <div className="no-print mt-4 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>
-                <strong>Draft, attorney review required.</strong> This document
-                is a working draft prepared for internal development. It is not
-                legal advice and must be reviewed and approved by qualified
-                counsel before production use.
-              </span>
-            </div>
-          )}
           {intro && (
             <p className="mt-4 text-[15px] leading-relaxed text-slate-600">
               {intro}

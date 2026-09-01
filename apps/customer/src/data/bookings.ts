@@ -128,7 +128,11 @@ export interface RevealedCleaner {
 }
 
 /** A booking with the (optionally) revealed cleaner identity attached. */
-export type BookingWithCleaner = Booking & { revealedCleaner?: RevealedCleaner | null };
+export type BookingWithCleaner = Booking & {
+  revealedCleaner?: RevealedCleaner | null;
+  /** Stamped by Pricing v2's deep-clean auto-classification at creation. */
+  deepCleanApplied?: boolean;
+};
 
 /**
  * A crew seat as exposed to the customer by GET /bookings/:id/crew. Only seat
@@ -241,10 +245,14 @@ export async function fetchBooking(
     const token = await getToken();
     const res = await fetch(`${API_URL}/bookings/${id}`, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) return null;
-    const data = (await res.json()) as { booking: BookingRow; cleaner?: RevealedCleaner | null };
+    const data = (await res.json()) as {
+      booking: BookingRow & { deep_clean_applied?: boolean };
+      cleaner?: RevealedCleaner | null;
+    };
     if (!data.booking) return null;
     const booking = toBooking(data.booking) as BookingWithCleaner;
     booking.revealedCleaner = data.cleaner ?? null;
+    booking.deepCleanApplied = data.booking.deep_clean_applied === true;
     return booking;
   } catch {
     return null;

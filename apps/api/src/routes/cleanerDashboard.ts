@@ -595,6 +595,10 @@ cleanerDashboardRouter.delete("/blocked-dates/:id", async (c) => {
 
 const LANG_CODES = ["en","es","vi","zh-Hans","zh-Hant","fil","ko","ar","pt","hi"] as const;
 
+// Canonical job types a cleaner can accept (matching hard-filters on these;
+// see lib/matching.ts canonicalJobType). At least one type is required.
+const JOB_TYPE_VALUES = ["standard", "move_in_out", "vacation_rental"] as const;
+
 const settingsSchema = z.object({
   max_jobs_per_day:           z.number().int().min(1).max(10).optional(),
   max_distance_miles:         z.number().min(1).max(200).optional(),
@@ -604,6 +608,7 @@ const settingsSchema = z.object({
   notification_payout:        z.boolean().optional(),
   notification_marketing:     z.boolean().optional(),
   preferred_service_types:    z.array(z.string()).optional(),
+  accepted_job_types:         z.array(z.enum(JOB_TYPE_VALUES)).min(1).max(3).optional(),
   preferred_language:         z.enum(LANG_CODES).optional(),
 });
 
@@ -622,6 +627,7 @@ cleanerDashboardRouter.get("/settings", async (c) => {
       notification_job_offer: true, notification_reminder: true,
       notification_payout: true, notification_marketing: false,
       preferred_service_types: ["standard", "deep"],
+      accepted_job_types: ["standard", "move_in_out", "vacation_rental"],
       preferred_language: u?.preferred_language ?? null,
     });
   }
@@ -629,7 +635,7 @@ cleanerDashboardRouter.get("/settings", async (c) => {
   const rows = await sql`
     SELECT c.max_jobs_per_day, c.max_distance_miles, c.accepts_last_minute,
            c.notification_job_offer, c.notification_reminder, c.notification_payout,
-           c.notification_marketing, c.preferred_service_types,
+           c.notification_marketing, c.preferred_service_types, c.accepted_job_types,
            u.preferred_language
     FROM cleaners c JOIN users u ON u.id = c.user_id
     WHERE c.id = ${ctx.cleaner_id} LIMIT 1
@@ -644,6 +650,7 @@ cleanerDashboardRouter.get("/settings", async (c) => {
     notification_payout: true,
     notification_marketing: false,
     preferred_service_types: ["standard", "deep"],
+    accepted_job_types: ["standard", "move_in_out", "vacation_rental"],
   });
 });
 
@@ -670,6 +677,7 @@ cleanerDashboardRouter.put("/settings", zValidator("json", settingsSchema), asyn
       notification_payout     = COALESCE(${body.notification_payout ?? null}, notification_payout),
       notification_marketing  = COALESCE(${body.notification_marketing ?? null}, notification_marketing),
       preferred_service_types = COALESCE(${body.preferred_service_types ?? null}, preferred_service_types),
+      accepted_job_types      = COALESCE(${body.accepted_job_types ?? null}, accepted_job_types),
       updated_at = NOW()
     WHERE id = ${ctx.cleaner_id}
   `;

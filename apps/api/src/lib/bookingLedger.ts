@@ -35,7 +35,11 @@ export type LedgerEventType =
   | "coupon_discount"
   | "smart_entry_fee"
   | "membership_discount"
-  | "quote_refresh";
+  | "quote_refresh"
+  // Access-delay/lockout fee (lib/accessDelayFee.ts): non-cumulative bracket
+  // fee, allocated 80% cleaner team / 20% Sweepr at payout. CHECK constraint
+  // admitted in migration 107.
+  | "access_delay_fee";
 
 export type LedgerSource = "customer" | "cleaner_request" | "admin" | "system";
 

@@ -52,7 +52,6 @@ export const SCHEDULED_ACTION_CATALOG = [
       { key: "title", label: "Title", kind: "text", required: true },
       { key: "summary", label: "Summary", kind: "textarea", required: true },
       { key: "severity", label: "Severity", kind: "select", options: ["minor", "moderate", "major", "critical"], required: false },
-      { key: "isPrelaunchUpdate", label: "Show as prelaunch update", kind: "select", options: ["true", "false"], required: false },
     ],
   },
   {
@@ -60,15 +59,6 @@ export const SCHEDULED_ACTION_CATALOG = [
     label: "Launch service area",
     description: "Flip an existing service area (by slug) to active at the scheduled time.",
     fields: [{ key: "slug", label: "Service area slug", kind: "text", required: true }],
-  },
-  {
-    type: "prelaunch_toggle",
-    label: "Toggle prelaunch gate",
-    description: "Turn a prelaunch gate on/off, e.g. open the customer app at launch time.",
-    fields: [
-      { key: "key", label: "Gate", kind: "select", options: ["prelaunch_customer", "prelaunch_cleaner", "prelaunch_pricing"], required: true },
-      { key: "value", label: "Value", kind: "select", options: ["on", "off"], required: true },
-    ],
   },
   {
     type: "admin_alert",
@@ -82,6 +72,14 @@ export const SCHEDULED_ACTION_CATALOG = [
 ] as const;
 
 export type ScheduledActionType = (typeof SCHEDULED_ACTION_CATALOG)[number]["type"];
+
+/**
+ * Action types that used to exist but were removed from the catalog. A stored
+ * event that still names one is skipped (marked failed with a note, warning
+ * logged) instead of throwing — same semantics as the misfire guard.
+ * - prelaunch_toggle: retired when the prelaunch gates were removed (site live).
+ */
+const RETIRED_ACTION_TYPES = new Set(["prelaunch_toggle"]);
 
 const str = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
 
@@ -125,10 +123,9 @@ async function runStatusAnnouncement(sql: Sql, p: Record<string, unknown>): Prom
   const summary = str(p.summary);
   if (!title || !summary) throw new Error("status_announcement requires title and summary");
   const severity = ["minor", "moderate", "major", "critical"].includes(str(p.severity)) ? str(p.severity) : "minor";
-  const isPrelaunch = str(p.isPrelaunchUpdate) !== "false";
   const rows = (await sql`
-    INSERT INTO status_incidents (title, summary, status, severity, affected_features, is_prelaunch_update)
-    VALUES (${title}, ${summary}, 'monitoring', ${severity}, ${[] as string[]}, ${isPrelaunch})
+    INSERT INTO status_incidents (title, summary, status, severity, affected_features)
+    VALUES (${title}, ${summary}, 'monitoring', ${severity}, ${[] as string[]})
     RETURNING id
   `) as Array<{ id: string }>;
   return `Status announcement published (incident ${rows[0]?.id ?? "?"}).`;
@@ -142,20 +139,6 @@ async function runServiceAreaLaunch(sql: Sql, p: Record<string, unknown>): Promi
   `) as Array<{ name: string }>;
   if (rows.length === 0) throw new Error(`No service area with slug "${slug}"`);
   return `Service area "${rows[0].name}" (${slug}) is now active.`;
-}
-
-async function runPrelaunchToggle(sql: Sql, p: Record<string, unknown>): Promise<string> {
-  const key = str(p.key);
-  if (!["prelaunch_customer", "prelaunch_cleaner", "prelaunch_pricing"].includes(key)) {
-    throw new Error("prelaunch_toggle requires key ∈ prelaunch_customer|prelaunch_cleaner|prelaunch_pricing");
-  }
-  const value = str(p.value) === "on" ? "true" : "false";
-  await sql`
-    INSERT INTO site_settings (key, value, updated_at)
-    VALUES (${key}, ${value}, NOW())
-    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
-  `;
-  return `${key} set to ${value === "true" ? "ON (gated)" : "OFF (open)"}.`;
 }
 
 async function runAdminAlert(sql: Sql, env: Env, p: Record<string, unknown>): Promise<string> {
@@ -180,11 +163,12 @@ export async function executeScheduledAction(sql: Sql, env: Env, ev: ScheduledEv
       return runStatusAnnouncement(sql, payload);
     case "service_area_launch":
       return runServiceAreaLaunch(sql, payload);
-    case "prelaunch_toggle":
-      return runPrelaunchToggle(sql, payload);
     case "admin_alert":
       return runAdminAlert(sql, env, payload);
     default:
+      if (ev.action_type && RETIRED_ACTION_TYPES.has(ev.action_type)) {
+        throw new Error(`Action type "${ev.action_type}" was retired and no longer runs; nothing was executed.`);
+      }
       throw new Error(`Unknown action_type "${ev.action_type}"`);
   }
 }
@@ -214,6 +198,18 @@ export async function executeDueScheduledEvents(sql: Sql, env: Env): Promise<num
       RETURNING id
     `) as Array<{ id: string }>;
     if (claimed.length === 0) continue;
+
+    // Legacy rows naming a retired action are skipped, not run — marked failed
+    // with a note and a logged warning (same semantics as the misfire guard).
+    if (ev.action_type && RETIRED_ACTION_TYPES.has(ev.action_type)) {
+      await sql`
+        UPDATE scheduled_events
+        SET status = 'failed', result_note = ${`Action type "${ev.action_type}" was retired and no longer runs; skipped.`}
+        WHERE id = ${ev.id}
+      `;
+      logger.warn("schedule.retired_action_skipped", { id: ev.id, title: ev.title, action: ev.action_type });
+      continue;
+    }
 
     const ageMs = Date.now() - new Date(ev.starts_at).getTime();
     if (ageMs > MISFIRE_WINDOW_MS) {

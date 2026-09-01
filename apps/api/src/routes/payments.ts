@@ -21,6 +21,7 @@ import { sendNotification } from "../lib/notifications";
 import { requireAuth } from "../middleware/auth";
 import { requireAdmin } from "../middleware/adminRoles";
 import { loadFeeSettings, calculatePayout, getTierMultiplier } from "../lib/payoutEngine";
+import { sumAccessDelayFeeCents, splitAccessDelayFeeCents } from "../lib/accessDelayFee";
 import { foundingPayoutMultiplier } from "../lib/foundingMember";
 import { isTeamFlagEnabled } from "../lib/crew/crewConfig";
 import { releaseCrewPayouts } from "../lib/crew/crewPayout";
@@ -391,12 +392,30 @@ paymentsRouter.post(
     // Founding Members earn a permanent bonus (default 5%) on every payout while
     // in good standing. Compounds onto the tier multiplier so both apply.
     const foundingMult = await foundingPayoutMultiplier(sql, booking.cleaner_id);
-    const breakdown = calculatePayout(
-      booking.total_price,
+
+    // Access-delay/lockout fees are allocated 80% cleaner / 20% Sweepr (owner
+    // ruleset), NOT the standard fee split: carve them out of the total, run
+    // the normal payout math on the remainder, then add the fixed 80% share
+    // (tier/founding multipliers deliberately do not apply to the fee portion).
+    const accessFeeCents = Math.min(await sumAccessDelayFeeCents(sql, bookingId), booking.total_price);
+    const accessShare = splitAccessDelayFeeCents(accessFeeCents);
+
+    const rawBreakdown = calculatePayout(
+      booking.total_price - accessFeeCents,
       feeSettings,
       tierMultiplier * foundingMult,
       booking.founding_customer_discount_cents ?? 0,
     );
+    const breakdown = {
+      ...rawBreakdown,
+      grossAmount: booking.total_price,
+      cleanerPayout: rawBreakdown.cleanerPayout + accessShare.cleanerCents,
+      platformFee: rawBreakdown.platformFee + accessShare.sweeprCents,
+      feeRate:
+        booking.total_price > 0
+          ? (rawBreakdown.platformFee + accessShare.sweeprCents) / booking.total_price
+          : 0,
+    };
 
     // Atomic lock BEFORE calling Stripe: claim the payout row first so a
     // concurrent/retried request can't also pass this check and double-transfer.

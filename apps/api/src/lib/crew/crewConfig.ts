@@ -42,7 +42,10 @@ export interface CrewConfig {
   crewSizeThresholdsPersonMinutes: Record<string, number>;
   /**
    * Cleaner-payout POOL split percentages by crew size (primary first). Each
-   * array must sum to 100. e.g. { "1": [100], "2": [60,40], "3": [40,30,30] }.
+   * array must sum to 100. Owner-decided splits (2026-09):
+   * { "1": [100], "2": [54,46], "3": [36,32,32] }. Rounding: every non-primary
+   * seat is rounded from its fraction and the LEAD absorbs the remainder
+   * (splitPoolCents), so the pool is conserved exactly in integer cents.
    */
   payoutSplitByCrewSize: Record<string, number[]>;
 }
@@ -56,7 +59,7 @@ export const DEFAULT_CREW_CONFIG: CrewConfig = {
   targetMaxElapsedMinutes: 300,
   leadOverheadMinutes: 20,
   crewSizeThresholdsPersonMinutes: { "1": 540, "2": 900, "3": 1320 },
-  payoutSplitByCrewSize: { "1": [100], "2": [60, 40], "3": [40, 30, 30] },
+  payoutSplitByCrewSize: { "1": [100], "2": [54, 46], "3": [36, 32, 32] },
 };
 
 const KEY = "crew_config";
@@ -142,9 +145,17 @@ export function payoutSplitFractions(cfg: CrewConfig, size: number): number[] {
   return Array.from({ length: Math.max(1, size) }, () => 1 / Math.max(1, size));
 }
 
-// ─── Feature flags (boolean site_settings keys, read like prelaunch_*) ───────
+// ─── Feature flags (boolean site_settings keys) ──────────────────────────────
 
-/** Team Cleans master flag + sub-toggles. Value !== "true" means OFF (default). */
+/**
+ * Team Cleans master flag + sub-toggles.
+ *
+ * Team Cleans is LIVE by default (owner decision, 2026-09): a MISSING row
+ * counts as ON, and migration 107 seeds every flag row to "true" in
+ * production. The flags are kept so admins can still turn any stage off from
+ * the Crew Config page — a stored row wins, and only the exact value "true"
+ * keeps a stage on.
+ */
 export const TEAM_FLAG_KEYS = {
   enabled: "team_cleans_enabled",
   autoSizing: "team_auto_crew_sizing_enabled",
@@ -155,14 +166,20 @@ export const TEAM_FLAG_KEYS = {
 
 export type TeamFlag = keyof typeof TEAM_FLAG_KEYS;
 
-/** Read a Team Cleans feature flag. Default OFF (fail closed) on any error. */
+/**
+ * Read a Team Cleans feature flag.
+ *  - No stored row → ON (the default is enabled).
+ *  - Stored row → ON only when its value is exactly "true" (admin off-switch).
+ *  - Any error reading → OFF (fail safe to the legacy solo path).
+ */
 export async function isTeamFlagEnabled(sql: Sql, flag: TeamFlag): Promise<boolean> {
   try {
     const key = TEAM_FLAG_KEYS[flag];
     const rows = (await sql`SELECT value FROM site_settings WHERE key = ${key} LIMIT 1`) as Array<{
       value: unknown;
     }>;
-    return String(rows[0]?.value ?? "").trim() === "true";
+    if (!rows[0]) return true; // absent row = enabled by default
+    return String(rows[0].value ?? "").trim() === "true";
   } catch {
     return false;
   }

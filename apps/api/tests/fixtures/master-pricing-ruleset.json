@@ -1,0 +1,926 @@
+{
+  "name": "default",
+  "format": "SweeprExtendedPricingRuleset",
+  "formatVersion": 1,
+  "note": "Master pricing ruleset containing the MCP-compatible PricingConfigV2 plus finalized app-side pricing, payout, staffing, service-type, discount, review, suppression, and implementation rules. Fields outside config are intentionally extended and may be rejected by the current Pricing v2 importer.",
+  "config": {
+    "laborMatrix": {
+      "kitchen": [
+        35,
+        50,
+        70,
+        95
+      ],
+      "bathroom": [
+        20,
+        37,
+        50,
+        75
+      ],
+      "bedroom": [
+        12,
+        20,
+        32,
+        47
+      ],
+      "living_room": [
+        17,
+        25,
+        43,
+        60
+      ]
+    },
+    "clutter": {
+      "minutesByType": {
+        "kitchen": [
+          0,
+          10,
+          25
+        ],
+        "bathroom": [
+          0,
+          8,
+          20
+        ],
+        "bedroom": [
+          0,
+          8,
+          20
+        ],
+        "living_room": [
+          0,
+          10,
+          25
+        ]
+      },
+      "unobservedFactorPermille": 500,
+      "obstructedRequiresReview": true
+    },
+    "size": {
+      "includedSqft": 900,
+      "incrementSqft": 40,
+      "minutesPerIncrement": 3,
+      "maxAdjustmentMinutes": 225
+    },
+    "operational": {
+      "setupMinutes": 10,
+      "packdownMinutes": 10,
+      "perExtraRoomTransitionMinutes": 4
+    },
+    "extras": [
+      {
+        "key": "inside_fridge",
+        "mode": "minutes",
+        "label": "Inside Fridge",
+        "active": true,
+        "unitLabel": "fridge",
+        "maxQuantity": 1,
+        "minQuantity": 1,
+        "minutesPerUnit": 45,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "inside_oven",
+        "mode": "both",
+        "label": "Inside Oven",
+        "active": true,
+        "unitLabel": "oven",
+        "maxQuantity": 1,
+        "minQuantity": 1,
+        "minutesPerUnit": 35,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 500
+      },
+      {
+        "key": "interior_windows",
+        "mode": "minutes",
+        "label": "Interior Windows",
+        "active": true,
+        "unitLabel": "window",
+        "maxQuantity": 30,
+        "minQuantity": 1,
+        "minutesPerUnit": 10,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "inside_cabinets",
+        "mode": "minutes",
+        "label": "Inside Cabinets",
+        "active": true,
+        "unitLabel": "kitchen",
+        "maxQuantity": 1,
+        "minQuantity": 1,
+        "minutesPerUnit": 50,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "laundry",
+        "mode": "minutes",
+        "label": "Laundry — Wash, Dry & Fold",
+        "active": true,
+        "unitLabel": "load",
+        "maxQuantity": 2,
+        "minQuantity": 1,
+        "minutesPerUnit": 25,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "load_dishwasher",
+        "mode": "minutes",
+        "label": "Load Dishwasher",
+        "active": true,
+        "unitLabel": "load",
+        "maxQuantity": 1,
+        "minQuantity": 1,
+        "minutesPerUnit": 15,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "hand_wash_dishes",
+        "mode": "minutes",
+        "label": "Hand-Wash Dishes",
+        "active": true,
+        "unitLabel": "sinkful",
+        "maxQuantity": 1,
+        "minQuantity": 1,
+        "minutesPerUnit": 25,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "garage_sweep",
+        "mode": "minutes",
+        "label": "Garage Sweep",
+        "active": true,
+        "unitLabel": "garage",
+        "maxQuantity": 1,
+        "minQuantity": 1,
+        "minutesPerUnit": 30,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "patio_sweep",
+        "mode": "minutes",
+        "label": "Basic Patio / Balcony Sweep",
+        "active": true,
+        "unitLabel": "patio/balcony",
+        "maxQuantity": 1,
+        "minQuantity": 1,
+        "minutesPerUnit": 25,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "patio_sweep_cobwebs",
+        "mode": "minutes",
+        "label": "Patio / Balcony Sweep + Cobweb Detail",
+        "active": true,
+        "unitLabel": "patio/balcony",
+        "maxQuantity": 1,
+        "minQuantity": 1,
+        "minutesPerUnit": 35,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "baseboards",
+        "mode": "minutes",
+        "label": "Hand-Scrubbed Detailed Baseboard Cleaning",
+        "active": true,
+        "unitLabel": "room",
+        "maxQuantity": 30,
+        "minQuantity": 1,
+        "minutesPerUnit": 15,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "walls_spot_cleaning",
+        "mode": "minutes",
+        "label": "Wall Spot Cleaning",
+        "active": true,
+        "unitLabel": "room",
+        "maxQuantity": 30,
+        "minQuantity": 1,
+        "minutesPerUnit": 10,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "full_wall_washing",
+        "mode": "minutes",
+        "label": "Full Wall Washing",
+        "active": true,
+        "unitLabel": "room",
+        "maxQuantity": 30,
+        "minQuantity": 1,
+        "minutesPerUnit": 40,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "pet_hair_detail",
+        "mode": "minutes",
+        "label": "Pet Hair Detail",
+        "active": false,
+        "unitLabel": "home",
+        "maxQuantity": 1,
+        "minQuantity": 1,
+        "minutesPerUnit": 39,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "extra_bathroom_detail",
+        "mode": "minutes",
+        "label": "Extra Bathroom Detail",
+        "active": false,
+        "unitLabel": "bathroom",
+        "maxQuantity": 5,
+        "minQuantity": 1,
+        "minutesPerUnit": 24,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "detailed_grout_scrub",
+        "mode": "minutes",
+        "label": "Detailed Grout Scrub",
+        "active": true,
+        "unitLabel": "bathroom",
+        "maxQuantity": 30,
+        "minQuantity": 1,
+        "minutesPerUnit": 40,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "hard_water_limescale_detail",
+        "mode": "minutes",
+        "label": "Heavy Hard-Water / Limescale Detail",
+        "active": true,
+        "unitLabel": "bathroom",
+        "maxQuantity": 30,
+        "minQuantity": 1,
+        "minutesPerUnit": 25,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "shower_glass_heavy_soap_scum_detail",
+        "mode": "minutes",
+        "label": "Shower Glass Heavy Soap-Scum Detail",
+        "active": false,
+        "unitLabel": "shower",
+        "maxQuantity": 30,
+        "minQuantity": 1,
+        "minutesPerUnit": 20,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "bathroom_exhaust_fan_deep_clean",
+        "mode": "minutes",
+        "label": "Bathroom Exhaust Fan Deep Clean",
+        "active": true,
+        "unitLabel": "fan",
+        "maxQuantity": 30,
+        "minQuantity": 1,
+        "minutesPerUnit": 15,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "organization_light",
+        "mode": "minutes",
+        "label": "Light Tidying",
+        "active": false,
+        "unitLabel": "30-minute block",
+        "maxQuantity": 5,
+        "minQuantity": 1,
+        "minutesPerUnit": 25,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "change_bed_linens",
+        "mode": "minutes",
+        "label": "Change Bed Linens",
+        "active": true,
+        "unitLabel": "bed",
+        "maxQuantity": 10,
+        "minQuantity": 1,
+        "minutesPerUnit": 10,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "window_blinds_wipe_down",
+        "mode": "minutes",
+        "label": "Window Blinds Wipe-Down",
+        "active": true,
+        "unitLabel": "blind",
+        "maxQuantity": 30,
+        "minQuantity": 1,
+        "minutesPerUnit": 10,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "window_track_cleaning",
+        "mode": "minutes",
+        "label": "Window Track Cleaning",
+        "active": true,
+        "unitLabel": "window",
+        "maxQuantity": 30,
+        "minQuantity": 1,
+        "minutesPerUnit": 6,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "sliding_glass_door_cleaning",
+        "mode": "minutes",
+        "label": "Sliding Glass Door Detail",
+        "active": true,
+        "unitLabel": "door",
+        "maxQuantity": 10,
+        "minQuantity": 1,
+        "minutesPerUnit": 20,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "range_hood_filter_degreasing",
+        "mode": "minutes",
+        "label": "Range Hood & Filter Degreasing",
+        "active": true,
+        "unitLabel": "range hood",
+        "maxQuantity": 1,
+        "minQuantity": 1,
+        "minutesPerUnit": 15,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "inside_dishwasher_detail",
+        "mode": "minutes",
+        "label": "Inside Dishwasher Detail",
+        "active": true,
+        "unitLabel": "dishwasher",
+        "maxQuantity": 1,
+        "minQuantity": 1,
+        "minutesPerUnit": 30,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      },
+      {
+        "key": "ceiling_fan_deep_clean",
+        "mode": "minutes",
+        "label": "Ceiling Fan Deep Clean",
+        "active": true,
+        "unitLabel": "fan",
+        "maxQuantity": 20,
+        "minQuantity": 1,
+        "minutesPerUnit": 10,
+        "payoutTreatment": "standard",
+        "fixedCentsPerUnit": 0
+      }
+    ],
+    "rates": {
+      "customerLaborRateCentsPerHour": 6000,
+      "fixedServiceCents": 0,
+      "minimumBookingCents": 13900,
+      "maxAutoQuoteCents": 100000,
+      "taxRateBps": 0,
+      "roundTotalUpToEndingDigit": null,
+      "emergencySurchargeBps": 1500,
+      "extraCleanerFeeCentsPer100Sqft": 100
+    },
+    "payout": {
+      "mode": "percent_of_subtotal",
+      "centsPerLaborHour": 3900,
+      "percentBps": 7000
+    },
+    "scheduling": {
+      "reservePercentile": 75,
+      "bufferRatePermille": 0,
+      "roundUpToIncrementMinutes": 15,
+      "teamProductivityPermille": {
+        "1": 1000,
+        "2": 1800
+      },
+      "twoPersonThresholdMinutes": 240
+    },
+    "inference": {
+      "modelVersion": "coldstart-2026.08",
+      "provenance": "cold_start",
+      "thresholds": {
+        "kitchen": [
+          0,
+          1.6,
+          3
+        ],
+        "bathroom": [
+          -0.2,
+          1.3,
+          2.7
+        ],
+        "bedroom": [
+          0.2,
+          1.8,
+          3.2
+        ],
+        "living_room": [
+          0.1,
+          1.7,
+          3.1
+        ]
+      },
+      "betaHome": {
+        "kitchen": 1,
+        "bathroom": 1,
+        "bedroom": 0.8,
+        "living_room": 0.9
+      },
+      "hGridPoints": 21,
+      "hGridSpan": 2.5
+    }
+  },
+  "extendedRules": {
+    "quoteConstruction": {
+      "quoteBeforePayout": true,
+      "noSeparateCustomerPlatformFee": true,
+      "noSeparateFixedServiceFee": true,
+      "ordinaryCleaningTaxPercent": 0,
+      "paymentProcessingAbsorbedBySweepr": true,
+      "advertisedCleanerPayoutProtectedFromPaymentProcessingDeductions": true
+    },
+    "standardResidential": {
+      "minimumBookingCents": 13900,
+      "largeHomeScaling": {
+        "includedSqft": 900,
+        "minutesPerAdditional100Sqft": 7.5,
+        "engineRepresentation": {
+          "incrementSqft": 40,
+          "minutesPerIncrement": 3
+        },
+        "perAdditionalCountedRoomTransitionMinutes": 4,
+        "maxSizeAdjustmentMinutes": 225,
+        "manualReviewAtOrAboveSqft": 4000
+      }
+    },
+    "deepClean": {
+      "classification": {
+        "triggerIfAny": [
+          {
+            "level4RoomCountAtLeast": 1
+          },
+          {
+            "level3RoomCountAtLeast": 2
+          },
+          {
+            "percentOfCountedRoomsLevel3Or4AtLeast": 40
+          }
+        ],
+        "addOnsDoNotTriggerDeepClean": true
+      },
+      "baseWorkloadMultiplierPercent": 10,
+      "appliesToBaseCleaningWorkloadOnly": true,
+      "separatelyPurchasedAddOnsExcludedFromMultiplier": true,
+      "customerFacingSeparateDeepSurchargeLine": false
+    },
+    "moveInOut": {
+      "serviceTypeSeparateFromDeepClean": true,
+      "scope": {
+        "propertyState": "empty_or_almost_empty",
+        "noMovingBelongings": true,
+        "noOrganizing": true,
+        "noPackingOrUnpacking": true,
+        "noHaulingOrDisposal": true,
+        "blockedAreasOnlyIfAccessible": true,
+        "cabinetsDrawersFridgeOvenOnlyIfEmpty": true
+      },
+      "basePriceMatrixCents": {
+        "1BR_1BA": 29900,
+        "2BR_1BA": 33900,
+        "2BR_2BA": 36900,
+        "3BR_2BA": 41900,
+        "3BR_3BA": 45900,
+        "4BR_2BA": 47900,
+        "4BR_3BA": 51900,
+        "5BR_3BA": 58900
+      },
+      "conditionMultipliersPercent": {
+        "L1": 0,
+        "L2": 10,
+        "L3": 20,
+        "L4": 30
+      },
+      "useStandardResidentialSizeScaling": false,
+      "oversizedHomeGuardrail": {
+        "priceCentsPerAdditional250Sqft": 1500,
+        "appliesWhenUnusuallyLargeForRoomCount": true
+      }
+    },
+    "airbnbSTR": {
+      "basePriceMatrixCents": {
+        "Studio_or_1BR_1BA": 14900,
+        "2BR_1BA": 17900,
+        "2BR_2BA": 19900,
+        "3BR_2BA": 23900,
+        "3BR_3BA": 26900,
+        "4BR_2BA": 28900,
+        "4BR_3BA": 31900,
+        "5BR_3BA": 37900
+      },
+      "sizeGuardrail": {
+        "includedSqftByBedroomCount": {
+          "Studio_or_1BR": 1000,
+          "2BR": 1250,
+          "3BR": 1500,
+          "4BR": 2000,
+          "5BR": 2500
+        },
+        "priceCentsPerAdditional250Sqft": 1200,
+        "incrementSqft": 250,
+        "useStandardResidentialSizeScaling": false
+      },
+      "dirtinessAdjustmentPercent": {
+        "L1": 0,
+        "L2": 0,
+        "L3": 20,
+        "L4": 35
+      },
+      "severeOrUnsafeMess": "manual_review_or_decline",
+      "arrivalDocumentationForMaterialEscalation": true,
+      "repeatVolumeDiscounts": {
+        "firstCompletedTurnoverAtPropertyPercent": 0,
+        "secondAndLaterSamePropertyPercent": 5,
+        "hostRolling30DayCompletedTurnoversThreshold": 10,
+        "hostRolling30DayDiscountPercent": 10,
+        "highestOnlyNoStacking": true,
+        "appliesTo": [
+          "base_service",
+          "airbnb_size_guardrail"
+        ],
+        "doesNotApplyTo": [
+          "abnormal_mess",
+          "rush",
+          "laundry",
+          "pet_hair",
+          "specialty_addons"
+        ],
+        "applyDiscountBeforeCleanerSweeprSplit": true
+      },
+      "turnoverWindow": {
+        "hostProvidesCheckoutAndCheckin": true,
+        "sweeprCalculatesAvailableWindow": true,
+        "under4Hours": "manual_review_or_require_more_staffing",
+        "fourHours": "minimum_normal_same_day_window_and_borderline_jobs_add_one_cleaner",
+        "fiveHours": "standard_default_staffing",
+        "sixPlusHours": "certain_borderline_L1_L2_jobs_may_reduce_one_cleaner_if_workload_fits",
+        "L3_L4NeverReduceSolelyForLongerWindow": true
+      },
+      "staffingMatrix": {
+        "Studio_or_1BR_1BA": {
+          "L1": 1,
+          "L2": 1,
+          "L3": 2,
+          "L4": 2
+        },
+        "2BR_1BA": {
+          "L1": 1,
+          "L2": 1,
+          "L3": 2,
+          "L4": 2
+        },
+        "2BR_2BA": {
+          "L1": 1,
+          "L2": 1,
+          "L3": 2,
+          "L4": 2
+        },
+        "3BR_1BA": {
+          "L1": 2,
+          "L2": 2,
+          "L3": 2,
+          "L4": 3
+        },
+        "3BR_2BA": {
+          "L1": 2,
+          "L2": 2,
+          "L3": 3,
+          "L4": 3
+        },
+        "3BR_3BA": {
+          "L1": 2,
+          "L2": 2,
+          "L3": 3,
+          "L4": 3
+        },
+        "4BR_2BA": {
+          "L1": 2,
+          "L2": 3,
+          "L3": 3,
+          "L4": 3
+        },
+        "4BR_3BA": {
+          "L1": 3,
+          "L2": 3,
+          "L3": 3,
+          "L4": 3
+        },
+        "5BR_3BA": {
+          "L1": 3,
+          "L2": 3,
+          "L3": 3,
+          "L4": 3
+        }
+      },
+      "scopeAndSuppressionRules": {
+        "bedMakingIncluded": true,
+        "suppressChangeBedLinensAddonWhenIncluded": true,
+        "loadDishwasherIncluded": true,
+        "suppressLoadDishwasherAddonWhenIncluded": true,
+        "basicPatioSweepIncluded": true,
+        "suppressBasicPatioSweepAddonWhenIncluded": true,
+        "garageSweepIsPaidAddon": true,
+        "interiorWindowsArePaidAddon": true,
+        "windowTracksArePaidAddon": true,
+        "slidingGlassDoorDetailIsPaidAddon": true,
+        "slidingGlassDoorDetailIncludesItsTrack": true,
+        "suppressDuplicateWindowTrackChargeForSlidingDoor": true,
+        "restockingHostOwnedSuppliesOnly": true,
+        "sweeprDoesNotProcureOrFrontRestockingItems": true,
+        "damageOrMissingItemObservationAndPhotosIncluded": true,
+        "noClaimsAdministrationOrInventoryManagement": true
+      }
+    },
+    "shortNotice": {
+      "tiers": [
+        {
+          "hoursBeforeServiceMaxExclusive": 24,
+          "surchargePercent": 15
+        },
+        {
+          "hoursBeforeServiceMinInclusive": 24,
+          "hoursBeforeServiceMaxInclusive": 48,
+          "surchargePercent": 5
+        },
+        {
+          "hoursBeforeServiceMinExclusive": 48,
+          "surchargePercent": 0
+        }
+      ],
+      "neverStack": true,
+      "pricingV2CurrentEmergencyFieldRepresents": "15_percent_tier_only"
+    },
+    "locationPricing": {
+      "model": "zip_to_multiplier",
+      "tiersPercent": {
+        "coreEastBay": 0,
+        "higherCostNearby": 5,
+        "premiumPeninsulaOrSF": 10
+      },
+      "initialCapPercent": 10,
+      "removeOrSupersedeLegacy94541Minus5Percent": true
+    },
+    "manualReview": {
+      "triggerIfAny": [
+        {
+          "sqftAtLeast": 4000
+        },
+        {
+          "calculatedCleaningPriceCentsAtLeast": 100000
+        },
+        {
+          "substantiallyObstructedOrHoardingLevelClutter": true
+        },
+        {
+          "unsafeOrSpecialConditions": [
+            "human_waste",
+            "animal_waste",
+            "significant_mold",
+            "pests",
+            "needles_or_biohazard",
+            "hazardous_materials"
+          ]
+        },
+        {
+          "arrivalConditionMateriallyOutsideBookedConditionOrScope": true
+        }
+      ],
+      "ordinaryLevel4ResidentialDirtAutoPricesUnlessAnotherTriggerApplies": true,
+      "unsafeJobsMayBeDeclinedRatherThanRepriced": true
+    },
+    "payoutAndMarketplaceEconomics": {
+      "standardBookingSplitPercent": {
+        "cleanerTeamPool": 70,
+        "sweepr": 30
+      },
+      "tips": {
+        "cleanerPercent": 100,
+        "outsideStandardSplit": true
+      },
+      "teamPoolSplitsPercent": {
+        "solo": {
+          "cleaner": 100
+        },
+        "twoCleaner": {
+          "lead": 54,
+          "support": 46
+        },
+        "threeCleaner": {
+          "lead": 36,
+          "support1": 32,
+          "support2": 32
+        }
+      },
+      "leadCleaner": {
+        "selectedUsingHistoricalPerformance": true,
+        "responsibilities": [
+          "team_level_admin",
+          "job_documentation",
+          "required_photos",
+          "required_uploads_to_sweepr",
+          "other_required_admin_tasks"
+        ],
+        "premiumFollowsWhoActuallyPerformsLeadDuties": true
+      },
+      "threeCleanerProductivityPermille": 2500,
+      "twoCleanerProductivityPermille": 1800,
+      "oneCleanerProductivityPermille": 1000,
+      "foundingCleaner": {
+        "earningsBonusPercent": 5,
+        "permanentOnceQualified": true,
+        "fundedBy": "Sweepr",
+        "doesNotReduceCustomerQuote": true
+      },
+      "promotionalCoupons": {
+        "maxPercent": 10,
+        "maxOnePerBooking": true,
+        "nonStackable": true,
+        "fundedBy": "Sweepr",
+        "mustNotReduceAlreadyAdvertisedCleanerPayout": true
+      },
+      "structuralDiscounts": {
+        "examples": [
+          "airbnb_repeat",
+          "airbnb_volume"
+        ],
+        "reduceServicePriceBefore70_30Split": true
+      },
+      "standardPaymentProcessing": {
+        "absorbedBy": "Sweepr",
+        "notDeductedFromAdvertisedCleanerPayout": true
+      },
+      "insurance": {
+        "type": "Sweepr_companywide_business_platform_insurance",
+        "notIndividualCleanerBenefit": true,
+        "notCleanerDeduction": true,
+        "paidFromSweeprShare": true
+      },
+      "backgroundChecks": {
+        "initialAndRequiredRenewalsPaidBySweepr": true,
+        "onlyAfterPreliminaryOnboardingPass": true,
+        "inactiveCleanersDoNotTriggerAutomaticRenewals": true,
+        "notDeductedFromCleanerPayout": true
+      }
+    },
+    "accessDelayAndLockout": {
+      "feeScheduleCents": [
+        {
+          "delayMinutesMin": 0,
+          "delayMinutesMax": 15,
+          "feeCents": 0
+        },
+        {
+          "delayMinutesMin": 16,
+          "delayMinutesMax": 30,
+          "feeCents": 2500
+        },
+        {
+          "delayMinutesMin": 31,
+          "delayMinutesMax": 60,
+          "feeCents": 5000
+        },
+        {
+          "delayMinutesMin": 61,
+          "delayMinutesMax": null,
+          "feeCents": 8500,
+          "jobMayBeCancelled": true
+        }
+      ],
+      "feesAreNonCumulative": true,
+      "splitPercent": {
+        "cleanerTeam": 80,
+        "sweepr": 20
+      }
+    },
+    "extrasAppSideOverrides": {
+      "insideOven": {
+        "customerPriceCents": 4000,
+        "activeLaborMinutes": 35
+      },
+      "laundry": {
+        "customerPriceCentsPerLoad": 2500,
+        "maxLoads": 2,
+        "activeLaborMustBeDecoupledFromMachineElapsedTime": true,
+        "machineCycleElapsedTimeMustNotBlockWholeAppointmentAsActiveLabor": true
+      },
+      "lightTidying": {
+        "customerPriceCentsPer30MinuteBlock": 2500,
+        "minutesPerBlock": 30,
+        "currentPricingV2CatalogItemShouldRemainInactiveUntilDecoupled": true
+      },
+      "petHair": {
+        "useFlat39DollarPlaceholder": false,
+        "percentageTiers": [
+          5,
+          15,
+          25
+        ],
+        "requiresAppSideImplementation": true
+      },
+      "patio": {
+        "basicAndCobwebDetailMutuallyExclusive": true
+      },
+      "hardWater": {
+        "ordinaryHardWaterIncludedInBaseWhenWithinNormalScope": true,
+        "heavyLimescaleDetailIsPaidAddon": true
+      },
+      "slidingGlassDoor": {
+        "detailPriceCents": 2000,
+        "includesTrack": true,
+        "suppressDuplicateTrackAddon": true
+      },
+      "bedLinensAndLaundry": {
+        "preventDoubleChargeForOverlappingWork": true
+      },
+      "fragranceAndEcoPreference": {
+        "fragranceFreeOrEcoPreferenceAdditionalChargeCents": 0,
+        "allergyOrSensitivitySpecialProductSuppliedByCustomer": true
+      }
+    },
+    "cleanerSupplies": {
+      "cleanersProvideStandardCleaningMaterialsProductsAndEquipment": true,
+      "customerSuppliesRequestedSpecialProduct": true
+    },
+    "cleanerOfferUI": {
+      "show": [
+        "service_type_and_property_size",
+        "estimated_team_time",
+        "team_size",
+        "role_lead_or_support",
+        "guaranteed_payout_dollars",
+        "distance",
+        "condition_and_addons",
+        "supplies_and_equipment_expectations"
+      ],
+      "optionalShow": [
+        "estimated_effective_dollars_per_onsite_hour"
+      ],
+      "doNotProminentlyShowInternal39DollarLaborHour": true,
+      "statePayoutNotReducedByPaymentOrPlatformProcessing": true
+    },
+    "programs": {
+      "foundingCleaner": {
+        "statusPermanentOnceEarned": true,
+        "earningsBonusPercent": 5,
+        "earningsBonusPermanent": true
+      },
+      "foundingCustomer": {
+        "statusPermanentOnceEarned": true,
+        "pricingDiscountDefined": false
+      }
+    },
+    "implementationRequirementsForCaleb": [
+      "Add 3-cleaner productivity and scheduling support at 250% productivity.",
+      "Implement team payout splits: solo 100%; two-cleaner Lead 54/Support 46; three-cleaner Lead 36/Support 32/Support 32.",
+      "Implement Deep Clean classification and +10% base-workload allowance.",
+      "Implement Move-In/Out service matrix, condition multipliers, scope, and oversized-home guardrail.",
+      "Implement Airbnb/STR base matrix, size guardrail, dirtiness adjustments, repeat/volume discounts, staffing matrix, turnover-window logic, and scope suppression rules.",
+      "Decouple laundry active labor from washer/dryer elapsed machine-cycle time.",
+      "Implement Light Tidying as $25 per 30-minute block without coupling price incorrectly to $60/hour engine time.",
+      "Implement pet-hair percentage tiers of 5/15/25.",
+      "Implement short-notice tiers: 15% under 24h, 5% for 24-48h, none beyond 48h; never stack.",
+      "Implement ZIP-to-multiplier mapping 0/+5/+10 and remove or supersede legacy 94541 -5%.",
+      "Implement manual-review triggers for 4,000+ sqft, $1,000+ quote, obstructed/hoarding clutter, unsafe conditions, and material arrival mismatch.",
+      "Implement access-delay/lockout 80/20 cleaner/Sweepr allocation for the approved fee schedule.",
+      "Implement add-on suppression and mutual-exclusion rules to prevent duplicate charges.",
+      "Ensure promotional coupons are Sweepr-funded and do not reduce already-advertised cleaner payout.",
+      "Ensure structural discounts reduce service price before the 70/30 split.",
+      "Ensure tips pass 100% to cleaners outside the standard split.",
+      "Ensure founding cleaner +5% earnings bonus is permanent and Sweepr-funded.",
+      "Ensure cleaner insurance is not shown as an individual benefit or deduction; Sweepr business insurance is platform overhead.",
+      "Ensure Sweepr-funded background checks are not deducted from cleaner payout."
+    ]
+  }
+}

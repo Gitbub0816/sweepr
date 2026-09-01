@@ -17,22 +17,35 @@
  *    Never PII, never money rows.
  *  - The ONLY writes are to mcp_simulator_configs (the per-admin sandbox)
  *    and mcp_action_log (audit). There is no path to live pricing: going
- *    live requires a human uploading the drafted payload in the admin
- *    console and publishing in Pricing Studio.
+ *    live requires a human loading the proposal in the admin console
+ *    (Pricing Studio → Proposals, or Pricing → Import Payload) and
+ *    publishing in Pricing Studio.
  *  - Every tool call is logged to mcp_action_log.
+ *
+ * Pay-model language (keep it precise everywhere this worker speaks):
+ * cleaners are NOT paid hourly. The standard split is 70% to the cleaner/team
+ * pool and 30% to Sweepr — the Marketplace Services Fee
+ * (apps/api/src/lib/payoutEngine.ts) — plus 100% of tips to the cleaner,
+ * outside the split. The config's "customer labor rate" is a pricing-model
+ * input (estimated-labor-minutes → customer price) and the config's payout
+ * block is an internal planning estimate; neither is a wage.
  */
 
 import {
   buildColdStartConfig,
+  buildDefaultExtendedRules,
   computeQuoteV2,
+  unwrapPricingRuleset,
   validatePricingConfig,
   REFERENCE_SCENARIOS,
   ROOM_TYPES_V2,
+  type PetHairLevel,
   type PricingConfigV2,
   type QuoteInputV2,
   type QuoteResultV2,
   type RoomTypeV2,
   type ConditionLevel,
+  type ServiceTypeV2,
 } from "@sweepr/quote-engine";
 import { SITE_SETTINGS_ALLOWLIST } from "../lib/allowlist";
 import { mintShareToken } from "../lib/oauth";
@@ -101,7 +114,7 @@ export const TOOL_DEFS: ToolDef[] = [
   {
     name: "get_site_settings",
     description:
-      "READ-ONLY: the explicitly allowlisted site settings (platform basics, prelaunch gates, scope-review fee tiers, founding-member program gates). No other settings are reachable.",
+      "READ-ONLY: the explicitly allowlisted site settings (platform basics, scope-review fee tiers, founding-member program gates). No other settings are reachable.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
@@ -117,11 +130,11 @@ export const TOOL_DEFS: ToolDef[] = [
   {
     name: "set_simulator_config",
     description:
-      "SANDBOX: store/replace your quarantined simulator config (upsert by name). Provide ALL PricingConfigV2 fields, or accept the built-in defaults: any field you omit is filled from the cold-start defaults BEFORE validation and reported back in defaultedFields, so a partial config becomes complete-with-defaults (never a partial pricing model). The completed config is then validated: hard errors REFUSE the save; warnings are stored and returned. This NEVER affects live pricing.",
+      "SANDBOX: store/replace your quarantined simulator config (upsert by name). Accepts a flat PricingConfigV2, a formatVersion-2 config carrying `extendedRules` (the multi-service ruleset: Move-In/Out matrix, Airbnb/STR matrix + staffing + turnover rules, deep-clean classification, short-notice tiers, location tiers, extras overrides), or the full SweeprExtendedPricingRuleset wrapper — the master ruleset JSON imports as-is and is flattened for storage with every extended section preserved verbatim. Provide ALL PricingConfigV2 fields, or accept the built-in defaults: any field you omit is filled from the cold-start defaults BEFORE validation and reported back in defaultedFields, so a partial config becomes complete-with-defaults (never a partial pricing model). The completed config is then validated: hard errors REFUSE the save; warnings are stored and returned. Stored configs automatically appear in the admin console's Pricing Studio under the Proposals tab, where an admin can 'Load into Studio' to open them as a fully pre-filled, field-by-field editable DRAFT. This NEVER affects live pricing — only a human can import, review, and publish. Minimum-plus-hourly pricing is expressed via rates.minimumBookingCents (integer cents; 0 = no minimum).",
     inputSchema: {
       type: "object",
       properties: {
-        config: { type: "object", description: "Full PricingConfigV2 object (see the sweepr://config-field-guide resource)." },
+        config: { type: "object", description: "PricingConfigV2 object, optionally with extendedRules, or a SweeprExtendedPricingRuleset wrapper (see the sweepr://config-field-guide resource)." },
         name: nameArg,
         notes: { type: "string", description: "Free-form notes about this proposal." },
         basedOnVersionId: {
@@ -146,14 +159,14 @@ export const TOOL_DEFS: ToolDef[] = [
   {
     name: "simulate_quote",
     description:
-      "Run one quote through the real Pricing v2 engine against your SANDBOX config (default), or read-only against a stored version's config by passing versionId. Returns the full engine result plus a customer-facing summary. Purely computational — nothing is stored or charged.",
+      "Run one quote through the real Pricing v2 engine against your SANDBOX config (default), or read-only against a stored version's config by passing versionId. Supports all three service types when the config carries extendedRules: serviceType 'standard' (default), 'moveInOut' (BR/BA matrix + condition multipliers), or 'airbnb' (turnover matrix + dirtiness + staffing + turnover window). For the matrix paths pass bedrooms/bathrooms (or counts) plus conditionLevel 1-4; airbnb also takes turnoverWindowHours, severeMess, and airbnbDiscount {kind, percent} to preview the repeat/volume discount the adapter resolves from history in production. hoursUntilService drives the short-notice tiers; petHair ('light'|'moderate'|'heavy') prices the percentage tiers. Returns the full engine result plus a customer-facing summary (incl. deepCleanApplied, requiredTeamSize, laborScheduling, manualReviewReasons); customerSummary.minimumApplied tells you when rates.minimumBookingCents topped the job up to the minimum. Note: result.cleanerPayoutCents is the config's internal planning estimate, NOT cleaner pay — the standard split pays the cleaner/team pool 70% of captured proceeds (the 30% Marketplace Services Fee is Sweepr's), plus 100% of tips. Purely computational — nothing is stored or charged.",
     inputSchema: {
       type: "object",
       properties: {
         input: {
           type: "object",
           description:
-            "Quote input. counts: rooms per type {kitchen,bathroom,bedroom,living_room}; conditions: reported MAXIMUM condition per type (1 light … 4 heavy); optional sqft, clutter (0-2 per type), extras [{key,quantity}], countsByLevel, zipMultiplierPct, emergency.",
+            "Quote input. counts: rooms per type {kitchen,bathroom,bedroom,living_room}; conditions: reported MAXIMUM condition per type (1 light … 4 heavy); optional sqft, clutter (0-2 per type), extras [{key,quantity}], countsByLevel, zipMultiplierPct, emergency. Extended: serviceType ('standard'|'moveInOut'|'airbnb'), bedrooms, bathrooms, conditionLevel (1-4 overall), hoursUntilService, turnoverWindowHours, severeMess, unsafeConditions [string], petHair ('light'|'moderate'|'heavy'), airbnbDiscount {kind:'repeat_property'|'host_volume', percent}.",
           properties: {
             counts: { type: "object" },
             conditions: { type: "object" },
@@ -163,8 +176,18 @@ export const TOOL_DEFS: ToolDef[] = [
             extras: { type: "array" },
             emergency: { type: "boolean" },
             zipMultiplierPct: { type: "number" },
+            serviceType: { type: "string", enum: ["standard", "moveInOut", "airbnb"] },
+            bedrooms: { type: "number" },
+            bathrooms: { type: "number" },
+            conditionLevel: { type: "number" },
+            hoursUntilService: { type: "number" },
+            turnoverWindowHours: { type: "number" },
+            severeMess: { type: "boolean" },
+            unsafeConditions: { type: "array" },
+            petHair: { type: "string", enum: ["light", "moderate", "heavy"] },
+            airbnbDiscount: { type: "object" },
           },
-          required: ["counts", "conditions"],
+          required: [],
         },
         name: nameArg,
         versionId: {
@@ -195,7 +218,7 @@ export const TOOL_DEFS: ToolDef[] = [
   {
     name: "draft_pricing_payload",
     description:
-      "Validate your sandbox config and, if valid, emit the exact JSON upload artifact for a HUMAN admin to import in the admin console (Pricing → Import Payload) and later review/publish in Pricing Studio. This tool does NOT change live pricing — it only produces the artifact.",
+      "Validate your sandbox config and, if valid, emit the exact JSON upload artifact for a HUMAN admin to import in the admin console (Pricing → Import Payload) and later review/publish in Pricing Studio. Usually unnecessary: every stored sandbox config already shows up in Pricing Studio → Proposals for one-click 'Load into Studio' autofill — use this tool when the human specifically wants the raw JSON. This tool does NOT change live pricing — it only produces the artifact.",
     inputSchema: {
       type: "object",
       properties: {
@@ -347,7 +370,10 @@ function normalizeInput(raw: Record<string, unknown>): QuoteInputV2 {
       conditions[t] = lvl as ConditionLevel;
     }
   }
-  return {
+  // BR/BA shorthand for the matrix paths overrides the per-type counts.
+  if (typeof raw.bedrooms === "number") counts.bedroom = Math.max(0, Math.floor(raw.bedrooms));
+  if (typeof raw.bathrooms === "number") counts.bathroom = Math.max(1, Math.ceil(raw.bathrooms));
+  const input: QuoteInputV2 = {
     serviceArea: "default",
     currency: "USD",
     counts,
@@ -360,6 +386,23 @@ function normalizeInput(raw: Record<string, unknown>): QuoteInputV2 {
     zipMultiplierPct:
       typeof raw.zipMultiplierPct === "number" ? (raw.zipMultiplierPct as number) : undefined,
   };
+  if (typeof raw.serviceType === "string") input.serviceType = raw.serviceType as ServiceTypeV2;
+  if (typeof raw.conditionLevel === "number") {
+    input.conditionLevel = Math.min(4, Math.max(1, Math.round(raw.conditionLevel))) as ConditionLevel;
+  }
+  if (typeof raw.hoursUntilService === "number") input.hoursUntilService = raw.hoursUntilService;
+  if (typeof raw.turnoverWindowHours === "number") {
+    input.turnoverWindowHours = raw.turnoverWindowHours;
+  }
+  if (raw.severeMess === true) input.severeMess = true;
+  if (Array.isArray(raw.unsafeConditions)) {
+    input.unsafeConditions = raw.unsafeConditions.map((s) => String(s));
+  }
+  if (typeof raw.petHair === "string") input.petHair = raw.petHair as PetHairLevel;
+  if (raw.airbnbDiscount && typeof raw.airbnbDiscount === "object") {
+    input.airbnbDiscount = raw.airbnbDiscount as QuoteInputV2["airbnbDiscount"];
+  }
+  return input;
 }
 
 function customerSummary(q: QuoteResultV2): Record<string, unknown> {
@@ -367,25 +410,40 @@ function customerSummary(q: QuoteResultV2): Record<string, unknown> {
     total: dollars(q.totalCents),
     subtotal: dollars(q.subtotalCents),
     tax: dollars(q.taxCents),
+    serviceType: q.serviceType,
     expectedLaborMinutes: q.expectedLaborMinutes,
     scheduledLaborMinutes: q.scheduledLaborMinutes,
     estimatedElapsedMinutes: q.estimatedElapsedMinutes,
     recommendedTeamSize: q.recommendedTeamSize,
+    requiredTeamSize: q.requiredTeamSize,
+    deepCleanApplied: q.deepCleanApplied === true,
+    laborScheduling: q.laborScheduling,
     manualReviewRequired: q.manualReviewRequired,
+    manualReviewReasons: q.manualReviewReasons,
+    ...(q.appliedDiscount ? { appliedDiscount: q.appliedDiscount } : {}),
+    minimumApplied: q.minimumApplied === true,
+    ...(q.minimumApplied
+      ? {
+          minimumNote:
+            "The configured minimum job total (rates.minimumBookingCents) kicked in — the pre-tax subtotal was topped up to the minimum; see the 'policy.minimum' component for the amount.",
+        }
+      : {}),
     warnings: q.warnings,
   };
 }
 
 export const PAYLOAD_INSTRUCTIONS =
-  "Give this JSON to a Sweepr admin. In the admin console, open Pricing → Import Payload, " +
-  "paste it, review the validation output, then review and publish in Pricing Studio. " +
-  "Nothing here changes live pricing until a human completes that review and publish.";
+  "Hand off to a Sweepr admin: this proposal is already visible in the admin console under " +
+  "Pricing Studio → Proposals, where 'Load into Studio' opens it as a fully pre-filled draft " +
+  "for field-by-field review. Alternatively they can paste this JSON in Pricing → Import Payload. " +
+  "Either way, nothing changes live pricing until a human reviews and publishes in Pricing Studio.";
 
 export function buildPayloadTemplate(): Record<string, unknown> {
   return {
     description:
-      "PricingConfigV2 upload template (all values are the built-in cold-start defaults — a complete, valid config). Units: labor is INTEGER MINUTES, money is INTEGER CENTS, percentage-like rates are basis points (bps, 1/100 of a percent) or permille (1/1000).",
+      "PricingConfigV2 upload template (all values are the built-in cold-start defaults — a complete, valid config). Units: labor is INTEGER MINUTES, money is INTEGER CENTS, percentage-like rates are basis points (bps, 1/100 of a percent) or permille (1/1000). Pay-model reminder: nothing in this config sets cleaner wages — cleaners are NOT paid hourly; the cleaner/team pool earns 70% of captured booking proceeds (the 30% Marketplace Services Fee is Sweepr's share), plus 100% of tips outside the split; the labor rate here only converts estimated minutes into a CUSTOMER price. Multi-service pricing (formatVersion 2): add an `extendedRules` block — see extendedRulesTemplate below and the sweepr://config-field-guide resource.",
     template: buildColdStartConfig(),
+    extendedRulesTemplate: buildDefaultExtendedRules(),
     instructions: {
       laborMatrix:
         "Per room type, expected minutes for ONE room at condition levels 1..4. Whole minutes ≥ 0, non-decreasing across levels, ≤ 600 per cell. Levels are ORDERED CATEGORIES, not a linear score.",
@@ -405,9 +463,10 @@ export function buildPayloadTemplate(): Record<string, unknown> {
       extras:
         "Catalog of purchasable extras. mode: 'minutes' (billed via labor rate), 'fixed' (flat cents), 'both'. minutesPerUnit whole minutes; fixedCentsPerUnit whole cents; min/maxQuantity; payoutTreatment 'standard' or 'cleaner_full'; active toggles availability. Do not invent fields.",
       "rates.customerLaborRateCentsPerHour":
-        "Integer cents per labor-hour charged to the customer. Bounds: 2000–25000 ($20–$250).",
+        "Integer cents charged to the CUSTOMER per ESTIMATED labor-hour. Bounds: 2000–25000 ($20–$250). PRICING MODEL INPUT ONLY — it converts estimated labor minutes into a customer price. It is NOT a wage and NOT what cleaners receive: the cleaner/team pool is paid 70% of captured booking proceeds (the 30% Marketplace Services Fee is Sweepr's share), plus 100% of tips, regardless of this number.",
       "rates.fixedServiceCents": "Flat per-booking amount (trip/supplies), integer cents.",
-      "rates.minimumBookingCents": "Floor on the pre-tax total, integer cents.",
+      "rates.minimumBookingCents":
+        "Minimum job total, integer cents (0 = no minimum; must be ≤ maxAutoQuoteCents). Expresses 'hourly rate PLUS a minimum' (e.g. rate 2500 + minimum 4000 = $25/labor-hour but at least $40/job). Floors the ENTIRE pre-tax subtotal (labor + fixed visit + extras, after zip/short-notice adjustments) before tax and charm rounding, so the customer total is never below minimum + tax. When it bites, the quote carries a 'policy.minimum' component and minimumApplied: true.",
       "rates.maxAutoQuoteCents": "Quotes above this require manual review, integer cents.",
       "rates.taxRateBps": "Tax rate in basis points (825 = 8.25%). Max 2000.",
       "rates.roundTotalUpToEndingDigit":
@@ -416,7 +475,7 @@ export function buildPayloadTemplate(): Record<string, unknown> {
       "rates.extraCleanerFeeCentsPer100Sqft":
         "Flat fee in INTEGER CENTS per 100 sqft, charged ONLY when the customer opts to add one extra cleaner for speed. Whole cents ≥ 0, max 5000 ($50) per 100 sqft. Default 100 ($1) per 100 sqft. Never multiplies the whole price by crew size.",
       payout:
-        "Cleaner compensation: mode 'per_labor_hour' (centsPerLaborHour, integer cents) or 'percent_of_subtotal' (percentBps, 1–10000).",
+        "INTERNAL PLANNING ESTIMATE — NOT how cleaners are paid. Cleaners are NOT paid hourly: the cleaner/team pool receives 70% of captured booking proceeds (the 30% Marketplace Services Fee is Sweepr's share, configured in Platform Fees), plus 100% of tips outside the split. This block only models an estimated cost-of-labor figure (mode 'per_labor_hour' with centsPerLaborHour, or 'percent_of_subtotal' with percentBps 1–10000) used for margin validation and planning; no payout transfer ever reads it.",
       "scheduling.reservePercentile": "Capacity planning percentile 50–99 (NOT billed).",
       "scheduling.bufferRatePermille": "Extra cold-start buffer on scheduled minutes, permille (max 500).",
       "scheduling.roundUpToIncrementMinutes": "Scheduled minutes round up to this increment.",
@@ -425,6 +484,8 @@ export function buildPayloadTemplate(): Record<string, unknown> {
       "scheduling.twoPersonThresholdMinutes": "Scheduled labor above this recommends a 2-person team.",
       inference:
         "Ordinal condition-inference parameters (modelVersion, provenance, thresholds — three strictly increasing values per room type, betaHome 0–5, hGridPoints 5–51, hGridSpan). Change only with statistical review; keep modelVersion immutable per parameter set.",
+      extendedRules:
+        "OPTIONAL formatVersion-2 multi-service ruleset (see extendedRulesTemplate for a complete example): moveInOut (BR/BA basePriceMatrixCents + conditionMultipliersPercent L1-L4 + oversizedHomeGuardrail $/250sqft), airbnbSTR (basePriceMatrixCents + sizeGuardrail includedSqftByBedroomCount + dirtinessAdjustmentPercent + staffingMatrix + turnoverWindow + repeatVolumeDiscounts + scopeAndSuppressionRules), deepClean (classification triggers + baseWorkloadMultiplierPercent), shortNotice (tiers replacing the single emergency surcharge; never stack), locationPricing (zip tiers 0/+5/+10 with cap; supersedes legacy negative zip rows), manualReview (sqft/price/clutter/unsafe triggers), extrasAppSideOverrides (decoupled laundry + light tidying, fixed oven/sliding door, pet-hair percentage tiers, patio exclusivity, linens/laundry overlap), payoutAndMarketplaceEconomics (70/30 split documentation + team productivity incl. three-cleaner 2500 permille). Unknown sections are preserved verbatim. Omit the whole block for a legacy standard-only config — it prices exactly as before.",
     },
   };
 }
@@ -524,11 +585,15 @@ export async function callTool(
       if (!rawConfig || typeof rawConfig !== "object" || Array.isArray(rawConfig)) {
         throw new ToolError("config object is required.");
       }
+      // The SweeprExtendedPricingRuleset wrapper (the master ruleset JSON)
+      // flattens to { ...config, formatVersion: 2, extendedRules } before the
+      // defaults merge; flat configs pass through unchanged.
+      const { config: flatConfig } = unwrapPricingRuleset(rawConfig);
       // Completeness guarantee: fill any missing field from cold-start defaults
       // BEFORE validating, so a partial config becomes complete-with-defaults
       // (never a partial/incomplete pricing model). The validator then still
       // REJECTS any hard error (e.g. an out-of-bounds value the caller DID set).
-      const { merged: config, defaulted } = mergeConfigWithDefaults(rawConfig);
+      const { merged: config, defaulted } = mergeConfigWithDefaults(flatConfig);
       let validation;
       try {
         validation = validatePricingConfig(config);
@@ -639,7 +704,7 @@ export async function callTool(
               total: dollars(q.totalCents),
               totalCents: q.totalCents,
               expectedLaborMinutes: q.expectedLaborMinutes,
-              cleanerPayout: dollars(q.cleanerPayoutCents),
+              modeledCleanerPayout: dollars(q.cleanerPayoutCents),
             };
           } catch (err) {
             return { error: err instanceof Error ? err.message : String(err) };
@@ -664,6 +729,8 @@ export async function callTool(
         sandboxSource: sandboxRow ? "stored sandbox config" : "cold-start defaults (nothing stored yet)",
         activeVersion: active ? { id: active.id, name: active.name } : null,
         comparison: rowsOut,
+        payoutNote:
+          "modeledCleanerPayout is the config's internal planning estimate, not what cleaners are paid — the cleaner/team pool earns 70% of captured proceeds (the 30% Marketplace Services Fee is Sweepr's share), plus 100% of tips.",
       };
     }
 

@@ -63,7 +63,10 @@ export interface GrantCouponInput {
   userId?: string | null;
   email?: string | null; // pre-signup binding (attached on first sign-in)
   template: CouponTemplate;
-  source: "promo" | "milestone" | "theme" | "admin";
+  /** 'calendar' = automatic date-promotion grants from calendar_date_rules
+   *  (migration 106) — one per customer per rule, locked by
+   *  idx_coupons_source_user_once_calendar. */
+  source: "promo" | "milestone" | "theme" | "admin" | "calendar";
   sourceRef?: string | null;
   createdBy?: string | null;
 }

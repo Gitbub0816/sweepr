@@ -22,7 +22,7 @@ const toc = [
   { id: "opportunities", title: "Service Opportunities" },
   { id: "compliance", title: "Licenses & Legal Compliance" },
   { id: "ab5", title: "California Classification (AB5 / Borello)" },
-  { id: "fee", title: "Platform Fee" },
+  { id: "fee", title: "Marketplace Services Fee" },
   { id: "ratecard", title: "Compensation & Opt-In to Rate Card" },
   { id: "payment-agency", title: "Payment Collection Authorization" },
   { id: "tips", title: "Tips" },
@@ -130,12 +130,10 @@ export function IndependentContractorAgreement() {
       </Section>
 
       {/*
-        NOTE (DRAFT, attorney review required): Proposition 22 applies to
-        app-based transportation and delivery network companies, not ordinary
-        home-cleaning marketplaces, and should NOT be relied upon here. The
-        classification analysis below is framed around AB5 / the Borello
-        factors and the independent-business model. Counsel must review the
-        classification strategy before production use.
+        NOTE: Proposition 22 applies to app-based transportation and delivery
+        network companies, not ordinary home-cleaning marketplaces, and should
+        NOT be relied upon here. The classification analysis below is framed
+        around AB5 / the Borello factors and the independent-business model.
       */}
       <Section id="ab5" title="5. California Classification (AB5 / Borello)">
         <p>
@@ -153,23 +151,23 @@ export function IndependentContractorAgreement() {
           Department of Industrial Relations</em>. Nothing in this Agreement
           shall be construed to create an employment relationship. The parties
           acknowledge that worker classification is a fact-specific legal
-          question and that this Agreement is subject to review by counsel.
+          question.
         </p>
       </Section>
 
-      <Section id="fee" title="6. Platform Fee">
+      <Section id="fee" title="6. Marketplace Services Fee">
         <p>
-          Sweepr charges a platform fee from each completed booking. The Cleaner
-          receives their agreed payout. The applicable fee and payout are
-          disclosed in the Cleaner dashboard prior to acceptance of each job.
+          Sweepr charges a Marketplace Services Fee on each completed booking.
+          The Cleaner receives their agreed payout. The applicable fee and payout
+          are disclosed in the Cleaner dashboard prior to acceptance of each job.
         </p>
         <p>
-          Platform fees and commissions may change for future bookings on advance
+          The Marketplace Services Fee and commissions may change for future bookings on advance
           notice and will not be applied retroactively to reduce payment for a
           booking already accepted before the effective date, except as permitted
           under the{" "}
           <a className="text-seafoam-700 underline" href="/platform-fee-policy">
-            Platform Fee Policy
+            Marketplace Services Fee Policy
           </a>
           . Payouts are processed under the{" "}
           <a className="text-seafoam-700 underline" href="/payment-terms">
@@ -195,10 +193,8 @@ export function IndependentContractorAgreement() {
       </Section>
 
       {/*
-        DRAFT — attorney review required. Limited payment collection agency is
-        the standard marketplace pattern (Stripe Connect destination charges);
-        counsel must confirm the agency framing and the discharge provision
-        under California law.
+        NOTE: Limited payment collection agency is the standard marketplace
+        pattern (Stripe Connect destination charges).
       */}
       <Section id="payment-agency" title="8. Payment Collection Authorization">
         <p>
@@ -220,7 +216,7 @@ export function IndependentContractorAgreement() {
       <Section id="tips" title="9. Tips">
         <p>
           Voluntary customer tips belong entirely to the Service Provider.
-          Sweepr does not take a platform fee or commission from tips.
+          Sweepr does not take a Marketplace Services Fee or commission from tips.
           Third-party payment processing costs may apply as disclosed.
         </p>
       </Section>
@@ -286,7 +282,7 @@ export function IndependentContractorAgreement() {
           descending order of precedence in the event of conflict: (1) this
           Independent Contractor Agreement; (2) the Cleaner Platform Agreement;
           (3) the incorporated platform policies (including the Payment
-          Services Terms, Platform Fee Policy, Trust &amp; Safety Policy, and
+          Services Terms, Marketplace Services Fee Policy, Trust &amp; Safety Policy, and
           Damage Claims Policy); and (4) the Terms of Service.
         </p>
       </Section>

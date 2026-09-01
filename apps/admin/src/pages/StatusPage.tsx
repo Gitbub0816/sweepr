@@ -35,7 +35,6 @@ interface Incident {
   status: IncidentStatus;
   severity: IncidentSeverity;
   affected_features: string[];
-  is_prelaunch_update: boolean;
   auto_detected: boolean;
   error_fingerprint: string | null;
   affected_user_count: number | null;
@@ -57,8 +56,6 @@ interface MaintenanceWindow {
   created_by: string;
   created_at: string;
 }
-
-type SiteSettings = Record<string, string | undefined>;
 
 const STATUS_COLORS: Record<IncidentStatus, string> = {
   investigating: "bg-yellow-100 text-yellow-800",
@@ -95,7 +92,6 @@ export function StatusPage() {
   const [tab, setTab] = useState<Tab>("incidents");
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceWindow[]>([]);
-  const [settings, setSettings] = useState<SiteSettings>({});
   const [loading, setLoading] = useState(true);
   const [showNewForm, setShowNewForm] = useState(false);
   const [showMaintenanceForm, setShowMaintenanceForm] = useState(false);
@@ -107,7 +103,6 @@ export function StatusPage() {
   const [newStatus, setNewStatus] = useState<IncidentStatus>("investigating");
   const [newSeverity, setNewSeverity] = useState<IncidentSeverity>("minor");
   const [newFeatures, setNewFeatures] = useState("");
-  const [newIsPrelaunch, setNewIsPrelaunch] = useState(false);
 
   // Add update form
   const [updateMessage, setUpdateMessage] = useState("");
@@ -128,15 +123,12 @@ export function StatusPage() {
   const fetchData = useCallback(async () => {
     try {
       const headers = await authHeaders();
-      const [incRes, settingsRes, maintRes] = await Promise.all([
+      const [incRes, maintRes] = await Promise.all([
         fetch(`${API_URL}/admin/status/incidents`, { headers }),
-        fetch(`${API_URL}/admin/status/settings`, { headers }),
         fetch(`${API_URL}/admin/status/maintenance`, { headers }),
       ]);
       if (incRes.ok) setIncidents(await incRes.json() as Incident[]);
       else toast.error("Failed to load incidents");
-      if (settingsRes.ok) setSettings(await settingsRes.json() as SiteSettings);
-      else toast.error("Failed to load settings");
       if (maintRes.ok) setMaintenance(await maintRes.json() as MaintenanceWindow[]);
       else toast.error("Failed to load maintenance windows");
     } catch {
@@ -148,18 +140,6 @@ export function StatusPage() {
 
   useEffect(() => { void fetchData(); }, [fetchData]);
 
-  async function patchSetting(key: string, value: string) {
-    const headers = await authHeaders();
-    // Optimistic update
-    setSettings((prev) => ({ ...prev, [key]: value }));
-    const res = await fetch(`${API_URL}/admin/status/settings`, { method: "PATCH", headers, body: JSON.stringify({ key, value }) });
-    if (!res.ok) {
-      // Roll back and re-fetch real state
-      await fetchData();
-      toast.error("Failed to save setting. Please try again.");
-    }
-  }
-
   async function createIncident(e: React.FormEvent) {
     e.preventDefault();
     const headers = await authHeaders();
@@ -168,13 +148,12 @@ export function StatusPage() {
       body: JSON.stringify({
         title: newTitle, summary: newSummary, status: newStatus, severity: newSeverity,
         affected_features: newFeatures.split(",").map((s) => s.trim()).filter(Boolean),
-        is_prelaunch_update: newIsPrelaunch,
       }),
     });
     if (res.ok) {
       setShowNewForm(false);
       setNewTitle(""); setNewSummary(""); setNewStatus("investigating");
-      setNewSeverity("minor"); setNewFeatures(""); setNewIsPrelaunch(false);
+      setNewSeverity("minor"); setNewFeatures("");
       await fetchData();
     } else {
       toast.error("Failed to create incident");
@@ -233,7 +212,7 @@ export function StatusPage() {
 
   if (loading) {
     return (
-      <DashboardShell title="Status Management" description="Manage incidents and maintenance windows. Prelaunch gates moved to Settings.">
+      <DashboardShell title="Status Management" description="Manage incidents and maintenance windows.">
         <div className="space-y-6">
           <StatGridSkeleton count={4} />
           <CardListSkeleton rows={3} />
@@ -246,7 +225,7 @@ export function StatusPage() {
   const autoOpen = openIncidents.filter((i) => i.auto_detected);
 
   return (
-    <DashboardShell title="Status Management" description="Manage incidents and maintenance windows. Prelaunch gates moved to Settings.">
+    <DashboardShell title="Status Management" description="Manage incidents and maintenance windows.">
       <div className="space-y-6">
         {/* Auto-detection summary bar */}
         {autoOpen.length > 0 && (
@@ -308,11 +287,6 @@ export function StatusPage() {
                     </div>
                   </div>
                   <Input label="Affected features (comma-separated)" value={newFeatures} onChange={(e) => setNewFeatures(e.target.value)} />
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={newIsPrelaunch} onChange={(e) => setNewIsPrelaunch(e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300 text-seafoam-500 focus:ring-seafoam-400" />
-                    <span className="text-sm text-slate-700 dark:text-slate-300">Prelaunch update</span>
-                  </label>
                   <Button type="submit">Create Incident</Button>
                 </form>
               </Card>
@@ -333,9 +307,6 @@ export function StatusPage() {
                           <span className="flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
                             <Bot className="h-3 w-3" /> Auto-detected
                           </span>
-                        )}
-                        {incident.is_prelaunch_update && (
-                          <Badge text="prelaunch" className="bg-purple-100 text-purple-700" />
                         )}
                       </div>
                       <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">{incident.summary}</p>

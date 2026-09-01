@@ -191,8 +191,9 @@ Abuse throttle: ≥70% request + ≥70% denial rate after 10 jobs → privilege 
 `scheduled_events` (mig. 082) + `lib/scheduledActions.ts` +
 `routes/adminSchedule.ts` + admin Comms → Schedule. Cron executes due
 automations (claim-by-status-transition, 6h misfire guard): `broadcast_email`,
-`status_announcement`, `service_area_launch`, `prelaunch_toggle`
-(site_settings `prelaunch_customer|cleaner|pricing`), `admin_alert`. Add an
+`status_announcement`, `service_area_launch`, `admin_alert`. Retired action
+types (e.g. the old launch-gate toggle) are skipped fail-safe via
+`RETIRED_ACTION_TYPES`. Add an
 action = one `SCHEDULED_ACTION_CATALOG` entry + one executor case. ICS import
 is SSRF-safe (`lib/calendarSecurity.ts`); export `/admin/schedule/export.ics`.
 

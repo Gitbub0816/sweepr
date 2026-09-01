@@ -12,9 +12,7 @@ import { useMemo, useState } from "react";
 import { calculateQuote, formatCurrency, SERVICE_LABELS } from "@sweepr/utils";
 import type { ServiceType, HomeType } from "@sweepr/types";
 import { ArrowRight } from "lucide-react";
-import { NewsletterSubscribe } from "@sweepr/ui";
 
-const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
 const CUSTOMER_URL =
   (import.meta.env.VITE_CUSTOMER_URL || "https://app.getsweepr.com") + "/book";
@@ -25,7 +23,7 @@ const SERVICES: ServiceType[] = ["standard", "deep", "move_in_out", "recurring"]
  * DoorDash-style "order now" mini widget: instant price as the user picks
  * bedrooms, bathrooms and a service type. Floats over the hero.
  */
-export function QuoteCalculator({ pricingGated = false }: { pricingGated?: boolean }) {
+export function QuoteCalculator() {
   const [bedrooms, setBedrooms] = useState(2);
   const [bathrooms, setBathrooms] = useState(1);
   const [serviceType, setServiceType] = useState<ServiceType>("standard");
@@ -45,32 +43,6 @@ export function QuoteCalculator({ pricingGated = false }: { pricingGated?: boole
       }),
     [bedrooms, bathrooms, serviceType]
   );
-
-  if (pricingGated) {
-    return (
-      <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white/95 p-6 text-left shadow-2xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/95">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-          Instant quote
-        </p>
-        <h2 className="mt-1 text-xl font-black text-charcoal dark:text-white">
-          Know your price before you book
-        </h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-          Answer five questions about your home and see your exact price. No estimates, no callbacks.
-        </p>
-        <a
-          href="/quote"
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-seafoam-700 px-4 py-3.5 text-base font-bold text-white transition hover:bg-seafoam-800"
-        >
-          Get a quote <ArrowRight aria-hidden="true" className="h-4 w-4" />
-        </a>
-        <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800">
-          <p className="mb-2 text-xs text-slate-500">Or get launch updates by email.</p>
-          <NewsletterSubscribe apiUrl={API} />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white/95 p-6 text-left shadow-2xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/95">

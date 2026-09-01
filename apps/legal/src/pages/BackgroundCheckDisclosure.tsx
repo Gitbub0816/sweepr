@@ -8,7 +8,6 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-// DRAFT — attorney review required before production use.
 // NOTE: FCRA disclosures must, in most cases, be a STANDALONE document presented
 // separately from any other agreement. Counsel must confirm formatting and
 // state-specific requirements before production use.

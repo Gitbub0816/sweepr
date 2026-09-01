@@ -14,7 +14,10 @@
  * fair, weighted, hard-filtered per-cleaner score) is the foundation; crew
  * matching layers explainable, additive crew terms on top:
  *
- *   LEAD candidates  → lead-eligibility, reliability, customer continuity.
+ *   LEAD candidates  → HISTORICAL PERFORMANCE FIRST (completed-job volume,
+ *                      rating average, reliability/no-show record — see the
+ *                      exact formula on rankLeadCandidates), plus customer
+ *                      continuity.
  *   CREW candidates  → availability-overlap, distance, reliability,
  *                      qualification, prior-pairing (crew_peer_ratings),
  *                      preferred-teammate (mutual cleaner_relationships),
@@ -35,12 +38,19 @@ import {
   type MatchScore,
 } from "../matching";
 
-// ── Additive crew-term weights (points added on top of the base score) ───────
-// Kept modest relative to the base ceiling (MAX_MATCH_SCORE = 90) so the base
-// fairness/quality signal dominates and crew terms act as tie-breakers / nudges.
+// ── Crew-term weights ────────────────────────────────────────────────────────
+// LEAD selection is driven PRIMARILY by historical performance (owner
+// decision): the three performance terms' ceiling (60+50+40 = 150) exceeds the
+// solo base ceiling (MAX_MATCH_SCORE = 90), so a cleaner's track record —
+// completed-job volume, customer-rating average, and reliability (no-show /
+// cancel record) — dominates the ordering. The base score (schedule fit,
+// distance, fairness, …) remains the eligibility-gated secondary signal, and
+// the hard filters (service offering, area, schedule/conflict, job-type
+// preferences) still remove ineligible cleaners before any scoring.
 const LEAD_WEIGHTS = {
-  leadEligibility: 25, // experience + tier make a credible lead-of-record
-  reliability: 15, // low no-show / cancel history
+  jobVolume: 60, // completed-job count (cleaners.total_jobs), saturates at 25 jobs
+  ratingAvg: 50, // customer rating average (cleaners.rating / 5; 0.6 neutral unrated)
+  reliability: 40, // completed vs cancelled/no-show record (bookings + crew seats)
   continuity: 10, // has led good jobs for THIS customer before
 } as const;
 
@@ -83,17 +93,6 @@ function clamp01(n: number): number {
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
-}
-
-function tierFactor(tier: string | null | undefined): number {
-  switch (tier) {
-    case "elite":
-      return 1;
-    case "preferred":
-      return 0.7;
-    default:
-      return 0.4;
-  }
 }
 
 /** Load the default candidate pool: every approved/active cleaner. */
@@ -145,13 +144,83 @@ async function reliabilityByCleaner(
   return out;
 }
 
+/**
+ * LEAD reliability: the schema's full no-show/cancel record for a cleaner,
+ * combining
+ *   - booking-level history as the cleaner-of-record: `completed` bookings
+ *     count good, `cancelled_by_cleaner` count bad (covers solo bookings,
+ *     which have no crew seats after migration 101's one-time backfill);
+ *   - MEMBER crew-seat history: ACCEPTED/COMPLETED good, NO_SHOW/CANCELLED/
+ *     REMOVED bad (LEAD seats are excluded — the booking row above already
+ *     represents that job, so nothing is double-counted).
+ * reliability = good / (good + bad); 0.9 default with no history at all.
+ */
+async function leadReliabilityByCleaner(
+  db: Sql,
+  cleanerIds: string[],
+): Promise<Map<string, number>> {
+  if (cleanerIds.length === 0) return new Map();
+  const [bookingRaw, seatRaw] = await Promise.all([
+    db`
+      SELECT cleaner_id,
+             COUNT(*) FILTER (WHERE status = 'completed')::int AS good,
+             COUNT(*) FILTER (WHERE status = 'cancelled_by_cleaner')::int AS bad
+      FROM bookings
+      WHERE cleaner_id = ANY(${cleanerIds})
+      GROUP BY cleaner_id
+    `,
+    db`
+      SELECT cleaner_id,
+             COUNT(*) FILTER (WHERE status IN ('ACCEPTED', 'COMPLETED'))::int AS good,
+             COUNT(*) FILTER (WHERE status IN ('NO_SHOW', 'CANCELLED', 'REMOVED'))::int AS bad
+      FROM booking_crew_assignments
+      WHERE cleaner_id = ANY(${cleanerIds}) AND role = 'MEMBER'
+      GROUP BY cleaner_id
+    `,
+  ]);
+  const bookingRows = bookingRaw as unknown as Array<{ cleaner_id: string; good: number; bad: number }>;
+  const seatRows = seatRaw as unknown as Array<{ cleaner_id: string; good: number; bad: number }>;
+  const good = new Map<string, number>();
+  const bad = new Map<string, number>();
+  for (const r of [...bookingRows, ...seatRows]) {
+    good.set(r.cleaner_id, (good.get(r.cleaner_id) ?? 0) + r.good);
+    bad.set(r.cleaner_id, (bad.get(r.cleaner_id) ?? 0) + r.bad);
+  }
+  const out = new Map<string, number>();
+  for (const id of new Set([...good.keys(), ...bad.keys()])) {
+    const g = good.get(id) ?? 0;
+    const b = bad.get(id) ?? 0;
+    const total = g + b;
+    out.set(id, total === 0 ? 0.9 : g / total);
+  }
+  return out;
+}
+
 // ── LEAD ranking ─────────────────────────────────────────────────────────────
 
 /**
- * Rank candidates to be the LEAD (cleaner-of-record) for a booking. The LEAD
- * carries the customer relationship and completion accountability, so on top of
- * the base score we reward provable experience/tier (lead-eligibility),
- * reliability, and continuity with this exact customer.
+ * Rank candidates to be the LEAD (cleaner-of-record) for a booking.
+ *
+ * HISTORICAL PERFORMANCE IS THE PRIMARY CRITERION (owner decision). The exact
+ * formula, using only what the schema already tracks:
+ *
+ *   jobVolume   = min(cleaners.total_jobs / 25, 1)          → × 60 pts
+ *   ratingAvg   = cleaners.rating / 5   (0.6 when unrated)  → × 50 pts
+ *   reliability = good / (good + bad)   (0.9 no history)    → × 40 pts
+ *                 good = completed bookings as cleaner-of-record
+ *                        + ACCEPTED/COMPLETED MEMBER crew seats
+ *                 bad  = cancelled_by_cleaner bookings
+ *                        + NO_SHOW/CANCELLED/REMOVED MEMBER crew seats
+ *   continuity  = min(completed LEAD jobs for THIS customer / 3, 1) → × 10 pts
+ *
+ *   leadScore = 60·jobVolume + 50·ratingAvg + 40·reliability
+ *             + 10·continuity + baseScore
+ *
+ * The performance ceiling (150) exceeds the solo base ceiling (90), so track
+ * record dominates; the base score (schedule fit, distance, fairness, …) only
+ * orders cleaners with similar records. All hard filters and the eligibility/
+ * conflict gate still apply via the base ranking, and the staffing layer
+ * re-validates account/vetting/insurance at acceptance.
  */
 export async function rankLeadCandidates(
   booking: BookingRow,
@@ -167,7 +236,7 @@ export async function rankLeadCandidates(
 
   const ids = survivors.map((c) => c.id);
   const [reliability, continuity] = await Promise.all([
-    reliabilityByCleaner(db, ids),
+    leadReliabilityByCleaner(db, ids),
     leadContinuityByCleaner(db, booking.customer_id, ids),
   ]);
 
@@ -175,17 +244,17 @@ export async function rankLeadCandidates(
     const b = base.get(cleaner.id)!;
     const baseScore = b.score;
 
-    // Lead-eligibility: a blend of tier and job volume — enough of a track
-    // record to be trusted as the responsible party. Soft (never a hard filter
-    // here); the staffing layer re-validates account/vetting at acceptance.
-    const experience = clamp01((cleaner.total_jobs ?? 0) / 20);
+    // Completed-job volume: saturates at 25 completed jobs.
+    const jobVolumeFactor = clamp01((cleaner.total_jobs ?? 0) / 25);
+    const jobVolume = jobVolumeFactor * LEAD_WEIGHTS.jobVolume;
+
+    // Customer-rating average: neutral 0.6 for a not-yet-rated cleaner so new
+    // cleaners are neither punished nor handed the lead over proven ones.
     const ratingFactor =
       cleaner.rating != null ? clamp01(Number(cleaner.rating) / 5) : 0.6;
-    const leadEligibilityFactor = clamp01(
-      0.5 * tierFactor(cleaner.tier) + 0.3 * experience + 0.2 * ratingFactor,
-    );
-    const leadEligibility = leadEligibilityFactor * LEAD_WEIGHTS.leadEligibility;
+    const ratingAvg = ratingFactor * LEAD_WEIGHTS.ratingAvg;
 
+    // Reliability: the combined no-show/cancel record (see leadReliabilityByCleaner).
     const relFactor = reliability.get(cleaner.id) ?? 0.9;
     const reliabilityPts = relFactor * LEAD_WEIGHTS.reliability;
 
@@ -194,12 +263,13 @@ export async function rankLeadCandidates(
 
     const breakdown: CrewScoreBreakdown = {
       base: round2(baseScore),
-      leadEligibility: round2(leadEligibility),
+      jobVolume: round2(jobVolume),
+      ratingAvg: round2(ratingAvg),
       reliability: round2(reliabilityPts),
       continuity: round2(continuityPts),
     };
     const score = round2(
-      baseScore + leadEligibility + reliabilityPts + continuityPts,
+      baseScore + jobVolume + ratingAvg + reliabilityPts + continuityPts,
     );
     return { cleanerId: cleaner.id, score, baseScore: round2(baseScore), breakdown };
   });

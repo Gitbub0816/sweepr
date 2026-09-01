@@ -51,6 +51,7 @@ import { formatCurrency } from "@sweepr/utils";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { useAppToken } from "@/lib/appToken";
 import { FounderBanner } from "../components/FounderBanner";
+import { CleaningTypeGuide, AcceptedJobTypesPicker } from "../components/CleaningTypeGuide";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 
@@ -838,6 +839,9 @@ interface CleanerSettings {
   notification_payout: boolean;
   notification_marketing: boolean;
   preferred_service_types: string[];
+  /** Canonical job-type preferences (standard / move_in_out / vacation_rental).
+   *  The matching engine hard-filters on these; at least one required. */
+  accepted_job_types: string[];
 }
 
 function SettingsTab() {
@@ -871,20 +875,7 @@ function SettingsTab() {
     finally { setSaving(false); }
   }
 
-  const SERVICE_TYPES = ["standard", "deep", "move_in_out", "recurring"] as const;
-
-  function toggleServiceType(st: string) {
-    setForm((f) => {
-      if (!f) return f;
-      const has = f.preferred_service_types.includes(st);
-      return {
-        ...f,
-        preferred_service_types: has
-          ? f.preferred_service_types.filter((x) => x !== st)
-          : [...f.preferred_service_types, st],
-      };
-    });
-  }
+  const [showGuide, setShowGuide] = useState(false);
 
   return (
     <div className="space-y-6 max-w-xl">
@@ -912,22 +903,20 @@ function SettingsTab() {
         </div>
 
         <div className="space-y-2">
-          <label className="block text-xs font-medium text-slate-500">{t("cleaner.dashboard.preferredServiceTypes")}</label>
-          <div className="flex flex-wrap gap-2">
-            {SERVICE_TYPES.map((st) => (
-              <button
-                key={st}
-                onClick={() => toggleServiceType(st)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                  form.preferred_service_types.includes(st)
-                    ? "border-seafoam-500 bg-seafoam-50 text-seafoam-700"
-                    : "border-slate-200 text-slate-500 hover:border-slate-300"
-                }`}
-              >
-                {st.replace(/_/g, " ")}
-              </button>
-            ))}
-          </div>
+          <label className="block text-xs font-medium text-slate-500">{t("cleaningTypes.acceptTitle")}</label>
+          <p className="text-xs text-slate-500">{t("cleaningTypes.acceptSubtitle")}</p>
+          <AcceptedJobTypesPicker
+            value={form.accepted_job_types ?? ["standard", "move_in_out", "vacation_rental"]}
+            onChange={(next) => setForm((f) => (f ? { ...f, accepted_job_types: next } : f))}
+          />
+          <button
+            type="button"
+            onClick={() => setShowGuide((s) => !s)}
+            className="text-xs font-medium text-seafoam-700 hover:underline"
+          >
+            {t("cleaningTypes.guideTitle")}
+          </button>
+          {showGuide && <CleaningTypeGuide className="pt-1" />}
         </div>
 
         <div className="flex items-center justify-between">
