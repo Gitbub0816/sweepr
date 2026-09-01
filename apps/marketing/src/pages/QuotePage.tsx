@@ -260,6 +260,12 @@ export function QuotePage() {
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 {availableAddOns.map((a) => {
                   const selected = addOnKeys.includes(a.key);
+                  // Laundry is priced and capped per load in the real booking
+                  // engine (packages/quote-engine): $25/load, up to 2 loads.
+                  // This calculator only supports a flat on/off selection per
+                  // add-on, so it charges for one load, not a quantity, but
+                  // the label still needs to say so honestly.
+                  const isLaundry = a.key === "laundry";
                   return (
                     <button
                       key={a.key}
@@ -272,8 +278,18 @@ export function QuotePage() {
                           : "border-slate-200 hover:border-slate-300 dark:border-slate-700"
                       }`}
                     >
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{a.name}</span>
-                      <span className="text-sm font-bold text-charcoal dark:text-white">${a.price}</span>
+                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                        {a.name}
+                        {isLaundry && (
+                          <span className="block text-xs font-normal text-slate-500 dark:text-slate-400">
+                            Up to 2 loads
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-sm font-bold text-charcoal dark:text-white">
+                        ${a.price}
+                        {isLaundry ? "/load" : ""}
+                      </span>
                     </button>
                   );
                 })}

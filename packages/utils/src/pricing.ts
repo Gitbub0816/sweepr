@@ -317,7 +317,7 @@ export const ADD_ONS: AddOn[] = [
   { id: "inside_oven",           key: "inside_oven",           name: "Inside Oven",             price: 34, createdAt: "", updatedAt: "" },
   { id: "interior_windows",      key: "interior_windows",      name: "Interior Windows",        price: 39, createdAt: "", updatedAt: "" },
   { id: "inside_cabinets",       key: "inside_cabinets",       name: "Inside Cabinets",         price: 49, createdAt: "", updatedAt: "" },
-  { id: "laundry",               key: "laundry",               name: "Laundry",                 price: 24, createdAt: "", updatedAt: "" },
+  { id: "laundry",               key: "laundry",               name: "Laundry",                 price: 25, createdAt: "", updatedAt: "" },
   { id: "dishes",                key: "dishes",                name: "Dishes",                  price: 24, createdAt: "", updatedAt: "" },
   { id: "garage_sweep",          key: "garage_sweep",          name: "Garage Sweep",            price: 29, createdAt: "", updatedAt: "" },
   { id: "patio_sweep",           key: "patio_sweep",           name: "Patio Sweep",             price: 24, createdAt: "", updatedAt: "" },

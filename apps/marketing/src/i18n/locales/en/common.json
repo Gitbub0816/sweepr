@@ -37,7 +37,7 @@
     "standardBestFor": "Weekly or biweekly maintenance",
     "deep": "Deep Clean",
     "deepTagline": "When standard isn't enough.",
-    "deepDesc": "Everything in a Standard Clean, plus inside appliances, baseboards, window sills, light switches, ceiling fans, and the spots that collect a surprising amount of history. A genuine reset for a home that needs one.",
+    "deepDesc": "Everything in a Standard Clean, plus baseboards, door frames, light fixtures, and the detailed dusting that catches window sills, light switches, ceiling fans, and the spots that collect a surprising amount of history. A genuine reset for a home that needs one.",
     "deepBestFor": "First-time bookings, seasonal resets, or pre-event prep",
     "apartment": "Apartment Clean",
     "apartmentTagline": "Sized for your space, not a four-bedroom house.",
@@ -45,11 +45,11 @@
     "apartmentBestFor": "Studio to two-bedroom apartments",
     "moveIn": "Move-In Clean",
     "moveInTagline": "Start fresh in a space that's actually clean.",
-    "moveInDesc": "A full empty-home clean before your things go in. Inside cabinets, closets, appliances, and every surface, so your new place feels like yours from day one.",
+    "moveInDesc": "A full empty-home clean before your things go in. Inside cabinets, closets, appliance exteriors, and every surface, so your new place feels like yours from day one.",
     "moveInBestFor": "New tenants and homeowners before moving in",
     "moveOut": "Move-Out Clean",
     "moveOutTagline": "Leave the place better than you found it.",
-    "moveOutDesc": "Built to meet lease-end standards. A full empty-home clean including inside appliances, inside cabinets, all fixtures, and floors. The kind of clean that tends to get deposits back.",
+    "moveOutDesc": "Built to meet lease-end standards. A full empty-home clean including inside cabinets, appliance exteriors, all fixtures, and floors. The kind of clean that tends to get deposits back.",
     "moveOutBestFor": "End of lease or sale handover",
     "recurring": "Recurring Service",
     "recurringTagline": "Your home, kept. Without thinking about it.",
@@ -211,7 +211,7 @@
     },
     "deep": {
       "name": "Deep clean",
-      "bio": "Inside the appliances, behind the furniture, the baseboards you've been avoiding. Best for a first visit or a seasonal reset."
+      "bio": "Behind the furniture, the baseboards you've been avoiding, door frames and light fixtures done properly. Best for a first visit or a seasonal reset."
     },
     "reorganizing": {
       "name": "Reorganizing",

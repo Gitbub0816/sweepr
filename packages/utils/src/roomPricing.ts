@@ -115,7 +115,7 @@ export const DEFAULT_HOME_CLEANING_CONFIG: HomeCleaningPricingConfig = {
     inside_oven: 3400,
     interior_windows: 3900,
     inside_cabinets: 4900,
-    laundry: 2400,
+    laundry: 2500,
     dishes: 2400,
     baseboards: 3900,
     pet_hair_detail: 3900,
