@@ -52,6 +52,7 @@ import { mintShareToken } from "../lib/oauth";
 import type { Sql } from "../lib/db";
 import { ToolError, type ToolContext } from "./toolContext";
 import { PROMOTION_TOOL_DEFS, callPromotionTool, PROMOTION_TOOL_NAMES } from "./promotionTools";
+import { COURSE_TOOL_DEFS, callCourseTool, COURSE_TOOL_NAMES } from "./courseTools";
 
 // Re-exported so existing consumers (protocol.ts, tests) keep importing
 // ToolContext/ToolError from "./tools" — the actual definitions live in
@@ -244,6 +245,10 @@ export const TOOL_DEFS: ToolDef[] = [
   // directly to the live `promotions` table, unlike every pricing tool
   // above, which only ever touches the quarantined sandbox. ─────────────────
   ...PROMOTION_TOOL_DEFS,
+  // ── Course-builder tool surface (see courseTools.ts for the full
+  // docblock). The SECOND deliberate exception: publish_course writes
+  // directly to the live `courses`/`training_modules` tables. ─────────────
+  ...COURSE_TOOL_DEFS,
 ];
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -507,6 +512,9 @@ export async function callTool(
 ): Promise<unknown> {
   if ((PROMOTION_TOOL_NAMES as readonly string[]).includes(name)) {
     return callPromotionTool(ctx, name, args);
+  }
+  if ((COURSE_TOOL_NAMES as readonly string[]).includes(name)) {
+    return callCourseTool(ctx, name, args);
   }
   switch (name) {
     case "list_pricing_versions": {

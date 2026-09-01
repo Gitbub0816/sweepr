@@ -18,9 +18,23 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { getDb } from "../lib/db";
 import { requireAuth } from "../middleware/auth";
+import { recomputeTrainingCompletion } from "../lib/trainingCompletion";
 import type { AppBindings } from "../types";
 
 export const coursesRouter = new Hono<AppBindings>();
+
+/** Mirrors training.ts's own helper — a learner may not have a `cleaners`
+ *  row at all (courses are a general "learner" concept), in which case
+ *  there's nothing to recompute completion flags for. */
+async function getCleanerId(sql: ReturnType<typeof getDb>, clerkId: string): Promise<string | null> {
+  const rows = (await sql`
+    SELECT c.id FROM cleaners c
+    JOIN users u ON u.id = c.user_id
+    WHERE u.clerk_id = ${clerkId}
+    LIMIT 1
+  `) as { id: string }[];
+  return rows[0]?.id ?? null;
+}
 
 coursesRouter.use("*", requireAuth);
 
@@ -134,6 +148,15 @@ coursesRouter.post(
           completed = user_slide_progress.completed OR ${input.completed},
           seconds_spent = user_slide_progress.seconds_spent + ${input.seconds_spent ?? 0}
       `;
+    }
+
+    // Finishing a REQUIRED course counts toward overall training completion
+    // exactly like a passed legacy module — see lib/trainingCompletion.ts.
+    // A no-op for a learner with no `cleaners` row (e.g. an admin previewing
+    // a course) or an optional (non-required) course.
+    if (input.completed) {
+      const cleanerId = await getCleanerId(sql, userId);
+      if (cleanerId) await recomputeTrainingCompletion(sql, cleanerId, userId);
     }
 
     return c.json({ ok: true });

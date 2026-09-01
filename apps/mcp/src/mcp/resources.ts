@@ -72,6 +72,20 @@ export const RESOURCE_DEFS: ResourceDef[] = [
       "The ONE deliberate exception in this MCP worker: publish_promotion writes directly to live, customer-facing data. What that tool guarantees before it does, and why every other tool in this worker (including every OTHER promotions tool) stays sandboxed or read-only.",
     mimeType: "text/markdown",
   },
+  {
+    uri: "sweepr://courses-design-guide",
+    name: "Course Builder (v2 training) field guide",
+    description:
+      "The full slide/block shape for Course Builder v2 training courses — every block type, its props, the 16:9 percentage-based canvas coordinates, and worked examples — for list_courses / get_course / save_course_draft / preview_course / publish_course.",
+    mimeType: "text/markdown",
+  },
+  {
+    uri: "sweepr://courses-mcp-exception",
+    name: "Why courses can publish, and the legacy-module cutover (read this first)",
+    description:
+      "The SECOND deliberate exception in this MCP worker: publish_course writes directly to live training content AND deactivates the legacy module it replaces. What that tool guarantees before it does, and how the one-module-at-a-time cutover works.",
+    mimeType: "text/markdown",
+  },
 ];
 
 export const PROMOTIONS_MCP_EXCEPTION = `# Why promotions can publish — read this before calling publish_promotion
@@ -570,6 +584,119 @@ everything else is read-only. Every tool call is audit-logged.
   the field guide's "How cleaners are actually paid").
 `;
 
+export const COURSES_MCP_EXCEPTION = `# Why courses can publish — read this before calling publish_course
+
+Every other write tool in this MCP worker is quarantined — every pricing
+tool, and both of the OTHER promotions/courses write tools that stay
+draft-only (\`save_promotion_draft\`, \`save_course_draft\`). Nothing you do
+with them can ever reach a cleaner without a human clicking Publish
+somewhere in the admin console.
+
+**\`publish_course\` breaks that pattern on purpose**, the same way
+\`publish_promotion\` does (see sweepr://promotions-mcp-exception) — the
+product owner made the same explicit, human decision for training content.
+It sets an existing course's current draft version to \`'published'\`
+directly, no console step required, then clones it forward into a fresh
+editable draft exactly like the console's own Publish button.
+
+## Guardrails, every call
+1. **Role re-verified from the database, right now** — not just your
+   session token's claim from when you signed in. A demoted or deactivated
+   admin loses publish access on their very next call.
+2. **Audited** — writes an \`admin_audit_log\` row (action
+   \`course.published_via_mcp\`) alongside the standard MCP action log, so a
+   publish via this tool shows up next to console changes in one place.
+
+## The cutover — the actual point of this tool
+If the course has \`replaces_module_id\` set (only settable when you create
+it with \`save_course_draft\`), publishing does ONE MORE THING in the same
+write: it deactivates that legacy \`training_modules\` row. From that
+instant:
+- The legacy module stops appearing anywhere a cleaner sees it — the
+  Academy module list, the required-training count, the background-check
+  reminder — because every one of those queries already filters to
+  \`active = true\`. Nothing else had to change to make it "die."
+- This course counts toward required training IN THE MODULE'S PLACE (see
+  apps/api/src/lib/trainingCompletion.ts) — a cleaner who already finished
+  it counts as done; one who hasn't now sees this course as what's left.
+
+**One module at a time is completely normal.** Publishing a course only
+ever touches the ONE legacy module it names (or none, if
+\`replaces_module_id\` was never set — a brand-new required module with no
+legacy counterpart). A legacy module nothing has replaced yet stays exactly
+as it is, indefinitely. There is no requirement to migrate everything
+before any of it takes effect.
+
+If you ever publish a course, un-publish it (an admin reverting
+\`courses.status\` back to draft/archived in the console), or delete it, the
+legacy module's active state is re-derived every time — it comes back the
+moment nothing published still claims to replace it.
+`;
+
+export const COURSES_DESIGN_GUIDE = `# Course Builder (v2 training) field guide
+
+A course is a versioned, slide-based lesson — PowerPoint-style — that a
+cleaner works through top to bottom. \`save_course_draft\` and
+\`get_course\`/\`preview_course\` round-trip this shape.
+
+## Course-level fields
+- \`title\`, \`description?\`, \`category?\` — plain metadata.
+- \`required\` — whether this counts toward the cleaner's required-training
+  total (see sweepr://courses-mcp-exception). Defaults true on create.
+- \`replaces_module_id\` — CREATE-ONLY. The legacy \`training_modules.id\`
+  (from \`list_courses\`'s \`legacyModules\`) this course will replace once
+  published. Leave unset for a standalone new requirement with no legacy
+  counterpart. Cannot be changed after creation — not even the admin
+  console can do that; create a new course if you got it wrong.
+
+## Slides
+Each slide: \`{ title?, slide_type?, slide_order, background?,
+completion_rule?, blocks: [...] }\`. \`slide_order\` controls sequence
+(0-indexed). \`background\` is usually just \`{ color: "#ffffff" }\`.
+\`completion_rule\` defaults to \`{ type: "viewed" }\` (advancing past the
+slide is enough — there's no time-on-slide or scroll requirement to
+configure here yet).
+
+## Blocks — positioned on a 16:9 canvas, coordinates as PERCENTAGES (0-100)
+Every block: \`{ block_type, x, y, width, height, z_index?, props }\`.
+\`x\`/\`y\` are the top-left corner, \`width\`/\`height\` the size, all as a
+percent of the slide canvas — e.g. \`{x:8, y:8, width:84, height:20}\` is a
+banner near the top spanning almost the full width.
+
+- **text** / **heading** — \`props: { content, size?, weight?, color?,
+  align?, font?, italic?, underline?, lineHeight? }\`.
+- **image** — \`props: { url, caption?, fit?: "cover"|"contain" }\`.
+- **video** — \`props: { streamId }\`. streamId comes from a Cloudflare
+  Stream upload — **this MCP surface cannot upload video** (the admin
+  console's direct-upload flow requires a browser). preview_course flags
+  any video block with no streamId so you know it needs a human to finish.
+- **embed** — \`props: { url }\` (rendered in an iframe).
+- **shape** — \`props: { shape?: "rect"|"ellipse"|"line", fill?, radius?,
+  border?, borderColor?, opacity? }\`.
+- **divider** — \`props: { thickness?, color? }\`.
+- **spacer** — no props; pure layout gap.
+- **callout** — \`props: { variant?: "info"|"warning"|"success"|"tip",
+  title?, body? }\`.
+- **checklist** — \`props: { items: string[] }\` (rendered as checkboxes).
+- **acknowledgment** — \`props: { statement }\` (a single "I acknowledge"
+  checkbox).
+- **button** — \`props: { label?, color? }\` (visual only — it does not yet
+  navigate or gate anything).
+- **quiz** — \`props: { questions: [...] }\`. KNOWN GAP: the learner player
+  currently renders this as an inert "N question(s)" placeholder — it is
+  not interactive, graded, or completion-gating yet. Don't tell a human
+  their quiz will grade cleaners; it won't, today.
+
+## Workflow
+1. \`list_courses\` to see what exists (courses + the legacy modules array,
+   so you can see which legacy modules still need a v2 replacement).
+2. \`save_course_draft\` to create (with slides inline, or empty and filled
+   in with a follow-up call) or keep iterating on an existing draft.
+3. \`preview_course\` to sanity-check slide/block counts and quiz question
+   counts before publishing.
+4. \`publish_course\` — see sweepr://courses-mcp-exception first.
+`;
+
 /** Read one resource by uri; returns null for unknown uris. */
 export function readResource(uri: string): { mimeType: string; text: string } | null {
   switch (uri) {
@@ -586,6 +713,10 @@ export function readResource(uri: string): { mimeType: string; text: string } | 
       return { mimeType: "text/markdown", text: PROMOTIONS_DESIGN_GUIDE };
     case "sweepr://promotions-mcp-exception":
       return { mimeType: "text/markdown", text: PROMOTIONS_MCP_EXCEPTION };
+    case "sweepr://courses-design-guide":
+      return { mimeType: "text/markdown", text: COURSES_DESIGN_GUIDE };
+    case "sweepr://courses-mcp-exception":
+      return { mimeType: "text/markdown", text: COURSES_MCP_EXCEPTION };
     default:
       return null;
   }

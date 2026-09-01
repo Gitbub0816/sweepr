@@ -205,3 +205,51 @@ export async function verifyAdminForPromotions(
     admin: { email: normalized, role: row.role ?? "admin", clerkId: row.clerk_id ?? undefined },
   };
 }
+
+/**
+ * Course-builder role gate — same shape and same reasoning as
+ * passesPromotionsGate: owner, super_admin, or ANY admin_role at all
+ * (mirrors apps/api's admin/courses.ts, which gates on plain
+ * admin/super_admin with no finance-credential narrowing). Training content
+ * isn't money movement either.
+ */
+export function passesCoursesGate(
+  env: Env,
+  email: string,
+  role: string | null,
+  adminRole: string | null,
+): boolean {
+  if (isOwnerEmail(email, env)) return true;
+  if (role === "super_admin") return true;
+  if (role !== "admin") return false;
+  return adminRole != null;
+}
+
+/**
+ * Re-verify the CURRENT admin role from the database for the course-builder
+ * write path — same defense-in-depth as verifyAdminForPromotions, for the
+ * one course tool that changes what a cleaner is actually required to
+ * complete (`publish_course` — see courseTools.ts).
+ */
+export async function verifyAdminForCourses(
+  env: Env,
+  sql: Sql,
+  adminEmail: string,
+): Promise<{ ok: true; admin: VerifiedAdmin } | { ok: false; reason: string }> {
+  const normalized = adminEmail.toLowerCase();
+  if (isOwnerEmail(normalized, env)) {
+    return { ok: true, admin: { email: normalized, role: "super_admin" } };
+  }
+  const rows = (await sql`
+    SELECT role, admin_role, clerk_id FROM users WHERE LOWER(email) = ${normalized} LIMIT 1
+  `) as Array<{ role: string | null; admin_role: string | null; clerk_id: string | null }>;
+  const row = rows[0];
+  if (!row) return { ok: false, reason: "no_user_row" };
+  if (!passesCoursesGate(env, normalized, row.role, row.admin_role)) {
+    return { ok: false, reason: "insufficient_role" };
+  }
+  return {
+    ok: true,
+    admin: { email: normalized, role: row.role ?? "admin", clerkId: row.clerk_id ?? undefined },
+  };
+}

@@ -61,7 +61,9 @@
  * This is NOT a template for future MCP tools. Every other write in this
  * worker stays sandboxed-only; do not copy this pattern for a new feature
  * without the same explicit, human, product-level decision that promotions
- * got.
+ * got. (That decision has been made exactly once more since — see
+ * courseTools.ts's publish_course, for the same reason: an admin asked for
+ * an LLM that can draft AND ship, this time for v2 training courses.)
  *
  * apps/mcp is a separate deployable Worker from apps/api — per this
  * monorepo's convention, apps never import each other's app code. This file

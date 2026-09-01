@@ -142,3 +142,41 @@ export async function updateBookingStatus(
   `) as BookingRow[];
   return rows[0] ?? null;
 }
+
+/**
+ * Course Builder (migration 011) → legacy training_modules (migration 007)
+ * cutover. A `courses` row can name the legacy module it's meant to replace
+ * (`replaces_module_id`); this is the ONLY place that link does anything.
+ *
+ * Deactivates the legacy module the moment a course that replaces it goes
+ * `status = 'published'` (it stops being returned by every `active = true`
+ * query — /training/modules, /training/progress, /training/modules/:id —
+ * so it "dies" cleaner-side without a schema change), and reactivates it the
+ * moment no published course claims to replace it any more (a course
+ * archived, reverted to draft, or deleted). Cutover is per-module and
+ * independent: publishing one course never touches any other module.
+ *
+ * Shared between apps/api's admin course routes (the console publish/patch/
+ * delete flow) and apps/mcp's course tools (the MCP publish_course tool) —
+ * both are separate Workers that talk to Postgres directly, so this lives in
+ * the shared @sweepr/db package rather than being duplicated.
+ *
+ * Deliberately does NOT touch a module an admin deactivated by hand with no
+ * course ever pointed at it (`replaces_module_id` was always null) — this
+ * only manages modules that are, or were, actually claimed by a course.
+ */
+export async function syncLegacyModuleCutover(
+  sql: Sql,
+  legacyModuleId: string | null | undefined
+): Promise<void> {
+  if (!legacyModuleId) return;
+  await sql`
+    UPDATE training_modules
+    SET active = NOT EXISTS (
+      SELECT 1 FROM courses
+      WHERE replaces_module_id = ${legacyModuleId} AND status = 'published'
+    ),
+    updated_at = NOW()
+    WHERE id = ${legacyModuleId}
+  `;
+}

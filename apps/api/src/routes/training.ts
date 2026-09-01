@@ -19,6 +19,7 @@ import { z } from "zod";
 import { getUserByClerkId } from "@sweepr/db";
 import { getDb } from "../lib/db";
 import { requireAuth } from "../middleware/auth";
+import { getTrainingRequirementCounts, recomputeTrainingCompletion } from "../lib/trainingCompletion";
 import type { AppBindings } from "../types";
 
 export const trainingRouter = new Hono<AppBindings>();
@@ -463,36 +464,11 @@ trainingRouter.post(
         completed_at = CASE WHEN ${passed} THEN NOW() ELSE cleaner_training_progress.completed_at END
     `;
 
-    // If passed, check if all required modules are now complete
+    // If passed, check if everything required (legacy modules + any
+    // required v2 courses that have taken over a module's slot) is now
+    // complete.
     if (passed) {
-      const totalRequired = (await sql`
-        SELECT COUNT(*) as count FROM training_modules
-        WHERE required_type IN ('base') AND active = true
-      `) as { count: string }[];
-
-      const totalPassed = (await sql`
-        SELECT COUNT(*) as count FROM cleaner_training_progress ctp
-        JOIN training_modules tm ON tm.id = ctp.module_id
-        WHERE ctp.cleaner_id = ${cleanerId}
-          AND ctp.status = 'passed'
-          AND tm.required_type = 'base'
-          AND tm.active = true
-      `) as { count: string }[];
-
-      const allDone =
-        parseInt(totalPassed[0]?.count ?? "0", 10) >=
-        parseInt(totalRequired[0]?.count ?? "1", 10);
-
-      if (allDone) {
-        await sql`
-          UPDATE cleaners
-          SET required_training_completed = true,
-              background_check_unlocked = true,
-              training_status = 'completed',
-              training_completed_at = NOW()
-          WHERE id = ${cleanerId}
-        `;
-      }
+      await recomputeTrainingCompletion(sql, cleanerId, authUser.clerkId);
     }
 
     return c.json({
@@ -561,13 +537,19 @@ trainingRouter.get("/progress", requireAuth, async (c) => {
     last_lesson_id: string | null;
   }>;
 
-  const totalRequired = modules.filter((m) => m.required_type === "base").length;
-  const totalPassed = modules.filter(
-    (m) => m.required_type === "base" && m.status === "passed"
-  ).length;
+  // Combined required/passed counts — active legacy base modules PLUS any
+  // published, required v2 courses (a course that has cut over a legacy
+  // module's slot is what's actually required now; see
+  // lib/trainingCompletion.ts and @sweepr/db's syncLegacyModuleCutover).
+  const { totalRequired, totalPassed, requiredCourses } = await getTrainingRequirementCounts(
+    sql,
+    cleanerId,
+    authUser.clerkId,
+  );
 
   return c.json({
     modules,
+    requiredCourses,
     summary: {
       totalRequired,
       totalPassed,

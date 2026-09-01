@@ -20,7 +20,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { getUserByClerkId } from "@sweepr/db";
+import { getUserByClerkId, syncLegacyModuleCutover } from "@sweepr/db";
 import { getDb } from "../../lib/db";
 import { requireAuth } from "../../middleware/auth";
 import { isOwnerClerkId } from "../../lib/owner";
@@ -200,7 +200,7 @@ adminCoursesRouter.patch(
     const id = c.req.param("id");
     const input = c.req.valid("json");
     const sql = getDb(c.env.DATABASE_URL);
-    await sql`
+    const [row] = await sql`
       UPDATE courses SET
         title = COALESCE(${input.title ?? null}, title),
         description = COALESCE(${input.description ?? null}, description),
@@ -209,7 +209,19 @@ adminCoursesRouter.patch(
         status = COALESCE(${input.status ?? null}, status),
         updated_at = now()
       WHERE id = ${id}
-    `;
+      RETURNING replaces_module_id
+    ` as Array<{ replaces_module_id: string | null }>;
+
+    // A status change (e.g. an admin walking a course back from 'published'
+    // to 'draft'/'archived' here, outside the normal /publish flow) can
+    // change whether the legacy module it replaces should be dead or alive —
+    // re-derive it either way. No-ops when replaces_module_id is null or the
+    // status didn't actually change (the EXISTS check underneath is
+    // idempotent).
+    if (input.status !== undefined && row) {
+      await syncLegacyModuleCutover(sql, row.replaces_module_id);
+    }
+
     return c.json({ ok: true });
   }
 );
@@ -217,7 +229,12 @@ adminCoursesRouter.patch(
 adminCoursesRouter.delete("/:id", async (c) => {
   const id = c.req.param("id");
   const sql = getDb(c.env.DATABASE_URL);
-  await sql`DELETE FROM courses WHERE id = ${id}`;
+  const [row] = await sql`
+    DELETE FROM courses WHERE id = ${id} RETURNING replaces_module_id
+  ` as Array<{ replaces_module_id: string | null }>;
+  // The course is gone, so this can only reactivate its legacy module
+  // (unless a DIFFERENT published course also claims to replace it).
+  if (row) await syncLegacyModuleCutover(sql, row.replaces_module_id);
   return c.json({ ok: true });
 });
 
@@ -298,6 +315,11 @@ adminCoursesRouter.post(
     const sql = getDb(c.env.DATABASE_URL);
     const publishedBy = c.get("user").clerkId;
 
+    const [course] = await sql`
+      SELECT replaces_module_id FROM courses WHERE id = ${id} LIMIT 1
+    ` as Array<{ replaces_module_id: string | null }>;
+    if (!course) return c.json({ error: "Not found" }, 404);
+
     const [draft] = await sql`
       SELECT id, version_number FROM course_versions
       WHERE course_id = ${id} AND status = 'draft'
@@ -315,6 +337,11 @@ adminCoursesRouter.post(
       UPDATE courses SET status = 'published', current_version_id = ${draft.id}, updated_at = now()
       WHERE id = ${id}
     `;
+
+    // The cutover: this course now being 'published' is what makes the
+    // legacy module it replaces (if any) stop being served — see
+    // syncLegacyModuleCutover's doc comment in @sweepr/db.
+    await syncLegacyModuleCutover(sql, course.replaces_module_id);
 
     // Clone published version into a new editable draft.
     const nextNumber = draft.version_number + 1;
