@@ -135,11 +135,16 @@ export function ReportProblem({ app, apiUrl, getToken }: Props) {
 
   return (
     <>
-      {/* Desktop: full pill label. Mobile: icon-only at bottom-left to stay clear of scroll gestures. */}
+      {/* Bottom-left, deliberately: every "proceed" action in these apps (wizard
+          footers, lesson/course Next-Continue-Finish buttons) is right-aligned,
+          so anchoring here — rather than bottom-right — keeps this floating
+          button from ever sitting on top of a primary CTA. Desktop: full pill
+          label. Mobile: icon-only, elevated above the thumb's scroll gesture
+          zone. */}
       <button
         type="button"
         onClick={openModal}
-        className="fixed bottom-16 right-3 z-40 flex h-10 w-10 items-center justify-center rounded-full bg-charcoal shadow-lg hover:bg-slate-800 dark:bg-slate-700 sm:bottom-4 sm:right-4 sm:h-auto sm:w-auto sm:gap-2 sm:rounded-full sm:px-4 sm:py-2.5"
+        className="fixed bottom-16 left-3 z-40 flex h-10 w-10 items-center justify-center rounded-full bg-charcoal shadow-lg hover:bg-slate-800 dark:bg-slate-700 sm:bottom-4 sm:left-4 sm:h-auto sm:w-auto sm:gap-2 sm:rounded-full sm:px-4 sm:py-2.5"
         aria-label="Report a problem"
       >
         <LifeBuoy className="h-5 w-5 text-white sm:h-4 sm:w-4" />
