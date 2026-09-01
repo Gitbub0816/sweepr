@@ -148,7 +148,7 @@ export function ApprovalDetailPage() {
   return (
     <DashboardShell
       title={proposal.title}
-      description={`Fee change • ${config?.fee_type?.replace(/_/g, " ") ?? ""}`}
+      description={`Fee change • ${config?.fee_type === "platform_fee" ? "Marketplace Services Fee" : config?.fee_type?.replace(/_/g, " ") ?? ""}`}
       actions={<Button variant="ghost" onClick={() => navigate("/approvals")}><ArrowLeft className="h-4 w-4" /> Back</Button>}
     >
       <div className="grid gap-6 lg:grid-cols-3">

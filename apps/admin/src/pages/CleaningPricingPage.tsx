@@ -322,7 +322,7 @@ export function CleaningPricingPanel() {
             <Input type="number" step="0.01" value={(home.taxRate * 100).toString()} onChange={(e) => { const v = (parseFloat(e.target.value) || 0) / 100; patchHome({ taxRate: v }); setStr({ ...str, taxRate: v }); }} />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">Service fee (%)</label>
+            <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">Marketplace Services Fee (%)</label>
             <Input type="number" step="0.01" value={(home.serviceFeeRate * 100).toString()} onChange={(e) => patchHome({ serviceFeeRate: (parseFloat(e.target.value) || 0) / 100 })} />
           </div>
           <div>

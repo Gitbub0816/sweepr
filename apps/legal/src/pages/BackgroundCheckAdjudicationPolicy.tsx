@@ -8,7 +8,6 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-// DRAFT — attorney review required before production use.
 // NOTE: Adjudication matrices interact with federal, state and local fair-
 // hiring law (FCRA, state fair-chance acts, local ordinances). Counsel must
 // confirm the categories, look-back windows, and adverse-action workflow

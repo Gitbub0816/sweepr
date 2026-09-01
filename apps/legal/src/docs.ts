@@ -163,8 +163,8 @@ export const DOCS: DocMeta[] = [
   },
   {
     slug: "platform-fee-policy",
-    title: "Platform Fee Policy",
-    description: "How customer-facing fees and cleaner platform fees may change.",
+    title: "Marketplace Services Fee Policy",
+    description: "How customer-facing fees and the cleaner Marketplace Services Fee may change.",
     category: "Payments & Tax",
   },
   {
@@ -198,7 +198,7 @@ export const DOCS: DocMeta[] = [
   {
     slug: "founding-member-terms",
     title: "Founding Member Program Terms",
-    description: "Perks, benefits, and terms for Founding Member customers and cleaning professionals: badges, earnings bonus, platform-fee discount, and good-standing requirements.",
+    description: "Perks, benefits, and terms for Founding Member customers and cleaning professionals: badges, earnings bonus, Marketplace Services Fee discount, and good-standing requirements.",
     category: "Platform Policies",
     version: "1.0.0",
   },

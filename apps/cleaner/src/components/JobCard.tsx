@@ -11,7 +11,7 @@
 import { useEffect, useState } from "react";
 import { MapPin, Navigation, Home, Clock, CheckCircle2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Card, Button, track, Events } from "@sweepr/ui";
+import { Card, Button, InfoTip, track, Events } from "@sweepr/ui";
 import { formatCurrency, cn } from "@sweepr/utils";
 import type { ServiceType } from "@sweepr/types";
 
@@ -147,7 +147,14 @@ export function JobCard({
           <p className="text-2xl font-bold text-charcoal dark:text-white">
             {formatCurrency(job.pay)}
           </p>
-          <p className="text-xs text-slate-600">est. pay (80%)</p>
+          <p className="flex items-center justify-end gap-0.5 text-xs text-slate-600">
+            {t("cleaner.jobs.estPayAfterFee")}
+            <InfoTip
+              align="right"
+              label={t("cleaner.jobs.marketplaceServicesFeeAbout")}
+              text={t("cleaner.jobs.marketplaceServicesFeeInfo")}
+            />
+          </p>
         </div>
       </div>
 

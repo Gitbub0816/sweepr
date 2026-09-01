@@ -8,7 +8,6 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-// DRAFT — attorney review required before production use.
 // NOTE: Authorization should be captured via an explicit, separately-recorded
 // acknowledgement (checkbox/signature) tied to a disclosure version. Counsel must
 // confirm wording and state requirements before production use.

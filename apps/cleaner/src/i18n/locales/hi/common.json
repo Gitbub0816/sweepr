@@ -326,7 +326,10 @@
         "confirmed": "पुष्ट",
         "en_route": "रास्ते में",
         "in_progress": "प्रगति पर है"
-      }
+      },
+      "estPayAfterFee": "Est. pay after Marketplace Services Fee",
+      "marketplaceServicesFeeAbout": "About the Marketplace Services Fee",
+      "marketplaceServicesFeeInfo": "Supports the services required to operate each Sweepr booking, including marketplace technology, payment infrastructure, cleaner support and screening, insurance-related costs, customer support, and ongoing platform operations."
     },
     "earnings": {
       "title": "आमदनी",

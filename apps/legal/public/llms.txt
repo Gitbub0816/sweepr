@@ -33,7 +33,7 @@
 ## Payments & Tax
 
 - [Payment Services Terms](https://legal.getsweepr.com/payment-terms): Payment Services Terms.
-- [Platform Fee Policy](https://legal.getsweepr.com/platform-fee-policy): Platform Fee Policy.
+- [Marketplace Services Fee Policy](https://legal.getsweepr.com/platform-fee-policy): Marketplace Services Fee Policy.
 - [Tax Reporting Policy](https://legal.getsweepr.com/tax-reporting): Tax Reporting Policy.
 
 ## Trust & Safety

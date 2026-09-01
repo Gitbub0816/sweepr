@@ -8,7 +8,6 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-// DRAFT — attorney review required before production use.
 import { Link } from "react-router-dom";
 import { DocPage } from "../components/DocPage";
 import { Section } from "../components/Section";
@@ -16,7 +15,7 @@ import { SUPPORT_EMAIL, DOC_VERSION } from "../docs";
 
 const toc = [
   { id: "customer-fees", title: "Customer-Facing Fees" },
-  { id: "cleaner-fees", title: "Cleaner Platform Fees & Commissions" },
+  { id: "cleaner-fees", title: "Cleaner Marketplace Services Fees & Commissions" },
   { id: "notice", title: "Notice of Fee Changes" },
   { id: "no-retro", title: "No Retroactive Fee Reductions" },
   { id: "pricing", title: "Cleaning Service Pricing" },
@@ -26,16 +25,20 @@ const toc = [
 export function PlatformFeePolicy() {
   return (
     <DocPage
-      title="Platform Fee Policy"
+      title="Marketplace Services Fee Policy"
       version={DOC_VERSION}
-      intro="This policy explains how Sweepr's customer-facing fees and cleaner platform fees work, how they may change, and the notice that applies. It supplements the Terms of Service, Customer Agreement, and Cleaner Platform Agreement."
+      intro="This policy explains how Sweepr's customer-facing fees and cleaner Marketplace Services Fees work, how they may change, and the notice that applies. It supplements the Terms of Service, Customer Agreement, and Cleaner Platform Agreement."
       toc={toc}
     >
       <Section id="customer-fees" title="1. Customer-Facing Fees">
         <p>
-          Sweepr may charge service fees, booking fees, marketplace fees,
+          Sweepr may charge a Marketplace Services Fee, booking fees,
           cancellation fees, adjustment fees, or other customer-facing charges in
-          connection with use of the Platform.
+          connection with use of the Platform. The Marketplace Services Fee
+          supports the services required to operate each Sweepr booking,
+          including marketplace technology, payment infrastructure, cleaner
+          support and screening, insurance-related costs, customer support, and
+          ongoing platform operations.
         </p>
         <p>
           Applicable fees may vary based on service type, location, cleaner
@@ -56,9 +59,9 @@ export function PlatformFeePolicy() {
         </p>
       </Section>
 
-      <Section id="cleaner-fees" title="2. Cleaner Platform Fees & Commission Changes">
+      <Section id="cleaner-fees" title="2. Cleaner Marketplace Services Fees & Commission Changes">
         <p>
-          Sweepr may charge platform fees, commissions, marketplace fees,
+          Sweepr may charge a Marketplace Services Fee, commissions,
           insurance-related administrative fees, or other fees that affect Cleaner
           payouts.
         </p>
@@ -69,7 +72,7 @@ export function PlatformFeePolicy() {
           already accepted by a Cleaner before the effective date of the change.
         </p>
         <p>
-          For material changes to Cleaner platform fees, commission rates, payout
+          For material changes to Cleaner Marketplace Services Fees, commission rates, payout
           formulas, or other payout-affecting charges, Sweepr will provide
           reasonable advance notice through the Platform, email, SMS, push
           notification, or other reasonable method. Unless a longer notice period
@@ -95,7 +98,7 @@ export function PlatformFeePolicy() {
 
       <Section id="no-retro" title="4. No Retroactive Fee Reductions">
         <p>
-          Sweepr will not apply a platform fee, commission increase, or
+          Sweepr will not apply a Marketplace Services Fee or commission increase, or another
           payout-affecting change retroactively to reduce payment owed for a
           booking already accepted by a Cleaner before the effective date of the
           change, except where required by law, caused by fraud, chargeback,
@@ -125,7 +128,7 @@ export function PlatformFeePolicy() {
 
       <Section id="approval" title="6. Internal Approval of Fee Configuration Changes">
         <p>
-          Changes to Sweepr platform fee and pricing configurations may only be
+          Changes to Sweepr Marketplace Services Fee and pricing configurations may only be
           proposed by a Super Admin and must be reviewed and approved through
           Sweepr's internal approval workflow before becoming effective. At
           minimum, that workflow includes the original proposer, at least one

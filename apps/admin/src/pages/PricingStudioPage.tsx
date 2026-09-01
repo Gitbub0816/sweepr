@@ -1348,9 +1348,9 @@ function RatesTab({
         <h3 className="mb-3 text-sm font-semibold text-charcoal dark:text-white">Cleaner payout (planning estimate)</h3>
         <p className="mb-3 text-xs text-slate-500">
           Independent of the customer price: changing one never silently changes the other. This is
-          a MODELING estimate for margin checks — actual cleaner pay is captured booking proceeds
-          minus the platform fee (default 20%, Platform Fees settings), plus 100% of tips. It is not
-          set here and cleaners are never paid hourly.
+          a MODELING estimate for margin checks. Actual cleaner pay is captured booking proceeds
+          minus the Marketplace Services Fee (default 20%, Payouts fee settings), plus 100% of tips.
+          It is not set here and cleaners are never paid hourly.
         </p>
         <div className="space-y-4">
           <label className="block">
@@ -1528,7 +1528,7 @@ function TestQuoteTab({ api, versionId }: { api: ReturnType<typeof useApi>; vers
                 <span>Customer total</span><span className="tabular-nums">{dollars(result.totalCents)}</span>
               </div>
               <div className="mt-1 flex justify-between text-slate-500">
-                <span title="Planning estimate from this config's payout model — actual cleaner pay is captured proceeds minus the platform fee (default 20%), plus 100% of tips.">
+                <span title="Planning estimate from this config's payout model. Actual cleaner pay is captured proceeds minus the Marketplace Services Fee (default 20%), plus 100% of tips.">
                   Modeled cleaner payout (est.)
                 </span>
                 <span className="tabular-nums">{dollars(result.cleanerPayoutCents)}</span>

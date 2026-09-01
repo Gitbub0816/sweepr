@@ -8,8 +8,8 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-// DRAFT — attorney review required before production use. A designated DMCA agent
-// must be registered with the U.S. Copyright Office before relying on safe harbor.
+// NOTE: A designated DMCA agent must be registered with the U.S. Copyright
+// Office before relying on safe harbor.
 import { DocPage } from "../components/DocPage";
 import { Section } from "../components/Section";
 import { LEGAL_EMAIL, COMPANY_NAME, REGISTERED_ADDRESS, DOC_VERSION } from "../docs";

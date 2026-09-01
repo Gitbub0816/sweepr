@@ -53,6 +53,7 @@ export * from "./components/ReportProblem";
 export * from "./components/AccountPrivacy";
 export * from "./components/CookieConsent";
 export * from "./components/FoundingMemberBadge";
+export * from "./components/InfoTip";
 export * from "./components/PromoWidget";
 export * from "./components/PromoHost";
 

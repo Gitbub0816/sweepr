@@ -8,7 +8,6 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-// DRAFT — attorney review required before production use.
 import { Link } from "react-router-dom";
 import { DocPage } from "../components/DocPage";
 import { Section } from "../components/Section";
@@ -52,7 +51,7 @@ export function LegalUpdatesPolicy() {
         <p>
           Changes to fees and pricing follow the{" "}
           <Link className="text-seafoam-700 underline" to="/platform-fee-policy">
-            Platform Fee Policy
+            Marketplace Services Fee Policy
           </Link>
           , including the customer-facing fee, cleaner payout-affecting fee, notice,
           and no-retroactive-reduction rules described there.
@@ -61,7 +60,7 @@ export function LegalUpdatesPolicy() {
 
       <Section id="governance" title="4. Internal Approval Governance">
         <p>
-          Changes to platform fee and pricing configurations are governed by an
+          Changes to Marketplace Services Fee and pricing configurations are governed by an
           internal approval workflow. At minimum:
         </p>
         <ul className="list-disc space-y-1 pl-6">

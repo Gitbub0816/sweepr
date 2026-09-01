@@ -16,6 +16,8 @@ import {
   StatCard,
   Modal,
   toast,
+  InfoTip,
+  MARKETPLACE_SERVICES_FEE_EXPLAINER,
 } from "@sweepr/ui";
 import { DollarInput } from "../components/DollarInput";
 import {
@@ -133,7 +135,7 @@ function TransactionsTab() {
     { header: "Cleaner", cell: (r) => <span className="font-medium">{r.cleaner_name}</span> },
     { header: "Date", cell: (r) => new Date(r.created_at).toLocaleDateString() },
     { header: "Gross", align: "right", cell: (r) => formatCurrency((r.gross_amount ?? 0) / 100) },
-    { header: "Platform Fee", align: "right", cell: (r) => formatCurrency((r.platform_fee ?? 0) / 100) },
+    { header: "Marketplace Services Fee", align: "right", cell: (r) => formatCurrency((r.platform_fee ?? 0) / 100) },
     { header: "Cleaner Net", align: "right", cell: (r) => <span className="font-semibold">{formatCurrency((r.amount ?? 0) / 100)}</span> },
     { header: "Rate", align: "right", cell: (r) => r.fee_rate ? `${(Number(r.fee_rate) * 100).toFixed(1)}%` : ", " },
     { header: "Tier ×", align: "right", cell: (r) => r.tier_multiplier ? `${Number(r.tier_multiplier).toFixed(3)}` : "1.000" },
@@ -328,7 +330,10 @@ function FeeConfigTab() {
   return (
     <div className="space-y-6 max-w-xl">
       <div className="rounded-xl border border-slate-200 p-6 space-y-4">
-        <h3 className="font-semibold text-slate-800">Platform Fee</h3>
+        <h3 className="flex items-center gap-1 font-semibold text-slate-800">
+          Marketplace Services Fee
+          <InfoTip label="About the Marketplace Services Fee" text={MARKETPLACE_SERVICES_FEE_EXPLAINER} />
+        </h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1">Fee Type</label>
@@ -354,11 +359,11 @@ function FeeConfigTab() {
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1">Min Fee ($)</label>
-            <DollarInput cents={form.minimum_platform_fee} onCents={(c) => setForm((f) => f ? { ...f, minimum_platform_fee: c ?? 0 } : f)} ariaLabel="Minimum platform fee" />
+            <DollarInput cents={form.minimum_platform_fee} onCents={(c) => setForm((f) => f ? { ...f, minimum_platform_fee: c ?? 0 } : f)} ariaLabel="Minimum Marketplace Services Fee" />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1">Max Fee ($, blank=uncapped)</label>
-            <DollarInput cents={form.maximum_platform_fee} allowEmpty onCents={(c) => setForm((f) => f ? { ...f, maximum_platform_fee: c } : f)} ariaLabel="Maximum platform fee" />
+            <DollarInput cents={form.maximum_platform_fee} allowEmpty onCents={(c) => setForm((f) => f ? { ...f, maximum_platform_fee: c } : f)} ariaLabel="Maximum Marketplace Services Fee" />
           </div>
         </div>
       </div>
@@ -435,7 +440,7 @@ function ContractorEarningsTab() {
     { header: "Tier", cell: (r) => r.tier ? <Badge variant="info">{r.tier}</Badge> : ", " },
     { header: "Payouts", align: "right", cell: (r) => String(r.payout_count) },
     { header: "Gross", align: "right", cell: (r) => formatCurrency(Number(r.total_gross) / 100) },
-    { header: "Platform Fee", align: "right", cell: (r) => formatCurrency(Number(r.total_platform_fee) / 100) },
+    { header: "Marketplace Services Fee", align: "right", cell: (r) => formatCurrency(Number(r.total_platform_fee) / 100) },
     { header: "Total Earned", align: "right", cell: (r) => <span className="font-semibold text-green-700">{formatCurrency(Number(r.total_paid) / 100)}</span> },
     { header: "Avg Rate", align: "right", cell: (r) => r.avg_fee_rate ? `${(Number(r.avg_fee_rate) * 100).toFixed(1)}%` : ", " },
     { header: "Last Paid", cell: (r) => r.last_paid_at ? new Date(r.last_paid_at).toLocaleDateString() : ", " },
