@@ -15,7 +15,7 @@
 -- This file is GENERATED. Do not edit by hand — edit the migrations in
 -- src/migrations/ and re-run: node packages/db/build-schema.mjs
 --
--- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql, 034_fee_approval_engine.sql, 035_slack_user_tokens.sql, 036_pricing_engine.sql, 037_security_tickets.sql, 038_compact_ticket_ids.sql, 039_report_submitter.sql, 040_classification_and_templates.sql, 041_fix_security_templates.sql, 042_email_deliverability.sql, 043_slack_purpose_security.sql, 044_senior_admin_roles.sql, 045_status_autodetect.sql, 046_seed_pricing_rule.sql, 047_seed_super_admin_invite.sql, 048_customer_home_profile.sql, 049_reset_bootstrap_invite.sql, 050_customers_user_id_unique.sql, 051_preferred_language.sql, 052_payouts_booking_id_unique.sql, 053_sms_consent.sql, 054_strict_rls.sql, 055_mailbox_messages.sql, 056_admin_mail_center.sql, 057_public_privacy_intake.sql, 058_scope_review_engine.sql, 059_scope_review_links.sql, 060_performance_indexes.sql, 061_composite_query_indexes.sql, 062_atomicity_constraints.sql, 063_customers_updated_at.sql, 064_booking_arrival_window.sql, 065_str_calendar_sync.sql, 066_address_property_type.sql, 067_str_enrollment.sql, 068_availability_backfill.sql, 069_review_tags.sql, 070_error_telemetry_v2.sql, 071_mail_security_rework.sql, 072_assignment_queue_cleaner_cascade.sql, 073_customer_fk_cascade.sql, 074_cleaner_service_area_and_declines.sql, 075_admin_permission_overrides.sql, 076_cleaners_updated_at.sql, 077_adjudication_cases.sql, 078_ip_blocklist.sql, 079_admin_alerting.sql, 080_status_health_checks.sql, 081_yardstik.sql, 082_admin_schedule.sql, 083_adjudication_pre_adverse.sql, 084_yardstik_webhook_dedup.sql, 085_founding_and_promotions.sql, 086_founder_badge_color.sql, 087_coupons_engine.sql, 088_coupon_stacking_locks.sql, 089_smart_entry_and_sweepr_plus.sql, 090_platform_identity_workspaces.sql, 091_auth_broker.sql, 092_founding_customer_discount.sql, 093_zip_pricing_multipliers.sql, 094_legal_document_versions.sql, 095_legal_attorneys.sql, 096_site_analytics.sql, 097_pricing_v2.sql, 098_yardstik_sor_monitoring.sql, 099_price_ledger_quote_refresh.sql, 100_mcp_simulator.sql, 101_team_cleans.sql, 102_team_cleans_compensation.sql, 103_crew_tasks.sql, 104_seam_connected_accounts.sql, 105_user_reports.sql, 106_calendar_date_rules.sql, 107_payout_economics_and_job_type_prefs.sql
+-- Source migrations: 001_initial.sql, 002_gdpr.sql, 003_checkr_invitation.sql, 004_didit_sessions.sql, 005_cleaners_user_unique.sql, 006_prelaunch_status.sql, 007_training_system.sql, 009_admin_invites_device_tokens.sql, 010_service_areas.sql, 011_course_builder.sql, 012_day_of_service.sql, 013_insurance.sql, 014_schema_alignment.sql, 015_course_block_types.sql, 016_broadcast_type.sql, 017_dos_test_sessions.sql, 018_observability.sql, 019_admin_roles_automation.sql, 020_stripe_marketplace.sql, 021_payout_ledger.sql, 022_access_code_encryption.sql, 023_booking_auth_indexes.sql, 024_observability_retention.sql, 025_production_hardening.sql, 026_row_level_security.sql, 027_grant_owner_super_admin.sql, 028_error_logs.sql, 029_cleaner_dashboard_columns.sql, 030_it_tickets_notifications.sql, 031_hard_delete_cascades.sql, 032_legal_compliance_tracking.sql, 033_slack_integration.sql, 034_fee_approval_engine.sql, 035_slack_user_tokens.sql, 036_pricing_engine.sql, 037_security_tickets.sql, 038_compact_ticket_ids.sql, 039_report_submitter.sql, 040_classification_and_templates.sql, 041_fix_security_templates.sql, 042_email_deliverability.sql, 043_slack_purpose_security.sql, 044_senior_admin_roles.sql, 045_status_autodetect.sql, 046_seed_pricing_rule.sql, 047_seed_super_admin_invite.sql, 048_customer_home_profile.sql, 049_reset_bootstrap_invite.sql, 050_customers_user_id_unique.sql, 051_preferred_language.sql, 052_payouts_booking_id_unique.sql, 053_sms_consent.sql, 054_strict_rls.sql, 055_mailbox_messages.sql, 056_admin_mail_center.sql, 057_public_privacy_intake.sql, 058_scope_review_engine.sql, 059_scope_review_links.sql, 060_performance_indexes.sql, 061_composite_query_indexes.sql, 062_atomicity_constraints.sql, 063_customers_updated_at.sql, 064_booking_arrival_window.sql, 065_str_calendar_sync.sql, 066_address_property_type.sql, 067_str_enrollment.sql, 068_availability_backfill.sql, 069_review_tags.sql, 070_error_telemetry_v2.sql, 071_mail_security_rework.sql, 072_assignment_queue_cleaner_cascade.sql, 073_customer_fk_cascade.sql, 074_cleaner_service_area_and_declines.sql, 075_admin_permission_overrides.sql, 076_cleaners_updated_at.sql, 077_adjudication_cases.sql, 078_ip_blocklist.sql, 079_admin_alerting.sql, 080_status_health_checks.sql, 081_yardstik.sql, 082_admin_schedule.sql, 083_adjudication_pre_adverse.sql, 084_yardstik_webhook_dedup.sql, 085_founding_and_promotions.sql, 086_founder_badge_color.sql, 087_coupons_engine.sql, 088_coupon_stacking_locks.sql, 089_smart_entry_and_sweepr_plus.sql, 090_platform_identity_workspaces.sql, 091_auth_broker.sql, 092_founding_customer_discount.sql, 093_zip_pricing_multipliers.sql, 094_legal_document_versions.sql, 095_legal_attorneys.sql, 096_site_analytics.sql, 097_pricing_v2.sql, 098_yardstik_sor_monitoring.sql, 099_price_ledger_quote_refresh.sql, 100_mcp_simulator.sql, 101_team_cleans.sql, 102_team_cleans_compensation.sql, 103_crew_tasks.sql, 104_seam_connected_accounts.sql, 105_user_reports.sql, 106_calendar_date_rules.sql, 107_payout_economics_and_job_type_prefs.sql, 108_promotions_v2.sql
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -6982,3 +6982,74 @@ DO $$ BEGIN
   );
 EXCEPTION WHEN duplicate_object THEN NULL; WHEN duplicate_table THEN NULL;
 END $$;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 108_promotions_v2.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- Copyright © 2026–Present ClearKey Solutions, LLC. All Rights Reserved.
+-- Proprietary and Confidential.
+
+-- ============================================================================
+-- Promotions engine v2: multi-page, multi-CTA, code-mode widgets + MCP
+-- publish provenance.
+-- ============================================================================
+-- No shape change is needed on `promotions.design` / `promotions.cta` — both
+-- are already JSONB (migration 085; `reward` added in 087) and happily carry
+-- the new `PromoDesignV2` shape (packages/utils/src/promoSchema.ts): an
+-- ordered array of PAGES, each with its own authoring mode (blocks / canvas
+-- / poster / code) and its own `ctas[]` array, instead of one fixed set of
+-- blocks and a single CTA. This migration is therefore additive-only:
+--
+--   1) `design_version` distinguishes the shape actually stored in `design`
+--      (+ the legacy `cta` column) so readers never have to sniff JSON to
+--      decide whether to run the legacy-upgrade normalizer. Existing rows
+--      default to 1 (legacy: `{blocks, poster?, canvas?}` + one top-level
+--      `cta`); the rebuilt admin designer and the MCP publish tool always
+--      write 2 (`PromoDesignV2`: `{version:2, entryPageKey, pages:[...]}`).
+--      `normalizeLegacyPromoDesign` / `toPromoDesignV2`
+--      (packages/utils/src/promoSchema.ts) upgrade a version-1 row to the v2
+--      shape IN MEMORY at read time — no backfill of existing rows is
+--      required, and every promotion that already shipped keeps rendering
+--      exactly as before until an admin (or the MCP) next saves it, at which
+--      point it's written back as version 2.
+--   2) `created_via` records provenance: 'console' (the admin designer,
+--      default — matches every row that already exists) or 'mcp'. This is
+--      the audit trail for the ONE deliberate exception in the whole MCP
+--      worker where a connected LLM can publish a promotion directly to
+--      status='active' without a human clicking anything in the admin
+--      console — see apps/mcp/src/mcp/promotionTools.ts's docblock and the
+--      sweepr://promotions-mcp-exception resource for the guardrails
+--      (admin-authenticated, schema-validated, audited, draft-only except
+--      for the one publish_promotion tool).
+-- ============================================================================
+
+ALTER TABLE promotions
+  ADD COLUMN IF NOT EXISTS design_version SMALLINT NOT NULL DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS created_via     TEXT     NOT NULL DEFAULT 'console';
+
+DO $$ BEGIN
+  ALTER TABLE promotions ADD CONSTRAINT promotions_design_version_check CHECK (design_version IN (1, 2));
+EXCEPTION WHEN duplicate_object THEN NULL; WHEN duplicate_table THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE promotions ADD CONSTRAINT promotions_created_via_check CHECK (created_via IN ('console', 'mcp'));
+EXCEPTION WHEN duplicate_object THEN NULL; WHEN duplicate_table THEN NULL;
+END $$;
+
+COMMENT ON COLUMN promotions.design_version IS
+  '1 = legacy single-page {blocks,poster?,canvas?} + top-level cta column. '
+  '2 = PromoDesignV2 multi-page {pages:[...]} shape stored entirely in '
+  '`design`; the `cta` column is unused for version-2 rows (kept, not '
+  'dropped, so no destructive migration is ever required). Upgrade path is '
+  'read-time normalization (packages/utils/src/promoSchema.ts), not a '
+  'backfill — see this file''s header comment.';
+
+COMMENT ON COLUMN promotions.created_via IS
+  'Provenance: ''console'' (admin designer, default) or ''mcp'' (created or '
+  'last published by the MCP promotion tools). Informational only — never '
+  'used for access control.';
+
+-- Every mcp-authored promotion is trivially auditable from the admin list.
+CREATE INDEX IF NOT EXISTS idx_promotions_created_via
+  ON promotions (created_via) WHERE created_via = 'mcp';
