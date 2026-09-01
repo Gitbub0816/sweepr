@@ -95,7 +95,7 @@ import { ApprovalDetailPage } from "./pages/ApprovalDetailPage";
 import { PricingRulePage } from "./pages/PricingRulePage";
 import { PricingApprovalDetailPage } from "./pages/PricingApprovalDetailPage";
 import { SecurityPage } from "./pages/SecurityPage";
-import { PromotionsPage } from "./pages/PromotionsPage";
+import { PromotionsPage } from "./pages/promotions/PromotionsPage";
 import { FoundingMembersPage } from "./pages/FoundingMembersPage";
 import { SmartEntryPage } from "./pages/SmartEntryPage";
 import { MailPage } from "./pages/MailPage";

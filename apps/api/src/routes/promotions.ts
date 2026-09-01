@@ -32,6 +32,7 @@ import {
   recordImpression,
   claimPromotion,
   isLive,
+  toPublicPromotionView,
 } from "../lib/promotions";
 import type { AppBindings } from "../types";
 
@@ -63,20 +64,13 @@ async function optionalUserId(c: Context<AppBindings>): Promise<string | null> {
   }
 }
 
-/** Strip server-only / sensitive fields before returning a promo to the client. */
+/** Strip server-only / sensitive fields before returning a promo to the
+ *  client, normalized to PromoDesignV2 regardless of the stored shape. */
 function publicView(p: Awaited<ReturnType<typeof getPromotionBySlug>>) {
   if (!p) return null;
   return {
-    id: p.id,
-    slug: p.slug,
-    name: p.name,
-    audience: p.audience,
-    design: p.design,
-    cta: p.cta,
+    ...toPublicPromotionView(p),
     display: p.display,
-    grantsFoundingMember: p.grants_founding_member,
-    // Safe to expose: what the claimant will get (drives reward text + countdown).
-    reward: p.reward ?? {},
   };
 }
 
@@ -107,6 +101,11 @@ promotionsRouter.post("/:slug/impression", async (c) => {
 const claimSchema = z.object({
   email: z.string().email().optional(),
   phone: z.string().optional(),
+  // Which PromoCtaV2 the visitor actually clicked, by id. Optional so a
+  // legacy-shaped or single-CTA promo (and any caller that hasn't been
+  // updated) still resolves correctly — see ClaimInput.ctaId in
+  // lib/promotions.ts.
+  ctaId: z.string().max(80).optional(),
 });
 
 promotionsRouter.post("/:slug/claim", zValidator("json", claimSchema), async (c) => {
@@ -118,6 +117,7 @@ promotionsRouter.post("/:slug/claim", zValidator("json", claimSchema), async (c)
   const result = await claimPromotion(sql, c.req.param("slug"), {
     email: body.email,
     phone: body.phone,
+    ctaId: body.ctaId,
     userId,
     ip,
   });

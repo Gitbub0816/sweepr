@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useState, useCallback } from "react";
+import { defaultClaimCta } from "@sweepr/utils";
 import { PromoWidget, type PromoView } from "./PromoWidget";
 
 interface PromoDisplay {
@@ -98,8 +99,10 @@ export function PromoHost({
             eligibleByFrequency(p.slug, p.display ?? {}) &&
             // claimants="anonymous" promos are marketing-only — skip for
             // signed-in viewers ("signed_in" still shows to anonymous viewers,
-            // whose CTA becomes "Sign in to claim").
-            !(p.cta?.claimants === "anonymous" && viewerSignedIn),
+            // whose CTA becomes "Sign in to claim"). Evaluated against the
+            // entry page's default claim-eligible CTA (the widget itself
+            // applies the same per-CTA rule to every other CTA on the page).
+            !(defaultClaimCta(p.design)?.cta.claimants === "anonymous" && viewerSignedIn),
         );
         if (!candidate || cancelled) return;
         const delayMs = Math.max(0, (candidate.display?.delaySeconds ?? 0) * 1000);
@@ -150,8 +153,9 @@ export function PromoHost({
   // <PromoEmbed> — the host never floats them, so skip here.
   if (placement === "inline" && !expanded) return null;
   if (placement === "banner" && !expanded) {
+    const entryPage = promo.design.pages.find((p) => p.key === promo.design.entryPageKey);
     const headline =
-      promo.design?.blocks?.find((b) => b.type === "heading" || b.type === "text")?.text ?? promo.name;
+      entryPage?.blocks?.find((b) => b.type === "heading" || b.type === "text")?.text ?? promo.name;
     return (
       <div className="fixed inset-x-0 top-0 z-[100] flex items-center justify-center gap-3 bg-seafoam-700 px-4 py-2.5 text-white shadow-md">
         <p className="truncate text-sm font-medium">{headline}</p>

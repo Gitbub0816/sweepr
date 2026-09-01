@@ -82,7 +82,7 @@ export async function handleMcpMessage(ctx: ToolContext, raw: unknown): Promise<
             version: "0.1.0",
           },
           instructions:
-            "Quarantined Sweepr pricing sandbox: read live pricing config, edit only your simulator config, run quote simulations, and emit an upload payload a human admin imports and publishes. No write path to live data. Start with the sweepr-pricing-assistant prompt or the sweepr://workflow resource.",
+            "Sweepr admin MCP server. PRICING is a quarantined sandbox: read live pricing config, edit only your simulator config, run quote simulations, and emit an upload payload a human admin imports and publishes — no write path to live data (start with the sweepr-pricing-assistant prompt or sweepr://workflow). PROMOTIONS is different: list/get/preview are read-only and save_promotion_draft only ever writes drafts (inert), but publish_promotion is a DELIBERATE exception that publishes a promotion live — read sweepr://promotions-mcp-exception before calling it, and start with the sweepr-promotions-assistant prompt or sweepr://promotions-design-guide.",
         }),
       };
 

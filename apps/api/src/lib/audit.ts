@@ -69,7 +69,12 @@ export type AuditAction =
   | "legal.attorney_edit"
   | "legal.attorney_approve"
   | "crew.vouch_checkin"
-  | "crew.no_show";
+  | "crew.no_show"
+  | "promotion.created"
+  | "promotion.updated"
+  | "promotion.status_changed"
+  | "promotion.deleted"
+  | "promotion.published_via_mcp";
 
 export interface AuditEntry {
   action: AuditAction;

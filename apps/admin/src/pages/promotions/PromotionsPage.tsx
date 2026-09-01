@@ -9,44 +9,41 @@
  */
 
 /**
- * Admin Promotions — a designer for single-page promotion widgets.
+ * Admin Promotions — a full multi-page, multi-CTA designer for promotion
+ * widgets.
  *
- * Left: promotion list + "new from template". Right: the selected promo's
- * designer (design blocks, templated CTA, display rules, expiry) with a live
- * PromoWidget preview, its public slug URL (shareable / embeddable), and claim
- * stats. Founding Member templates are seeded automatically by the API.
+ * Left: promotion list + "new from template". Right, once a promotion is
+ * selected: header (status/actions/public URL/stats), a page list (add,
+ * duplicate, rename, reorder, delete, set entry page — up to
+ * PROMO_MAX_PAGES), the selected page's full editor (PromoPageEditor: mode
+ * switcher, content, buttons), display rules, expiry, the reward this
+ * promotion grants, and claim stats — with a live PromoWidget preview that
+ * renders EXACTLY what a customer sees, including multi-page `goto_page`
+ * navigation. Founding Member templates are seeded automatically by the API.
+ *
+ * Every promotion here is authored/saved in the PromoDesignV2 shape
+ * (packages/utils/src/promoSchema.ts); a promotion created before this
+ * designer existed is upgraded to that shape the moment it's opened (the
+ * API normalizes on GET) and stays upgraded once saved.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Card, Button, Input, Textarea, toast, PromoWidget, type PromoView, type PromoCanvas } from "@sweepr/ui";
-import { PromoCanvasEditor } from "../components/PromoCanvasEditor";
-import { DollarInput } from "../components/DollarInput";
-import { CouponsPage } from "./CouponsPage";
-import { Megaphone, Plus, Copy, Trash2, Play, Pause, Archive, GripVertical } from "lucide-react";
-import { useAuthedFetch } from "../lib/alerts";
+import { Card, Button, Input, toast, PromoWidget, type PromoView } from "@sweepr/ui";
+import {
+  PROMO_MAX_PAGES,
+  type PromoDesignV2,
+  type PromoPageV2,
+} from "@sweepr/utils";
+import { PromoPageEditor } from "./PromoPageEditor";
+import { DollarInput } from "../../components/DollarInput";
+import { CouponsPage } from "../CouponsPage";
+import { Megaphone, Plus, Copy, Trash2, Play, Pause, Archive, FileStack, Star } from "lucide-react";
+import { useAuthedFetch } from "../../lib/alerts";
 
 type Audience = "all" | "visitors" | "customers" | "cleaners";
 type Status = "draft" | "active" | "paused" | "expired" | "archived";
 
-interface PromoHotspot { x: number; y: number; w: number; h: number; cta: PromoCta }
-interface PromoBlock {
-  type: "badge" | "heading" | "subheading" | "text" | "image" | "divider" | "spacer" | "bullets";
-  text?: string;
-  src?: string;
-  items?: string[];
-  align?: "left" | "center" | "right";
-  size?: "sm" | "md" | "lg" | "xl";
-}
-interface PromoCta {
-  label: string;
-  action: "claim" | "newsletter" | "waitlist" | "book_now" | "link" | "dismiss";
-  url?: string;
-  requireField?: "none" | "email" | "phone";
-  claimants?: "anonymous" | "signed_in" | "both";
-  secondary?: { label: string; url: string };
-  successMessage?: string;
-}
 interface RewardCoupon {
   kind: "percent_off" | "amount_off" | "free_addon";
   value?: number;
@@ -66,9 +63,8 @@ interface Promo {
   template_key: string | null;
   audience: Audience;
   status: Status;
-  design: { theme?: string; accent?: string; background?: string; blocks: PromoBlock[]; poster?: { src: string; hotspots?: PromoHotspot[] }; canvas?: PromoCanvas };
+  design: PromoDesignV2;
   reward?: { coupon?: RewardCoupon };
-  cta: PromoCta;
   display: { placement?: string; pages?: string[]; delaySeconds?: number; persist?: boolean; frequency?: "once" | "every_visit" | "daily"; showOnFirstVisit?: boolean };
   starts_at: string | null;
   expires_at: string | null;
@@ -76,6 +72,8 @@ interface Promo {
   claim_count: number;
   view_count: number;
   grants_founding_member: boolean;
+  design_version: number;
+  created_via: "console" | "mcp";
 }
 interface Template {
   templateKey: string;
@@ -95,9 +93,53 @@ const STATUS_TONE: Record<Status, string> = {
   archived: "bg-slate-100 text-slate-400 line-through dark:bg-slate-800",
 };
 
-const BLOCK_TYPES: PromoBlock["type"][] = [
-  "badge", "heading", "subheading", "text", "bullets", "image", "divider", "spacer",
-];
+function uid(prefix: string): string {
+  return `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function uniquePageKey(existing: string[], base = "page"): string {
+  let n = existing.length + 1;
+  let key = `${base}-${n}`;
+  while (existing.includes(key)) {
+    n += 1;
+    key = `${base}-${n}`;
+  }
+  return key;
+}
+
+function blankPage(key: string, name: string): PromoPageV2 {
+  return {
+    key,
+    name,
+    mode: "blocks",
+    blocks: [{ type: "heading", text: name, align: "center" }],
+    ctas: [{ id: uid("cta"), label: "Continue", action: "dismiss", style: "primary" }],
+  };
+}
+
+/** After removing a page, any `goto_page` CTA that pointed at it (page-level,
+ *  canvas button, or poster hotspot) would fail schema validation on save —
+ *  clear those dangling targets immediately rather than surfacing it as a
+ *  save-time error the admin has to hunt for. */
+function clearDanglingTargets(design: PromoDesignV2, removedKey: string): PromoDesignV2 {
+  const fix = (cta: PromoDesignV2["pages"][number]["ctas"][number]) =>
+    cta.action === "goto_page" && cta.targetPageKey === removedKey
+      ? { ...cta, targetPageKey: undefined }
+      : cta;
+  return {
+    ...design,
+    pages: design.pages.map((p) => ({
+      ...p,
+      ctas: p.ctas.map(fix),
+      canvas: p.canvas
+        ? { ...p.canvas, elements: p.canvas.elements.map((el) => (el.cta ? { ...el, cta: fix(el.cta) } : el)) }
+        : p.canvas,
+      poster: p.poster
+        ? { ...p.poster, hotspots: (p.poster.hotspots ?? []).map((h) => ({ ...h, cta: fix(h.cta) })) }
+        : p.poster,
+    })),
+  };
+}
 
 export function PromotionsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -115,7 +157,7 @@ export function PromotionsPage() {
         <Megaphone className="h-6 w-6 text-seafoam-600" />
         <div>
           <h1 className="text-2xl font-bold">Promotions</h1>
-          <p className="text-sm text-slate-500">Design promo widgets, publish shareable URLs, and manage the coupons they grant.</p>
+          <p className="text-sm text-slate-500">Design multi-page promo widgets, publish shareable URLs, and manage the coupons they grant.</p>
         </div>
       </header>
 
@@ -143,6 +185,7 @@ function PromotionsDesigner() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Promo | null>(null);
+  const [activePageKey, setActivePageKey] = useState<string>("");
   const [stats, setStats] = useState<{ claims: number; founders: number }>({ claims: 0, founders: 0 });
   const [claims, setClaims] = useState<Array<{ id: string; email: string | null; phone: string | null; granted_founding: boolean; claimed_at: string }>>([]);
   const [saving, setSaving] = useState(false);
@@ -162,6 +205,7 @@ function PromotionsDesigner() {
     if (res.ok) {
       const data = (await res.json()) as { promotion: Promo; stats: { claims: number; founders: number } };
       setDraft(data.promotion);
+      setActivePageKey(data.promotion.design.entryPageKey);
       setStats(data.stats);
     }
     const cr = await authed(`/admin/promotions/${id}/claims`);
@@ -200,7 +244,6 @@ function PromotionsDesigner() {
           name: draft.name,
           audience: draft.audience,
           design: draft.design,
-          cta: draft.cta,
           display: draft.display,
           reward: draft.reward ?? {},
           startsAt: draft.starts_at,
@@ -209,7 +252,12 @@ function PromotionsDesigner() {
           grantsFoundingMember: draft.grants_founding_member,
         }),
       });
-      if (!res.ok) { toast.error("Save failed"); return; }
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: { issues?: Array<{ message: string }> } };
+        const detail = body?.error?.issues?.map((i) => i.message).join(" ") ?? "";
+        toast.error(detail ? `Save failed: ${detail}` : "Save failed");
+        return;
+      }
       toast.success("Saved");
       await load();
     } finally { setSaving(false); }
@@ -230,38 +278,88 @@ function PromotionsDesigner() {
   }
 
   const publicUrl = draft ? `${MARKETING_ORIGIN}/promo/${draft.slug}` : "";
+  const pageRefs = useMemo(
+    () => (draft ? draft.design.pages.map((p) => ({ key: p.key, name: p.name })) : []),
+    [draft],
+  );
+  const activePage = draft?.design.pages.find((p) => p.key === activePageKey) ?? draft?.design.pages[0];
 
   const previewPromo: PromoView | null = useMemo(
     () => draft ? {
       id: draft.id, slug: draft.slug, name: draft.name,
       audience: draft.audience,
-      design: draft.design as PromoView["design"], cta: draft.cta as PromoView["cta"],
+      // Preview starts on whichever page is being edited, not necessarily
+      // the promotion's real entry page, so every page can be spot-checked —
+      // goto_page navigation between pages still works from there.
+      design: { ...draft.design, entryPageKey: activePageKey || draft.design.entryPageKey },
       grantsFoundingMember: draft.grants_founding_member,
-      reward: draft.reward as PromoView["reward"],
+      reward: draft.reward,
     } : null,
-    [draft],
+    [draft, activePageKey],
   );
 
-  function patchBlock(i: number, patch: Partial<PromoBlock>) {
+  function updateDesign(next: PromoDesignV2) {
     if (!draft) return;
-    const blocks = draft.design.blocks.map((b, idx) => idx === i ? { ...b, ...patch } : b);
-    setDraft({ ...draft, design: { ...draft.design, blocks } });
+    setDraft({ ...draft, design: next });
   }
-  function addBlock() {
+  function updatePage(next: PromoPageV2) {
     if (!draft) return;
-    setDraft({ ...draft, design: { ...draft.design, blocks: [...draft.design.blocks, { type: "text", text: "New text", align: "center" }] } });
+    updateDesign({ ...draft.design, pages: draft.design.pages.map((p) => (p.key === next.key ? next : p)) });
   }
-  function removeBlock(i: number) {
-    if (!draft) return;
-    setDraft({ ...draft, design: { ...draft.design, blocks: draft.design.blocks.filter((_, idx) => idx !== i) } });
+
+  function addPage() {
+    if (!draft || draft.design.pages.length >= PROMO_MAX_PAGES) return;
+    const key = uniquePageKey(draft.design.pages.map((p) => p.key));
+    const page = blankPage(key, `Page ${draft.design.pages.length + 1}`);
+    updateDesign({ ...draft.design, pages: [...draft.design.pages, page] });
+    setActivePageKey(key);
   }
-  function moveBlock(i: number, dir: -1 | 1) {
+  function duplicatePage(key: string) {
     if (!draft) return;
-    const blocks = [...draft.design.blocks];
+    const src = draft.design.pages.find((p) => p.key === key);
+    if (!src || draft.design.pages.length >= PROMO_MAX_PAGES) return;
+    const newKey = uniquePageKey(draft.design.pages.map((p) => p.key));
+    const regen = (cta: PromoPageV2["ctas"][number]) => ({ ...cta, id: uid("cta") });
+    const copy: PromoPageV2 = {
+      ...src,
+      key: newKey,
+      name: `${src.name ?? src.key} copy`,
+      ctas: src.ctas.map(regen),
+      canvas: src.canvas
+        ? { ...src.canvas, elements: src.canvas.elements.map((el) => ({ ...el, id: uid("el"), cta: el.cta ? regen(el.cta) : undefined })) }
+        : src.canvas,
+      poster: src.poster
+        ? { ...src.poster, hotspots: (src.poster.hotspots ?? []).map((h) => ({ ...h, cta: regen(h.cta) })) }
+        : src.poster,
+    };
+    updateDesign({ ...draft.design, pages: [...draft.design.pages, copy] });
+    setActivePageKey(newKey);
+  }
+  function removePage(key: string) {
+    if (!draft || draft.design.pages.length <= 1) { toast.error("A promotion needs at least one page."); return; }
+    if (!window.confirm("Remove this page? Any button that jumps to it will be cleared.")) return;
+    const cleaned = clearDanglingTargets(draft.design, key);
+    const pages = cleaned.pages.filter((p) => p.key !== key);
+    const entryPageKey = cleaned.entryPageKey === key ? pages[0].key : cleaned.entryPageKey;
+    updateDesign({ ...cleaned, pages, entryPageKey });
+    if (activePageKey === key) setActivePageKey(pages[0].key);
+  }
+  function renamePage(key: string, name: string) {
+    if (!draft) return;
+    updateDesign({ ...draft.design, pages: draft.design.pages.map((p) => (p.key === key ? { ...p, name } : p)) });
+  }
+  function movePage(key: string, dir: -1 | 1) {
+    if (!draft) return;
+    const pages = [...draft.design.pages];
+    const i = pages.findIndex((p) => p.key === key);
     const j = i + dir;
-    if (j < 0 || j >= blocks.length) return;
-    [blocks[i], blocks[j]] = [blocks[j], blocks[i]];
-    setDraft({ ...draft, design: { ...draft.design, blocks } });
+    if (i < 0 || j < 0 || j >= pages.length) return;
+    [pages[i], pages[j]] = [pages[j], pages[i]];
+    updateDesign({ ...draft.design, pages });
+  }
+  function setEntryPage(key: string) {
+    if (!draft) return;
+    updateDesign({ ...draft.design, entryPageKey: key });
   }
 
   return (
@@ -294,7 +392,10 @@ function PromotionsDesigner() {
               {list.map((p) => (
                 <button key={p.id} onClick={() => selectPromo(p.id)}
                   className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm ${selectedId === p.id ? "bg-seafoam-50 dark:bg-seafoam-900/20" : "hover:bg-slate-50 dark:hover:bg-slate-800"}`}>
-                  <span className="truncate">{p.name}</span>
+                  <span className="flex items-center gap-1.5 truncate">
+                    {p.created_via === "mcp" ? <span title="Published via the promotions MCP tool" aria-hidden>🤖</span> : null}
+                    {p.name}
+                  </span>
                   <span className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[11px] ${STATUS_TONE[p.status]}`}>{p.status}</span>
                 </button>
               ))}
@@ -304,13 +405,18 @@ function PromotionsDesigner() {
         </div>
 
         {/* ── Designer ── */}
-        {draft && previewPromo ? (
+        {draft && previewPromo && activePage ? (
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_360px]">
             <div className="space-y-4">
               <Card className="space-y-3 p-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} className="flex-1" />
                   <span className={`rounded-full px-2 py-1 text-xs ${STATUS_TONE[draft.status]}`}>{draft.status}</span>
+                  {draft.created_via === "mcp" ? (
+                    <span className="rounded-full bg-sky-100 px-2 py-1 text-xs font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
+                      Published via MCP
+                    </span>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {draft.status !== "active" ? <Button size="sm" onClick={() => setStatus("active")}><Play className="mr-1 h-4 w-4" />Activate</Button> : null}
@@ -319,7 +425,6 @@ function PromotionsDesigner() {
                   <Button size="sm" variant="ghost" onClick={remove}><Trash2 className="mr-1 h-4 w-4" />Delete</Button>
                 </div>
 
-                {/* Shareable URL */}
                 <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm dark:bg-slate-800">
                   <code className="flex-1 truncate">{publicUrl}</code>
                   <button onClick={() => { void navigator.clipboard.writeText(publicUrl); toast.success("URL copied"); }}
@@ -328,141 +433,49 @@ function PromotionsDesigner() {
                 <p className="text-xs text-slate-500">Views: {draft.view_count} · Claims: {stats.claims}{draft.grants_founding_member ? ` · Founders granted: ${stats.founders}` : ""}</p>
               </Card>
 
-              {/* Design blocks */}
+              {/* Pages */}
               <Card className="space-y-3 p-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-semibold">Design</h3>
-                  <Button size="sm" variant="secondary" onClick={addBlock}><Plus className="mr-1 h-4 w-4" />Add block</Button>
+                  <h3 className="font-semibold">Pages ({draft.design.pages.length}/{PROMO_MAX_PAGES})</h3>
+                  <Button size="sm" variant="secondary" onClick={addPage} disabled={draft.design.pages.length >= PROMO_MAX_PAGES}>
+                    <Plus className="mr-1 h-4 w-4" />Add page
+                  </Button>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="text-xs">Theme
-                    <select value={draft.design.theme ?? "light"} onChange={(e) => setDraft({ ...draft, design: { ...draft.design, theme: e.target.value } })}
-                      className="mt-1 w-full rounded-md border border-slate-200 bg-transparent px-2 py-1.5 text-sm dark:border-slate-700">
-                      <option value="light">Light</option><option value="dark">Dark</option><option value="brand">Brand</option>
-                    </select>
-                  </label>
-                  <label className="text-xs">Accent color
-                    <Input type="text" value={draft.design.accent ?? ""} placeholder="#0f766e"
-                      onChange={(e) => setDraft({ ...draft, design: { ...draft.design, accent: e.target.value } })} className="mt-1" />
-                  </label>
-                </div>
-
-                <div className="space-y-2">
-                  {draft.design.blocks.map((b, i) => (
-                    <div key={i} className="rounded-lg border border-slate-200 p-2 dark:border-slate-700">
-                      <div className="mb-1.5 flex items-center gap-2">
-                        <GripVertical className="h-4 w-4 text-slate-300" />
-                        <select value={b.type} onChange={(e) => patchBlock(i, { type: e.target.value as PromoBlock["type"] })}
-                          className="rounded-md border border-slate-200 bg-transparent px-1.5 py-1 text-xs dark:border-slate-700">
-                          {BLOCK_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                        </select>
-                        <select value={b.align ?? "left"} onChange={(e) => patchBlock(i, { align: e.target.value as PromoBlock["align"] })}
-                          className="rounded-md border border-slate-200 bg-transparent px-1.5 py-1 text-xs dark:border-slate-700">
-                          <option value="left">left</option><option value="center">center</option><option value="right">right</option>
-                        </select>
-                        {b.type === "heading" ? (
-                          <select value={b.size ?? "lg"} onChange={(e) => patchBlock(i, { size: e.target.value as PromoBlock["size"] })}
-                            className="rounded-md border border-slate-200 bg-transparent px-1.5 py-1 text-xs dark:border-slate-700">
-                            <option value="sm">sm</option><option value="md">md</option><option value="lg">lg</option><option value="xl">xl</option>
-                          </select>
-                        ) : null}
-                        <div className="ml-auto flex gap-1">
-                          <button onClick={() => moveBlock(i, -1)} className="px-1 text-slate-400 hover:text-slate-700">↑</button>
-                          <button onClick={() => moveBlock(i, 1)} className="px-1 text-slate-400 hover:text-slate-700">↓</button>
-                          <button onClick={() => removeBlock(i)} className="px-1 text-red-400 hover:text-red-600">✕</button>
-                        </div>
-                      </div>
-                      {b.type === "bullets" ? (
-                        <Textarea rows={3} value={(b.items ?? []).join("\n")} placeholder="One bullet per line"
-                          onChange={(e) => patchBlock(i, { items: e.target.value.split("\n").filter(Boolean) })} />
-                      ) : b.type === "image" ? (
-                        <Input value={b.src ?? ""} placeholder="https://objects.getsweepr.com/…" onChange={(e) => patchBlock(i, { src: e.target.value })} />
-                      ) : b.type === "divider" || b.type === "spacer" ? (
-                        <p className="text-xs text-slate-400">No content</p>
-                      ) : (
-                        <Textarea rows={2} value={b.text ?? ""} onChange={(e) => patchBlock(i, { text: e.target.value })} />
-                      )}
+                <div className="flex flex-wrap gap-2">
+                  {draft.design.pages.map((p, i) => (
+                    <div key={p.key}
+                      className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs ${
+                        p.key === activePageKey ? "border-seafoam-500 bg-seafoam-50 dark:bg-seafoam-900/20" : "border-slate-200 dark:border-slate-700"
+                      }`}>
+                      <button onClick={() => setActivePageKey(p.key)} className="max-w-[140px] truncate font-medium">
+                        {p.name ?? p.key}
+                      </button>
+                      <button title={p.key === draft.design.entryPageKey ? "Entry page" : "Set as entry page"}
+                        onClick={() => setEntryPage(p.key)}
+                        className={p.key === draft.design.entryPageKey ? "text-amber-500" : "text-slate-300 hover:text-amber-400"}>
+                        <Star className="h-3.5 w-3.5" fill={p.key === draft.design.entryPageKey ? "currentColor" : "none"} />
+                      </button>
+                      <button title="Move left" disabled={i === 0} onClick={() => movePage(p.key, -1)} className="px-0.5 text-slate-400 hover:text-slate-700 disabled:opacity-30">‹</button>
+                      <button title="Move right" disabled={i === draft.design.pages.length - 1} onClick={() => movePage(p.key, 1)} className="px-0.5 text-slate-400 hover:text-slate-700 disabled:opacity-30">›</button>
+                      <button title="Duplicate" onClick={() => duplicatePage(p.key)} className="text-slate-400 hover:text-slate-700"><FileStack className="h-3.5 w-3.5" /></button>
+                      <button title="Delete" onClick={() => removePage(p.key)} className="text-red-400 hover:text-red-600">✕</button>
                     </div>
                   ))}
                 </div>
+                <label className="block text-xs">Page name
+                  <Input value={activePage.name ?? ""} onChange={(e) => renamePage(activePage.key, e.target.value)} className="mt-1" placeholder={activePage.key} />
+                </label>
+                <p className="text-xs text-slate-500">
+                  The star marks the entry page (shown first). A "Go to another page" button anywhere
+                  in the design jumps to any page by name, so a promo can offer an alternate
+                  design, a details page, or a multi-step flow.
+                </p>
               </Card>
 
-              {/* CTA */}
-              <Card className="space-y-3 p-4">
-                <h3 className="font-semibold">Call to action</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="text-xs">Button label
-                    <Input value={draft.cta.label} onChange={(e) => setDraft({ ...draft, cta: { ...draft.cta, label: e.target.value } })} className="mt-1" />
-                  </label>
-                  <label className="text-xs">Action
-                    <select value={draft.cta.action} onChange={(e) => setDraft({ ...draft, cta: { ...draft.cta, action: e.target.value as Promo["cta"]["action"] } })}
-                      className="mt-1 w-full rounded-md border border-slate-200 bg-transparent px-2 py-1.5 text-sm dark:border-slate-700">
-                      <option value="claim">Claim (record + grant reward)</option>
-                      <option value="newsletter">Newsletter sign-up (+ reward)</option>
-                      <option value="waitlist">Join waitlist (+ reward)</option>
-                      <option value="book_now">Book now (flash offer + reward)</option>
-                      <option value="link">Open link</option>
-                      <option value="dismiss">Dismiss</option>
-                    </select>
-                  </label>
-                  {["claim","newsletter","waitlist","book_now"].includes(draft.cta.action) ? (
-                    <label className="text-xs">Required field
-                      <select value={draft.cta.requireField ?? "none"} onChange={(e) => setDraft({ ...draft, cta: { ...draft.cta, requireField: e.target.value as Promo["cta"]["requireField"] } })}
-                        className="mt-1 w-full rounded-md border border-slate-200 bg-transparent px-2 py-1.5 text-sm dark:border-slate-700">
-                        <option value="none">None</option><option value="email">Email</option><option value="phone">Phone</option>
-                      </select>
-                    </label>
-                  ) : null}
-                  {draft.cta.action === "link" || draft.cta.action === "book_now" ? (
-                    <label className="text-xs">{draft.cta.action === "book_now" ? "Booking URL (redirect after claim)" : "Link URL"}
-                      <Input value={draft.cta.url ?? ""} onChange={(e) => setDraft({ ...draft, cta: { ...draft.cta, url: e.target.value } })} className="mt-1" />
-                    </label>
-                  ) : null}
-                </div>
-                {["claim","newsletter","waitlist","book_now"].includes(draft.cta.action) ? (
-                  <label className="block text-xs">Success message
-                    <Input value={draft.cta.successMessage ?? ""} onChange={(e) => setDraft({ ...draft, cta: { ...draft.cta, successMessage: e.target.value } })} className="mt-1" />
-                  </label>
-                ) : null}
-                {["claim","newsletter","waitlist","book_now"].includes(draft.cta.action) ? (
-                  <label className="block text-xs">Who can claim
-                    <select
-                      value={draft.cta.claimants ?? "both"}
-                      onChange={(e) => setDraft({ ...draft, cta: { ...draft.cta, claimants: e.target.value as "anonymous" | "signed_in" | "both" } })}
-                      className="mt-1 w-full rounded-md border border-slate-200 bg-transparent px-2 py-1.5 text-sm dark:border-slate-700"
-                    >
-                      <option value="both">Anyone, signed in or not</option>
-                      <option value="anonymous">Marketing visitors only (signed-out)</option>
-                      <option value="signed_in">Signed-in only ("Sign in to claim" for visitors)</option>
-                    </select>
-                  </label>
-                ) : null}
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="text-xs">Secondary button label (optional)
-                    <Input value={draft.cta.secondary?.label ?? ""} placeholder="I want to be a cleaner instead"
-                      onChange={(e) => setDraft({ ...draft, cta: { ...draft.cta, secondary: { label: e.target.value, url: draft.cta.secondary?.url ?? "" } } })} className="mt-1" />
-                  </label>
-                  <label className="text-xs">Secondary button URL
-                    <Input value={draft.cta.secondary?.url ?? ""} placeholder="https://getsweepr.com/clean-with-us"
-                      onChange={(e) => setDraft({ ...draft, cta: { ...draft.cta, secondary: { label: draft.cta.secondary?.label ?? "", url: e.target.value } } })} className="mt-1" />
-                  </label>
-                </div>
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={draft.grants_founding_member}
-                    onChange={(e) => setDraft({ ...draft, grants_founding_member: e.target.checked })} />
-                  Claiming grants Founding Member status
-                </label>
-                {draft.grants_founding_member ? (
-                  <p className="text-xs text-slate-500">
-                    Signed-out claims capture an email; status attaches automatically when that person
-                    signs up with the same email. One founding status per person, a cleaner-founder
-                    can never also claim customer-founder (and vice versa).
-                  </p>
-                ) : null}
-              </Card>
+              <PromoPageEditor page={activePage} pages={pageRefs} onChange={updatePage} promoId={draft.id} authed={authed} />
 
               {/* Reward, the coupon this promo grants (coupons are silent: they
-                  sit on the account and apply automatically at booking) */}
+                  sit on the account and apply automatically at payout) */}
               <Card className="space-y-3 p-4">
                 <h3 className="font-semibold">Reward (coupon)</h3>
                 <label className="flex items-center gap-2 text-sm">
@@ -534,57 +547,6 @@ function PromotionsDesigner() {
                 })() : null}
               </Card>
 
-              {/* Slide designer, free-form PowerPoint-grade canvas */}
-              <Card className="space-y-3 p-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold">Slide designer (free-form)</h3>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={Boolean(draft.design.canvas)}
-                      onChange={(e) => setDraft({ ...draft, design: { ...draft.design, canvas: e.target.checked ? (draft.design.canvas ?? { aspect: "4:5", background: "#ffffff", elements: [] }) : undefined } })} />
-                    Enabled
-                  </label>
-                </div>
-                {draft.design.canvas ? (
-                  <PromoCanvasEditor
-                    promoId={draft.id}
-                    canvas={draft.design.canvas}
-                    onChange={(cv) => setDraft({ ...draft, design: { ...draft.design, canvas: cv } })}
-                    authed={authed}
-                  />
-                ) : (
-                  <p className="text-xs text-slate-500">
-                    One-slide PowerPoint-style editor: text boxes, photos, shapes, and CTA buttons, 
-                    positioned freely, layered, rotated. Takes precedence over blocks and poster mode.
-                  </p>
-                )}
-              </Card>
-
-              {/* Poster, the whole widget is one uploaded image; drag on it to
-                  draw interactive hotspots and assign each a CTA */}
-              <Card className="space-y-3 p-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold">Poster mode (full-image)</h3>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={Boolean(draft.design.poster?.src)}
-                      onChange={(e) => setDraft({ ...draft, design: { ...draft.design, poster: e.target.checked ? { src: draft.design.poster?.src ?? "", hotspots: draft.design.poster?.hotspots ?? [] } : undefined } })} />
-                    Enabled
-                  </label>
-                </div>
-                {draft.design.poster !== undefined ? (
-                  <PosterEditor
-                    promoId={draft.id}
-                    poster={draft.design.poster}
-                    onChange={(poster) => setDraft({ ...draft, design: { ...draft.design, poster } })}
-                    authed={authed}
-                  />
-                ) : (
-                  <p className="text-xs text-slate-500">
-                    Replaces the block design with a single uploaded image (like a one-slide poster).
-                    Drag on the image to draw hotspots and assign each a CTA.
-                  </p>
-                )}
-              </Card>
-
               {/* Display + expiry */}
               <Card className="space-y-3 p-4">
                 <h3 className="font-semibold">Display &amp; expiry</h3>
@@ -632,14 +594,27 @@ function PromotionsDesigner() {
                     <Input type="number" min={1} value={draft.max_claims ?? ""} onChange={(e) => setDraft({ ...draft, max_claims: e.target.value ? Number(e.target.value) : null })} className="mt-1" />
                   </label>
                 </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={draft.grants_founding_member}
+                    onChange={(e) => setDraft({ ...draft, grants_founding_member: e.target.checked })} />
+                  Claiming grants Founding Member status
+                </label>
+                {draft.grants_founding_member ? (
+                  <p className="text-xs text-slate-500">
+                    Signed-out claims capture an email; status attaches automatically when that person
+                    signs up with the same email. One founding status per person, a cleaner-founder
+                    can never also claim customer-founder (and vice versa).
+                  </p>
+                ) : null}
               </Card>
 
               {/* Who claimed this promo */}
               <Card className="space-y-2 p-4">
                 <h3 className="font-semibold">Claimants ({stats.claims})</h3>
                 <p className="text-xs text-slate-500">
-                  Everyone who claimed this promo. "Pending sign-up" rewards attach when that email
-                  creates an account. Founders granted here also appear on the Founding Members page.
+                  Everyone who claimed this promo, from any page or button. "Pending sign-up" rewards
+                  attach when that email creates an account. Founders granted here also appear on the
+                  Founding Members page.
                 </p>
                 <div className="max-h-72 overflow-y-auto">
                   <table className="w-full text-sm">
@@ -669,9 +644,11 @@ function PromotionsDesigner() {
 
             {/* Live preview */}
             <div className="xl:sticky xl:top-4 xl:self-start">
-              <p className="mb-2 text-xs font-semibold uppercase text-slate-400">Live preview</p>
+              <p className="mb-2 text-xs font-semibold uppercase text-slate-400">
+                Live preview: {activePage.name ?? activePage.key}
+              </p>
               <div className="flex justify-center rounded-2xl bg-slate-100 p-4 dark:bg-slate-900">
-                <PromoWidget promo={previewPromo} onDismiss={() => {}} onClaim={async () => ({ ok: true, message: previewPromo.cta.successMessage })} />
+                <PromoWidget promo={previewPromo} onDismiss={() => {}} onClaim={async (fields) => ({ ok: true, message: draft.design.pages.find((p) => p.key === fields.pageKey)?.ctas.find((c) => c.id === fields.ctaId)?.successMessage })} />
               </div>
             </div>
           </div>
@@ -695,157 +672,4 @@ function toLocal(iso: string | null): string {
 function fromLocal(local: string): string | null {
   if (!local) return null;
   return new Date(local).toISOString();
-}
-
-/**
- * Poster editor: upload the poster image (admin 'promo' storage scope → R2),
- * then drag on the preview to draw interactive hotspots. Each hotspot gets an
- * assigned CTA (the "assign CTA" flow) — label + action + optional URL. All
- * geometry is stored as % of the image so it scales with the widget.
- */
-function PosterEditor({
-  promoId,
-  poster,
-  onChange,
-  authed,
-}: {
-  promoId: string;
-  poster: { src: string; hotspots?: PromoHotspot[] };
-  onChange: (p: { src: string; hotspots?: PromoHotspot[] }) => void;
-  authed: (path: string, init?: RequestInit) => Promise<Response>;
-}) {
-  const [uploading, setUploading] = useState(false);
-  const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
-  const [drawRect, setDrawRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
-
-  async function upload(file: File) {
-    setUploading(true);
-    try {
-      const sign = await authed("/storage/sign-upload", {
-        method: "POST",
-        body: JSON.stringify({
-          fileName: file.name,
-          contentType: file.type,
-          sizeBytes: file.size,
-          purpose: "promo_asset",
-          scope: "promo",
-          refId: promoId,
-        }),
-      });
-      if (!sign.ok) { toast.error("Upload authorization failed"); return; }
-      const { uploadUrl, publicUrl, requiredHeaders } = (await sign.json()) as {
-        uploadUrl: string; publicUrl: string; requiredHeaders: Record<string, string>;
-      };
-      const put = await fetch(uploadUrl, { method: "PUT", headers: requiredHeaders, body: file });
-      if (!put.ok) { toast.error("Upload failed"); return; }
-      onChange({ ...poster, src: publicUrl });
-      toast.success("Poster uploaded");
-    } finally { setUploading(false); }
-  }
-
-  function pct(e: React.MouseEvent<HTMLDivElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    return {
-      x: Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100)),
-      y: Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100)),
-    };
-  }
-
-  function finishDraw() {
-    if (drawRect && drawRect.w > 2 && drawRect.h > 2) {
-      const label = window.prompt("Hotspot CTA label (what does clicking here do?)", "Claim offer");
-      if (label) {
-        onChange({
-          ...poster,
-          hotspots: [
-            ...(poster.hotspots ?? []),
-            { ...drawRect, cta: { label, action: "claim", requireField: "none" } },
-          ],
-        });
-      }
-    }
-    setDrawStart(null);
-    setDrawRect(null);
-  }
-
-  const hotspots = poster.hotspots ?? [];
-
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Input value={poster.src} placeholder="https://objects.getsweepr.com/promos/…"
-          onChange={(e) => onChange({ ...poster, src: e.target.value })} className="flex-1" />
-        <label className="cursor-pointer rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium hover:border-seafoam-400 dark:border-slate-700">
-          {uploading ? "Uploading…" : "Upload image"}
-          <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ""; }} />
-        </label>
-      </div>
-
-      {poster.src ? (
-        <>
-          <p className="text-xs text-slate-500">Drag on the image to draw a hotspot, then assign its CTA below.</p>
-          <div
-            className="relative select-none overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700"
-            onMouseDown={(e) => { const p0 = pct(e); setDrawStart(p0); setDrawRect({ ...p0, w: 0, h: 0 }); }}
-            onMouseMove={(e) => {
-              if (!drawStart) return;
-              const p1 = pct(e);
-              setDrawRect({
-                x: Math.min(drawStart.x, p1.x), y: Math.min(drawStart.y, p1.y),
-                w: Math.abs(p1.x - drawStart.x), h: Math.abs(p1.y - drawStart.y),
-              });
-            }}
-            onMouseUp={finishDraw}
-            onMouseLeave={() => { if (drawStart) finishDraw(); }}
-          >
-            <img src={poster.src} alt="Poster" className="block w-full" draggable={false} />
-            {hotspots.map((h, i) => (
-              <div key={i}
-                className="absolute flex items-center justify-center rounded border-2 border-seafoam-500 bg-seafoam-500/15 text-[10px] font-bold text-seafoam-700"
-                style={{ left: `${h.x}%`, top: `${h.y}%`, width: `${h.w}%`, height: `${h.h}%` }}>
-                {i + 1}
-              </div>
-            ))}
-            {drawRect ? (
-              <div className="absolute rounded border-2 border-dashed border-amber-500 bg-amber-400/15"
-                style={{ left: `${drawRect.x}%`, top: `${drawRect.y}%`, width: `${drawRect.w}%`, height: `${drawRect.h}%` }} />
-            ) : null}
-          </div>
-
-          {hotspots.map((h, i) => (
-            <div key={i} className="grid grid-cols-[auto_1fr_1fr_1fr_auto] items-end gap-2 rounded-lg border border-slate-200 p-2 dark:border-slate-700">
-              <span className="pb-1.5 text-xs font-bold text-seafoam-700">#{i + 1}</span>
-              <label className="text-xs">CTA label
-                <Input value={h.cta.label} onChange={(e) => {
-                  const hs = hotspots.map((x, j) => j === i ? { ...x, cta: { ...x.cta, label: e.target.value } } : x);
-                  onChange({ ...poster, hotspots: hs });
-                }} className="mt-1" />
-              </label>
-              <label className="text-xs">Action
-                <select value={h.cta.action} onChange={(e) => {
-                  const hs = hotspots.map((x, j) => j === i ? { ...x, cta: { ...x.cta, action: e.target.value as PromoCta["action"] } } : x);
-                  onChange({ ...poster, hotspots: hs });
-                }} className="mt-1 w-full rounded-md border border-slate-200 bg-transparent px-2 py-1.5 text-sm dark:border-slate-700">
-                  <option value="claim">Claim (+ reward)</option>
-                  <option value="newsletter">Newsletter (+ reward)</option>
-                  <option value="waitlist">Waitlist (+ reward)</option>
-                  <option value="book_now">Book now</option>
-                  <option value="link">Open link</option>
-                  <option value="dismiss">Dismiss</option>
-                </select>
-              </label>
-              <label className="text-xs">URL (link / book now)
-                <Input value={h.cta.url ?? ""} onChange={(e) => {
-                  const hs = hotspots.map((x, j) => j === i ? { ...x, cta: { ...x.cta, url: e.target.value } } : x);
-                  onChange({ ...poster, hotspots: hs });
-                }} className="mt-1" />
-              </label>
-              <Button size="sm" variant="ghost" onClick={() => onChange({ ...poster, hotspots: hotspots.filter((_, j) => j !== i) })}>✕</Button>
-            </div>
-          ))}
-        </>
-      ) : null}
-    </div>
-  );
 }

@@ -23,13 +23,145 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
+import {
+  PROMO_CTA_ACTIONS,
+  PROMO_REQUIRE_FIELDS,
+  PROMO_CLAIMANTS,
+  PROMO_CTA_STYLES,
+  PROMO_PAGE_MODES,
+  PROMO_BLOCK_TYPES,
+  PROMO_THEMES,
+  PROMO_CANVAS_ASPECTS,
+  PROMO_MAX_PAGES,
+  PROMO_MAX_CTAS_PER_PAGE,
+  validatePromoDesignV2Structure,
+  type PromoDesignV2,
+} from "@sweepr/utils";
 import { requireAuth } from "../middleware/auth";
 import { requireAnyAdmin } from "../middleware/adminRoles";
 import { getDb } from "../lib/db";
-import { PROMO_TEMPLATES, getTemplate, seedTemplatePromotions } from "../lib/promotions";
+import { audit } from "../lib/audit";
+import { PROMO_TEMPLATES, getTemplate, seedTemplatePromotions, resolvePromoDesign } from "../lib/promotions";
 import type { AppBindings } from "../types";
 
 export const adminPromotionsRouter = new Hono<AppBindings>();
+
+// ─── Design v2 zod schema ────────────────────────────────────────────────────
+// Built FROM the shared constants in packages/utils/src/promoSchema.ts (the
+// single source of truth for the enumerable option sets) but NOT imported
+// from there — this worker owns its own zod wiring, and apps/mcp mirrors it
+// independently with the SAME constants (see promotionTools.ts). The
+// cross-cutting structural rules (page/CTA counts, code-mode byte cap,
+// goto_page targets, entryPageKey, requireField sanity) are NOT re-derived
+// here — `validatePromoDesignV2Structure` is the single implementation both
+// this schema and the MCP's call from their own `superRefine`, so those
+// semantics can never drift between the console and the MCP publish tool.
+const promoCtaSchema = z.object({
+  id: z.string().min(1).max(80),
+  label: z.string().min(1).max(200),
+  action: z.enum(PROMO_CTA_ACTIONS),
+  style: z.enum(PROMO_CTA_STYLES).optional(),
+  url: z.string().max(2000).optional(),
+  requireField: z.enum(PROMO_REQUIRE_FIELDS).optional(),
+  claimants: z.enum(PROMO_CLAIMANTS).optional(),
+  successMessage: z.string().max(500).optional(),
+  targetPageKey: z.string().max(80).optional(),
+});
+
+const promoBlockSchema = z.object({
+  type: z.enum(PROMO_BLOCK_TYPES),
+  text: z.string().max(5000).optional(),
+  src: z.string().max(2000).optional(),
+  alt: z.string().max(300).optional(),
+  items: z.array(z.string().max(500)).max(50).optional(),
+  align: z.enum(["left", "center", "right"]).optional(),
+  size: z.enum(["sm", "md", "lg", "xl"]).optional(),
+});
+
+const promoCanvasElementSchema = z.object({
+  id: z.string().min(1).max(80),
+  type: z.enum(["text", "image", "shape", "button"]),
+  x: z.number(),
+  y: z.number(),
+  w: z.number(),
+  h: z.number(),
+  rotation: z.number().optional(),
+  text: z.string().max(5000).optional(),
+  fontSize: z.number().optional(),
+  bold: z.boolean().optional(),
+  italic: z.boolean().optional(),
+  color: z.string().max(50).optional(),
+  align: z.enum(["left", "center", "right"]).optional(),
+  bg: z.string().max(80).optional(),
+  src: z.string().max(2000).optional(),
+  fit: z.enum(["cover", "contain"]).optional(),
+  radius: z.number().optional(),
+  shape: z.enum(["rect", "ellipse"]).optional(),
+  fill: z.string().max(80).optional(),
+  stroke: z.string().max(80).optional(),
+  strokeWidth: z.number().optional(),
+  cta: promoCtaSchema.optional(),
+  btnBg: z.string().max(80).optional(),
+  btnColor: z.string().max(80).optional(),
+});
+
+const promoCanvasSchema = z.object({
+  aspect: z.enum(PROMO_CANVAS_ASPECTS).optional(),
+  background: z.string().max(500).optional(),
+  backgroundImage: z.string().max(2000).optional(),
+  elements: z.array(promoCanvasElementSchema).max(200),
+});
+
+const promoHotspotSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  w: z.number(),
+  h: z.number(),
+  cta: promoCtaSchema,
+});
+
+const promoPosterSchema = z.object({
+  src: z.string().max(2000),
+  hotspots: z.array(promoHotspotSchema).max(50).optional(),
+});
+
+const promoCodeSchema = z.object({
+  html: z.string().max(200_000),
+  css: z.string().max(200_000).optional(),
+  js: z.string().max(200_000).optional(),
+});
+
+const promoPageSchema = z.object({
+  key: z
+    .string()
+    .min(1)
+    .max(80)
+    .regex(/^[a-zA-Z0-9_-]+$/, "Page key may contain only letters, numbers, - and _"),
+  name: z.string().max(200).optional(),
+  mode: z.enum(PROMO_PAGE_MODES),
+  theme: z.enum(PROMO_THEMES).optional(),
+  background: z.string().max(500).optional(),
+  accent: z.string().max(80).optional(),
+  blocks: z.array(promoBlockSchema).max(100).optional(),
+  canvas: promoCanvasSchema.optional(),
+  poster: promoPosterSchema.optional(),
+  code: promoCodeSchema.optional(),
+  ctas: z.array(promoCtaSchema).max(PROMO_MAX_CTAS_PER_PAGE),
+});
+
+const promoDesignV2Schema = z
+  .object({
+    version: z.literal(2),
+    theme: z.enum(PROMO_THEMES).optional(),
+    accent: z.string().max(80).optional(),
+    background: z.string().max(500).optional(),
+    entryPageKey: z.string().min(1).max(80),
+    pages: z.array(promoPageSchema).min(1).max(PROMO_MAX_PAGES),
+  })
+  .superRefine((design, ctx) => {
+    const errors = validatePromoDesignV2Structure(design as unknown as PromoDesignV2);
+    for (const message of errors) ctx.addIssue({ code: z.ZodIssueCode.custom, message });
+  });
 
 adminPromotionsRouter.use("*", requireAuth, requireAnyAdmin);
 
@@ -77,8 +209,6 @@ adminPromotionsRouter.post("/", zValidator("json", createSchema), async (c) => {
   const { name, templateKey, audience } = c.req.valid("json");
 
   const tpl = templateKey ? getTemplate(templateKey) : undefined;
-  const design = tpl?.design ?? { theme: "light", blocks: [{ type: "heading", text: name, align: "center" }] };
-  const cta = tpl?.cta ?? { label: "Learn more", action: "dismiss", requireField: "none" };
   const display = tpl?.display ?? {
     placement: "modal",
     delaySeconds: 3,
@@ -88,6 +218,37 @@ adminPromotionsRouter.post("/", zValidator("json", createSchema), async (c) => {
   };
   const grants = tpl?.grantsFoundingMember ?? false;
   const aud = audience ?? tpl?.audience ?? "all";
+
+  // A template still seeds the legacy (design_version 1) shape it always has
+  // — the read-time normalizer upgrades it for the editor exactly like any
+  // other pre-v2 row, and the first save writes it back as v2. A BLANK
+  // promotion (no template) is authored straight into the new multi-page
+  // shape since there's no legacy data to preserve either way.
+  let design: unknown;
+  let ctaColumn: unknown;
+  let designVersion: 1 | 2;
+  if (tpl) {
+    design = tpl.design;
+    ctaColumn = tpl.cta;
+    designVersion = 1;
+  } else {
+    design = {
+      version: 2,
+      theme: "light",
+      entryPageKey: "page-1",
+      pages: [
+        {
+          key: "page-1",
+          name: "Page 1",
+          mode: "blocks",
+          blocks: [{ type: "heading", text: name, align: "center" }],
+          ctas: [{ id: "cta-1", label: "Learn more", action: "dismiss", style: "primary" }],
+        },
+      ],
+    } satisfies PromoDesignV2;
+    ctaColumn = {};
+    designVersion = 2;
+  }
 
   // Unique slug: base off name, disambiguate on collision.
   const base = slugify(name) || "promo";
@@ -99,34 +260,62 @@ adminPromotionsRouter.post("/", zValidator("json", createSchema), async (c) => {
   }
 
   const rows = (await sql`
-    INSERT INTO promotions (slug, name, template_key, audience, status, design, cta, display, grants_founding_member, created_by)
+    INSERT INTO promotions (
+      slug, name, template_key, audience, status, design, cta, display,
+      grants_founding_member, created_by, design_version, created_via
+    )
     VALUES (${slug}, ${name}, ${templateKey ?? null}, ${aud}, 'draft',
-            ${JSON.stringify(design)}::jsonb, ${JSON.stringify(cta)}::jsonb,
-            ${JSON.stringify(display)}::jsonb, ${grants}, ${c.get("user").clerkId})
+            ${JSON.stringify(design)}::jsonb, ${JSON.stringify(ctaColumn)}::jsonb,
+            ${JSON.stringify(display)}::jsonb, ${grants}, ${c.get("user").clerkId},
+            ${designVersion}, 'console')
     RETURNING *
   `) as unknown[];
-  return c.json({ promotion: rows[0] }, 201);
+  const created = rows[0] as { id: string };
+  await audit(sql, {
+    action: "promotion.created",
+    actorClerkId: c.get("user").clerkId,
+    targetType: "promotion",
+    targetId: created.id,
+    metadata: { name, templateKey: templateKey ?? null, audience: aud },
+    timestamp: new Date().toISOString(),
+  });
+  return c.json({ promotion: created }, 201);
 });
 
 adminPromotionsRouter.get("/:id", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const id = c.req.param("id");
-  const rows = (await sql`SELECT * FROM promotions WHERE id = ${id} LIMIT 1`) as unknown[];
+  const rows = (await sql`SELECT * FROM promotions WHERE id = ${id} LIMIT 1`) as Array<
+    Record<string, unknown>
+  >;
   if (!rows[0]) return c.json({ error: "not_found" }, 404);
   const stats = (await sql`
     SELECT COUNT(*)::int AS claims,
            COUNT(*) FILTER (WHERE granted_founding)::int AS founders
     FROM promotion_claims WHERE promotion_id = ${id}
   `) as Array<{ claims: number; founders: number }>;
-  return c.json({ promotion: rows[0], stats: stats[0] ?? { claims: 0, founders: 0 } });
+  // The admin designer always works in v2 space — normalize a legacy row's
+  // `design` in the response so the frontend never has to branch on shape.
+  const row = rows[0];
+  const normalizedDesign = resolvePromoDesign({
+    design: row.design as Parameters<typeof resolvePromoDesign>[0]["design"],
+    cta: row.cta as Parameters<typeof resolvePromoDesign>[0]["cta"],
+    design_version: row.design_version as number,
+  });
+  return c.json({
+    promotion: { ...row, design: normalizedDesign },
+    stats: stats[0] ?? { claims: 0, founders: 0 },
+  });
 });
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
   audience: z.enum(["all", "visitors", "customers", "cleaners"]).optional(),
   status: z.enum(["draft", "active", "paused", "expired", "archived"]).optional(),
-  design: z.record(z.string(), z.unknown()).optional(),
-  cta: z.record(z.string(), z.unknown()).optional(),
+  // Always the v2 shape — the rebuilt admin designer never sends anything
+  // else. A promo not yet touched by the new editor keeps its legacy
+  // (design_version 1) row untouched until its first save through here.
+  design: promoDesignV2Schema.optional(),
   display: z.record(z.string(), z.unknown()).optional(),
   reward: z.record(z.string(), z.unknown()).optional(),
   startsAt: z.string().nullable().optional(),
@@ -152,8 +341,13 @@ adminPromotionsRouter.put("/:id", zValidator("json", updateSchema), async (c) =>
   const name = b.name ?? (p.name as string);
   const audience = b.audience ?? (p.audience as string);
   const status = b.status ?? (p.status as string);
+  // Saving a v2 design always upgrades the row (design_version → 2) and
+  // retires the legacy `cta` column to an empty object — it's unused once
+  // every CTA lives inside `design.pages[].ctas`, but the column itself is
+  // kept (never dropped) per migration 108's comment.
   const design = b.design ? JSON.stringify(b.design) : JSON.stringify(p.design);
-  const cta = b.cta ? JSON.stringify(b.cta) : JSON.stringify(p.cta);
+  const cta = b.design ? "{}" : JSON.stringify(p.cta);
+  const designVersion = b.design ? 2 : (p.design_version as number);
   const display = b.display ? JSON.stringify(b.display) : JSON.stringify(p.display);
   const reward = b.reward ? JSON.stringify(b.reward) : JSON.stringify(p.reward ?? {});
   const startsAt = b.startsAt === undefined ? (p.starts_at as string | null) : b.startsAt;
@@ -166,12 +360,23 @@ adminPromotionsRouter.put("/:id", zValidator("json", updateSchema), async (c) =>
     UPDATE promotions SET
       name = ${name}, audience = ${audience}, status = ${status},
       design = ${design}::jsonb, cta = ${cta}::jsonb, display = ${display}::jsonb,
-      reward = ${reward}::jsonb,
+      reward = ${reward}::jsonb, design_version = ${designVersion},
       starts_at = ${startsAt}, expires_at = ${expiresAt}, max_claims = ${maxClaims},
       grants_founding_member = ${grants}, updated_at = NOW()
     WHERE id = ${id}
     RETURNING *
   `) as unknown[];
+  await audit(sql, {
+    action: "promotion.updated",
+    actorClerkId: c.get("user").clerkId,
+    targetType: "promotion",
+    targetId: id,
+    metadata: {
+      fields: Object.keys(b),
+      statusChanged: b.status !== undefined && b.status !== p.status,
+    },
+    timestamp: new Date().toISOString(),
+  });
   return c.json({ promotion: rows[0] });
 });
 
@@ -181,11 +386,20 @@ const statusSchema = z.object({
 
 adminPromotionsRouter.post("/:id/status", zValidator("json", statusSchema), async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
+  const { status } = c.req.valid("json");
   const rows = (await sql`
-    UPDATE promotions SET status = ${c.req.valid("json").status}, updated_at = NOW()
+    UPDATE promotions SET status = ${status}, updated_at = NOW()
     WHERE id = ${c.req.param("id")} RETURNING id, status
   `) as unknown[];
   if (!rows[0]) return c.json({ error: "not_found" }, 404);
+  await audit(sql, {
+    action: "promotion.status_changed",
+    actorClerkId: c.get("user").clerkId,
+    targetType: "promotion",
+    targetId: c.req.param("id"),
+    metadata: { status },
+    timestamp: new Date().toISOString(),
+  });
   return c.json({ promotion: rows[0] });
 });
 
@@ -200,12 +414,21 @@ adminPromotionsRouter.delete("/:id", async (c) => {
   if (!rows[0]) return c.json({ error: "not_found" }, 404);
   // A row that still maps to a catalog template is archived, not hard-deleted,
   // so the next template seed doesn't silently resurrect it as a fresh draft.
-  if (rows[0].template_key && getTemplate(rows[0].template_key)) {
+  const archived = Boolean(rows[0].template_key && getTemplate(rows[0].template_key));
+  if (archived) {
     await sql`UPDATE promotions SET status = 'archived', updated_at = NOW() WHERE id = ${id}`;
-    return c.json({ ok: true, archived: true });
+  } else {
+    await sql`DELETE FROM promotions WHERE id = ${id}`;
   }
-  await sql`DELETE FROM promotions WHERE id = ${id}`;
-  return c.json({ ok: true, deleted: true });
+  await audit(sql, {
+    action: "promotion.deleted",
+    actorClerkId: c.get("user").clerkId,
+    targetType: "promotion",
+    targetId: id,
+    metadata: { archived },
+    timestamp: new Date().toISOString(),
+  });
+  return c.json(archived ? { ok: true, archived: true } : { ok: true, deleted: true });
 });
 
 adminPromotionsRouter.get("/:id/claims", async (c) => {

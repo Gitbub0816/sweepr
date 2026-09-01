@@ -8,75 +8,39 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@sweepr/utils";
+import {
+  assemblePromoCodeSrcdoc,
+  PROMO_CODE_IFRAME_SANDBOX,
+  PROMO_CODE_IFRAME_PROPS,
+  PROMO_CLAIM_ACTIONS,
+  type PromoCtaV2,
+  type PromoBlockV2,
+  type PromoCanvasElementV2,
+  type PromoCanvasV2,
+  type PromoHotspotV2,
+  type PromoPageV2,
+  type PromoDesignV2,
+  type PromoCodeV2,
+  type PromoCtaStyle,
+} from "@sweepr/utils";
 
-// ─── Shared promo shape (mirrors the API's public promo view) ────────────────
-export interface PromoBlock {
-  type: "badge" | "heading" | "subheading" | "text" | "image" | "divider" | "spacer" | "bullets";
-  text?: string;
-  src?: string;
-  alt?: string;
-  items?: string[];
-  align?: "left" | "center" | "right";
-  size?: "sm" | "md" | "lg" | "xl";
-}
-/** An interactive region on a poster image (all values are % of the image). */
-export interface PromoHotspot {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  cta: PromoCTA;
-}
-/**
- * A free-form canvas element (PowerPoint-style, one slide). Geometry is % of
- * the canvas; font sizes are px at the 480px design width and scale with the
- * rendered width. Array order = z-order (later paints on top).
- */
-export interface CanvasElement {
-  id: string;
-  type: "text" | "image" | "shape" | "button";
-  x: number; y: number; w: number; h: number;   // %
-  rotation?: number;                            // degrees
-  // text
-  text?: string; fontSize?: number; bold?: boolean; italic?: boolean;
-  color?: string; align?: "left" | "center" | "right"; bg?: string;
-  // image
-  src?: string; fit?: "cover" | "contain"; radius?: number;
-  // shape
-  shape?: "rect" | "ellipse"; fill?: string; stroke?: string; strokeWidth?: number;
-  // button
-  cta?: PromoCTA; btnBg?: string; btnColor?: string;
-}
-export interface PromoCanvas {
-  aspect?: "4:5" | "1:1" | "16:9" | "3:4";
-  background?: string;        // css color/gradient
-  backgroundImage?: string;   // uploaded image url
-  elements: CanvasElement[];
-}
+// ─── Shared promo shape (mirrors the API's public promo view). The v2 type
+// names are re-exported under their pre-existing local names so the admin
+// components that already `import { type PromoCanvas, type CanvasElement,
+// type PromoCTA } from "@sweepr/ui"` keep working unchanged. ────────────────
+export type {
+  PromoCtaV2 as PromoCTA,
+  PromoBlockV2 as PromoBlock,
+  PromoCanvasElementV2 as CanvasElement,
+  PromoCanvasV2 as PromoCanvas,
+  PromoHotspotV2 as PromoHotspot,
+  PromoPageV2 as PromoPage,
+  PromoDesignV2 as PromoDesign,
+  PromoCodeV2 as PromoCode,
+};
 
-export interface PromoDesign {
-  theme?: "light" | "dark" | "brand";
-  background?: string;
-  accent?: string;
-  blocks: PromoBlock[];
-  /** Poster mode: the whole widget is one uploaded image + hotspots. */
-  poster?: { src: string; hotspots?: PromoHotspot[] };
-  /** Canvas mode: free-form single-slide design (takes precedence). */
-  canvas?: PromoCanvas;
-}
-export interface PromoCTA {
-  label: string;
-  /** claim/newsletter/waitlist/book_now all record a claim (server runs the
-   * side-effect and mints the reward); link opens a URL; dismiss closes. */
-  action: "claim" | "newsletter" | "waitlist" | "book_now" | "link" | "dismiss";
-  url?: string;
-  requireField?: "none" | "email" | "phone";
-  claimants?: "anonymous" | "signed_in" | "both";
-  secondary?: { label: string; url: string };
-  successMessage?: string;
-}
 export interface PromoRewardCoupon {
   kind: "percent_off" | "amount_off" | "free_addon";
   value?: number;
@@ -89,13 +53,15 @@ export interface PromoView {
   slug: string;
   name: string;
   audience?: string;
-  design: PromoDesign;
-  cta: PromoCTA;
+  /** Always PromoDesignV2 — the API normalizes every legacy-shaped row at
+   *  the boundary (see apps/api/src/lib/promotions.ts's resolvePromoDesign),
+   *  so this renderer never has to know about the old single-page shape. */
+  design: PromoDesignV2;
   grantsFoundingMember?: boolean;
   reward?: { coupon?: PromoRewardCoupon };
 }
 
-const CLAIMY = new Set(["claim", "newsletter", "waitlist", "book_now"]);
+const CLAIMY = new Set(PROMO_CLAIM_ACTIONS as readonly string[]);
 
 const alignClass = { left: "text-left", center: "text-center", right: "text-right" } as const;
 const headingSize = { sm: "text-lg", md: "text-xl", lg: "text-2xl", xl: "text-3xl" } as const;
@@ -109,7 +75,7 @@ export function rewardText(reward?: { coupon?: PromoRewardCoupon }): string | nu
   return "A free add-on on your next booking";
 }
 
-function Block({ block, accent }: { block: PromoBlock; accent?: string }) {
+function Block({ block, accent }: { block: PromoBlockV2; accent?: string }) {
   const align = alignClass[block.align ?? "left"];
   switch (block.type) {
     case "badge":
@@ -188,7 +154,7 @@ function Countdown({ deadline, onDone }: { deadline: number; onDone?: () => void
   );
 }
 
-export const CANVAS_ASPECTS: Record<NonNullable<PromoCanvas["aspect"]>, number> = {
+export const CANVAS_ASPECTS: Record<NonNullable<PromoCanvasV2["aspect"]>, number> = {
   "4:5": 125, "1:1": 100, "16:9": 56.25, "3:4": 133.33,
 };
 const CANVAS_DESIGN_WIDTH = 480;
@@ -200,8 +166,8 @@ export function CanvasRender({
   onCta,
   className,
 }: {
-  canvas: PromoCanvas;
-  onCta?: (cta: PromoCTA) => void;
+  canvas: PromoCanvasV2;
+  onCta?: (cta: PromoCtaV2) => void;
   className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -290,8 +256,60 @@ export function CanvasRender({
 }
 
 /**
- * Renders one designed promotion — either stacked blocks or a full-image
- * POSTER with interactive hotspots — plus its templated CTA. Purely
+ * Renders one code-mode page inside a sandboxed iframe. ALWAYS goes through
+ * `assemblePromoCodeSrcdoc` (packages/utils/src/promoSandbox.ts) and ALWAYS
+ * carries exactly `PROMO_CODE_IFRAME_SANDBOX` ("allow-scripts", deliberately
+ * without "allow-same-origin") — see that file's docblock for the full
+ * isolation model. The admin editor's live preview uses the same two
+ * exports, so preview and production can never drift.
+ */
+export function CodeModeRender({ code, className }: { code: PromoCodeV2; className?: string }) {
+  const srcDoc = useMemo(() => assemblePromoCodeSrcdoc(code), [code]);
+  return (
+    <iframe
+      title="Promotion widget"
+      srcDoc={srcDoc}
+      sandbox={PROMO_CODE_IFRAME_SANDBOX}
+      referrerPolicy={PROMO_CODE_IFRAME_PROPS.referrerPolicy}
+      loading={PROMO_CODE_IFRAME_PROPS.loading}
+      className={cn("h-[420px] w-full border-0", className)}
+    />
+  );
+}
+
+/** Visual weight for a page-level CTA button. */
+function ctaButtonClass(style: PromoCtaStyle | undefined, accent: string | undefined) {
+  switch (style) {
+    case "secondary":
+      return {
+        className:
+          "w-full rounded-lg border px-4 py-2 text-center text-sm font-medium opacity-80 transition hover:opacity-100",
+        style: { borderColor: accent ?? "currentColor" } as React.CSSProperties,
+      };
+    case "ghost":
+      return {
+        className: "w-full rounded-lg px-4 py-2 text-center text-sm font-medium opacity-70 transition hover:opacity-100",
+        style: undefined,
+      };
+    case "link":
+      return {
+        className: "w-full text-center text-sm font-medium underline underline-offset-2 opacity-80 transition hover:opacity-100",
+        style: undefined,
+      };
+    case "primary":
+    default:
+      return {
+        className: "w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition disabled:opacity-60",
+        style: { background: accent ?? "#0f766e" } as React.CSSProperties,
+      };
+  }
+}
+
+/**
+ * Renders one designed, possibly-multi-page promotion — blocks, a free-form
+ * CANVAS, a full-image POSTER with hotspots, or a sandboxed CODE-mode
+ * widget — plus however many CTAs the active page carries, including
+ * `goto_page` CTAs that navigate between pages client-side. Purely
  * presentational: the host supplies `onClaim` / `onDismiss` and handles the
  * API + auth, so the same widget works on the marketing site (anonymous) and
  * inside the authenticated apps. Flash offers (reward.coupon.offerMinutes)
@@ -306,14 +324,22 @@ export function PromoWidget({
   className,
 }: {
   promo: PromoView;
-  onClaim?: (fields: { email?: string; phone?: string }) => Promise<{ ok: boolean; message?: string }>;
+  onClaim?: (fields: {
+    email?: string;
+    phone?: string;
+    ctaId?: string;
+    pageKey?: string;
+  }) => Promise<{ ok: boolean; message?: string }>;
   onDismiss?: () => void;
   signedIn?: boolean;
   signInUrl?: string;
   className?: string;
 }) {
   const { design } = promo;
-  const [activeCta, setActiveCta] = useState<PromoCTA>(promo.cta);
+  const [pageKey, setPageKey] = useState(design.entryPageKey);
+  const page = design.pages.find((p) => p.key === pageKey) ?? design.pages[0];
+
+  const [activeCta, setActiveCta] = useState<PromoCtaV2 | null>(null);
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<string | null>(null);
@@ -321,25 +347,34 @@ export function PromoWidget({
   const [offerDeadline, setOfferDeadline] = useState<number | null>(null);
 
   const anonymous = signedIn === false;
-  const cta = activeCta;
-  const isClaimy = CLAIMY.has(cta.action);
-  const mustSignIn = (cta.claimants ?? "both") === "signed_in" && anonymous && isClaimy;
 
   // Anonymous claims that mint something (coupon / founding / newsletter /
   // waitlist) always capture an email so the reward can attach at sign-up.
-  const needsEmailAnon =
-    anonymous &&
-    (promo.grantsFoundingMember ||
-      Boolean(promo.reward?.coupon) ||
-      cta.action === "newsletter" ||
-      cta.action === "waitlist");
-  const requireField: "none" | "email" | "phone" =
-    !mustSignIn && needsEmailAnon && (cta.requireField ?? "none") === "none"
-      ? "email"
-      : (cta.requireField ?? "none");
+  const needsEmailAnonBase =
+    anonymous && (promo.grantsFoundingMember || Boolean(promo.reward?.coupon));
 
-  const theme = design.theme ?? "light";
-  const accent = design.accent;
+  function requireFieldFor(cta: PromoCtaV2): "none" | "email" | "phone" {
+    const needsEmailAnon =
+      needsEmailAnonBase || (anonymous && (cta.action === "newsletter" || cta.action === "waitlist"));
+    const mustSignIn = (cta.claimants ?? "both") === "signed_in" && anonymous && CLAIMY.has(cta.action);
+    if (mustSignIn) return "none";
+    if (needsEmailAnon && (cta.requireField ?? "none") === "none") return "email";
+    return cta.requireField ?? "none";
+  }
+
+  function mustSignIn(cta: PromoCtaV2): boolean {
+    return (cta.claimants ?? "both") === "signed_in" && anonymous && CLAIMY.has(cta.action);
+  }
+
+  function ctaNeedsInput(cta: PromoCtaV2): boolean {
+    if (!CLAIMY.has(cta.action)) return false;
+    if (mustSignIn(cta)) return false;
+    return requireFieldFor(cta) !== "none";
+  }
+
+  const theme = page?.theme ?? design.theme ?? "light";
+  const accent = page?.accent ?? design.accent;
+  const background = page?.background ?? design.background;
   const reward = rewardText(promo.reward);
   const offerMinutes = promo.reward?.coupon?.offerMinutes;
 
@@ -348,17 +383,18 @@ export function PromoWidget({
       ? "https://clean.getsweepr.com/sign-in"
       : "https://app.getsweepr.com/sign-in";
 
-  async function execute(target: PromoCTA) {
-    if ((target.claimants ?? "both") === "signed_in" && anonymous && CLAIMY.has(target.action)) {
+  async function execute(cta: PromoCtaV2) {
+    if (mustSignIn(cta)) {
       window.location.href = signInUrl ?? defaultSignInUrl;
       return;
     }
-    if (target.action === "dismiss") return onDismiss?.();
-    if (target.action === "link" && target.url) {
-      window.open(target.url, "_blank", "noopener,noreferrer");
+    if (cta.action === "dismiss") return onDismiss?.();
+    if (cta.action === "link" && cta.url) {
+      window.open(cta.url, "_blank", "noopener,noreferrer");
       return;
     }
     // claim-family actions
+    const requireField = requireFieldFor(cta);
     if (requireField === "email" && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) {
       setError("Please enter a valid email.");
       return;
@@ -370,14 +406,16 @@ export function PromoWidget({
     setBusy(true);
     setError(null);
     try {
-      const res = await onClaim?.(
-        requireField === "email" ? { email: value } : requireField === "phone" ? { phone: value } : {},
-      );
+      const res = await onClaim?.({
+        ...(requireField === "email" ? { email: value } : requireField === "phone" ? { phone: value } : {}),
+        ctaId: cta.id,
+        pageKey: page?.key,
+      });
       if (res?.ok) {
-        setDone(res.message ?? target.successMessage ?? "You're all set!");
+        setDone(res.message ?? cta.successMessage ?? "You're all set!");
         if (offerMinutes) setOfferDeadline(Date.now() + offerMinutes * 60_000);
-        if (target.action === "book_now" && target.url) {
-          window.location.href = target.url;
+        if (cta.action === "book_now" && cta.url) {
+          window.location.href = cta.url;
         }
       } else setError(res?.message ?? "Something went wrong. Please try again.");
     } catch {
@@ -387,23 +425,33 @@ export function PromoWidget({
     }
   }
 
-  function onHotspot(h: PromoHotspot) {
-    setActiveCta(h.cta);
-    const claimy = CLAIMY.has(h.cta.action);
-    const willNeedInput =
-      claimy && !((h.cta.claimants ?? "both") === "signed_in" && anonymous) &&
-      ((h.cta.requireField ?? "none") !== "none" || needsEmailAnon);
-    if (!willNeedInput) void execute(h.cta);
+  /** Every CTA click — page CTA button, canvas button, poster hotspot —
+   *  funnels through here so `goto_page` and the claim-input flow behave
+   *  identically no matter where the CTA lives. */
+  function onCtaClick(cta: PromoCtaV2) {
+    setError(null);
+    if (cta.action === "goto_page" && cta.targetPageKey) {
+      setPageKey(cta.targetPageKey);
+      setActiveCta(null);
+      setValue("");
+      return;
+    }
+    setActiveCta(cta);
+    if (!ctaNeedsInput(cta)) void execute(cta);
   }
 
-  const canvas = design.canvas?.elements?.length ? design.canvas : null;
-  const poster = !canvas && design.poster?.src ? design.poster : null;
+  if (!page) return null;
+
+  const canvas = page.mode === "canvas" && page.canvas?.elements?.length ? page.canvas : null;
+  const poster = page.mode === "poster" && page.poster?.src ? page.poster : null;
+  const code = page.mode === "code" && page.code?.html ? page.code : null;
+  const fullBleed = Boolean(canvas || poster || code);
 
   return (
     <div
       className={cn(
         "relative w-full overflow-hidden rounded-2xl shadow-xl",
-        canvas || poster ? "max-w-lg" : "max-w-md p-6",
+        fullBleed ? "max-w-lg" : "max-w-md p-6",
         theme === "dark"
           ? "bg-slate-900 text-white"
           : theme === "brand"
@@ -411,7 +459,7 @@ export function PromoWidget({
             : "bg-white text-slate-900",
         className,
       )}
-      style={!poster && design.background ? { background: design.background } : undefined}
+      style={!poster && background ? { background } : undefined}
       role="dialog"
       aria-label={promo.name}
     >
@@ -422,7 +470,7 @@ export function PromoWidget({
           aria-label="Close"
           className={cn(
             "absolute right-3 top-3 z-10 rounded-full p-1 text-lg leading-none",
-            canvas || poster ? "bg-black/40 text-white hover:bg-black/60" : "opacity-50 hover:opacity-100",
+            fullBleed ? "bg-black/40 text-white hover:bg-black/60" : "opacity-50 hover:opacity-100",
           )}
         >
           ✕
@@ -431,17 +479,7 @@ export function PromoWidget({
 
       {canvas ? (
         // ── Canvas mode: free-form single slide with interactive buttons ────
-        <CanvasRender
-          canvas={canvas}
-          onCta={(target) => {
-            setActiveCta(target);
-            const claimy = CLAIMY.has(target.action);
-            const willNeedInput =
-              claimy && !((target.claimants ?? "both") === "signed_in" && anonymous) &&
-              ((target.requireField ?? "none") !== "none" || needsEmailAnon);
-            if (!willNeedInput) void execute(target);
-          }}
-        />
+        <CanvasRender canvas={canvas} onCta={onCtaClick} />
       ) : poster ? (
         // ── Poster mode: one image, interactive hotspots ────────────────────
         <div className="relative">
@@ -450,7 +488,7 @@ export function PromoWidget({
             <button
               key={i}
               type="button"
-              onClick={() => onHotspot(h)}
+              onClick={() => onCtaClick(h.cta)}
               aria-label={h.cta.label}
               title={h.cta.label}
               className="absolute rounded-md border-2 border-transparent transition hover:border-white/80 hover:bg-white/10 focus:border-white"
@@ -458,13 +496,17 @@ export function PromoWidget({
             />
           ))}
         </div>
+      ) : code ? (
+        // ── Code mode: sandboxed iframe, no allow-same-origin — see
+        //    promoSandbox.ts's docblock for the isolation model ─────────────
+        <CodeModeRender code={code} />
       ) : (
         <div className="space-y-3">
-          {design.blocks?.map((b, i) => <Block key={i} block={b} accent={accent} />)}
+          {(page.blocks ?? []).map((b, i) => <Block key={i} block={b} accent={accent} />)}
         </div>
       )}
 
-      <div className={cn("mt-4", (poster || canvas) && "px-5 pb-5")}>
+      <div className={cn("mt-4", fullBleed && "px-5 pb-5")}>
         {reward && !done ? (
           <p className="mb-2 text-center text-sm font-semibold" style={{ color: accent ?? "#0f766e" }}>
             🎁 {reward}
@@ -481,37 +523,63 @@ export function PromoWidget({
               </p>
             ) : null}
           </div>
-        ) : (
-          <>
-            {isClaimy && !mustSignIn && requireField !== "none" ? (
-              <input
-                type={requireField === "email" ? "email" : "tel"}
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                placeholder={requireField === "email" ? "you@example.com" : "(555) 555-5555"}
-                className="mb-2 w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-seafoam-500 dark:border-white/20 dark:bg-slate-800 dark:text-white"
-              />
-            ) : null}
-            {error ? <p className="mb-2 text-xs text-red-600 dark:text-red-400">{error}</p> : null}
-            <button
-              type="button"
-              onClick={() => execute(cta)}
-              disabled={busy}
-              className="w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition disabled:opacity-60"
-              style={{ background: accent ?? "#0f766e" }}
-            >
-              {busy ? "Working…" : mustSignIn ? "Sign in to claim" : cta.label}
-            </button>
-            {cta.secondary?.label && cta.secondary.url ? (
-              <a
-                href={cta.secondary.url}
-                className="mt-2 block w-full rounded-lg border border-black/15 px-4 py-2 text-center text-sm font-medium opacity-80 transition hover:opacity-100 dark:border-white/20"
-              >
-                {cta.secondary.label}
-              </a>
-            ) : null}
-          </>
-        )}
+        ) : activeCta && ctaNeedsInput(activeCta) ? (
+          <div>
+            {(() => {
+              const requireField = requireFieldFor(activeCta);
+              const btn = ctaButtonClass(activeCta.style, accent);
+              return (
+                <>
+                  {requireField !== "none" ? (
+                    <input
+                      type={requireField === "email" ? "email" : "tel"}
+                      value={value}
+                      onChange={(e) => setValue(e.target.value)}
+                      placeholder={requireField === "email" ? "you@example.com" : "(555) 555-5555"}
+                      className="mb-2 w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-seafoam-500 dark:border-white/20 dark:bg-slate-800 dark:text-white"
+                    />
+                  ) : null}
+                  {error ? <p className="mb-2 text-xs text-red-600 dark:text-red-400">{error}</p> : null}
+                  <button
+                    type="button"
+                    onClick={() => execute(activeCta)}
+                    disabled={busy}
+                    className={btn.className}
+                    style={btn.style}
+                  >
+                    {busy ? "Working…" : activeCta.label}
+                  </button>
+                  {(page.ctas?.length ?? 0) > 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => { setActiveCta(null); setError(null); }}
+                      className="mt-2 w-full text-center text-xs opacity-60 hover:opacity-100"
+                    >
+                      Back
+                    </button>
+                  ) : null}
+                </>
+              );
+            })()}
+          </div>
+        ) : (page.ctas?.length ?? 0) > 0 ? (
+          <div className="space-y-2">
+            {page.ctas.map((cta) => {
+              const btn = ctaButtonClass(cta.style, accent);
+              return (
+                <button
+                  key={cta.id}
+                  type="button"
+                  onClick={() => onCtaClick(cta)}
+                  className={btn.className}
+                  style={btn.style}
+                >
+                  {mustSignIn(cta) ? "Sign in to claim" : cta.label}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -75,6 +75,10 @@ async function fetchClerkEmail(clerkId: string, secretKey: string): Promise<stri
 export interface VerifiedAdmin {
   email: string;
   role: string;
+  /** users.clerk_id, when a row exists — used to attribute the admin_audit_log
+   *  entry the deliberate promotions-publish exception writes (see
+   *  promotionTools.ts). Falls back to the owner-bootstrap case (no row yet). */
+  clerkId?: string;
 }
 
 /**
@@ -138,4 +142,66 @@ export async function verifyAdminForPricing(
     return { ok: false, reason: "insufficient_role" };
   }
   return { ok: true, admin: { email: normalized, role: row.role ?? "admin" } };
+}
+
+/**
+ * Promotions role gate — deliberately BROADER than the pricing gate: owner,
+ * super_admin, or ANY admin_role at all (mirrors apps/api's `requireAnyAdmin`
+ * / `ALL_ADMIN_ROLES`, the gate the admin console's promotions API already
+ * uses). Promotions are marketing content, not money movement — there's no
+ * finance-credential reason to narrow who can draft or publish one.
+ *
+ * Note this only governs the promotions TOOLS' write path (re-checked below,
+ * per call, for the one tool that publishes). Whether an admin can sign in
+ * to this MCP worker AT ALL is still gated by `verifyAdminForPricing` at
+ * OAuth-authorize time — unchanged by this file, so today only an owner,
+ * super_admin, or finance-tier admin can reach ANY tool, promotions
+ * included. Owners and super_admins (who can always sign in) can use the
+ * promotions tools freely; broadening MCP sign-in itself to every admin
+ * role is a separate decision this task deliberately did not make — see the
+ * rollout note in promotionTools.ts.
+ */
+export function passesPromotionsGate(
+  env: Env,
+  email: string,
+  role: string | null,
+  adminRole: string | null,
+): boolean {
+  if (isOwnerEmail(email, env)) return true;
+  if (role === "super_admin") return true;
+  if (role !== "admin") return false;
+  return adminRole != null;
+}
+
+/**
+ * Re-verify the CURRENT admin role from the database for the promotions
+ * write path, independent of whatever the bearer token's role claim was at
+ * OAuth-authorize time (the token carries only an email — see mintAccessToken
+ * in oauth.ts). This is defense-in-depth specific to the ONE surface in this
+ * whole worker that writes live, customer-facing data
+ * (`publish_promotion` — see promotionTools.ts): an admin demoted or
+ * deactivated since their MCP session began must lose write access on their
+ * very next call, not merely at their next sign-in.
+ */
+export async function verifyAdminForPromotions(
+  env: Env,
+  sql: Sql,
+  adminEmail: string,
+): Promise<{ ok: true; admin: VerifiedAdmin } | { ok: false; reason: string }> {
+  const normalized = adminEmail.toLowerCase();
+  if (isOwnerEmail(normalized, env)) {
+    return { ok: true, admin: { email: normalized, role: "super_admin" } };
+  }
+  const rows = (await sql`
+    SELECT role, admin_role, clerk_id FROM users WHERE LOWER(email) = ${normalized} LIMIT 1
+  `) as Array<{ role: string | null; admin_role: string | null; clerk_id: string | null }>;
+  const row = rows[0];
+  if (!row) return { ok: false, reason: "no_user_row" };
+  if (!passesPromotionsGate(env, normalized, row.role, row.admin_role)) {
+    return { ok: false, reason: "insufficient_role" };
+  }
+  return {
+    ok: true,
+    admin: { email: normalized, role: row.role ?? "admin", clerkId: row.clerk_id ?? undefined },
+  };
 }

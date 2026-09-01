@@ -25,6 +25,13 @@
 import type { Sql } from "./db";
 import { enroll as enrollFounding, type FoundingAudience } from "./foundingMember";
 import { grantCoupon, type CouponTemplate } from "./coupons";
+import {
+  toPromoDesignV2,
+  defaultClaimCta,
+  findCtaById,
+  type PromoDesignV2,
+  type PromoCtaV2,
+} from "@sweepr/utils";
 
 export type PromoAudience = "all" | "visitors" | "customers" | "cleaners";
 export type PromoStatus = "draft" | "active" | "paused" | "expired" | "archived";
@@ -266,7 +273,11 @@ export interface PromotionRow {
   template_key: string | null;
   audience: PromoAudience;
   status: PromoStatus;
-  design: PromoDesign;
+  /** Raw stored design — shape depends on `design_version` (see migration
+   *  108). Use `resolvePromoDesign` to get a shape-agnostic `PromoDesignV2`. */
+  design: PromoDesign | PromoDesignV2;
+  /** Legacy (design_version 1) single CTA. Unused/vestigial once a row is
+   *  upgraded to design_version 2 — see resolvePromoDesign. */
   cta: PromoCTA;
   display: PromoDisplay;
   starts_at: string | null;
@@ -276,6 +287,48 @@ export interface PromotionRow {
   view_count: number;
   grants_founding_member: boolean;
   reward: PromoReward;
+  /** 1 = legacy single-page shape (default for every pre-v2 row); 2 =
+   *  PromoDesignV2 multi-page/multi-CTA/code-mode shape. */
+  design_version: number;
+  /** 'console' (admin designer) or 'mcp' (the deliberate MCP publish
+   *  exception — see apps/mcp/src/mcp/promotionTools.ts). */
+  created_via: "console" | "mcp";
+}
+
+/**
+ * Resolve a stored row's design to the shape-agnostic `PromoDesignV2`,
+ * upgrading a legacy (design_version 1) row in memory. Every reader —
+ * the public API, the admin designer, and the MCP tools — goes through
+ * this so the legacy-upgrade logic lives in exactly one place
+ * (packages/utils/src/promoSchema.ts).
+ */
+export function resolvePromoDesign(p: Pick<PromotionRow, "design" | "cta" | "design_version">): PromoDesignV2 {
+  return toPromoDesignV2(p.design, p.cta, p.design_version);
+}
+
+export interface PublicPromotionView {
+  id: string;
+  slug: string;
+  name: string;
+  audience: PromoAudience;
+  design: PromoDesignV2;
+  grantsFoundingMember: boolean;
+  reward: PromoReward;
+}
+
+/** Strip server-only / sensitive fields before a promo leaves the API,
+ *  normalizing to PromoDesignV2 so every client (marketing, customer,
+ *  cleaner, admin preview) speaks exactly one shape. */
+export function toPublicPromotionView(p: PromotionRow): PublicPromotionView {
+  return {
+    id: p.id,
+    slug: p.slug,
+    name: p.name,
+    audience: p.audience,
+    design: resolvePromoDesign(p),
+    grantsFoundingMember: p.grants_founding_member,
+    reward: p.reward ?? {},
+  };
 }
 
 /** True when a promo is live right now (status + time window + claim cap). */
@@ -326,6 +379,13 @@ export interface ClaimInput {
   phone?: string;
   userId?: string | null;
   ip?: string;
+  /** Which CTA the visitor actually clicked (its `PromoCtaV2.id`). Omit for
+   *  a legacy-shaped or single-CTA promo — resolution then falls back to
+   *  `defaultClaimCta` (the entry page's first claim-eligible CTA). A
+   *  multi-page/multi-CTA promo's claim eligibility is evaluated against
+   *  THIS specific CTA, which may live on any page — see
+   *  `packages/utils/src/promoSchema.ts`'s `PROMO_CLAIM_ACTIONS` docblock. */
+  ctaId?: string;
 }
 
 export interface ClaimResult {
@@ -356,7 +416,19 @@ export async function claimPromotion(
   const promo = await getPromotionBySlug(sql, slug);
   if (!promo || !isLive(promo)) return { status: "not_live" };
 
-  const require = promo.cta.requireField ?? "none";
+  // Resolve WHICH CTA this claim is against. A multi-page/multi-CTA promo
+  // can have a claim-eligible action on any page (PROMO_CLAIM_ACTIONS) — the
+  // caller names it by id when it knows (the widget always does); older/
+  // simpler callers fall back to the entry page's first claim-eligible CTA,
+  // which is also exactly what a legacy-upgraded one-CTA promo resolves to.
+  const design = resolvePromoDesign(promo);
+  const resolved = input.ctaId ? findCtaById(design, input.ctaId) : defaultClaimCta(design);
+  if (!resolved) {
+    return { status: "invalid_field", message: "This promotion has no claimable action." };
+  }
+  const cta: PromoCtaV2 = resolved.cta;
+
+  const require = cta.requireField ?? "none";
   const email = input.email?.trim().toLowerCase() || null;
   const phone = input.phone?.trim() || null;
   if (require === "email" && !email) return { status: "invalid_field", message: "Email required" };
@@ -373,7 +445,7 @@ export async function claimPromotion(
   // Coupons require an identity too (sign-up is required to hold one — the
   // email-bound coupon attaches at first sign-in). Newsletter/waitlist actions
   // are meaningless without an email.
-  const action = promo.cta.action ?? "claim";
+  const action = cta.action ?? "claim";
   const needsEmail =
     (promo.reward?.coupon && !input.userId) || action === "newsletter" || action === "waitlist";
   if (needsEmail && !email && !input.userId) {
@@ -477,7 +549,7 @@ export async function claimPromotion(
                     WHERE promotion_id = ${promo.id} AND user_id = ${input.userId}`;
           return {
             status: "founding_granted",
-            message: (promo.cta.successMessage ?? "") + couponSuffix,
+            message: (cta.successMessage ?? "") + couponSuffix,
             grantedFounding: true,
             founderId: res.founderId,
             coupon: mintedCoupon,
@@ -501,7 +573,7 @@ export async function claimPromotion(
     return {
       status: "claimed",
       message:
-        (promo.cta.successMessage ??
+        (cta.successMessage ??
           "Claim recorded! Sign up with this email and your Founding Member status will be waiting.") +
         couponSuffix,
       coupon: mintedCoupon,
@@ -510,7 +582,7 @@ export async function claimPromotion(
 
   return {
     status: "claimed",
-    message: (promo.cta.successMessage ?? "You're all set!") + couponSuffix,
+    message: (cta.successMessage ?? "You're all set!") + couponSuffix,
     coupon: mintedCoupon,
   };
 }

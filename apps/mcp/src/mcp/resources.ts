@@ -15,6 +15,19 @@
  */
 
 import { buildPayloadTemplate } from "./tools";
+import {
+  PROMO_CTA_ACTIONS,
+  PROMO_CLAIM_ACTIONS,
+  PROMO_REQUIRE_FIELDS,
+  PROMO_CLAIMANTS,
+  PROMO_CTA_STYLES,
+  PROMO_PAGE_MODES,
+  PROMO_BLOCK_TYPES,
+  PROMO_THEMES,
+  PROMO_MAX_PAGES,
+  PROMO_MAX_CTAS_PER_PAGE,
+  PROMO_CODE_MAX_BYTES,
+} from "@sweepr/utils";
 
 export interface ResourceDef {
   uri: string;
@@ -45,7 +58,228 @@ export const RESOURCE_DEFS: ResourceDef[] = [
       "The explore → sandbox → simulate → human-loads-in-Studio operating guide (sandbox configs auto-appear in Pricing Studio → Proposals).",
     mimeType: "text/markdown",
   },
+  {
+    uri: "sweepr://promotions-design-guide",
+    name: "Promotion design (PromoDesignV2) field guide",
+    description:
+      "The full multi-page, multi-CTA, code-mode promotion design shape — every field, the four page modes, the CTA action vocabulary, and worked examples — for list_promotions / get_promotion / save_promotion_draft / preview_promotion / publish_promotion.",
+    mimeType: "text/markdown",
+  },
+  {
+    uri: "sweepr://promotions-mcp-exception",
+    name: "Why promotions can publish (read this first)",
+    description:
+      "The ONE deliberate exception in this MCP worker: publish_promotion writes directly to live, customer-facing data. What that tool guarantees before it does, and why every other tool in this worker (including every OTHER promotions tool) stays sandboxed or read-only.",
+    mimeType: "text/markdown",
+  },
 ];
+
+export const PROMOTIONS_MCP_EXCEPTION = `# Why promotions can publish — read this before calling publish_promotion
+
+Every OTHER write tool in this MCP worker — every pricing tool, and three of
+the five promotions tools (\`list_promotions\`, \`get_promotion\`,
+\`preview_promotion\` are pure reads; \`save_promotion_draft\` writes but ONLY
+to rows that stay \`status='draft'\`, which a customer never sees) — is
+quarantined. Nothing you do with them can ever reach a customer without a
+human admin reviewing and clicking Publish somewhere in the admin console.
+
+**\`publish_promotion\` breaks that pattern on purpose.** It sets an existing
+promotion's \`status\` directly (default \`'active'\`), and an active promotion
+within its display window is what a customer's browser fetches and renders
+right now, with no console step in between. The product owner asked for
+exactly this — an LLM that can draft AND ship a promotion widget through
+this MCP — as the one deliberate exception to how every other feature in
+this worker is quarantined.
+
+## What \`publish_promotion\` guarantees, every single call
+
+1. **Re-verifies your admin role from the database at call time.** Every
+   other tool call in this worker trusts the admin email baked into your
+   OAuth session token. This one tool doesn't — it re-reads your CURRENT
+   role from \`users\` before doing anything, so a demoted or deactivated
+   admin loses publish access on their very next call, not at their next
+   sign-in.
+2. **Validates any design with the exact schema the admin console uses** —
+   \`packages/utils/src/promoSchema.ts\`'s constants, the SAME page-count
+   (max ${PROMO_MAX_PAGES}), CTA-count-per-page (max ${PROMO_MAX_CTAS_PER_PAGE}),
+   code-mode byte cap (${PROMO_CODE_MAX_BYTES.toLocaleString()} bytes,
+   html+css+js combined), \`goto_page\` target existence, and \`requireField\`
+   sanity checks apps/api/src/routes/adminPromotions.ts enforces. No design
+   this tool accepts is less validated than one a human typed into the
+   console.
+3. **Never loosens the code-mode sandbox.** A code-mode page still renders
+   in an iframe with \`sandbox="allow-scripts"\` and NO \`allow-same-origin\` —
+   see \`packages/utils/src/promoSandbox.ts\`'s docblock for why that's the
+   real isolation boundary. That attribute isn't a parameter anywhere in
+   this tool; there is no way to call \`publish_promotion\` and get a looser
+   sandbox than the console would produce.
+4. **Writes an audit trail you can't skip.** Every tool call already writes
+   a generic entry to \`mcp_action_log\`. \`publish_promotion\` ALSO writes to
+   \`admin_audit_log\` (action \`promotion.published_via_mcp\`) — the exact
+   table and shape a console-driven promotion change writes to, so it shows
+   up next to console changes in the SAME audit trail an admin already
+   reviews, not a separate log they have to remember exists.
+5. **Stamps provenance.** \`created_via = 'mcp'\` on the row — the admin
+   promotions list flags these with a robot icon, so nothing you publish is
+   silently indistinguishable from a console-authored promotion.
+
+## What this means for you as the connected assistant
+
+- Treat \`publish_promotion\` with the same weight a human clicking "Activate"
+  in the console would carry — it is genuinely live the moment it returns.
+- Prefer the loop: \`get_promotion\` (or start blank) → iterate the design
+  with \`save_promotion_draft\` (inert — a draft is never customer-facing) →
+  \`preview_promotion\` to sanity-check pages/CTAs/code srcdoc → only then
+  \`publish_promotion\`. Don't skip straight to publish on a first draft
+  unless the human explicitly asked you to.
+- Never claim you "asked a human to review it first" if you didn't — a
+  human account holder is the one whose credentials authorized this session,
+  but pressing publish yourself is still YOUR action; say so plainly when
+  you report back what you did.
+- This exception is scoped to promotions ONLY. Do not generalize "the MCP
+  can publish X" to any other feature — every other tool in this worker
+  (and any future one) stays sandboxed/proposal-only unless a human product
+  decision creates another deliberate, documented exception exactly like
+  this one.
+`;
+
+export const PROMOTIONS_DESIGN_GUIDE = `# Promotion design (PromoDesignV2) field guide
+
+A promotion is a multi-page, multi-CTA widget. Every promotions tool speaks
+this shape (\`packages/utils/src/promoSchema.ts\` is the source of truth for
+every enum below — apps/api's admin API, this MCP, and the admin designer
+all build their validation from the SAME constants).
+
+\`\`\`
+PromoDesignV2 = {
+  version: 2,
+  theme?: ${JSON.stringify(PROMO_THEMES)},
+  accent?: string,        // css color, e.g. "#0f766e"
+  background?: string,    // css color/gradient
+  entryPageKey: string,   // which page.key shows first
+  pages: PromoPageV2[],   // 1..${PROMO_MAX_PAGES}
+}
+
+PromoPageV2 = {
+  key: string,             // unique within the promotion; letters/digits/-/_ only
+  name?: string,           // admin-facing label, e.g. "Alternate offer"
+  mode: ${JSON.stringify(PROMO_PAGE_MODES)},
+  theme?, background?, accent?,   // per-page overrides of the design-level defaults
+  blocks?: PromoBlockV2[],        // used when mode = 'blocks'
+  canvas?: { aspect?, background?, backgroundImage?, elements: [...] },  // mode = 'canvas'
+  poster?: { src: string, hotspots?: [...] },                            // mode = 'poster'
+  code?: { html: string, css?: string, js?: string },                    // mode = 'code'
+  ctas: PromoCtaV2[],      // 0..${PROMO_MAX_CTAS_PER_PAGE} buttons, rendered below the content
+}
+
+PromoCtaV2 = {
+  id: string,               // unique within the WHOLE promotion, not just the page
+  label: string,
+  action: ${JSON.stringify(PROMO_CTA_ACTIONS)},
+  style?: ${JSON.stringify(PROMO_CTA_STYLES)},   // visual weight; default 'primary'
+  url?: string,              // required for action='link'; optional redirect for 'book_now'
+  requireField?: ${JSON.stringify(PROMO_REQUIRE_FIELDS)},
+  claimants?: ${JSON.stringify(PROMO_CLAIMANTS)},
+  successMessage?: string,
+  targetPageKey?: string,    // required for action='goto_page' — must be another page's key
+}
+\`\`\`
+
+## Page modes (mutually exclusive per page — pick ONE and fill its field)
+
+- **blocks** — a stack of simple content blocks, in order: ${JSON.stringify(PROMO_BLOCK_TYPES)}.
+  Each block: \`{type, text?, src? (image), alt?, items? (bullets), align?, size? (heading only)}\`.
+  This is the easiest mode for a straightforward offer.
+- **canvas** — a free-form, PowerPoint-style single slide: positioned text,
+  images, shapes, and BUTTON elements (each button carries its OWN embedded
+  \`PromoCtaV2\`, same shape as above — so a canvas button can \`goto_page\` too).
+  Geometry is percent-of-canvas. Best for a designed, on-brand hero moment.
+- **poster** — the whole page is one uploaded image with interactive
+  hotspot regions drawn on top; each hotspot carries its own \`PromoCtaV2\`.
+  Best when the content itself is a finished graphic.
+- **code** — raw \`{html, css?, js?}\` you (or an admin) fully control,
+  rendered in a SANDBOXED iframe (\`sandbox="allow-scripts"\`, no
+  \`allow-same-origin\` — see \`sweepr://promotions-mcp-exception\` and
+  \`packages/utils/src/promoSandbox.ts\`). Combined html+css+js is capped at
+  ${PROMO_CODE_MAX_BYTES.toLocaleString()} bytes. Use \`preview_promotion\` to
+  get back the exact assembled srcdoc before publishing.
+
+## CTA actions
+
+- \`claim\` — records a claim (grants the promotion's reward, if any).
+- \`newsletter\` / \`waitlist\` — same as claim, plus a subscriber/waitlist row.
+  **Must set \`requireField: "email"\`** — an email is the whole point of
+  these two actions; any other value is a validation error.
+- \`book_now\` — claim, then optionally redirect to \`url\` (pair with a
+  reward's \`offerMinutes\` for a flash-offer countdown).
+- \`link\` — opens \`url\` in a new tab. \`url\` is required.
+- \`goto_page\` — client-side navigation to another page in the SAME
+  promotion, by \`targetPageKey\`. This is how a promotion offers "see an
+  alternate design" or a multi-step flow. \`targetPageKey\` is required and
+  must match another page's \`key\` (checked at save/publish time).
+- \`dismiss\` — closes the widget. No fields.
+
+Claim-eligible actions (${JSON.stringify(PROMO_CLAIM_ACTIONS)}) are the ones
+that record a \`promotion_claims\` row — this applies no matter which page or
+which of a page's several CTAs the visitor clicked.
+
+## A minimal one-page example
+
+\`\`\`json
+{
+  "version": 2,
+  "theme": "brand",
+  "accent": "#0f766e",
+  "entryPageKey": "page-1",
+  "pages": [{
+    "key": "page-1",
+    "name": "Main offer",
+    "mode": "blocks",
+    "blocks": [
+      { "type": "heading", "text": "20% off your first clean", "align": "center", "size": "xl" },
+      { "type": "text", "text": "New customers only. Applies automatically at checkout.", "align": "center" }
+    ],
+    "ctas": [
+      { "id": "cta-1", "label": "Claim my discount", "action": "claim", "requireField": "email", "style": "primary", "successMessage": "You're set — the discount is on its way." }
+    ]
+  }]
+}
+\`\`\`
+
+## A two-page example using goto_page
+
+Page 1 offers the deal with a "See an alternate design" button; page 2 is a
+different look at the same offer, with a "Back" button:
+
+\`\`\`json
+{
+  "version": 2,
+  "entryPageKey": "classic",
+  "pages": [
+    {
+      "key": "classic", "name": "Classic", "mode": "blocks",
+      "blocks": [{ "type": "heading", "text": "20% off your first clean", "align": "center" }],
+      "ctas": [
+        { "id": "cta-1", "label": "Claim my discount", "action": "claim", "requireField": "email", "style": "primary" },
+        { "id": "cta-2", "label": "See an alternate design", "action": "goto_page", "targetPageKey": "alt", "style": "link" }
+      ]
+    },
+    {
+      "key": "alt", "name": "Alternate", "mode": "blocks",
+      "blocks": [{ "type": "heading", "text": "First clean, 20% off", "align": "center" }],
+      "ctas": [
+        { "id": "cta-3", "label": "Claim my discount", "action": "claim", "requireField": "email", "style": "primary" },
+        { "id": "cta-4", "label": "Back", "action": "goto_page", "targetPageKey": "classic", "style": "ghost" }
+      ]
+    }
+  ]
+}
+\`\`\`
+
+Call \`preview_promotion\` with a candidate design (or a saved draft's id) to
+see the navigation graph and, for any code-mode page, the exact sandboxed
+srcdoc before you \`publish_promotion\`.
+`;
 
 export const CONFIG_FIELD_GUIDE = `# PricingConfigV2 field guide
 
@@ -348,6 +582,10 @@ export function readResource(uri: string): { mimeType: string; text: string } | 
       return { mimeType: "text/markdown", text: CONFIG_FIELD_GUIDE };
     case "sweepr://workflow":
       return { mimeType: "text/markdown", text: WORKFLOW_GUIDE };
+    case "sweepr://promotions-design-guide":
+      return { mimeType: "text/markdown", text: PROMOTIONS_DESIGN_GUIDE };
+    case "sweepr://promotions-mcp-exception":
+      return { mimeType: "text/markdown", text: PROMOTIONS_MCP_EXCEPTION };
     default:
       return null;
   }

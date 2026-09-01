@@ -50,13 +50,13 @@ import {
 import { SITE_SETTINGS_ALLOWLIST } from "../lib/allowlist";
 import { mintShareToken } from "../lib/oauth";
 import type { Sql } from "../lib/db";
-import type { Env } from "../types";
+import { ToolError, type ToolContext } from "./toolContext";
+import { PROMOTION_TOOL_DEFS, callPromotionTool, PROMOTION_TOOL_NAMES } from "./promotionTools";
 
-export interface ToolContext {
-  sql: Sql;
-  env: Env;
-  adminEmail: string;
-}
+// Re-exported so existing consumers (protocol.ts, tests) keep importing
+// ToolContext/ToolError from "./tools" — the actual definitions live in
+// toolContext.ts to avoid a tools.ts <-> promotionTools.ts import cycle.
+export { ToolError, type ToolContext };
 
 export interface ToolDef {
   name: string;
@@ -238,6 +238,12 @@ export const TOOL_DEFS: ToolDef[] = [
       additionalProperties: false,
     },
   },
+  // ── Promotions tool surface (packages/utils/src/promoSchema.ts is the
+  // shared vocabulary; see promotionTools.ts for the full docblock). This is
+  // the ONE deliberate exception in this worker: publish_promotion writes
+  // directly to the live `promotions` table, unlike every pricing tool
+  // above, which only ever touches the quarantined sandbox. ─────────────────
+  ...PROMOTION_TOOL_DEFS,
 ];
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -251,8 +257,6 @@ function coerceName(args: Record<string, unknown>): string {
   if (n.length > 100) throw new ToolError("Sandbox name too long (max 100 chars).");
   return n;
 }
-
-export class ToolError extends Error {}
 
 /**
  * Deep-merge a caller-provided (possibly PARTIAL) config OVER the cold-start
@@ -501,6 +505,9 @@ export async function callTool(
   name: string,
   args: Record<string, unknown>,
 ): Promise<unknown> {
+  if ((PROMOTION_TOOL_NAMES as readonly string[]).includes(name)) {
+    return callPromotionTool(ctx, name, args);
+  }
   switch (name) {
     case "list_pricing_versions": {
       const rows = await ctx.sql`
@@ -798,7 +805,10 @@ export async function logToolCall(
 ): Promise<void> {
   const sanitized: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(args)) {
-    if (k === "config" && v && typeof v === "object") {
+    // "design" (promotionTools.ts) can carry up to ~200KB of code-mode
+    // html/css/js per page — summarize it the same way "config" is, so one
+    // save_promotion_draft/publish_promotion call can't bloat this table.
+    if ((k === "config" || k === "design") && v && typeof v === "object") {
       sanitized[k] = { summarized: true, keys: Object.keys(v as object) };
     } else if (k === "input") {
       sanitized[k] = v;

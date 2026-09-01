@@ -38,11 +38,15 @@ export function PromoCanvasEditor({
   canvas,
   onChange,
   authed,
+  pages,
 }: {
   promoId: string;
   canvas: PromoCanvas;
   onChange: (c: PromoCanvas) => void;
   authed: (path: string, init?: RequestInit) => Promise<Response>;
+  /** Every page in the promotion, so a button element can `goto_page` to
+   *  one of them. Optional — omitted callers just don't get that action. */
+  pages?: Array<{ key: string; name?: string }>;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -62,7 +66,7 @@ export function PromoCanvasEditor({
     const el: CanvasElement = {
       id: uid(), type, x: 20, y: 20,
       w: 40, h: 12,
-      ...(type === "button" ? { cta: { label: "Claim offer", action: "claim", requireField: "none" } as PromoCTA } : {}),
+      ...(type === "button" ? { cta: { id: uid(), label: "Claim offer", action: "claim", requireField: "none", style: "primary" } as PromoCTA } : {}),
       ...DEFAULTS[type],
     } as CanvasElement;
     onChange({ ...canvas, elements: [...elements, el] });
@@ -329,12 +333,22 @@ export function PromoCanvasEditor({
                     <option value="waitlist">Waitlist (+ reward)</option>
                     <option value="book_now">Book now</option>
                     <option value="link">Open link</option>
+                    <option value="goto_page">Go to another page</option>
                     <option value="dismiss">Dismiss</option>
                   </select>
                 </label>
                 {selected.cta.action === "link" || selected.cta.action === "book_now" ? (
                   <label className="block text-xs">URL
                     <Input value={selected.cta.url ?? ""} onChange={(e) => patch(selected.id, { cta: { ...selected.cta!, url: e.target.value } })} className="mt-1" />
+                  </label>
+                ) : null}
+                {selected.cta.action === "goto_page" && pages ? (
+                  <label className="block text-xs">Target page
+                    <select value={selected.cta.targetPageKey ?? ""} onChange={(e) => patch(selected.id, { cta: { ...selected.cta!, targetPageKey: e.target.value } })}
+                      className="mt-1 w-full rounded-md border border-slate-200 bg-transparent px-2 py-1.5 text-sm dark:border-slate-700">
+                      <option value="">Choose a page…</option>
+                      {pages.map((p) => <option key={p.key} value={p.key}>{p.name ?? p.key}</option>)}
+                    </select>
                   </label>
                 ) : null}
                 <div className="grid grid-cols-2 gap-2">
