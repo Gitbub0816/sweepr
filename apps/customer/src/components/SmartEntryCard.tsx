@@ -167,7 +167,7 @@ export function SmartEntryCard({ bookingId, token, apiUrl }: Props) {
                       </span>
                     ) : (
                       <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-200">
-                        +{formatCurrency(status.feeCents)}
+                        +{formatCurrency(status.feeCents / 100)}
                       </span>
                     ))}
                 </span>
@@ -191,7 +191,7 @@ export function SmartEntryCard({ bookingId, token, apiUrl }: Props) {
         <div className="mt-3 space-y-3">
           {!status.includedWithMembership && (
             <p className="text-xs text-slate-500">
-              Smart Entry is a {formatCurrency(status.feeCents)} add-on for this cleaning, or{" "}
+              Smart Entry is a {formatCurrency(status.feeCents / 100)} add-on for this cleaning, or{" "}
               <Link to="/membership" className="font-semibold text-seafoam-700 underline">
                 free with Sweepr+
               </Link>
