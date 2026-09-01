@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useRef } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation } from "react-router";
 import { AnimatePresence, motion } from "framer-motion";
 import { MapPin, Home as HomeIcon, Sparkles, CalendarClock } from "lucide-react";
 import { ThemeToggle, SweeprLogo, track, Events } from "@sweepr/ui";

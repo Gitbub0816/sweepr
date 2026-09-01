@@ -8,7 +8,7 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation } from "react-router";
 import { useAuth } from "@clerk/clerk-react";
 import { SweeprLoaderScreen } from "@sweepr/ui";
 import { CENTRAL_AUTH_ENABLED, SessionProvider } from "./CentralSession";

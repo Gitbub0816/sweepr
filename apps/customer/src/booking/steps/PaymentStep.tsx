@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Lock, ShieldCheck, RefreshCw, Tag, Sparkles, MapPin, Pencil } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { loadStripe } from "@stripe/stripe-js";

@@ -10,7 +10,7 @@
 
 import { createElement, Fragment, type ReactNode } from "react";
 import { useUser, useAuth } from "@clerk/clerk-react";
-import { Navigate } from "react-router-dom";
+import { Navigate } from "react-router";
 import type { UserRole } from "@sweepr/types";
 
 /**

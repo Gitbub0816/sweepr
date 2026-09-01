@@ -10,7 +10,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Inbox, RefreshCw } from "lucide-react";
 import { DashboardShell, Badge, Button, EmptyState, toast, TableSkeleton } from "@sweepr/ui";
 import { DataTable, type Column } from "../components/DataTable";

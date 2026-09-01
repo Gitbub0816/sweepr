@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router";
 import { useSignIn, useSignUp, useAuth } from "@clerk/clerk-react";
 import { Loader2, ArrowRight } from "lucide-react";
 import { SweeprLogo } from "@sweepr/ui";

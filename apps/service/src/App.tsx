@@ -8,7 +8,7 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router";
 import { DemoLanding } from "./pages/DemoLanding";
 import { CleanerView } from "./pages/CleanerView";
 import { CustomerView } from "./pages/CustomerView";

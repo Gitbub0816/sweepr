@@ -8,7 +8,7 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { Navigate } from "react-router-dom";
+import { Navigate } from "react-router";
 
 /**
  * The real dashboard lives at "/" (DashboardPage). This legacy route just

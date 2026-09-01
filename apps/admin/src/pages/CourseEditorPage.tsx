@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router";
 import { useAuth } from "@clerk/clerk-react";
 import {
   Undo2, Redo2, Plus, Type, Heading, Image as ImageIcon, Video, ListChecks,

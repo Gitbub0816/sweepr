@@ -10,7 +10,7 @@
 
 import { useState, useEffect } from "react";
 import { useSignUp } from "@clerk/clerk-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { SweeprLogo, ThemeToggle } from "@sweepr/ui";
 import { inputCls, ErrorBox, SubmitButton, Field } from "./authHelpers";
 

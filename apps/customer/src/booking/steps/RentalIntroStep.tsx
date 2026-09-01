@@ -8,7 +8,7 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { CalendarClock, RefreshCw, ShieldCheck } from "lucide-react";
 import { Button } from "@sweepr/ui";
 

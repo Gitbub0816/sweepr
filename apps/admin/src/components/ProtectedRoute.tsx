@@ -10,7 +10,7 @@
 
 import type { ReactNode } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation } from "react-router";
 import { LoadingState } from "@sweepr/ui";
 
 const CLERK_ENABLED = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);

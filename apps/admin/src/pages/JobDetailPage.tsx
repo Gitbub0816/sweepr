@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link } from "react-router";
 import { useAuth } from "@clerk/clerk-react";
 import {
   DashboardShell,

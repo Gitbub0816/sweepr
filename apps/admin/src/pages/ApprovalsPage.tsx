@@ -10,7 +10,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { GitPullRequest, RefreshCw, Plus } from "lucide-react";
 import {
   DashboardShell,

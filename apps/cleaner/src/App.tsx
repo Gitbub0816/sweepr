@@ -8,7 +8,7 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router";
 import { useCallback, useEffect, useRef } from "react";
 import { AuthenticateWithRedirectCallback, useAuth } from "@clerk/clerk-react";
 import { useAppToken } from "@/lib/appToken";

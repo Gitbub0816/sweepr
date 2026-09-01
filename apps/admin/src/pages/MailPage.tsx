@@ -9,7 +9,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { useAuth } from "@clerk/clerk-react";
 import { Card, Button, toast, CardListSkeleton } from "@sweepr/ui";
 import { Inbox, RotateCw, ShieldCheck, Trash2 } from "lucide-react";

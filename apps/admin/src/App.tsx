@@ -9,7 +9,7 @@
  */
 
 import { lazy, Suspense } from "react";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router";
 import { SignInPage } from "./components/SignInPage";
 import { AccessControlPage } from "./pages/AccessControlPage";
 import { usePermissions, ROUTE_SCREEN } from "./lib/permissions";

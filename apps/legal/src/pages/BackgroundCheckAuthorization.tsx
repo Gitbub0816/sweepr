@@ -11,7 +11,7 @@
 // NOTE: Authorization should be captured via an explicit, separately-recorded
 // acknowledgement (checkbox/signature) tied to a disclosure version. Counsel must
 // confirm wording and state requirements before production use.
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { DocPage } from "../components/DocPage";
 import { Section } from "../components/Section";
 import { SUPPORT_EMAIL, DOC_VERSION } from "../docs";

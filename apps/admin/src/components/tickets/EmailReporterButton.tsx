@@ -8,7 +8,7 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Mail } from "lucide-react";
 import { buildMailDeepLink } from "./emailReporter";
 

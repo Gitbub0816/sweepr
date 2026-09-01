@@ -16,7 +16,7 @@
  */
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router";
 import { useAuth } from "@clerk/clerk-react";
 import { ArrowLeft, ShieldQuestion } from "lucide-react";
 import { DashboardShell, Card, Badge, Button, Select, Textarea, Modal, toast } from "@sweepr/ui";

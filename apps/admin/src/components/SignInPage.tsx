@@ -10,7 +10,7 @@
 
 import { useState, useEffect } from "react";
 import { useSignIn, useAuth } from "@clerk/clerk-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Loader2, ArrowRight, ShieldX } from "lucide-react";
 import { ThemeToggle, SweeprLogo } from "@sweepr/ui";
 

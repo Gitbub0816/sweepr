@@ -11,7 +11,7 @@
 import { useAuth, useClerk } from "@clerk/clerk-react";
 import { useEffect, useState } from "react";
 import { LogOut } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 
 const CLERK_ENABLED = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
 const API_BASE = import.meta.env.VITE_API_URL ?? "";

@@ -8,7 +8,7 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router";
 import { LegalShell } from "./components/LegalShell";
 import { HomePage } from "./pages/HomePage";
 import { TermsOfService } from "./pages/TermsOfService";

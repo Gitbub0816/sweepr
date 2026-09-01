@@ -9,7 +9,7 @@
  */
 
 import { lazy, Suspense } from "react";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router";
 import Landing from "./pages/Landing";
 import { CookieConsent } from "./components/CookieConsent";
 import { initCookieEngine } from "@sweepr/ui";

@@ -8,7 +8,7 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import { CalendarClock, ChevronRight, RotateCcw, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {

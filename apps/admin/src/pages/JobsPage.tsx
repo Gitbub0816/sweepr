@@ -10,7 +10,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { Search, RefreshCw } from "lucide-react";
 import { DashboardShell, Input, Select, Button, TableSkeleton, toast } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";

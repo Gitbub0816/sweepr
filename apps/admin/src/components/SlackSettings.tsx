@@ -10,7 +10,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { Slack, Plus, Trash2, Send } from "lucide-react";
 import { Card, Button, Badge, Select, Input, toast } from "@sweepr/ui";
 

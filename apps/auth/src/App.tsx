@@ -9,7 +9,7 @@
  */
 
 import { useEffect } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route } from "react-router";
 import { AuthenticateWithRedirectCallback } from "@clerk/clerk-react";
 import { LoginPage } from "./pages/LoginPage";
 

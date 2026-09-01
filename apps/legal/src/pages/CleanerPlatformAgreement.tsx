@@ -8,7 +8,7 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { DocPage } from "../components/DocPage";
 import { Section } from "../components/Section";
 import { COMPANY_NAME, SUPPORT_EMAIL, DOC_VERSION } from "../docs";

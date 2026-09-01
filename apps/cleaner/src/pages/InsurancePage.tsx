@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useState, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { Shield, ShieldCheck, ShieldAlert, Upload, CheckCircle2, AlertTriangle, Clock, ExternalLink } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
 import { useAppToken } from "@/lib/appToken";

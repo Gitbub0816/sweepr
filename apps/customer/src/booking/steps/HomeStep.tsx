@@ -9,7 +9,7 @@
  */
 
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Input, Select } from "@sweepr/ui";
 import type { HomeType } from "@sweepr/types";

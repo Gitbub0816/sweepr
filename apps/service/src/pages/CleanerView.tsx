@@ -10,7 +10,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { SweeprLoader } from "@sweepr/ui";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link } from "react-router";
 import {
   Navigation, MapPin, Play, Camera, CheckSquare, RotateCcw,
   CheckCircle2, Lock, Clock, Truck,

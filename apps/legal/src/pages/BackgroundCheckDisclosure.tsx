@@ -11,7 +11,7 @@
 // NOTE: FCRA disclosures must, in most cases, be a STANDALONE document presented
 // separately from any other agreement. Counsel must confirm formatting and
 // state-specific requirements before production use.
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { DocPage } from "../components/DocPage";
 import { Section } from "../components/Section";
 import { SUPPORT_EMAIL, DOC_VERSION } from "../docs";

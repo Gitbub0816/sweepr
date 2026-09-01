@@ -8,7 +8,7 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router";
 import { UserButton } from "@clerk/clerk-react";
 import { LayoutDashboard, Home as HomeIcon, Users } from "lucide-react";
 import { AppShell } from "@sweepr/ui";

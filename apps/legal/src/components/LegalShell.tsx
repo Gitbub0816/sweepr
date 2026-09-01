@@ -9,7 +9,7 @@
  */
 
 import type { ReactNode } from "react";
-import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router";
 import { DOCS, LAST_UPDATED, docsByCategory } from "../docs";
 import { LegalLogo } from "./LegalLogo";
 

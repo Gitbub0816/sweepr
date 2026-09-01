@@ -8,7 +8,7 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { Navigate } from "react-router-dom";
+import { Navigate } from "react-router";
 
 /**
  * The standalone /performance page previously rendered hardcoded fake stats and

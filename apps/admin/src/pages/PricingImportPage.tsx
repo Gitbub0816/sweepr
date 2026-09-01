@@ -25,7 +25,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { AlertTriangle, CheckCircle2, FileUp, FlaskConical, Rocket, Upload } from "lucide-react";
 import { Button, Card, toast } from "@sweepr/ui";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 

@@ -9,7 +9,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { KeyRound, Home, Lock, DoorOpen, Check, Wifi, WifiOff, Plus } from "lucide-react";
 import { Card, Button, Badge, toast } from "@sweepr/ui";
 import { formatCurrency } from "@sweepr/utils";

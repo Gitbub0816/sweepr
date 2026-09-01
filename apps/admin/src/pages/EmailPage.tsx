@@ -9,7 +9,7 @@
  */
 
 import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { useAuth } from "@clerk/clerk-react";
 import { DashboardShell, Card, Button, Input, toast } from "@sweepr/ui";
 import { Send, Newspaper, Pencil, Type, AlignLeft, Minus, Link2, Image as ImageIcon, List } from "lucide-react";

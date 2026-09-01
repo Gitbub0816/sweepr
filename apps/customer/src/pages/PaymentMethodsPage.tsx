@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useState, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { CreditCard } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
 import { useAppToken } from "@/lib/appToken";

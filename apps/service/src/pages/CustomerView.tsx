@@ -10,7 +10,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { SweeprLoader } from "@sweepr/ui";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link } from "react-router";
 import { User, MapPin, Clock, CheckCircle2, Navigation, Play, CheckSquare } from "lucide-react";
 import { getSession, type SessionState, type DayStatus } from "../api";
 

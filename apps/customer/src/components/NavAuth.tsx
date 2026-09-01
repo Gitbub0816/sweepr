@@ -11,7 +11,7 @@
 import { useClerk, useUser } from "@clerk/clerk-react";
 import { CENTRAL_AUTH_ENABLED } from "./CentralSession";
 import { LogOut } from "lucide-react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { NotificationBell } from "@sweepr/ui";
 import { useNotifications } from "../hooks/useNotifications";

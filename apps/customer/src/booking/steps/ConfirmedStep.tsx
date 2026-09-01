@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, MapPin, CalendarClock, UserCheck, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";

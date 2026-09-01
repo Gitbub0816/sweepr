@@ -11,7 +11,7 @@
 import type { ReactNode } from "react";
 import { CENTRAL_AUTH_ENABLED, SessionProvider } from "./CentralSession";
 import { useAuth } from "@clerk/clerk-react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation } from "react-router";
 import { SweeprLoaderScreen } from "@sweepr/ui";
 
 function ClerkProtected({ children }: { children: ReactNode }) {

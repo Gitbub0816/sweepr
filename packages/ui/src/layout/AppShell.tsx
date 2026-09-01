@@ -9,7 +9,7 @@
  */
 
 import { useState, type ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink } from "react-router";
 import { Menu, X, ChevronDown, ChevronRight, type LucideIcon } from "lucide-react";
 import { cn } from "@sweepr/utils";
 import { ThemeToggle } from "./ThemeToggle";

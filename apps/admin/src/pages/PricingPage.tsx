@@ -10,7 +10,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router";
 import { DollarSign, Plus, Copy, RefreshCw, Calculator } from "lucide-react";
 import { DashboardShell, Card, Button, Badge, Select, Input, toast } from "@sweepr/ui";
 import { DataTable, type Column } from "../components/DataTable";

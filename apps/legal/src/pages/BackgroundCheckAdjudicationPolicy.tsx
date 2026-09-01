@@ -12,7 +12,7 @@
 // hiring law (FCRA, state fair-chance acts, local ordinances). Counsel must
 // confirm the categories, look-back windows, and adverse-action workflow
 // before production use.
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { DocPage } from "../components/DocPage";
 import { Section } from "../components/Section";
 

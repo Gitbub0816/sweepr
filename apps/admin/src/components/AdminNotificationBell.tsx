@@ -15,7 +15,7 @@
  * shell stays a one-line change.
  */
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Bell } from "lucide-react";
 import {
   useAlertBadges,

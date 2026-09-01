@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { MapPin, Home, CalendarClock, Sparkles, Zap, Repeat, Check } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
 import { useAppToken } from "@/lib/appToken";

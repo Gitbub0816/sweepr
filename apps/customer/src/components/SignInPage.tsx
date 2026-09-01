@@ -10,7 +10,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { useSignIn } from "@clerk/clerk-react";
-import { useNavigate, Link, useLocation } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router";
 import { Eye, EyeOff, UserPlus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SweeprLogo, ThemeToggle } from "@sweepr/ui";

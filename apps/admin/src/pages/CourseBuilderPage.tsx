@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useAuth } from "@clerk/clerk-react";
 import { Plus, FileStack, GraduationCap, Pencil, Archive } from "lucide-react";
 import { toast } from "@sweepr/ui";

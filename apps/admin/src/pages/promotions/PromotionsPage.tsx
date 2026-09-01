@@ -28,7 +28,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { Card, Button, Input, toast, PromoWidget, type PromoView } from "@sweepr/ui";
 import {
   PROMO_MAX_PAGES,

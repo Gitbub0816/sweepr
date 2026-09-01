@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router";
 import { useAuth } from "@clerk/clerk-react";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
 import { DashboardShell, Card, Badge, Button, Select, Textarea, Modal, toast } from "@sweepr/ui";
