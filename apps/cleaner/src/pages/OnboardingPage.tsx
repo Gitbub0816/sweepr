@@ -15,6 +15,7 @@ import { useAppToken } from "@/lib/appToken";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowRight,
   Camera,
@@ -139,9 +140,9 @@ const initialState: FormState = {
   avatarUrl: "",
   bio: "",
   experience: "",
-  basedIn: "San Diego, CA",
+  basedIn: "Hayward, CA",
   radiusMi: 15,
-  center: [-117.1611, 32.7157],
+  center: [-122.0808, 37.6688],
   services: ["standard"],
   acceptedJobTypes: ["standard", "move_in_out", "vacation_rental"],
   addOns: [],
@@ -262,8 +263,14 @@ export function OnboardingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [trainingComplete, setTrainingComplete] = useState(false);
+  // Real required-module count from the server, for the Academy reminder copy
+  // shown alongside the background check (never hardcode this — it changes
+  // whenever an admin adds/removes a required module).
+  const [requiredModuleCount, setRequiredModuleCount] = useState<number | undefined>(undefined);
 
-  // Check training completion status when reaching the background check step
+  // Check training completion status when reaching the background check step.
+  // This no longer gates starting the check (Academy and the background check
+  // can run in parallel) — it only drives the non-blocking reminder copy.
   useEffect(() => {
     if (stepName !== "Background Check") return;
     if (!API_URL) return;
@@ -275,12 +282,13 @@ export function OnboardingPage() {
         });
         if (res.ok) {
           const data = (await res.json()) as {
-            summary: { backgroundCheckUnlocked: boolean };
+            summary: { backgroundCheckUnlocked: boolean; totalRequired: number };
           };
           setTrainingComplete(data.summary.backgroundCheckUnlocked);
+          setRequiredModuleCount(data.summary.totalRequired);
         }
       } catch {
-        // silently ignore — show locked state
+        // silently ignore — reminder just stays hidden
       }
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -351,9 +359,10 @@ export function OnboardingPage() {
           form.authorizedRep.email.trim().length > 0
         );
       case "Background Check":
-        // Training must be complete before the background check step unlocks.
-        if (!trainingComplete) return false;
-        // Allow continuing once the Yardstik report was ordered (pending = check in progress)
+        // Training completion no longer gates the background check — a
+        // cleaner can start (and finish) Yardstik screening while still
+        // working through Academy modules. Allow continuing once the
+        // Yardstik report was ordered (pending = check in progress).
         return backgroundCheckStatus === "submitted" || backgroundCheckStatus === "pending";
       case "Identity":
         // Only a confirmed Didit approval (webhook → "approved" → "submitted") unlocks Next.
@@ -621,7 +630,7 @@ export function OnboardingPage() {
             >
               <Card>
                 {stepName === "Basics" && (
-                  <StepWelcome form={form} set={set} />
+                  <StepWelcome form={form} set={set} getToken={getToken} clerkId={user?.id} />
                 )}
                 {stepName === "Business Info" && (
                   <StepBusinessInfo form={form} set={set} />
@@ -658,6 +667,7 @@ export function OnboardingPage() {
                     n={step + 1}
                     getToken={getToken}
                     trainingComplete={trainingComplete}
+                    requiredModuleCount={requiredModuleCount}
                     onComplete={() => {
                       setBackgroundCheckStatus("pending");
                       goNext();
@@ -763,16 +773,29 @@ function StepTitle({
   );
 }
 
+type UploadStatus = "idle" | "uploading" | "error";
+
+const AVATAR_ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+/**
+ * A file-picker button whose visible state (idle / uploading / added / failed)
+ * reflects a REAL upload in progress, not just a local file selection — the
+ * caller owns the actual upload (see StepWelcome.handleAvatarSelect) and
+ * passes the resulting status down, so a failure is always visible instead of
+ * silently proceeding without a photo.
+ */
 function PhotoUpload({
   value,
-  onChange,
+  onSelectFile,
   label,
   icon,
+  status,
 }: {
   value: string;
-  onChange: (url: string) => void;
+  onSelectFile: (file: File) => void;
   label: string;
   icon?: React.ReactNode;
+  status: UploadStatus;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   return (
@@ -780,9 +803,19 @@ function PhotoUpload({
       type="button"
       onClick={() => inputRef.current?.click()}
       aria-label={label}
-      className="flex h-32 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 text-sm text-slate-600 transition-colors hover:border-seafoam-400 dark:border-slate-700"
+      disabled={status === "uploading"}
+      className="flex h-32 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 text-sm text-slate-600 transition-colors hover:border-seafoam-400 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700"
     >
-      {value ? (
+      {status === "uploading" ? (
+        <span className="flex items-center gap-2 text-slate-500">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-seafoam-200 border-t-seafoam-500" />
+          Uploading…
+        </span>
+      ) : status === "error" ? (
+        <span className="flex items-center gap-2 text-red-600 dark:text-red-400">
+          <AlertCircle className="h-5 w-5" /> Upload failed, tap to retry
+        </span>
+      ) : value ? (
         <span className="flex items-center gap-2 text-seafoam-700">
           <CheckCircle2 className="h-5 w-5" /> {label} added
         </span>
@@ -800,21 +833,101 @@ function PhotoUpload({
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) onChange(URL.createObjectURL(file));
+          // Reset so re-selecting the same file after a failure fires onChange again.
+          e.target.value = "";
+          if (file) onSelectFile(file);
         }}
       />
     </button>
   );
 }
 
-function StepWelcome({ form, set }: { form: FormState; set: SetFn }) {
+function StepWelcome({
+  form,
+  set,
+  getToken,
+  clerkId,
+}: {
+  form: FormState;
+  set: SetFn;
+  getToken: () => Promise<string | null>;
+  clerkId: string | undefined;
+}) {
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarStatus, setAvatarStatus] = useState<UploadStatus>("idle");
+
+  // Revoke the local preview blob when it's replaced or the step unmounts.
+  useEffect(() => {
+    return () => {
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    };
+  }, [avatarPreview]);
+
+  // The applicant isn't a "cleaner" yet at this point (that row is only
+  // created at /cleaners/apply on the Review step), so there's no cleaner id
+  // to scope the upload to. Uses the storage route's "applicant_avatar" scope,
+  // which authorizes against the caller's own verified Clerk id instead — see
+  // apps/api/src/routes/storage.ts. Same request-a-URL/PUT-to-R2 pattern
+  // JobDetailPage.tsx already uses for day-of-service photos.
+  async function handleAvatarSelect(file: File) {
+    if (!clerkId) {
+      toast.error("You need to be signed in to upload a photo.");
+      return;
+    }
+    if (!AVATAR_ALLOWED_TYPES.includes(file.type)) {
+      toast.error("Please choose a JPEG, PNG, or WebP image.");
+      return;
+    }
+    const localPreview = URL.createObjectURL(file);
+    setAvatarPreview(localPreview);
+    setAvatarStatus("uploading");
+    try {
+      const token = await getToken();
+      const signRes = await fetch(`${API_URL}/storage/sign-upload`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({
+          fileName: file.name,
+          contentType: file.type,
+          sizeBytes: file.size,
+          purpose: "cleaner_avatar",
+          scope: "applicant_avatar",
+          refId: clerkId,
+        }),
+      });
+      if (!signRes.ok) {
+        const body = (await signRes.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "Could not prepare the upload.");
+      }
+      const { uploadUrl, publicUrl, contentType } = (await signRes.json()) as {
+        uploadUrl: string;
+        publicUrl: string;
+        contentType: string;
+      };
+      const putRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": contentType },
+        body: file,
+      });
+      if (!putRes.ok) throw new Error("The upload didn't go through.");
+      set("avatarUrl", publicUrl);
+      setAvatarStatus("idle");
+      setAvatarPreview(null);
+    } catch (err) {
+      setAvatarStatus("error");
+      toast.error(err instanceof Error ? err.message : "Photo upload failed. Please try again.");
+    }
+  }
+
+  const displayedAvatar = avatarPreview ?? (avatarStatus !== "error" ? form.avatarUrl : "");
+
   return (
     <div className="space-y-4">
       <StepTitle n={1} title="Welcome to Sweepr" subtitle="Tell us about yourself." />
       <div className="flex flex-col items-center gap-3">
-        {form.avatarUrl ? (
+        {displayedAvatar ? (
           <img
-            src={form.avatarUrl}
+            src={displayedAvatar}
             alt="Profile preview"
             className="h-20 w-20 rounded-full object-cover"
           />
@@ -825,8 +938,9 @@ function StepWelcome({ form, set }: { form: FormState; set: SetFn }) {
         )}
         <PhotoUpload
           value={form.avatarUrl}
-          onChange={(url) => set("avatarUrl", url)}
+          onSelectFile={handleAvatarSelect}
           label="Upload profile photo"
+          status={avatarStatus}
         />
       </div>
       <Input
@@ -1283,7 +1397,8 @@ function StepReview({
           {formatCurrency(earnings.low)}–{formatCurrency(earnings.high)}
         </p>
         <p className="mt-1 text-xs opacity-80">
-          Based on ~{weeklyHours} available hours/week at an average of $35/hr.
+          Based on ~{weeklyHours} available hours/week at an average of $35/hr,
+          assuming you're booked for 60–95% of those hours.
         </p>
       </div>
 

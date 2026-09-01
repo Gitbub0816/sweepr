@@ -8,17 +8,81 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
+import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, Circle, Mail } from "lucide-react";
 import { ThemeToggle } from "@sweepr/ui";
+import { useAppToken } from "@/lib/appToken";
 
-const TIMELINE = [
-  { label: "Application submitted", done: true },
-  { label: "Background check", done: false },
-  { label: "Identity verified", done: false },
-  { label: "Account approved", done: false },
-];
+const API_URL = import.meta.env.VITE_API_URL ?? "";
+
+interface OnboardingStatus {
+  background: boolean;
+  identity: boolean;
+  approved: boolean;
+}
+
+const DEFAULT_STATUS: OnboardingStatus = {
+  background: false,
+  identity: false,
+  approved: false,
+};
+
+/** Steps whose completion is fetched live from GET /cleaners/onboarding-progress
+ *  — "Application submitted" is always true here (you can't reach this page
+ *  without having submitted). */
+function buildTimeline(status: OnboardingStatus) {
+  return [
+    { label: "Application submitted", done: true },
+    { label: "Background check", done: status.background },
+    { label: "Identity verified", done: status.identity },
+    { label: "Account approved", done: status.approved },
+  ];
+}
 
 export function PendingReviewPage() {
+  const { getToken } = useAppToken();
+  const [status, setStatus] = useState<OnboardingStatus>(DEFAULT_STATUS);
+  const doneRef = useRef(false);
+
+  // Live status, same request/poll shape as OnboardingPage's Didit sync: fetch
+  // on mount, then keep polling while review is still in flight so this
+  // screen updates itself the moment a background check or identity check
+  // clears, instead of staying stuck on "(pending)" forever.
+  useEffect(() => {
+    if (!API_URL) return;
+    let cancelled = false;
+
+    async function syncStatus() {
+      try {
+        const token = await getToken();
+        const res = await fetch(`${API_URL}/cleaners/onboarding-progress`, {
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+        });
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as {
+          steps?: { background?: boolean; identity?: boolean; approved?: boolean };
+        };
+        const next: OnboardingStatus = {
+          background: Boolean(data.steps?.background),
+          identity: Boolean(data.steps?.identity),
+          approved: Boolean(data.steps?.approved),
+        };
+        setStatus(next);
+        doneRef.current = next.approved;
+      } catch {
+        // ignore — keep showing the last known (or default) status
+      }
+    }
+
+    void syncStatus();
+    const interval = setInterval(() => {
+      if (!doneRef.current) void syncStatus();
+    }, 15000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [getToken]);
+
+  const TIMELINE = buildTimeline(status);
+
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-seafoam-50 via-offwhite to-seafoam-100 px-4 py-12 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       <div className="absolute right-4 top-4">

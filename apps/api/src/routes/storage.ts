@@ -28,21 +28,37 @@ const ALLOWED_EXTS = new Set(["jpg", "jpeg", "png", "webp"]);
 // Scopes that go to sweepr-legal (WORM bucket, 7-year retention).
 const LEGAL_SCOPES = new Set(["certificate", "insurance"]);
 
-const signSchema = z.object({
-  fileName: z.string().min(1).max(255),
-  contentType: z.enum(ALLOWED_TYPES),
-  sizeBytes: z.number().int().positive().max(MAX_UPLOAD_BYTES),
-  purpose: z.enum([
-    "booking_photo",
-    "cleaner_avatar",
-    "training_asset",
-    "certificate",
-    "insurance_doc",
-    "promo_asset",
-  ]),
-  scope: z.enum(["booking", "avatar", "training", "certificate", "insurance", "promo"]),
-  refId: z.string().uuid(),
-});
+const signSchema = z
+  .object({
+    fileName: z.string().min(1).max(255),
+    contentType: z.enum(ALLOWED_TYPES),
+    sizeBytes: z.number().int().positive().max(MAX_UPLOAD_BYTES),
+    purpose: z.enum([
+      "booking_photo",
+      "cleaner_avatar",
+      "training_asset",
+      "certificate",
+      "insurance_doc",
+      "promo_asset",
+    ]),
+    scope: z.enum([
+      "booking",
+      "avatar",
+      "training",
+      "certificate",
+      "insurance",
+      "promo",
+      // Pre-application cleaner avatar upload — see the "applicant_avatar"
+      // branch below. refId is the caller's own Clerk id (not a DB uuid), so
+      // it is exempted from the .uuid() check below.
+      "applicant_avatar",
+    ]),
+    refId: z.string().min(1).max(255),
+  })
+  .refine(
+    (v) => v.scope === "applicant_avatar" || z.string().uuid().safeParse(v.refId).success,
+    { message: "Invalid refId", path: ["refId"] },
+  );
 
 storageRouter.post(
   "/sign-upload",
@@ -80,6 +96,17 @@ storageRouter.post(
           return c.json({ error: "Forbidden" }, 403);
         }
       }
+    } else if (input.scope === "applicant_avatar") {
+      // A cleaner applicant uploading their profile photo mid-onboarding has
+      // no `cleaners` row yet (one is only created at /cleaners/apply), so
+      // there is no cleaner id to scope the "avatar" branch's ownership check
+      // to. Scope directly to the caller's own verified Clerk id instead —
+      // it comes from the verified JWT (never trusted from the request body
+      // for the decision itself), and the client already has it via Clerk's
+      // useUser() with no extra round trip to mint a cleaner row early.
+      if (input.refId !== clerkId) {
+        return c.json({ error: "Forbidden" }, 403);
+      }
     }
 
     const prefix = {
@@ -89,6 +116,7 @@ storageRouter.post(
       certificate: "certificates",
       insurance: "insurance",
       promo: "promos",
+      applicant_avatar: "avatars/pending",
     }[input.scope];
 
     const rawExt = input.fileName.split(".").pop()?.toLowerCase() ?? "";

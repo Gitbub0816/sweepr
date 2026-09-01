@@ -24,6 +24,8 @@ interface Props {
   getToken: () => Promise<string | null>;
   onComplete: () => void;
   trainingComplete?: boolean;
+  /** Live count of required Academy modules, for the reminder copy below. */
+  requiredModuleCount?: number;
 }
 
 type Phase =
@@ -33,7 +35,7 @@ type Phase =
   | { kind: "waiting"; status: ReportStatus }
   | { kind: "error"; message: string };
 
-export function BackgroundCheckStep({ n, getToken, onComplete, trainingComplete = false }: Props) {
+export function BackgroundCheckStep({ n, getToken, onComplete, trainingComplete = false, requiredModuleCount }: Props) {
   const { user } = useUser();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -162,12 +164,13 @@ export function BackgroundCheckStep({ n, getToken, onComplete, trainingComplete 
   }
 
   if (phase.kind === "intro") {
-    if (!trainingComplete) {
-      return <div className="space-y-5"><StepHeader n={n} /><TrainingGate unlocked={false} /></div>;
-    }
+    // Academy completion is no longer a prerequisite for STARTING the
+    // background check — the two can run in parallel, so this is a
+    // non-blocking reminder rather than a gate that hides the form below.
     return (
       <div className="space-y-5">
         <StepHeader n={n} />
+        {!trainingComplete && <TrainingGate unlocked={false} requiredCount={requiredModuleCount} />}
         <FcraDisclosure />
         <div className="grid gap-3 sm:grid-cols-2">
           <Input label="Legal first name" value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" />

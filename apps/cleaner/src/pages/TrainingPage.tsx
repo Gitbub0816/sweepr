@@ -1088,19 +1088,34 @@ export function TrainingPage() {
   return <ModuleList modules={modules} summary={summary} onSelect={(m) => void selectModule(m)} />;
 }
 
-// Locked training gate component for use in onboarding/background check flows
-export function TrainingGate({ unlocked }: { unlocked: boolean }) {
+// Non-blocking training reminder for use in onboarding/background check flows.
+// The background check no longer waits on Academy completion (they run in
+// parallel), so this is a nudge rather than a gate — it never hides the flow
+// it's shown alongside. `requiredCount` comes from the live module count
+// (GET /training/progress summary.totalRequired) rather than a literal, so
+// this copy never goes stale if an admin adds or removes a required module.
+export function TrainingGate({
+  unlocked,
+  requiredCount,
+}: {
+  unlocked: boolean;
+  requiredCount?: number;
+}) {
   const navigate = useNavigate();
   if (unlocked) return null;
+  const moduleLabel =
+    typeof requiredCount === "number" && requiredCount > 0
+      ? `${requiredCount} required training modules`
+      : "your required training modules";
   return (
     <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-950/20">
-      <Lock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+      <GraduationCap className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
       <div className="flex-1">
         <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
-          Complete your required training first
+          Keep up with Cleaner Academy
         </p>
         <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-          You must complete all 10 required training modules before starting your background check.
+          You can complete your background check now. Finish {moduleLabel} before you start taking jobs.
         </p>
         <Button
           size="sm"
