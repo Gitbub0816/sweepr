@@ -24,6 +24,7 @@ import { useAuth } from "@clerk/clerk-react";
 import {
   Archive,
   BadgeDollarSign,
+  BedDouble,
   CalendarClock,
   ClipboardCheck,
   Clock,
@@ -37,10 +38,12 @@ import {
   Rocket,
   Settings2,
   Sparkles,
+  Truck,
   Wand2,
 } from "lucide-react";
 import { Button, Card, Modal, toast } from "@sweepr/ui";
 import { cn } from "@sweepr/utils";
+import { buildDefaultExtendedRules, type ExtendedRulesV2 } from "@sweepr/quote-engine";
 import { usePermissions } from "../lib/permissions";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
@@ -60,8 +63,14 @@ const LEVEL_LABELS = [
   "4 · Heavy condition",
 ];
 
-// Mirrors PricingConfigV2 (apps/api/src/lib/quoteEngine/types.ts).
+// Mirrors PricingConfigV2 (packages/quote-engine/src/types.ts).
 interface Config {
+  /** 2 = extended multi-service ruleset; absent/1 = legacy standard-only. */
+  formatVersion?: 1 | 2;
+  /** Multi-service rules (Move-In/Out, Airbnb/STR, deep clean, short-notice
+   *  tiers, location tiers, extras overrides). Unknown sections round-trip
+   *  untouched — the Studio edits only what it renders. */
+  extendedRules?: ExtendedRulesV2;
   laborMatrix: Record<RoomType, [number, number, number, number]>;
   clutter: {
     minutesByType: Record<RoomType, [number, number, number]>;
@@ -252,6 +261,9 @@ type Tab =
   | "adjustments"
   | "extras"
   | "rates"
+  | "moveinout"
+  | "airbnb"
+  | "rules"
   | "scheduling"
   | "test"
   | "proposals"
@@ -265,6 +277,9 @@ const TABS: Array<{ id: Tab; label: string; icon: typeof Grid3x3 }> = [
   { id: "adjustments", label: "Clutter & size", icon: Sparkles },
   { id: "extras", label: "Extras", icon: Plus },
   { id: "rates", label: "Rates & payout", icon: BadgeDollarSign },
+  { id: "moveinout", label: "Move-In/Out", icon: Truck },
+  { id: "airbnb", label: "Airbnb / STR", icon: BedDouble },
+  { id: "rules", label: "Tiers & rules", icon: CalendarClock },
   { id: "scheduling", label: "Scheduling", icon: Clock },
   { id: "test", label: "Test quote", icon: FlaskConical },
   { id: "proposals", label: "Proposals", icon: Inbox },
@@ -459,6 +474,9 @@ export function PricingStudioPage() {
           {tab === "adjustments" && <AdjustmentsTab config={config} patch={patchConfig} editable={editable} />}
           {tab === "extras" && <ExtrasTab config={config} patch={patchConfig} editable={editable} />}
           {tab === "rates" && <RatesTab config={config} patch={patchConfig} editable={editable} />}
+          {tab === "moveinout" && <MoveInOutTab config={config} patch={patchConfig} editable={editable} />}
+          {tab === "airbnb" && <AirbnbTab config={config} patch={patchConfig} editable={editable} />}
+          {tab === "rules" && <RulesTab config={config} patch={patchConfig} editable={editable} />}
           {tab === "scheduling" && <SchedulingTab config={config} patch={patchConfig} editable={editable} />}
           {tab === "test" && <TestQuoteTab api={api} versionId={selectedId} />}
           {tab === "publish" && (
@@ -1206,6 +1224,7 @@ function ExtrasTab({
   editable: boolean;
 }) {
   return (
+    <div className="space-y-4">
     <Card>
       <h3 className="mb-1 text-sm font-semibold text-charcoal dark:text-white">Extras</h3>
       <p className="mb-3 text-xs text-slate-500">
@@ -1348,9 +1367,10 @@ function RatesTab({
         <h3 className="mb-3 text-sm font-semibold text-charcoal dark:text-white">Cleaner payout (planning estimate)</h3>
         <p className="mb-3 text-xs text-slate-500">
           Independent of the customer price: changing one never silently changes the other. This is
-          a MODELING estimate for margin checks. Actual cleaner pay is captured booking proceeds
-          minus the Marketplace Services Fee (default 20%, Payouts fee settings), plus 100% of tips.
-          It is not set here and cleaners are never paid hourly.
+          a MODELING estimate for margin checks. Actual cleaner pay is the standard 70/30 split: the
+          cleaner/team pool earns 70% of captured booking proceeds and the 30% Marketplace Services
+          Fee is Sweepr's share (Payouts fee settings), plus 100% of tips to the cleaner outside the
+          split. It is not set here and cleaners are never paid hourly.
         </p>
         <div className="space-y-4">
           <label className="block">
@@ -1528,7 +1548,7 @@ function TestQuoteTab({ api, versionId }: { api: ReturnType<typeof useApi>; vers
                 <span>Customer total</span><span className="tabular-nums">{dollars(result.totalCents)}</span>
               </div>
               <div className="mt-1 flex justify-between text-slate-500">
-                <span title="Planning estimate from this config's payout model. Actual cleaner pay is captured proceeds minus the Marketplace Services Fee (default 20%), plus 100% of tips.">
+                <span title="Planning estimate from this config's payout model. Actual cleaner pay is 70% of captured proceeds (the 30% Marketplace Services Fee is Sweepr's share), plus 100% of tips.">
                   Modeled cleaner payout (est.)
                 </span>
                 <span className="tabular-nums">{dollars(result.cleanerPayoutCents)}</span>

@@ -15,7 +15,13 @@
  */
 
 import { computeQuoteV2 } from "./engine";
-import { ROOM_TYPES_V2, type PricingConfigV2, type QuoteInputV2 } from "./types";
+import { unwrapPricingRuleset } from "./extended";
+import {
+  ROOM_TYPES_V2,
+  type ExtendedRulesV2,
+  type PricingConfigV2,
+  type QuoteInputV2,
+} from "./types";
 
 export interface ValidationResult {
   ok: boolean;
@@ -74,6 +80,186 @@ export const REFERENCE_SCENARIOS: Array<{ key: string; label: string; input: Quo
     },
   },
 ];
+
+const COMBO_KEY_RE = /^(Studio_or_1BR|\d+BR)_\d+BA$/;
+const BEDROOM_KEY_RE = /^(Studio_or_1BR|\d+BR)$/;
+
+/**
+ * Guardrails for the extended (formatVersion 2) ruleset. Only the sections
+ * the engine consumes are validated; unknown sections and unknown keys are
+ * PRESERVED verbatim (they round-trip through storage, Studio, and MCP
+ * untouched) — the master ruleset must validate as-is.
+ */
+function validateExtendedRules(ext: ExtendedRulesV2, errors: string[], warnings: string[]): void {
+  const isCents = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 0;
+
+  const checkComboMatrix = (label: string, matrix: Record<string, unknown> | undefined): void => {
+    if (!matrix) return;
+    const keys = Object.keys(matrix);
+    if (keys.length === 0) errors.push(`${label} must have at least one BR/BA entry.`);
+    for (const key of keys) {
+      if (!COMBO_KEY_RE.test(key)) {
+        errors.push(`${label}: key "${key}" is not a BR/BA key (e.g. "3BR_2BA" or "Studio_or_1BR_1BA").`);
+      }
+    }
+  };
+
+  const checkLevelPercents = (
+    label: string,
+    map: { L1?: number; L2?: number; L3?: number; L4?: number } | undefined,
+  ): void => {
+    if (!map) return;
+    for (const lvl of ["L1", "L2", "L3", "L4"] as const) {
+      const v = map[lvl];
+      if (v !== undefined && !(Number.isFinite(v) && v >= 0 && v <= 100)) {
+        errors.push(`${label} ${lvl} must be a percent between 0 and 100.`);
+      }
+    }
+  };
+
+  if (ext.deepClean) {
+    const pct = ext.deepClean.baseWorkloadMultiplierPercent;
+    if (pct !== undefined && !(Number.isFinite(pct) && pct >= 0 && pct <= 100)) {
+      errors.push("Deep-clean base workload multiplier must be a percent between 0 and 100.");
+    }
+  }
+
+  if (ext.moveInOut) {
+    checkComboMatrix("Move-in/out price matrix", ext.moveInOut.basePriceMatrixCents);
+    for (const [key, v] of Object.entries(ext.moveInOut.basePriceMatrixCents ?? {})) {
+      if (!isCents(v) || v <= 0) errors.push(`Move-in/out price for ${key} must be a positive whole number of cents.`);
+    }
+    checkLevelPercents("Move-in/out condition multiplier", ext.moveInOut.conditionMultipliersPercent);
+    const per = ext.moveInOut.oversizedHomeGuardrail?.priceCentsPerAdditional250Sqft;
+    if (per !== undefined && !isCents(per)) {
+      errors.push("Move-in/out oversized-home guardrail must be a whole number of cents per 250 sqft.");
+    }
+  }
+
+  if (ext.airbnbSTR) {
+    checkComboMatrix("Airbnb turnover price matrix", ext.airbnbSTR.basePriceMatrixCents);
+    for (const [key, v] of Object.entries(ext.airbnbSTR.basePriceMatrixCents ?? {})) {
+      if (!isCents(v) || v <= 0) errors.push(`Turnover price for ${key} must be a positive whole number of cents.`);
+    }
+    checkLevelPercents("Airbnb dirtiness adjustment", ext.airbnbSTR.dirtinessAdjustmentPercent);
+    const g = ext.airbnbSTR.sizeGuardrail;
+    if (g) {
+      const per = g.priceCentsPerAdditional250Sqft;
+      if (per !== undefined && !isCents(per)) {
+        errors.push("Airbnb size guardrail must be a whole number of cents per increment.");
+      }
+      for (const [key, v] of Object.entries(g.includedSqftByBedroomCount ?? {})) {
+        if (!BEDROOM_KEY_RE.test(key)) {
+          errors.push(`Airbnb included-sqft table: key "${key}" is not a bedroom key (e.g. "3BR" or "Studio_or_1BR").`);
+        }
+        if (!Number.isInteger(v) || (v as number) <= 0) {
+          errors.push(`Airbnb included sqft for ${key} must be a positive whole number.`);
+        }
+      }
+    }
+    for (const [key, row] of Object.entries(ext.airbnbSTR.staffingMatrix ?? {})) {
+      if (!COMBO_KEY_RE.test(key)) {
+        errors.push(`Airbnb staffing matrix: key "${key}" is not a BR/BA key.`);
+      }
+      for (const lvl of ["L1", "L2", "L3", "L4"] as const) {
+        const v = row?.[lvl];
+        if (v !== undefined && !(Number.isInteger(v) && v >= 1 && v <= 5)) {
+          errors.push(`Airbnb staffing for ${key} ${lvl} must be a whole number of cleaners (1 to 5).`);
+        }
+      }
+    }
+    const d = ext.airbnbSTR.repeatVolumeDiscounts;
+    if (d) {
+      for (const [label, v] of [
+        ["Repeat-property discount", d.secondAndLaterSamePropertyPercent],
+        ["Host volume discount", d.hostRolling30DayDiscountPercent],
+      ] as const) {
+        if (v !== undefined && !(Number.isFinite(v) && v >= 0 && v <= 50)) {
+          errors.push(`${label} must be a percent between 0 and 50.`);
+        }
+      }
+      const t = d.hostRolling30DayCompletedTurnoversThreshold;
+      if (t !== undefined && !(Number.isInteger(t) && t >= 1)) {
+        errors.push("Host volume threshold must be a whole number of turnovers (at least 1).");
+      }
+    }
+  }
+
+  if (ext.shortNotice?.tiers) {
+    if (!Array.isArray(ext.shortNotice.tiers)) {
+      errors.push("Short-notice tiers must be a list.");
+    } else {
+      for (const tier of ext.shortNotice.tiers) {
+        const pct = tier?.surchargePercent;
+        if (!(Number.isFinite(pct) && (pct as number) >= 0 && (pct as number) <= 50)) {
+          errors.push("Each short-notice tier needs a surcharge percent between 0 and 50.");
+        }
+      }
+    }
+  }
+
+  if (ext.locationPricing) {
+    const cap = ext.locationPricing.initialCapPercent;
+    if (cap !== undefined && !(Number.isFinite(cap) && cap >= 0 && cap <= 25)) {
+      errors.push("Location-tier cap must be a percent between 0 and 25.");
+    }
+    for (const [name, v] of Object.entries(ext.locationPricing.tiersPercent ?? {})) {
+      if (!(Number.isFinite(v) && v >= 0 && v <= (cap ?? 10))) {
+        errors.push(`Location tier "${name}" must be between 0% and the cap.`);
+      }
+    }
+  }
+
+  const o = ext.extrasAppSideOverrides;
+  if (o) {
+    for (const [label, v] of [
+      ["Inside-oven price", o.insideOven?.customerPriceCents],
+      ["Laundry price per load", o.laundry?.customerPriceCentsPerLoad],
+      ["Light Tidying price per block", o.lightTidying?.customerPriceCentsPer30MinuteBlock],
+      ["Sliding glass door price", o.slidingGlassDoor?.detailPriceCents],
+    ] as const) {
+      if (v !== undefined && !isCents(v)) errors.push(`${label} must be a whole number of cents.`);
+    }
+    const tiers = o.petHair?.percentageTiers;
+    if (tiers !== undefined) {
+      if (!Array.isArray(tiers) || tiers.length !== 3 || tiers.some((t) => !(Number.isFinite(t) && t >= 0 && t <= 100))) {
+        errors.push("Pet-hair tiers must be three percents (light, moderate, heavy) between 0 and 100.");
+      } else if (tiers[0] > tiers[1] || tiers[1] > tiers[2]) {
+        errors.push("Pet-hair tiers must not decrease from light to heavy.");
+      }
+    }
+  }
+
+  const econ = ext.payoutAndMarketplaceEconomics;
+  if (econ) {
+    for (const [size, v] of [
+      [1, econ.oneCleanerProductivityPermille],
+      [2, econ.twoCleanerProductivityPermille],
+      [3, econ.threeCleanerProductivityPermille],
+    ] as const) {
+      if (v !== undefined && !(Number.isFinite(v) && v >= 500 && v <= size * 1000)) {
+        errors.push(`Team-of-${size} productivity (marketplace economics) must be between 0.5x and ${size}.0x.`);
+      }
+    }
+  }
+
+  if (ext.locationPricing && warnings.length >= 0) {
+    // Informational: with location tiers active, legacy NEGATIVE per-zip
+    // multipliers (e.g. the 94541 -5% production row) are superseded by the
+    // engine (clamped to 0). Clean the zip table up at deploy.
+  }
+}
+
+/** Validate any accepted upload shape: a flat PricingConfigV2, a flat
+ *  formatVersion-2 config, or the SweeprExtendedPricingRuleset wrapper.
+ *  Returns the flattened config alongside the validation result. */
+export function validatePricingRuleset(raw: unknown): ValidationResult & {
+  config: PricingConfigV2;
+} {
+  const { config } = unwrapPricingRuleset(raw);
+  const result = validatePricingConfig(config);
+  return { ...result, config };
+}
 
 export function validatePricingConfig(config: PricingConfigV2): ValidationResult {
   const errors: string[] = [];
@@ -189,6 +375,9 @@ export function validatePricingConfig(config: PricingConfigV2): ValidationResult
   }
   if (inf.hGridPoints < 5 || inf.hGridPoints > 51) errors.push("H grid must use 5–51 points.");
 
+  // Extended (formatVersion 2) multi-service ruleset guardrails.
+  if (config.extendedRules) validateExtendedRules(config.extendedRules, errors, warnings);
+
   // Deterministic quote checks: the engine must run on every reference
   // scenario, produce positive totals, respect invariants, and never price a
   // protected scenario below the configured cleaner payout (negative margin).
@@ -215,6 +404,51 @@ export function validatePricingConfig(config: PricingConfigV2): ValidationResult
       } catch (err) {
         errors.push(
           `Reference scenario "${scenario.label}" failed to price: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
+    // The matrix paths must also price when configured.
+    const matrixScenarios: Array<{ label: string; input: QuoteInputV2 }> = [];
+    if (config.extendedRules?.moveInOut) {
+      matrixScenarios.push({
+        label: "Move-in/out 3 bed / 2 bath, level 2",
+        input: {
+          serviceArea: "default",
+          currency: "USD",
+          counts: { kitchen: 1, bathroom: 2, bedroom: 3, living_room: 1 },
+          conditions: { kitchen: 2, bathroom: 2, bedroom: 2, living_room: 2 },
+          sqft: 1800,
+          extras: [],
+          serviceType: "moveInOut",
+          conditionLevel: 2,
+        },
+      });
+    }
+    if (config.extendedRules?.airbnbSTR) {
+      matrixScenarios.push({
+        label: "Turnover 2 bed / 2 bath, level 3, 5h window",
+        input: {
+          serviceArea: "default",
+          currency: "USD",
+          counts: { kitchen: 1, bathroom: 2, bedroom: 2, living_room: 1 },
+          conditions: { kitchen: 3, bathroom: 3, bedroom: 3, living_room: 3 },
+          sqft: 1200,
+          extras: [],
+          serviceType: "airbnb",
+          conditionLevel: 3,
+          turnoverWindowHours: 5,
+        },
+      });
+    }
+    for (const scenario of matrixScenarios) {
+      try {
+        const q = computeQuoteV2(config, scenario.input, { pricingVersionId: "validation" });
+        if (q.totalCents <= 0) errors.push(`Scenario "${scenario.label}" prices at ≤ $0.`);
+        if (q.requiredTeamSize < 1) errors.push(`Scenario "${scenario.label}" requires no team.`);
+      } catch (err) {
+        errors.push(
+          `Scenario "${scenario.label}" failed to price: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
     }

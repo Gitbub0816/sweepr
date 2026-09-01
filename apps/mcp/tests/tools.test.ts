@@ -9,6 +9,8 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { buildColdStartConfig } from "@sweepr/quote-engine";
 import { buildPayloadTemplate, callTool, TOOL_DEFS, type ToolContext } from "../src/mcp/tools";
 import { handleMcpMessage } from "../src/mcp/protocol";
@@ -312,26 +314,140 @@ describe("minimum job total (hourly rate + minimum) via MCP", () => {
   });
 });
 
-describe("pay-model language (cleaners are NOT paid hourly)", () => {
+describe("pay-model language (cleaners are NOT paid hourly; 70/30 split)", () => {
   it("the field guide states the real pay model prominently", () => {
     expect(CONFIG_FIELD_GUIDE).toContain("How cleaners are actually paid");
     expect(CONFIG_FIELD_GUIDE).toContain("NOT paid hourly");
-    expect(CONFIG_FIELD_GUIDE).toContain("20%");
+    expect(CONFIG_FIELD_GUIDE).toContain("70%");
+    expect(CONFIG_FIELD_GUIDE).toContain("Marketplace Services Fee");
     expect(CONFIG_FIELD_GUIDE).toContain("100% to the cleaner");
+    // The old 20%-platform-fee framing is gone everywhere this worker speaks.
+    expect(CONFIG_FIELD_GUIDE).not.toContain("default 20%");
+    expect(CONFIG_FIELD_GUIDE).not.toContain("~80%");
+  });
+
+  it("keeps the modeling-input framing: the labor rate is not an hourly wage", () => {
+    expect(CONFIG_FIELD_GUIDE).toContain("pricing-model input");
+    expect(CONFIG_FIELD_GUIDE).toContain("no cleaner ever receives it");
   });
 
   it("payload-template instructions mark the rate and payout as modeling inputs, not wages", () => {
     const out = buildPayloadTemplate() as { instructions: Record<string, string> };
     expect(out.instructions["rates.customerLaborRateCentsPerHour"]).toContain("NOT a wage");
+    expect(out.instructions["rates.customerLaborRateCentsPerHour"]).toContain("70%");
     expect(out.instructions.payout).toContain("NOT how cleaners are paid");
+    expect(out.instructions.payout).toContain("Marketplace Services Fee");
     expect(out.instructions["rates.minimumBookingCents"]).toContain("Minimum job total");
+    expect(out.instructions.extendedRules).toContain("moveInOut");
   });
 
   it("the assistant prompt carries the pay-model hard rule and the Studio proposals handoff", () => {
     expect(PRICING_ASSISTANT_PROMPT).toContain("CLEANERS ARE NOT PAID HOURLY");
+    expect(PRICING_ASSISTANT_PROMPT).toContain("70%");
+    expect(PRICING_ASSISTANT_PROMPT).toContain("Marketplace Services Fee");
     expect(PRICING_ASSISTANT_PROMPT).toContain("Proposals");
     expect(WORKFLOW_GUIDE).toContain("Load into Studio");
     expect(WORKFLOW_GUIDE).toContain("NOT paid hourly");
+    expect(WORKFLOW_GUIDE).toContain("Marketplace Services Fee");
+  });
+});
+
+describe("extended ruleset (formatVersion 2) via MCP", () => {
+  const masterRuleset = JSON.parse(
+    readFileSync(
+      join(__dirname, "..", "..", "api", "tests", "fixtures", "master-pricing-ruleset.json"),
+      "utf8",
+    ),
+  ) as Record<string, unknown>;
+
+  it("imports the SweeprExtendedPricingRuleset wrapper as-is and preserves extendedRules", async () => {
+    const { ctx, calls } = ctxWith(() => []);
+    const out = (await callTool(ctx, "set_simulator_config", {
+      config: masterRuleset,
+      name: "master",
+    })) as { stored: boolean; ok: boolean; errors: string[] };
+    expect(out.errors).toEqual([]);
+    expect(out.ok).toBe(true);
+    expect(out.stored).toBe(true);
+    const ins = calls.find((c) => c.text.includes("INSERT INTO mcp_simulator_configs"));
+    const storedJson = ins!.values.find(
+      (v) => typeof v === "string" && v.includes("extendedRules"),
+    ) as string;
+    const stored = JSON.parse(storedJson) as {
+      formatVersion?: number;
+      laborMatrix: { kitchen: number[] };
+      extendedRules: Record<string, unknown>;
+    };
+    // Flattened: engine config at the top level, extendedRules alongside.
+    expect(stored.formatVersion).toBe(2);
+    expect(stored.laborMatrix.kitchen).toEqual([35, 50, 70, 95]);
+    // Extended and even engine-unknown sections survive verbatim.
+    expect(stored.extendedRules.moveInOut).toBeDefined();
+    expect(stored.extendedRules.airbnbSTR).toBeDefined();
+    expect(stored.extendedRules.accessDelayAndLockout).toBeDefined();
+  });
+
+  it("simulates an airbnb turnover with BR/BA and turnover-window inputs", async () => {
+    const { config } = (await import("@sweepr/quote-engine")).unwrapPricingRuleset(masterRuleset);
+    const { ctx } = ctxWith((text) =>
+      text.includes("FROM mcp_simulator_configs")
+        ? [{ config, notes: null, updated_at: "2026-09-01" }]
+        : [],
+    );
+    const out = (await callTool(ctx, "simulate_quote", {
+      name: "master",
+      input: {
+        serviceType: "airbnb",
+        bedrooms: 2,
+        bathrooms: 2,
+        conditionLevel: 3,
+        sqft: 1100,
+        turnoverWindowHours: 5,
+        extras: [],
+      },
+    })) as {
+      customerSummary: { serviceType: string; requiredTeamSize: number };
+      result: { totalCents: number; serviceType: string };
+    };
+    expect(out.result.serviceType).toBe("airbnb");
+    // 2BR_2BA base $199 + 20% dirtiness = $238.80.
+    expect(out.result.totalCents).toBe(23880);
+    expect(out.customerSummary.requiredTeamSize).toBeGreaterThanOrEqual(1);
+  });
+
+  it("simulates a move-in/out quote from the matrix", async () => {
+    const { config } = (await import("@sweepr/quote-engine")).unwrapPricingRuleset(masterRuleset);
+    const { ctx } = ctxWith((text) =>
+      text.includes("FROM mcp_simulator_configs")
+        ? [{ config, notes: null, updated_at: "2026-09-01" }]
+        : [],
+    );
+    const out = (await callTool(ctx, "simulate_quote", {
+      name: "master",
+      input: { serviceType: "moveInOut", bedrooms: 3, bathrooms: 2, conditionLevel: 2, sqft: 1400 },
+    })) as { result: { totalCents: number; serviceType: string } };
+    expect(out.result.serviceType).toBe("moveInOut");
+    // 3BR_2BA base $419 + 10% level-2 multiplier = $460.90.
+    expect(out.result.totalCents).toBe(46090);
+  });
+
+  it("surfaces deepCleanApplied in the customer summary on the standard path", async () => {
+    const { config } = (await import("@sweepr/quote-engine")).unwrapPricingRuleset(masterRuleset);
+    const { ctx } = ctxWith((text) =>
+      text.includes("FROM mcp_simulator_configs")
+        ? [{ config, notes: null, updated_at: "2026-09-01" }]
+        : [],
+    );
+    const out = (await callTool(ctx, "simulate_quote", {
+      name: "master",
+      input: {
+        counts: { kitchen: 1, bathroom: 2, bedroom: 3, living_room: 1 },
+        conditions: { kitchen: 4, bathroom: 2, bedroom: 2, living_room: 2 },
+        sqft: 1500,
+        extras: [],
+      },
+    })) as { customerSummary: { deepCleanApplied: boolean } };
+    expect(out.customerSummary.deepCleanApplied).toBe(true);
   });
 });
 

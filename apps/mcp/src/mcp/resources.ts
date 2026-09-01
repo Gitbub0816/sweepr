@@ -69,11 +69,13 @@ The real pay model, verified in the payout code
 (\`apps/api/src/lib/payoutEngine.ts\`, applied at capture in
 \`apps/api/src/routes/payments.ts\`):
 
-- A cleaner is paid from the booking's CAPTURED PROCEEDS minus Sweepr's
-  platform fee — **default 20%, so the cleaner receives ~80% of what the
-  customer actually paid** (tier and founding-member bonuses can raise it;
-  the fee is configured in Platform Fees settings, not here).
-- **Tips are 100% to the cleaner** — no platform fee, ever.
+- The standard booking split is **70% to the cleaner/team pool and 30% to
+  Sweepr — the Marketplace Services Fee** (founding-cleaner bonuses are
+  Sweepr-funded on top; the fee is configured in Platform Fees settings, not
+  here). Structural discounts (e.g. the Airbnb repeat/volume discounts)
+  reduce the service price BEFORE the 70/30 split.
+- **Tips are 100% to the cleaner, outside the split** — no Marketplace
+  Services Fee on tips, ever.
 - A bigger customer price therefore means a bigger cleaner payout,
   automatically. There is no hourly wage anywhere in the system.
 
@@ -153,7 +155,7 @@ shapes.
 ## rates
 - \`customerLaborRateCentsPerHour\`: integer cents per ESTIMATED labor-hour,
   charged to the CUSTOMER. **Bounds: 2000–25000** ($20–$250). Modeling input
-  only — cleaner compensation is ~80% of captured proceeds regardless of this
+  only — cleaner compensation is 70% of captured proceeds regardless of this
   number (see "How cleaners are actually paid" above).
 - \`fixedServiceCents\`: flat per-booking amount, own line item.
 - \`minimumBookingCents\`: **minimum job total**, integer cents (optional;
@@ -171,8 +173,10 @@ shapes.
 - \`taxRateBps\`: 0–2000 bps.
 - \`roundTotalUpToEndingDigit\`: charm rounding — round the total UP so its
   dollar part ends in this digit (0–9), or null = off.
-- \`emergencySurchargeBps\`: disclosed short-notice (<48h) surcharge,
-  0–5000 bps.
+- \`emergencySurchargeBps\`: the LEGACY single short-notice (<48h) surcharge,
+  0–5000 bps. When \`extendedRules.shortNotice.tiers\` is configured it is
+  superseded — the legacy field then represents only the <24h tier's
+  historical magnitude and the tiers do the pricing.
 - \`extraCleanerFeeCentsPer100Sqft\`: flat fee in INTEGER CENTS per 100 sqft,
   charged ONLY when the customer opts to add one extra cleaner for speed.
   Whole cents ≥ 0, max 5000 ($50) per 100 sqft. Default 100 ($1) per 100 sqft.
@@ -181,11 +185,12 @@ shapes.
 
 ## payout
 **Internal planning estimate — NOT how cleaners are paid.** Cleaners are not
-paid hourly; they receive captured booking proceeds minus the platform fee
-(default 20%), plus 100% of tips (see "How cleaners are actually paid"
-above). This block only models an estimated cost-of-labor figure used for
-margin validation (the validator rejects configs whose modeled payout meets
-or exceeds the pre-tax subtotal) and planning; no payout transfer reads it.
+paid hourly; the cleaner/team pool receives 70% of captured booking proceeds
+(the 30% Marketplace Services Fee is Sweepr's share), plus 100% of tips
+outside the split (see "How cleaners are actually paid" above). This block
+only models an estimated cost-of-labor figure used for margin validation
+(the validator rejects configs whose modeled payout meets or exceeds the
+pre-tax subtotal) and planning; no payout transfer reads it.
 - \`mode\`: \`per_labor_hour\` → \`centsPerLaborHour\` must be positive;
   \`percent_of_subtotal\` → \`percentBps\` in 1–10000.
 
@@ -204,6 +209,66 @@ identifier stamped on every quote; \`provenance\` is cold_start | learned |
 blended. \`thresholds\`: three STRICTLY increasing values per room type.
 \`betaHome\`: whole-home sensitivity, 0–5 per type. \`hGridPoints\`: 5–51.
 Change these only with statistical review.
+
+## extendedRules (formatVersion 2 — multi-service pricing)
+
+Optional block that turns the config into the full multi-service ruleset.
+Omit it entirely for a legacy standard-only config (which prices exactly as
+before). The \`SweeprExtendedPricingRuleset\` wrapper (\`{ format,
+formatVersion, config, extendedRules }\`) is accepted as-is by
+\`set_simulator_config\` and flattened for storage; every section — including
+ones the engine does not consume — is preserved verbatim and round-trips
+through storage, Studio, and this sandbox untouched.
+
+- \`moveInOut\`: \`basePriceMatrixCents\` keyed by BR/BA (e.g. \`"3BR_2BA":
+  41900\`), \`conditionMultipliersPercent\` L1–L4 (percent added to the base),
+  \`oversizedHomeGuardrail.priceCentsPerAdditional250Sqft\` (charged when the
+  home is unusually large for its room count). NO standard size scaling.
+  Missing BR/BA combos resolve to the nearest entry with a quote warning.
+- \`airbnbSTR\`: \`basePriceMatrixCents\` (\`"Studio_or_1BR_1BA"\` covers
+  studios), \`sizeGuardrail.includedSqftByBedroomCount\` + cents per 250 sqft
+  above it, \`dirtinessAdjustmentPercent\` (L1/L2 0, L3 +20, L4 +35 — applied
+  to base + guardrail), \`staffingMatrix\` (BR/BA → cleaners at L1–L4),
+  \`turnoverWindow\` rules (<4h manual review + staff-up; 4h borderline adds
+  one; 5h default; 6h+ may reduce one for borderline L1/L2, never L3/L4),
+  \`repeatVolumeDiscounts\` (2nd+ turnover at the SAME property 5%; host with
+  10+ completed turnovers in 30 days 10%; highest only, never stacking; base
+  service + size guardrail only; applied BEFORE the 70/30 split — the
+  service adapter resolves the actual history), and
+  \`scopeAndSuppressionRules\` (bed making, dishwasher load, and the basic
+  patio sweep are included in the turnover base — those add-ons suppress to
+  $0; garage sweep, interior windows, window tracks, and the sliding door
+  detail remain paid).
+- \`deepClean\`: auto-classification for the STANDARD path — triggers: ≥1
+  level-4 room, OR ≥2 level-3 rooms, OR ≥40% of counted rooms at level 3/4;
+  add-ons never trigger it. Effect: \`baseWorkloadMultiplierPercent\` (+10%)
+  on the BASE cleaning workload only (purchased add-ons excluded), NO
+  separate customer-facing surcharge line, and \`deepCleanApplied: true\` on
+  the result so the app labels the booking "Deep Clean".
+- \`shortNotice.tiers\`: <24h +15%, 24–48h +5%, >48h 0% — exactly one tier
+  ever applies (never stacking); supersedes \`emergencySurchargeBps\`.
+- \`locationPricing\`: ZIP tiers 0/+5/+10 with \`initialCapPercent\` (10).
+  The existing zip-multiplier table feeds v2 automatically; with tiers
+  active, legacy NEGATIVE zip rows are superseded (clamped to 0).
+- \`manualReview.triggerIfAny\`: sqft ≥ 4000, computed price ≥
+  maxAutoQuoteCents, obstructed/hoarding clutter, the unsafe-conditions
+  list, and the arrival-mismatch flag (set day-of-service, never at quote
+  time). Flagged quotes block instant auto-booking and route to review.
+- \`extrasAppSideOverrides\`: laundry $25/load (max 2) with 25 min ACTIVE
+  labor per load — machine cycle time never blocks the cleaner nor bills as
+  labor (the result's \`laborScheduling\` separates activeLaborMinutes,
+  machineElapsedMinutes, and onSiteMinutes = max of cleaning elapsed and
+  cycle completion); Light Tidying activated at $25 per 30-minute block
+  (30 min scheduled, price decoupled from the labor rate); inside oven $40
+  fixed with 35 min active labor; sliding glass door $20 including its track
+  (a duplicate window-track charge is suppressed); basic patio sweep vs
+  patio + cobweb detail are mutually exclusive; bed linens vs laundry cannot
+  double-charge; pet hair prices via percentage tiers 5/15/25% of the base
+  workload (\`petHair\` input: light | moderate | heavy) instead of the flat
+  placeholder.
+- \`payoutAndMarketplaceEconomics\`: documents the 70/30 split and supplies
+  team productivity (e.g. three-cleaner 2500 permille) merged into the
+  resolved scheduling map.
 
 ## Completeness (provide all fields, or accept defaults)
 Provide ALL PricingConfigV2 fields, or accept the built-in defaults. Before
@@ -257,14 +322,18 @@ everything else is read-only. Every tool call is audit-logged.
 
 - Money is INTEGER CENTS; durations are INTEGER MINUTES; rates are bps or
   permille (see sweepr://config-field-guide).
-- Do not invent config fields; start from sweepr://payload-template.
+- Do not invent config fields; start from sweepr://payload-template. The
+  master SweeprExtendedPricingRuleset wrapper imports as-is; its
+  extendedRules block (Move-In/Out, Airbnb/STR, deep clean, short-notice
+  tiers, location tiers, extras overrides) is preserved verbatim.
 - Never claim a change is live: your work products are proposals only.
 - Prices you compute are simulations, not quotes to customers.
-- **Cleaners are NOT paid hourly.** They earn captured booking proceeds
-  minus the platform fee (default 20% → ~80% to the cleaner) plus 100% of
-  tips. The config's labor rate prices CUSTOMERS from estimated minutes and
-  its payout block is a planning estimate — never describe either as cleaner
-  wages (see the field guide's "How cleaners are actually paid").
+- **Cleaners are NOT paid hourly.** The standard split pays the cleaner/team
+  pool 70% of captured booking proceeds; the 30% Marketplace Services Fee is
+  Sweepr's share; tips are 100% to the cleaner outside the split. The
+  config's labor rate prices CUSTOMERS from estimated minutes and its payout
+  block is a planning estimate — never describe either as cleaner wages (see
+  the field guide's "How cleaners are actually paid").
 `;
 
 /** Read one resource by uri; returns null for unknown uris. */
