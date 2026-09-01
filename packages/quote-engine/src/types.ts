@@ -450,4 +450,42 @@ export interface QuoteResultV2 {
   warnings: string[];
   manualReviewRequired: boolean;
   calculationFingerprint: string;
+
+  // ---- formatVersion-2 outputs (additive; older snapshots lack them) ----
+
+  /** Which pricing path actually priced this quote. */
+  serviceType: ServiceTypeV2;
+  /** Standard path auto-classified this job as a Deep Clean (≥1 level-4 room,
+   *  OR ≥2 level-3 rooms, OR ≥40% of counted rooms at level 3/4 — add-ons
+   *  never trigger it). Effect: +N% base-workload labor allowance, NO separate
+   *  customer-facing surcharge line. The app labels such bookings "Deep Clean". */
+  deepCleanApplied: boolean;
+  /**
+   * STAFFING CONTRACT (for the crew engine): the team size this job requires.
+   * Standard/moveInOut: 2 above scheduling.twoPersonThresholdMinutes, else 1.
+   * Airbnb: the staffing matrix (BR/BA × condition) adjusted by the
+   * turnover-window rules (<4h staff-up + review; 4h borderline adds one; 5h
+   * default; 6h+ may reduce one for borderline L1/L2, never L3/L4), clamped to
+   * the team sizes present in the resolved productivity map.
+   */
+  requiredTeamSize: number;
+  /** Machine-readable manual-review reasons (see MANUAL_REVIEW_REASONS). */
+  manualReviewReasons: string[];
+  /**
+   * Labor/scheduling decoupling: active cleaner labor vs machine elapsed time.
+   * machineElapsedMinutes (laundry cycles) never blocks the cleaner nor
+   * extends billed labor; onSiteMinutes = max(cleaning elapsed, machine cycle
+   * completion) is the true on-site duration for scheduling.
+   */
+  laborScheduling: {
+    activeLaborMinutes: number;
+    machineElapsedMinutes: number;
+    onSiteMinutes: number;
+  };
+  /** The airbnb repeat/volume discount that was applied, if any. */
+  appliedDiscount?: {
+    kind: "repeat_property" | "host_volume";
+    percent: number;
+    amountCents: number;
+  };
 }
