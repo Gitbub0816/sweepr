@@ -80,6 +80,7 @@ export function ReviewStep() {
     roomCountsByLevel,
     addOnKeys,
     extraCleanerRequested,
+    petHairLevel,
     scheduledFor,
     arrivalWindowStart,
     arrivalWindowEnd,
@@ -113,6 +114,11 @@ export function ReviewStep() {
     }>;
     estimatedElapsedMinutes: number;
     recommendedTeamSize: number;
+    /** Pricing v2 auto-classified this booking as a Deep Clean. */
+    deepCleanApplied?: boolean;
+    /** The server will refuse instant booking; formal copy explains why. */
+    manualReviewBlocked?: boolean;
+    manualReviewMessage?: string | null;
   } | null>(null);
 
   const roomsComplete = ROOM_TYPES.every((r) => rooms.some((s) => s.roomType === r.type));
@@ -154,6 +160,7 @@ export function ReviewStep() {
             roomCountsByLevel,
             addOnKeys,
             extraCleanerRequested,
+            ...(petHairLevel ? { petHairLevel } : {}),
             scheduledAt: scheduledFor,
             // Customer's UTC offset so the server matches calendar rules
             // against the LOCAL date the customer picked.
@@ -197,7 +204,7 @@ export function ReviewStep() {
     return () => {
       cancelled = true;
     };
-  }, [missingRequiredFields, serviceType, home, derivedLevel, rooms, addOnKeys, extraCleanerRequested, scheduledFor, getToken]);
+  }, [missingRequiredFields, serviceType, home, derivedLevel, rooms, addOnKeys, extraCleanerRequested, petHairLevel, scheduledFor, getToken]);
 
   if (missingRequiredFields) return null;
 
@@ -256,6 +263,7 @@ export function ReviewStep() {
           roomCountsByLevel,
           addOnKeys,
           extraCleanerRequested,
+          ...(petHairLevel ? { petHairLevel } : {}),
           scheduledAt: scheduledFor,
           arrivalWindowStart,
           arrivalWindowEnd,
@@ -307,8 +315,16 @@ export function ReviewStep() {
       onBack={() => navigate("/book/schedule")}
       onNext={handleContinueToPayment}
       nextLabel={submitting ? t("booking.review.creatingBooking") : t("booking.review.continueToPayment")}
-      nextDisabled={submitting || !acknowledged || total == null}
+      nextDisabled={submitting || !acknowledged || total == null || v2Info?.manualReviewBlocked === true}
     >
+      {v2Info?.manualReviewBlocked && (
+        <Card className="mb-4 border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20">
+          <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+            {v2Info.manualReviewMessage ??
+              "This booking needs a quick review by our team before it can be confirmed."}
+          </p>
+        </Card>
+      )}
       <Card className="divide-y divide-slate-100 dark:divide-slate-800">
         <Row
           icon={MapPin}
@@ -402,6 +418,11 @@ export function ReviewStep() {
         {isEmergency && (
           <span className="mb-3 inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
             <Zap className="h-3 w-3" /> {t("booking.review.rushBooking")}
+          </span>
+        )}
+        {v2Info?.deepCleanApplied && (
+          <span className="mb-3 ml-1 inline-flex items-center gap-1 rounded-full bg-seafoam-100 px-3 py-1 text-xs font-semibold text-seafoam-700 dark:bg-seafoam-900/40 dark:text-seafoam-300">
+            Deep Clean
           </span>
         )}
         {total == null ? (

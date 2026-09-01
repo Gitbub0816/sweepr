@@ -318,6 +318,11 @@ export function BookingDetailPage() {
       description={`Booking ${booking.id}`}
       actions={
         <div className="flex items-center gap-2">
+          {booking.deepCleanApplied && (
+            <span className="inline-flex items-center rounded-full bg-seafoam-100 px-3 py-1 text-xs font-semibold text-seafoam-700 dark:bg-seafoam-900/40 dark:text-seafoam-300">
+              Deep Clean
+            </span>
+          )}
           {isActive && (
             <span
               role="status"

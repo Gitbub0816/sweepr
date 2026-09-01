@@ -37,10 +37,28 @@ const statusOptions = (Object.keys(JOB_STATUS_LABELS) as JobStatus[]).map(
   (s) => ({ label: JOB_STATUS_LABELS[s], value: s })
 );
 
+/** True when the booking's persisted pricing breakdown carries the Pricing v2
+ *  deep-clean stamp (written at creation; heavier workload, same scope). */
+function isDeepCleanJob(job: { pricing_line_items_json?: unknown }): boolean {
+  const items = job.pricing_line_items_json;
+  return (
+    Array.isArray(items) &&
+    items.some(
+      (i) =>
+        i !== null &&
+        typeof i === "object" &&
+        (i as { label?: unknown }).label === "deep_clean" &&
+        (i as { applied?: unknown }).applied === true,
+    )
+  );
+}
+
 interface Job {
   id: string;
   status: string;
   service_type: string | null;
+  /** Persisted pricing breakdown; carries the v2 deep-clean stamp. */
+  pricing_line_items_json?: unknown;
   bedrooms: number | null;
   bathrooms: number | null;
   sqft: number | null;
@@ -692,7 +710,7 @@ export function JobDetailPage() {
   return (
     <DashboardShell
       title={job.id.slice(0, 8) + "…"}
-      description={job.service_type ? SERVICE_LABELS[job.service_type as ServiceType] ?? job.service_type : "Job"}
+      description={`${job.service_type ? SERVICE_LABELS[job.service_type as ServiceType] ?? job.service_type : "Job"}${isDeepCleanJob(job) ? " · Deep Clean" : ""}`}
       actions={<StatusBadge status={status} />}
     >
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">

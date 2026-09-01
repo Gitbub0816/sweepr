@@ -31,6 +31,7 @@ import { audit } from "../lib/audit";
 import { encryptSecret, decryptSecret, requireEncryptionKey } from "../lib/crypto";
 import { canUploadPhotos, getBookingAuthCtx } from "../lib/bookingAuthorization";
 import { isValidTransition } from "../lib/statusMachine";
+import { hasDeepCleanMarker } from "../lib/quoteEngine/bookingAdapter";
 import { isTeamFlagEnabled, loadCrewConfig } from "../lib/crew/crewConfig";
 import {
   findCrewSeat,
@@ -646,7 +647,7 @@ dayOfServiceRouter.get("/bookings/:id/live", async (c) => {
     SELECT b.id, b.status, b.day_status, b.cleaner_id, b.crew_status, b.customer_id,
            b.arrival_verified_at, b.started_at, b.completed_at,
            b.address_revealed_at, b.access_code_revealed_at,
-           b.scheduled_at, b.total_price, b.service_type,
+           b.scheduled_at, b.total_price, b.service_type, b.pricing_line_items_json,
            a.lat AS address_lat, a.lng AS address_lng,
            a.street AS address_street, a.city AS address_city,
            a.state AS address_state, a.zip AS address_zip,
@@ -665,6 +666,7 @@ dayOfServiceRouter.get("/bookings/:id/live", async (c) => {
     completed_at: string | null; address_revealed_at: string | null;
     access_code_revealed_at: string | null; scheduled_at: string | null;
     total_price: number | null; service_type: string | null;
+    pricing_line_items_json: unknown;
     address_lat: number | null; address_lng: number | null;
     address_street: string | null; address_city: string | null;
     address_state: string | null; address_zip: string | null;
@@ -755,6 +757,9 @@ dayOfServiceRouter.get("/bookings/:id/live", async (c) => {
       completed_at: booking.completed_at,
       total_price: booking.total_price,
       service_type: booking.service_type,
+      // Stamped by the Pricing v2 deep-clean auto-classification at booking
+      // creation; labels the job "Deep Clean" (heavier workload, same scope).
+      deep_clean_applied: hasDeepCleanMarker(booking.pricing_line_items_json),
       cleaner_name: [booking.cleaner_first, booking.cleaner_last].filter(Boolean).join(" ") || null,
       address,
       access_codes: accessCodes,

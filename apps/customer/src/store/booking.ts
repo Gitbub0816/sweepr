@@ -48,6 +48,10 @@ export interface BookingState {
   /** Customer opted to add ONE extra cleaner for speed (flat fee, Pricing v2).
    *  Off by default; priced server-side. */
   extraCleanerRequested: boolean;
+  /** Pet-hair intensity for the Pricing v2 percentage tiers (5/15/25% of the
+   *  base workload). null = none. Offered only when the live pricing version
+   *  configures the tiers; priced server-side. */
+  petHairLevel: "light" | "moderate" | "heavy" | null;
   cadence: RecurringCadence;
   scheduledFor: string | null;
   scheduledAt: string | null;
@@ -88,6 +92,7 @@ export interface BookingState {
   setCleaningLevel: (level: CleaningLevel) => void;
   toggleAddOn: (key: string) => void;
   setExtraCleanerRequested: (requested: boolean) => void;
+  setPetHairLevel: (level: "light" | "moderate" | "heavy" | null) => void;
   setCadence: (cadence: RecurringCadence) => void;
   setSchedule: (iso: string) => void;
   clearSchedule: () => void;
@@ -139,6 +144,7 @@ export const useBookingStore = create<BookingState>()(
   cleaningLevel: null,
   addOnKeys: [],
   extraCleanerRequested: false,
+  petHairLevel: null,
   cadence: "none",
   scheduledFor: null,
   scheduledAt: null,
@@ -214,6 +220,8 @@ export const useBookingStore = create<BookingState>()(
       addOnKeys: [...prev.addOnKeys],
       // A per-visit speed choice — not carried over from a past booking.
       extraCleanerRequested: false,
+      // Pet-hair intensity is per-visit too; the customer reassesses.
+      petHairLevel: null,
       cadence: prev.cadence,
       scheduledFor: null,
       arrivalWindowStart: null,
@@ -244,6 +252,8 @@ export const useBookingStore = create<BookingState>()(
     })),
   setExtraCleanerRequested: (extraCleanerRequested) =>
     set({ extraCleanerRequested, draftSavedAt: new Date().toISOString() }),
+  setPetHairLevel: (petHairLevel) =>
+    set({ petHairLevel, draftSavedAt: new Date().toISOString() }),
   setCadence: (cadence) => set({ cadence }),
   setSchedule: (scheduledFor) => {
     set({
@@ -278,6 +288,7 @@ export const useBookingStore = create<BookingState>()(
       cleaningLevel: null,
       addOnKeys: [],
       extraCleanerRequested: false,
+      petHairLevel: null,
       cadence: "none",
       scheduledFor: null,
       scheduledAt: null,
@@ -328,6 +339,8 @@ export const useBookingStore = create<BookingState>()(
         // Persist the extra-cleaner choice so a Stripe off-site redirect (which
         // reloads the app) can't silently change the quote the customer saw.
         extraCleanerRequested: s.extraCleanerRequested,
+        // Same reasoning for the pet-hair tier choice.
+        petHairLevel: s.petHairLevel,
         // Persist the DB booking id so a Stripe off-site redirect (which reloads
         // the app) can still reference the booking on /book/confirmed.
         bookingId: s.bookingId,

@@ -148,6 +148,10 @@ const createSchema = z.object({
   // Pricing v2). Optional; defaults to false. Priced server-side; never a
   // client-supplied amount. Ignored while no v2 pricing version is Active.
   extraCleanerRequested: z.boolean().default(false),
+  // Pet-hair intensity for the Pricing v2 percentage tiers (5/15/25% of the
+  // base workload). Optional; a legacy pet_hair_detail add-on key maps to
+  // "moderate". Ignored while no v2 pricing version with tiers is Active.
+  petHairLevel: z.enum(["light", "moderate", "heavy"]).optional(),
   // Address coordinates, used ONLY by POST /quote to resolve the service area
   // for calendar date rules BEFORE the address row exists (the wizard saves
   // the address at checkout). Never trusted on POST / — booking creation
@@ -518,13 +522,48 @@ async function computeBookingPricing(
   });
 }
 
-/** JSON persisted to bookings.pricing_line_items_json for a given assembly. */
+/** JSON persisted to bookings.pricing_line_items_json for a given assembly.
+ *  The v2 deep-clean auto-classification is STAMPED here at creation (the
+ *  `deep_clean` marker, same pattern as the `rooms` marker) so every job view
+ *  can label qualifying bookings "Deep Clean" without re-quoting. */
 function pricingLineItemsJson(p: AssembledPricing, input: CreateInput): string | null {
+  const markers: Array<Record<string, unknown>> = [];
+  if (p.v2?.result.deepCleanApplied) markers.push({ label: "deep_clean", applied: true });
   if (p.roomPrice) {
-    return JSON.stringify([...p.lineItems, { label: "rooms", rooms: input.rooms }]);
+    return JSON.stringify([...p.lineItems, ...markers, { label: "rooms", rooms: input.rooms }]);
   }
-  if (p.resolved) return JSON.stringify(p.lineItems);
-  return p.lineItems.length > 0 ? JSON.stringify(p.lineItems) : null;
+  if (p.resolved) return JSON.stringify([...p.lineItems, ...markers]);
+  return p.lineItems.length > 0 || markers.length > 0
+    ? JSON.stringify([...p.lineItems, ...markers])
+    : null;
+}
+
+/**
+ * Blocking manual-review reasons (Pricing v2 extended ruleset): these never
+ * instant-book — 4,000+ sqft homes, totals over the automatic quote limit,
+ * reported unsafe conditions, severe turnover mess, and sub-4-hour turnover
+ * windows. Obstructed clutter deliberately stays flag-and-book (pre-service
+ * review), matching its behavior since v2 launched.
+ */
+const BLOCKING_REVIEW_REASONS = new Set([
+  "sqft_over_threshold",
+  "price_over_auto_quote_limit",
+  "unsafe_conditions",
+  "severe_mess",
+  "turnover_window_under_4h",
+]);
+
+const MANUAL_REVIEW_MESSAGE =
+  "This booking needs a quick review by our team before it can be confirmed. " +
+  "We will verify the details and finalize your quote, usually within a few hours. Nothing has been charged.";
+
+/** Formal customer message when a v2 quote requires review before booking;
+ *  null when the booking may proceed. Exported for tests. */
+export function v2ManualReviewBlock(p: AssembledPricing): string | null {
+  const result = p.v2?.result;
+  if (!result?.manualReviewRequired) return null;
+  const reasons = result.manualReviewReasons ?? [];
+  return reasons.some((r) => BLOCKING_REVIEW_REASONS.has(r)) ? MANUAL_REVIEW_MESSAGE : null;
 }
 
 /** Reject any add-on key not in the canonical @sweepr/utils catalogue. */
@@ -680,6 +719,16 @@ bookingsRouter.post(
     resolvedZip,
     calendar.rules.adjustment,
   );
+
+  // Manual-review gate (Pricing v2 extended ruleset): quotes flagged by the
+  // blocking triggers never auto-book — they route to the review path with
+  // formal customer copy. Obstructed clutter keeps its long-standing
+  // flag-and-book behavior (pre-service review, not a checkout wall).
+  const reviewBlock = v2ManualReviewBlock(p);
+  if (reviewBlock) {
+    return c.json({ error: "manual_review_required", message: reviewBlock }, 409);
+  }
+
   const basePrice = p.basePrice;
   const addonsTotal = p.addonsTotal;
   const cleanerPayout = p.cleanerPayout;
@@ -1045,6 +1094,18 @@ bookingsRouter.post("/quote", zValidator("json", createSchema), async (c) => {
           components: p.v2.result.components,
           warnings: p.v2.result.warnings,
           manualReviewRequired: p.v2.result.manualReviewRequired,
+          // formatVersion-2 surface: which path priced it, the Deep Clean
+          // auto-classification, staffing, and the labor/scheduling split.
+          serviceType: p.v2.result.serviceType,
+          deepCleanApplied: p.v2.result.deepCleanApplied === true,
+          requiredTeamSize: p.v2.result.requiredTeamSize,
+          manualReviewReasons: p.v2.result.manualReviewReasons,
+          // When true, POST /bookings will refuse with the same formal
+          // message — the wizard shows it here instead of a payment-step wall.
+          manualReviewBlocked: v2ManualReviewBlock(p) !== null,
+          manualReviewMessage: v2ManualReviewBlock(p),
+          laborScheduling: p.v2.result.laborScheduling,
+          appliedDiscount: p.v2.result.appliedDiscount,
         }
       : undefined,
   });
@@ -1080,7 +1141,15 @@ bookingsRouter.get("/:id", async (c) => {
   // the address-reveal timing pattern in the opposite direction.
   const cleaner = await revealCleanerIdentity(sql, booking);
 
-  return c.json({ booking: { ...booking, ...addr, addon_keys }, cleaner });
+  // "Deep Clean" label: stamped at creation in pricing_line_items_json by the
+  // v2 auto-classification (never a scope change — the package scope stays
+  // whatever was booked; this only labels the heavier workload).
+  const { hasDeepCleanMarker } = await import("../lib/quoteEngine/bookingAdapter");
+  const deep_clean_applied = hasDeepCleanMarker(
+    (booking as { pricing_line_items_json?: unknown }).pricing_line_items_json,
+  );
+
+  return c.json({ booking: { ...booking, ...addr, addon_keys, deep_clean_applied }, cleaner });
 });
 
 /** Statuses at which a specific cleaner is committed to the job. */

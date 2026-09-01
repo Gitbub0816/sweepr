@@ -97,14 +97,17 @@ already told the same story.
 **Cleaners are NOT paid hourly, and nothing in a pricing config sets their
 pay.** The authoritative payout math:
 
-- `apps/api/src/lib/payoutEngine.ts` — the platform fee defaults to **20% of
-  captured proceeds** (`DEFAULT_SETTINGS.feeValue = 20`, percentage mode;
-  overridable via `platform_fee_settings`); the cleaner receives the
-  remainder (~**80%**), adjusted by tier and founding-member multipliers.
+- `apps/api/src/lib/payoutEngine.ts` — the standard split is **70% to the
+  cleaner/team pool and 30% to Sweepr** (the customer/cleaner-facing name of
+  Sweepr's share is the **Marketplace Services Fee**; overridable via
+  `platform_fee_settings`), adjusted by tier and founding-member multipliers.
+  Structural discounts (e.g. the Airbnb repeat/volume discounts) reduce the
+  service price BEFORE the 70/30 split.
 - `apps/api/src/routes/payments.ts` — the Stripe transfer at payout release
   uses exactly that breakdown on the booking's captured total.
-- **Tips are 100% to the cleaner** — separate immediate-capture PIs, no
-  platform fee, ever (CLAUDE.md convention 4).
+- **Tips are 100% to the cleaner, outside the split** — separate
+  immediate-capture PIs, no Marketplace Services Fee, ever (CLAUDE.md
+  convention 4).
 
 Inside the pricing config:
 
@@ -117,7 +120,7 @@ Inside the pricing config:
   stamped on bookings as `estimated_cleaner_payout_cents`. No payout transfer
   reads it.
 
-Raising customer prices raises cleaner pay automatically (80% of a bigger
+Raising customer prices raises cleaner pay automatically (70% of a bigger
 capture); the config's payout knob changes only the margin model. Every
 MCP-facing surface (tool descriptions, field guide, prompt) states this —
 keep it that way.
@@ -198,7 +201,7 @@ underpricing).
 | Level-1 base room minutes | K25 / B20 / Bed12 / L15 | old model had no per-room base |
 | Fixed service visit | $49 | replaces the $89 base fee + 10% service fee |
 | Operational minutes | 10+10+2/room | new concept |
-| Modeled cleaner-payout estimate | $39 / labor-hour (~65%) | planning knob only — actual pay is ~80% of captured proceeds (payoutEngine) |
+| Modeled cleaner-payout estimate | $39 / labor-hour (~65%) | planning knob only — actual pay is 70% of captured proceeds (payoutEngine; 30% Marketplace Services Fee) |
 | Minimum booking (minimum job total) | $99 | old engine had none explicit; optional field, 0/absent = none |
 | Auto-quote limit | $1,000 | above → manual review |
 | Scheduling percentile / buffer | 75th / 0% | capacity, not billed |
@@ -207,6 +210,59 @@ underpricing).
 | Tax 8.25%, ending-9 rounding | unchanged | |
 | Five formerly $0 add-ons now priced | garage/patio/walls/extra-bath/organization | live engine bug |
 | Effective date & areas | default/USD single market | |
+
+## formatVersion 2 — the extended multi-service ruleset
+
+A pricing config can carry an optional `extendedRules` block (formatVersion
+2, the `SweeprExtendedPricingRuleset` shape) turning v2 into a full
+multi-service pricing platform. A config WITHOUT the block prices
+byte-identically to the original engine (pinned by
+`apps/api/tests/pricing-v2-extended.test.ts` and the shadow test). The master
+ruleset is vendored at `apps/api/tests/fixtures/master-pricing-ruleset.json`
+and imports as-is through the MCP (`set_simulator_config`) and the Studio
+pipeline; unknown sections are preserved verbatim through JSONB storage and
+every round-trip.
+
+Service-type routing (`packages/quote-engine/src/engine.ts`):
+
+- **standard** — the labor-minutes model, unchanged, plus:
+  - **Deep-clean auto-classification**: ≥1 level-4 room, OR ≥2 level-3
+    rooms, OR ≥40% of counted rooms at level 3/4 (deterministic, from the
+    REPORTED inputs; add-ons never trigger it) → +10% base-workload labor
+    allowance (add-ons excluded), NO separate customer-facing surcharge
+    line, `deepCleanApplied` on the result, and a `deep_clean` marker
+    stamped into `pricing_line_items_json` at booking creation so job views
+    label the booking "Deep Clean".
+  - **Pet hair percentage tiers** (5/15/25% of base workload) replace the
+    flat placeholder; the wizard sends `petHairLevel`.
+- **moveInOut** (`serviceType: move_in_out`) — BR/BA base price matrix +
+  condition multipliers L1–L4 (0/10/20/30%) + oversized-home guardrail
+  ($15/extra 250 sqft over the per-bedroom allowance); NO standard size
+  scaling.
+- **airbnb** (`serviceType: vacation_rental`) — turnover matrix + per-bedroom
+  included-sqft guardrail ($12/250 sqft) + dirtiness adjustments (L1/L2 0%,
+  L3 +20%, L4 +35%; severe mess → manual review) + turnover-scope add-on
+  suppression (bed making, dishwasher load, basic patio sweep included) +
+  repeat/volume discounts (2nd+ turnover at the same property 5%; host with
+  10+ completed turnovers in rolling 30 days 10%; highest only, never
+  stacking; base + guardrail only; applied BEFORE the 70/30 split; resolved
+  from booking history in `bookingAdapter.resolveAirbnbDiscount`) + the
+  staffing matrix and turnover-window team sizing (crew contract documented
+  at the top of `packages/quote-engine/src/index.ts`).
+
+Cross-cutting: short-notice tiers (<24h +15%, 24–48h +5%, >48h 0%; never
+stacking; a legacy config's `emergencySurchargeBps` remains the <24h-tier
+behavior), location ZIP tiers (0/+5/+10 capped at +10% through the existing
+zip-multiplier table; legacy NEGATIVE zip rows — e.g. the production 94541
+-5% — are superseded/clamped to 0 while tiers are active and should be
+deactivated in `zip_pricing_multipliers` at deploy), decoupled extras
+(laundry $25/load with 25 min ACTIVE labor and machine cycles that never
+block or bill; Light Tidying activated at $25 per 30-minute block; inside
+oven $40 fixed / 35 min; sliding door $20 including its track with duplicate
+track suppression; patio pair mutually exclusive; linens/laundry overlap
+prevented), and manual-review triggers (sqft ≥ 4000, total ≥ $1,000,
+obstructed clutter, unsafe conditions, arrival mismatch flag) surfaced as
+`manualReviewReasons` with formal customer copy.
 
 ## Migration state & follow-ups
 

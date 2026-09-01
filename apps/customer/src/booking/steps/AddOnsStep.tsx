@@ -24,11 +24,23 @@ import {
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8787";
 
-/** The only presentation the wizard shows for an add-on is its key + name. */
-type OfferedAddOn = { key: string; name: string };
+/** The wizard shows key + name; overlap metadata greys out conflicting picks
+ *  (the server still enforces — this is a courtesy, never the guard). */
+type OfferedAddOn = {
+  key: string;
+  name: string;
+  overlapGroup?: string;
+  incompatibleWith?: string[];
+};
 
 /** Static fallback used until the live catalogue loads (or if it fails). */
 const STATIC_ADDONS: OfferedAddOn[] = ADD_ONS.map((a) => ({ key: a.key, name: a.name }));
+
+const PET_HAIR_LEVELS = [
+  { level: "light" as const, label: "Light", note: "A little fur on floors or furniture" },
+  { level: "moderate" as const, label: "Moderate", note: "Regular shedding around the home" },
+  { level: "heavy" as const, label: "Heavy", note: "Fur throughout, needs dedicated passes" },
+];
 
 export function AddOnsStep() {
   const { t } = useTranslation();
@@ -38,20 +50,25 @@ export function AddOnsStep() {
   const toggleAddOn = useBookingStore((s) => s.toggleAddOn);
   const extraCleanerRequested = useBookingStore((s) => s.extraCleanerRequested);
   const setExtraCleanerRequested = useBookingStore((s) => s.setExtraCleanerRequested);
+  const petHairLevel = useBookingStore((s) => s.petHairLevel);
+  const setPetHairLevel = useBookingStore((s) => s.setPetHairLevel);
 
   // Add-ons offered come from the Active pricing version when one is published
   // (so a new add-on introduced in a version shows up here without a code
   // change); otherwise the static catalogue. Falls back to static on any error
-  // so the step always renders.
+  // so the step always renders. petHairTiers is non-null only when the live
+  // version prices pet hair as percentage tiers (the picker below).
   const [offered, setOffered] = useState<OfferedAddOn[]>(STATIC_ADDONS);
+  const [petHairTiers, setPetHairTiers] = useState<number[] | null>(null);
   useEffect(() => {
     let cancelled = false;
     fetch(`${API_URL}/pricing/addons`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then((data: { addOns?: OfferedAddOn[] }) => {
+      .then((data: { addOns?: OfferedAddOn[]; petHairTiers?: number[] | null }) => {
         if (!cancelled && Array.isArray(data.addOns) && data.addOns.length > 0) {
           setOffered(data.addOns);
         }
+        if (!cancelled) setPetHairTiers(data.petHairTiers ?? null);
       })
       .catch(() => {
         /* keep the static fallback */
@@ -60,6 +77,19 @@ export function AddOnsStep() {
       cancelled = true;
     };
   }, []);
+
+  /** A conflicting selection exists (same overlap group or declared
+   *  incompatibility) — grey the option out instead of letting checkout 400. */
+  function conflictsWithSelection(addOn: OfferedAddOn): boolean {
+    if (addOnKeys.includes(addOn.key)) return false;
+    return offered.some((other) => {
+      if (other.key === addOn.key || !addOnKeys.includes(other.key)) return false;
+      if (addOn.overlapGroup && addOn.overlapGroup === other.overlapGroup) return true;
+      if (addOn.incompatibleWith?.includes(other.key)) return true;
+      if (other.incompatibleWith?.includes(addOn.key)) return true;
+      return false;
+    });
+  }
 
   // Guard: a package must be chosen before this step is meaningful.
   useEffect(() => {
@@ -77,18 +107,20 @@ export function AddOnsStep() {
       <div className="grid gap-3 sm:grid-cols-2">
         {offered.map((addOn) => {
           const included = isAddOnIncludedInPackage(addOn.key, serviceType);
+          const conflicted = !included && conflictsWithSelection(addOn);
+          const disabled = included || conflicted;
           const isSelected = addOnKeys.includes(addOn.key);
           return (
             <button
               key={addOn.key}
               type="button"
-              disabled={included}
-              onClick={() => !included && toggleAddOn(addOn.key)}
+              disabled={disabled}
+              onClick={() => !disabled && toggleAddOn(addOn.key)}
               aria-pressed={isSelected}
               className={cn(
                 SELECTABLE_OPTION_BASE,
                 "flex items-start gap-3 rounded-xl p-4 text-left",
-                included
+                disabled
                   ? cn(SELECTABLE_OPTION_DISABLED, "opacity-80")
                   : isSelected
                     ? SELECTABLE_OPTION_SELECTED
@@ -117,11 +149,50 @@ export function AddOnsStep() {
                     {t("booking.addons.includedInPackage")}
                   </span>
                 )}
+                {conflicted && (
+                  <span className="mt-1 block text-xs text-slate-400">
+                    Covered by another selection
+                  </span>
+                )}
               </span>
             </button>
           );
         })}
       </div>
+
+      {petHairTiers && (
+        <div className="mt-6">
+          <p className="text-sm font-semibold text-charcoal dark:text-white">Pet hair</p>
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+            Tell us how much fur to plan for. The amount is part of your total at review.
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            {PET_HAIR_LEVELS.map(({ level, label, note }) => {
+              const isSelected = petHairLevel === level;
+              return (
+                <button
+                  key={level}
+                  type="button"
+                  onClick={() => setPetHairLevel(isSelected ? null : level)}
+                  aria-pressed={isSelected}
+                  className={cn(
+                    SELECTABLE_OPTION_BASE,
+                    "rounded-xl p-4 text-left",
+                    isSelected ? SELECTABLE_OPTION_SELECTED : SELECTABLE_OPTION_UNSELECTED
+                  )}
+                >
+                  <span className="block text-sm font-medium text-charcoal dark:text-white">
+                    {label}
+                  </span>
+                  <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
+                    {note}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <button
         type="button"

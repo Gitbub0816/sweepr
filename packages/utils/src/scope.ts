@@ -158,6 +158,13 @@ export const ADDON_PACKAGE_INCLUSIONS: Record<string, ServiceType[]> = {
   inside_cabinets: ["move_in_out"],
   dishes: ["vacation_rental"],
   laundry: ["vacation_rental"],
+  // Airbnb/STR turnover base scope (Pricing v2 extended ruleset): bed making,
+  // a dishwasher load, and the basic patio sweep are included in every
+  // turnover, so their add-ons cannot be sold again. Garage sweep, interior
+  // windows, window tracks, and the sliding glass door detail remain paid.
+  change_bed_linens: ["vacation_rental"],
+  load_dishwasher: ["vacation_rental"],
+  patio_sweep: ["vacation_rental"],
 };
 
 export function isAddOnIncludedInPackage(addOnKey: string, serviceType: ServiceType): boolean {
