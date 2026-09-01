@@ -30,11 +30,19 @@ Exits non-zero on any compile or test failure. The scratch build lands in
   `@MainActor` like the real SDK; `@State`/`@Binding`/`@Observable` interplay,
   `@ViewBuilder`, chainable modifiers returning `some View`, `TabView` /
   `NavigationStack` / `Map(position:)` + `MapContentBuilder`, etc.).
-- **the REAL** `SweeprKit`, `Sweepr`, and `CleanWithSweepr` sources + the
-  `SweeprKitTests`.
+- **the REAL** `SweeprKit`, `Sweepr`, and `CleanWithSweepr` sources, the
+  Xcode app-target shells (`<App>/Darwin/Sources/`), the `SweeprKitTests`,
+  and the app-level smoke tests (`<App>/Darwin/Tests/`).
 
 Then it (1) builds shims + SweeprKit + the customer app, (2) builds shims +
-SweeprKit + the cleaner app, (3) runs the SweeprKit unit tests.
+SweeprKit + the cleaner app, (3) builds the app-target shells, (4) runs the
+SweeprKit unit tests + app smoke tests.
+
+One munge besides dropping `Resources/`/`Skip/` folders: the `@main` attribute
+is stripped from the two App entry files in the scratch copy — `swift test` on
+Linux links every target into a single runner executable, so two synthesized
+`main`s plus the XCTest runner's would collide at link. Entry-point synthesis
+is runtime-only; type-checking is unaffected.
 
 `UIKit` / `LocalAuthentication` are only imported behind `#if os(iOS)` /
 `#if canImport(...)` in the app code, so they compile out on Linux and need no

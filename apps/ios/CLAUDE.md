@@ -9,6 +9,10 @@ Android via SKIP (skip.tools).** Genuinely native on both platforms — not web
 wrappers. Separate native toolchain: NOT part of pnpm/Turbo; do not wire it in.
 
 ## Layout
+- `Sweepr.xcworkspace` / `SweeprApps.xcodeproj` — the Xcode entry point: two
+  thin app targets (bundle artifacts + one shell source each) over the
+  packages, plus two unhosted unit-test targets. All real code stays in the
+  packages; keep it that way.
 - `SweeprKit/` — shared Swift package: models, `SweeprAPI` client, auth
   abstraction, design tokens, shared UI. Both apps depend on it (DRY).
 - `Sweepr/` — customer app ("Sweepr", `com.getsweepr.customer`).
@@ -32,11 +36,17 @@ commands.
    fetched once the cleaner is checked in.
 
 ## SKIP constraints
-Stay inside the SwiftUI/Foundation subset SkipUI/SkipFoundation/SkipModel
-support. Platform-divergent APIs (e.g. MapKit → maps-compose) are declared in
-each target's `Skip/skip.yml`. Run `skip verify` before shipping.
+SKIP is currently **neutralized** (deps + skipstone plugin removed from the
+three `Package.swift` manifests; reintroduction blocks are commented there) so
+stock Xcode builds cleanly. Still write code inside the SwiftUI/Foundation
+subset SkipUI/SkipFoundation/SkipModel support so Android stays reopenable.
+Platform-divergent APIs (e.g. MapKit → maps-compose) are declared in each
+target's `Skip/skip.yml`. Run `skip verify` after re-enabling, before shipping
+Android.
 
-## Can't build here
-Xcode/simulator and the `skip` CLI require a Mac. See README "Finishing setup"
-for the `skip init` / `skip export` / `skip launch` commands that complete the
-project on a developer machine.
+## Can't build here — but can compile-verify
+Xcode/simulator require a Mac: `open apps/ios/Sweepr.xcworkspace`, schemes
+`Sweepr` / `CleanWithSweepr` (see README "Open, build, test"; signing team is
+set locally, never committed). On Linux, `bash apps/ios/Verify/verify.sh`
+type-checks every Swift file (packages + Darwin shells + app tests) against
+shims and runs the test suites — keep it green on every iOS change.
