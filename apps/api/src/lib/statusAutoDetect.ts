@@ -201,11 +201,11 @@ export async function detectAndCreateIncidents(
       const rows = await sql`
         INSERT INTO status_incidents
           (title, summary, status, severity, affected_features,
-           is_prelaunch_update, auto_detected, error_fingerprint,
+           auto_detected, error_fingerprint,
            affected_user_count, total_occurrences)
         VALUES
           (${title}, ${summary}, 'investigating', ${severity}, ${[service]},
-           false, true, ${fp}, ${distinctUsers}, ${count30min})
+           true, ${fp}, ${distinctUsers}, ${count30min})
         RETURNING id
       ` as { id: string }[];
 

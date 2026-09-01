@@ -27,7 +27,6 @@ interface IncidentRow {
   status: string;
   severity: string;
   affected_features: string[];
-  is_prelaunch_update: boolean;
   auto_detected: boolean;
   error_fingerprint: string | null;
   affected_user_count: number | null;
@@ -45,18 +44,13 @@ interface UpdateRow {
   created_at: string;
 }
 
-interface SettingRow {
-  key: string;
-  value: string;
-}
-
 // ─── Incidents ───────────────────────────────────────────────────────────────
 
 statusAdminRouter.get("/incidents", async (c) => {
   const sql = getDb(c.env.DATABASE_URL);
   const incidents = (await sql`
     SELECT id, title, summary, status, severity, affected_features,
-           is_prelaunch_update, auto_detected, error_fingerprint,
+           auto_detected, error_fingerprint,
            affected_user_count, total_occurrences, created_at, updated_at, resolved_at
     FROM status_incidents
     ORDER BY created_at DESC
@@ -89,7 +83,6 @@ const incidentBodySchema = z.object({
   status: z.enum(["investigating", "identified", "monitoring", "resolved"]),
   severity: severityEnum,
   affected_features: z.array(z.string()),
-  is_prelaunch_update: z.boolean(),
 });
 
 statusAdminRouter.post(
@@ -100,10 +93,10 @@ statusAdminRouter.post(
     const sql = getDb(c.env.DATABASE_URL);
     const rows = (await sql`
       INSERT INTO status_incidents
-        (title, summary, status, severity, affected_features, is_prelaunch_update)
+        (title, summary, status, severity, affected_features)
       VALUES
         (${body.title}, ${body.summary}, ${body.status}, ${body.severity},
-         ${body.affected_features}, ${body.is_prelaunch_update})
+         ${body.affected_features})
       RETURNING id
     `) as { id: string }[];
     return c.json({ id: rows[0].id }, 201);
@@ -116,7 +109,6 @@ const patchIncidentSchema = z.object({
   status: z.enum(["investigating", "identified", "monitoring", "resolved"]).optional(),
   severity: severityEnum.optional(),
   affected_features: z.array(z.string()).optional(),
-  is_prelaunch_update: z.boolean().optional(),
 });
 
 statusAdminRouter.patch(
@@ -135,7 +127,6 @@ statusAdminRouter.patch(
           status             = COALESCE(${body.status ?? null}, status),
           severity           = COALESCE(${body.severity ?? null}, severity),
           affected_features  = COALESCE(${body.affected_features ?? null}, affected_features),
-          is_prelaunch_update = COALESCE(${body.is_prelaunch_update ?? null}, is_prelaunch_update),
           resolved_at        = NOW(),
           updated_at         = NOW()
         WHERE id = ${id}
@@ -148,7 +139,6 @@ statusAdminRouter.patch(
           status             = COALESCE(${body.status ?? null}, status),
           severity           = COALESCE(${body.severity ?? null}, severity),
           affected_features  = COALESCE(${body.affected_features ?? null}, affected_features),
-          is_prelaunch_update = COALESCE(${body.is_prelaunch_update ?? null}, is_prelaunch_update),
           updated_at         = NOW()
         WHERE id = ${id}
       `;
@@ -176,41 +166,6 @@ statusAdminRouter.post(
       RETURNING id
     `) as { id: string }[];
     return c.json({ id: rows[0].id }, 201);
-  }
-);
-
-// ─── Site Settings ───────────────────────────────────────────────────────────
-
-statusAdminRouter.get("/settings", async (c) => {
-  const sql = getDb(c.env.DATABASE_URL);
-  const rows = (await sql`
-    SELECT key, value FROM site_settings ORDER BY key
-  `) as SettingRow[];
-  const result: Record<string, string> = {};
-  for (const row of rows) {
-    result[row.key] = row.value;
-  }
-  return c.json(result);
-});
-
-statusAdminRouter.patch(
-  "/settings",
-  zValidator(
-    "json",
-    z.object({
-      key: z.string().min(1),
-      value: z.string(),
-    })
-  ),
-  async (c) => {
-    const { key, value } = c.req.valid("json");
-    const sql = getDb(c.env.DATABASE_URL);
-    await sql`
-      INSERT INTO site_settings (key, value, updated_at)
-      VALUES (${key}, ${value}, NOW())
-      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
-    `;
-    return c.json({ ok: true });
   }
 );
 
