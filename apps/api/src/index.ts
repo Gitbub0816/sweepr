@@ -416,8 +416,6 @@ const userReportsGate = (c: Parameters<typeof userReportsStrict>[0], next: Param
   c.req.method === "GET" ? next() : userReportsStrict(c, next);
 app.use("/reports", userReportsGate);
 app.use("/reports/*", userReportsGate);
-// Prelaunch bypass-code verification — tight IP bucket to blunt code guessing.
-app.use("/status/bypass", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "bypass", strict: true }));
 app.use("/maps/*", rateLimit({ limit: 240, windowMs: 15 * 60_000, keyPrefix: "maps" }));
 // Booking-calendar availability (blocked dates + date pricing labels): a
 // read-only endpoint the wizard refetches on every month navigation, so it
