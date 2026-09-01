@@ -38,6 +38,7 @@ import {
   publicAvailability,
   BLOCKED_DATE_MESSAGE,
   type CalendarRuleRow,
+  formatRuleDate,
 } from "../src/lib/calendarRules";
 import { autoApplyBestCoupon } from "../src/lib/coupons";
 import { adminCalendarRouter } from "../src/routes/adminCalendar";
@@ -128,6 +129,30 @@ describe("localBookingDate", () => {
     // 23:00 at +05:30 (India) on Dec 26 → Dec 26 17:30Z.
     expect(localBookingDate("2026-12-26T17:30:00.000Z", 330)).toBe("2026-12-26");
     expect(deriveOffsetFromWindow("2026-12-26T17:30:00.000Z", "23:00")).toBe(330);
+  });
+});
+
+// ── rule_date normalization (production incident regression) ────────────────
+// The Neon driver returns Postgres DATE columns as JS Date objects at
+// runtime, not strings — every mock in this file (and the CalendarRuleRow
+// type) uses plain "YYYY-MM-DD" strings, which is exactly why this shipped
+// unnoticed: the old `String(row.rule_date).slice(0, 10)` pattern only
+// breaks on the REAL runtime shape. Confirmed live against production
+// (GET /calendar/availability returned {"date":"Fri Sep 04", "blocked":true}
+// instead of "2026-09-04") before this fix.
+describe("formatRuleDate", () => {
+  it("formats a real Date object as YYYY-MM-DD, not Date.toString()", () => {
+    expect(formatRuleDate(new Date("2026-09-04T00:00:00.000Z"))).toBe("2026-09-04");
+    // The exact bug: String(date).slice(0, 10) on this same Date gives "Fri Sep 04".
+    expect(String(new Date("2026-09-04T00:00:00.000Z")).slice(0, 10)).not.toBe("2026-09-04");
+  });
+
+  it("pads single-digit month/day", () => {
+    expect(formatRuleDate(new Date("2026-01-05T00:00:00.000Z"))).toBe("2026-01-05");
+  });
+
+  it("passes an already-string rule_date through unchanged", () => {
+    expect(formatRuleDate("2026-09-04")).toBe("2026-09-04");
   });
 });
 
@@ -502,6 +527,17 @@ describe("publicAvailability", () => {
         label: "Holiday pricing",
       }),
     ];
+    const sql = makeSql(() => rows as unknown as Row[]);
+    const days = await publicAvailability(sql, "2026-12-01", "2026-12-31", null);
+    expect(days).toEqual([{ date: "2026-12-24", blocked: true }]);
+  });
+
+  it("returns a real ISO date when the driver hands back a Date object (production shape)", async () => {
+    // Regression: every other test in this file mocks rule_date as a plain
+    // string, which is NOT what the Neon driver returns for a DATE column at
+    // runtime — masking this exact bug until it shipped. Confirmed live: prod
+    // returned {"date":"Fri Sep 04","blocked":true} before the fix.
+    const rows = [rule({ rule_date: new Date("2026-12-24T00:00:00.000Z") as unknown as string })];
     const sql = makeSql(() => rows as unknown as Row[]);
     const days = await publicAvailability(sql, "2026-12-01", "2026-12-31", null);
     expect(days).toEqual([{ date: "2026-12-24", blocked: true }]);

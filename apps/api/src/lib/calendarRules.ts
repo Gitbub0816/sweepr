@@ -42,9 +42,33 @@ import { grantCoupon, type CouponRow } from "./coupons";
 
 export type CalendarRuleKind = "block" | "price_adjustment" | "coupon";
 
+/**
+ * Normalize a DATE-column value to "YYYY-MM-DD". The Neon driver returns
+ * Postgres DATE columns as JS Date objects at runtime (this row's TS type
+ * below claims `string`, which is only true for values that started as a
+ * plain string, e.g. an admin-supplied route param) — `String(dateObject)`
+ * yields `Date.prototype.toString()` output ("Fri Sep 04 2026 00:00:00
+ * GMT+0000 (Coordinated Universal Time)"), so the once-common
+ * `String(row.rule_date).slice(0, 10)` pattern silently produced "Fri Sep 04"
+ * instead of an ISO date — breaking every date-key match against it (the
+ * public availability payload, the admin conflict-count grouping, and the
+ * rule_date the admin console renders rules by). DATE has no time component,
+ * so UTC accessors on the Date object are always correct here (no timezone
+ * conversion risk).
+ */
+export function formatRuleDate(value: string | Date): string {
+  if (value instanceof Date) {
+    const y = value.getUTCFullYear();
+    const m = String(value.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(value.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  return value.slice(0, 10);
+}
+
 export interface CalendarRuleRow {
   id: string;
-  rule_date: string; // "YYYY-MM-DD" (DATE column)
+  rule_date: string; // "YYYY-MM-DD" (DATE column) — see formatRuleDate re: runtime shape
   service_area_id: string | null;
   kind: CalendarRuleKind;
   adjustment_type: "percent" | "flat" | null;
@@ -220,7 +244,7 @@ export async function publicAvailability(
 
   const byDate = new Map<string, CalendarRuleRow[]>();
   for (const r of rows) {
-    const key = String(r.rule_date).slice(0, 10);
+    const key = formatRuleDate(r.rule_date);
     const list = byDate.get(key) ?? [];
     list.push(r);
     byDate.set(key, list);

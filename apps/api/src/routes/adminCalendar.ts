@@ -42,7 +42,7 @@ import {
   matchServiceArea,
   type ServiceAreaGeoRow,
 } from "../lib/serviceAreaGeo";
-import { expandRuleDates, type CalendarRuleRow } from "../lib/calendarRules";
+import { expandRuleDates, formatRuleDate, type CalendarRuleRow } from "../lib/calendarRules";
 import type { AppBindings } from "../types";
 
 export const adminCalendarRouter = new Hono<AppBindings>();
@@ -135,7 +135,7 @@ adminCalendarRouter.get("/", async (c) => {
     ]);
     const blocksByDate = new Map<string, typeof activeBlocks>();
     for (const blk of activeBlocks) {
-      const key = String(blk.rule_date).slice(0, 10);
+      const key = formatRuleDate(blk.rule_date);
       blocksByDate.set(key, [...(blocksByDate.get(key) ?? []), blk]);
     }
     for (const b of bookings) {
@@ -149,7 +149,7 @@ adminCalendarRouter.get("/", async (c) => {
   }
 
   return c.json({
-    rules: rules.map((r) => ({ ...r, rule_date: String(r.rule_date).slice(0, 10) })),
+    rules: rules.map((r) => ({ ...r, rule_date: formatRuleDate(r.rule_date) })),
     conflicts,
   });
 });
@@ -202,7 +202,7 @@ adminCalendarRouter.get("/day/:date", async (c) => {
 
   return c.json({
     date,
-    rules: rules.map((r) => ({ ...r, rule_date: String(r.rule_date).slice(0, 10) })),
+    rules: rules.map((r) => ({ ...r, rule_date: formatRuleDate(r.rule_date) })),
     bookings: dayBookings,
   });
 });
@@ -385,7 +385,7 @@ adminCalendarRouter.patch("/rules/:id", zValidator("json", patchSchema), async (
       actorClerkId: c.get("user").clerkId,
       targetType: "calendar_date_rule",
       targetId: id,
-      metadata: { event: "calendar_rule_updated", changes: b, kind: cur[0].kind, ruleDate: String(cur[0].rule_date).slice(0, 10) },
+      metadata: { event: "calendar_rule_updated", changes: b, kind: cur[0].kind, ruleDate: formatRuleDate(cur[0].rule_date) },
       ipAddress: c.req.header("CF-Connecting-IP"),
       userAgent: c.req.header("User-Agent"),
       timestamp: new Date().toISOString(),
