@@ -305,17 +305,38 @@ export default function App() {
   const upcomingMaintenance = (data?.maintenance ?? []).filter((m) => m.status === "scheduled");
   const activeMaintenance = (data?.maintenance ?? []).filter((m) => m.status === "in_progress");
 
+  // Automated component health (from the 15-min/hourly checks in
+  // lib/statusChecks.ts) must factor into the banner, not just manually-
+  // created incidents — otherwise a component can show unhealthy in the
+  // Components list below while the banner still claims "All Systems
+  // Operational" until a human notices and opens an incident. `ok === null`
+  // means "no check recorded yet" (new component / DB briefly unreachable),
+  // not "down" — only an explicit false counts as unhealthy.
+  const unhealthyComponents = components.filter((c) => c.ok === false);
+  const hasUnhealthyComponents = unhealthyComponents.length > 0;
+
   let overallStatus: { label: string; color: string; dot: string };
   if (!data) {
     overallStatus = { label: "Loading…", color: "text-slate-500", dot: "bg-slate-300" };
-  } else if (!hasActiveIncidents) {
-    overallStatus = { label: "All Systems Operational", color: "text-green-700", dot: "bg-green-500" };
   } else if (hasCritical || hasMajor) {
     overallStatus = { label: "Service Disruption", color: "text-red-700", dot: "bg-red-500" };
   } else if (hasModerate) {
     overallStatus = { label: "Degraded Performance", color: "text-orange-700", dot: "bg-orange-400" };
-  } else {
+  } else if (hasActiveIncidents) {
     overallStatus = { label: "Minor Service Issues", color: "text-yellow-700", dot: "bg-yellow-400" };
+  } else if (hasUnhealthyComponents) {
+    // No human-created incident yet, but an automated check caught a real
+    // problem (e.g. a page that 200s but crashes on render) — surface it
+    // truthfully instead of hiding it behind a false "operational" banner.
+    overallStatus = {
+      label: unhealthyComponents.length === 1
+        ? `Degraded Performance — ${unhealthyComponents[0].label}`
+        : `Degraded Performance — ${unhealthyComponents.length} components affected`,
+      color: "text-orange-700",
+      dot: "bg-orange-400",
+    };
+  } else {
+    overallStatus = { label: "All Systems Operational", color: "text-green-700", dot: "bg-green-500" };
   }
 
   return (

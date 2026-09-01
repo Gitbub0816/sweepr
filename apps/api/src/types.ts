@@ -79,6 +79,16 @@ export interface Env {
    * Never publicly readable — uploads/reads stream through the API; retrieval
    * is admin-only (routes/reports.ts + routes/adminReports.ts). */
   REPORT_OBJECTS: R2Bucket;
+  /**
+   * Cloudflare Browser Rendering (Puppeteer-in-Workers) binding — launches a
+   * real headless browser for the status engine's synthetic render checks
+   * (lib/statusChecks.ts). Requires Browser Rendering to be enabled on the
+   * Cloudflare account (dashboard step, see wrangler.toml comment); until
+   * then this binding is absent at runtime and render checks fail closed
+   * (reported unhealthy with a clear "binding not configured" detail) rather
+   * than silently skipping.
+   */
+  MYBROWSER?: Fetcher;
   CLEANER_APP_URL?: string;
   ADMIN_URL?: string;
   R2_LEGAL_ACCESS_KEY_ID: string;

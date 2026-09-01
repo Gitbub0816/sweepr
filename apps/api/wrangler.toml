@@ -41,6 +41,18 @@ preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
 binding = "REPORT_OBJECTS"
 bucket_name = "sweepr-report-objects"
 
+# Browser Rendering (Puppeteer-in-Workers) — powers the status engine's
+# synthetic render checks (lib/statusChecks.ts: renderProbe / RENDER_COMPONENTS),
+# which actually load a homepage in headless Chromium and confirm the SPA
+# mounts, instead of just checking an HTTP status code.
+# MANUAL SETUP REQUIRED: Browser Rendering must be enabled for this Cloudflare
+# account (dashboard-level activation, same as the R2 buckets above needed a
+# bucket created before `wrangler deploy` could bind to it) — this binding
+# alone does not turn the feature on. See Cloudflare dashboard → Workers &
+# Pages → Browser Rendering.
+[browser]
+binding = "MYBROWSER"
+
 # Secrets stored in Cloudflare (set via wrangler secret put or dashboard):
 # CLERK_SECRET_KEY
 # DATABASE_URL

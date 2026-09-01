@@ -697,9 +697,11 @@ async function runScheduled(event: ScheduledEvent, env: Record<string, unknown>)
       }
 
       // Status engine: probe every public component and record health.
+      // typedEnv.MYBROWSER (optional) threads the Browser Rendering binding
+      // through for the synthetic render checks — see lib/statusChecks.ts.
       try {
         const { runStatusChecks } = await import("./lib/statusChecks");
-        await runStatusChecks(sql);
+        await runStatusChecks(sql, typedEnv.MYBROWSER);
       } catch (err) {
         logger.error("status checks failed", err);
       }
