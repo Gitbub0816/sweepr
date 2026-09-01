@@ -52,7 +52,18 @@ import {
 
 export const crewRouter = new Hono<AppBindings>();
 
-crewRouter.use("*", requireAuth);
+// Scoped to exactly the two path families this router owns — NOT a bare "*".
+// This router is mounted at the app root (app.route("/", crewRouter), see the
+// MOUNT note above) because its own paths are already absolute. In Hono, a
+// `.use()` pattern is rewritten by prefixing it with the router's mount base;
+// "/" + "*" collapses to an unscoped "*", so `crewRouter.use("*", requireAuth)`
+// silently became a GLOBAL middleware across the ENTIRE API once mounted here
+// — every other router's endpoints (including intentionally public ones like
+// GET /calendar/availability, /service-areas/check, /status) started 401ing
+// with "Missing bearer token" too. Scope it to this router's own paths only.
+crewRouter.use("/bookings/:id/crew", requireAuth);
+crewRouter.use("/bookings/:id/crew/*", requireAuth);
+crewRouter.use("/crew/*", requireAuth);
 
 /** Resolve the cleaner id for the authenticated user, or null if not a cleaner. */
 async function currentCleanerId(sql: ReturnType<typeof getDb>, clerkId: string): Promise<string | null> {
