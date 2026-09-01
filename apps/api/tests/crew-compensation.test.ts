@@ -10,7 +10,7 @@
 
 /**
  * Team Cleans per-member compensation:
- *   - pool → split (60/40, 40/30/30, NO_SHOW excluded → reduced-size split)
+ *   - pool → split (54/46, 36/32/32, NO_SHOW excluded → reduced-size split)
  *   - one Stripe transfer per member (distinct idempotency keys, shared group)
  *   - customer tip split EQUAL across completed crew (never 100% to the lead)
  *   - peer thumbs allowed once per ordered pair, then rejected
@@ -51,7 +51,7 @@ type Seat = {
 /**
  * A handler covering the pool computation (fees/tier/founding all default → 1),
  * default crew config, and the present-seat reads/writes. `total_price` is chosen
- * so the pool (total − 20% fee) is a round number.
+ * so the pool (total − the default 30% Marketplace Services Fee) is a round number.
  */
 function payoutHandler(opts: {
   totalPrice: number;
@@ -60,7 +60,7 @@ function payoutHandler(opts: {
   const earningsWrites: Record<string, number> = {};
   const seats = opts.seats;
   const handler = (text: string, values: unknown[]): unknown => {
-    if (text.includes("FROM platform_fee_settings")) return []; // → DEFAULT_SETTINGS (20%)
+    if (text.includes("FROM platform_fee_settings")) return []; // → DEFAULT_SETTINGS (30%)
     if (text.includes("founding_member")) return [{ founding_member: false, founding_member_revoked: false }];
     if (text.includes("FROM cleaner_tier_multipliers")) return []; // → 1.0
     if (text.includes("stripe_connect_id FROM cleaners")) {
@@ -101,11 +101,16 @@ function seat(id: string, cleanerId: string, role: "LEAD" | "MEMBER", idx: numbe
 }
 
 describe("splitPoolCents — exact integer-cent conservation, lead absorbs remainder", () => {
-  it("60/40 two-person", () => {
-    expect(splitPoolCents(6000, [0.6, 0.4])).toEqual([3600, 2400]);
+  it("54/46 two-person", () => {
+    expect(splitPoolCents(6000, [0.54, 0.46])).toEqual([3240, 2760]);
   });
-  it("40/30/30 three-person", () => {
-    expect(splitPoolCents(10000, [0.4, 0.3, 0.3])).toEqual([4000, 3000, 3000]);
+  it("36/32/32 three-person", () => {
+    expect(splitPoolCents(10000, [0.36, 0.32, 0.32])).toEqual([3600, 3200, 3200]);
+  });
+  it("lead absorbs the rounding remainder (support seats round, lead takes the rest)", () => {
+    // 5250 × 0.46 = 2415 exactly; 5251 × 0.46 = 2415.46 → support 2415, lead 2836.
+    expect(splitPoolCents(5251, [0.54, 0.46])).toEqual([2836, 2415]);
+    expect(splitPoolCents(5251, [0.54, 0.46]).reduce((a, b) => a + b, 0)).toBe(5251);
   });
   it("conserves the pool exactly when fractions don't divide evenly", () => {
     const parts = splitPoolCents(10001, [1 / 3, 1 / 3, 1 / 3]);
@@ -118,19 +123,19 @@ describe("splitPoolCents — exact integer-cent conservation, lead absorbs remai
 });
 
 describe("computeCrewEarnings — pool split written per seat", () => {
-  it("splits a 6000¢ pool 60/40 across two completed seats", async () => {
+  it("splits a 5250¢ pool 54/46 across two completed seats", async () => {
     const seats = [seat("a-lead", "cl-lead", "LEAD", 0), seat("a-mem", "cl-mem", "MEMBER", 1)];
     const { handler, earningsWrites } = payoutHandler({ totalPrice: 7500, seats });
     const { sql } = makeSql(handler);
 
     const res = await computeCrewEarnings(sql, "b1");
-    expect(res.poolCents).toBe(6000);
+    expect(res.poolCents).toBe(5250); // 7500 − 30% fee
     expect(res.presentCrewSize).toBe(2);
-    expect(earningsWrites["a-lead"]).toBe(3600);
-    expect(earningsWrites["a-mem"]).toBe(2400);
+    expect(earningsWrites["a-lead"]).toBe(2835);
+    expect(earningsWrites["a-mem"]).toBe(2415);
   });
 
-  it("splits a 10000¢ pool 40/30/30 across three completed seats", async () => {
+  it("splits an 8750¢ pool 36/32/32 across three completed seats", async () => {
     const seats = [
       seat("l", "cl-lead", "LEAD", 0),
       seat("m1", "cl-m1", "MEMBER", 1),
@@ -140,26 +145,26 @@ describe("computeCrewEarnings — pool split written per seat", () => {
     const { sql } = makeSql(handler);
 
     const res = await computeCrewEarnings(sql, "b1");
-    expect(res.poolCents).toBe(10000);
+    expect(res.poolCents).toBe(8750); // 12500 − 30% fee
     expect(res.presentCrewSize).toBe(3);
-    expect(earningsWrites["l"]).toBe(4000);
-    expect(earningsWrites["m1"]).toBe(3000);
-    expect(earningsWrites["m2"]).toBe(3000);
-    expect(Object.values(earningsWrites).reduce((a, b) => a + b, 0)).toBe(10000);
+    expect(earningsWrites["l"]).toBe(3150);
+    expect(earningsWrites["m1"]).toBe(2800);
+    expect(earningsWrites["m2"]).toBe(2800);
+    expect(Object.values(earningsWrites).reduce((a, b) => a + b, 0)).toBe(8750);
   });
 
   it("excludes a NO_SHOW: the remaining crew splits the SAME pool by the reduced size", async () => {
     // The NO_SHOW seat is filtered out by the present-seat query, so only two
-    // seats come back → 60/40 of the unchanged 6000¢ pool.
+    // seats come back → 54/46 of the unchanged 5250¢ pool.
     const seats = [seat("l", "cl-lead", "LEAD", 0), seat("m1", "cl-m1", "MEMBER", 1)];
     const { handler, earningsWrites } = payoutHandler({ totalPrice: 7500, seats });
     const { sql } = makeSql(handler);
 
     const res = await computeCrewEarnings(sql, "b1");
     expect(res.presentCrewSize).toBe(2);
-    expect(res.poolCents).toBe(6000);
-    expect(earningsWrites["l"]).toBe(3600);
-    expect(earningsWrites["m1"]).toBe(2400);
+    expect(res.poolCents).toBe(5250);
+    expect(earningsWrites["l"]).toBe(2835);
+    expect(earningsWrites["m1"]).toBe(2415);
   });
 });
 
@@ -182,8 +187,8 @@ describe("releaseCrewPayouts — one transfer per member", () => {
     const summary = await releaseCrewPayouts(sql, stripe, "b1");
 
     expect(created).toHaveLength(2);
-    expect(created[0].params.amount).toBe(3600);
-    expect(created[1].params.amount).toBe(2400);
+    expect(created[0].params.amount).toBe(2835);
+    expect(created[1].params.amount).toBe(2415);
     // Distinct idempotency keys, shared transfer_group.
     const keys = created.map((c) => c.opts.idempotencyKey);
     expect(new Set(keys).size).toBe(2);
@@ -195,7 +200,7 @@ describe("releaseCrewPayouts — one transfer per member", () => {
 
   it("skips a seat that already carries a real transfer id (idempotent re-run)", async () => {
     const seats = [
-      { ...seat("a-lead", "cl-lead", "LEAD", 0), earnings_cents: 3600, stripe_transfer_id: "tr_existing" },
+      { ...seat("a-lead", "cl-lead", "LEAD", 0), earnings_cents: 2835, stripe_transfer_id: "tr_existing" },
       seat("a-mem", "cl-mem", "MEMBER", 1),
     ];
     const { handler } = payoutHandler({ totalPrice: 7500, seats });
@@ -221,8 +226,8 @@ describe("tip split — equal across completed crew, never 100% to the lead", ()
     expect(shares[0]).toBeLessThan(3000);
   });
   it("structure supports PROPORTIONAL_TO_EARNINGS", () => {
-    const members = [{ earnings_cents: 4000 }, { earnings_cents: 3000 }, { earnings_cents: 3000 }];
-    expect(tipSplitFractions("PROPORTIONAL_TO_EARNINGS", members)).toEqual([0.4, 0.3, 0.3]);
+    const members = [{ earnings_cents: 3600 }, { earnings_cents: 3200 }, { earnings_cents: 3200 }];
+    expect(tipSplitFractions("PROPORTIONAL_TO_EARNINGS", members)).toEqual([0.36, 0.32, 0.32]);
   });
 });
 

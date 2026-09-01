@@ -67,6 +67,7 @@ export type CrewSizeReasonCode =
   | "MULTIPLE_HIGH_INTENSITY_ROOMS"
   | "LONG_SOLO_DURATION" // a solo shift would exceed the max
   | "CUSTOMER_COMPLETION_WINDOW"
+  | "QUOTE_REQUIRED_TEAM_SIZE" // the v2 quote's requiredTeamSize floors the size
   | "CUSTOMER_EXTRA_CLEANER" // customer bought one extra cleaner
   | "DIMINISHING_RETURNS" // an extra cleaner would not meaningfully help
   | "MIN_USEFUL_WORK_LIMIT" // capped so each cleaner has meaningful work

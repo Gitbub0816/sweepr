@@ -15,16 +15,23 @@ import { DEFAULT_CREW_CONFIG, payoutSplitFractions } from "../src/lib/crew/crewC
 const CFG = DEFAULT_CREW_CONFIG;
 
 describe("effective capacity + elapsed", () => {
-  it("is non-linear per the team productivity curve", () => {
+  it("is non-linear per the team productivity curve (engine fallback 1000/1800/2500)", () => {
     expect(effectiveCapacity(1, undefined)).toBe(1);
-    expect(effectiveCapacity(2, undefined)).toBeCloseTo(1.85, 5);
-    expect(effectiveCapacity(3, undefined)).toBeCloseTo(2.55, 5);
+    expect(effectiveCapacity(2, undefined)).toBeCloseTo(1.8, 5);
+    expect(effectiveCapacity(3, undefined)).toBeCloseTo(2.5, 5);
   });
 
   it("elapsed is NOT personMinutes/crewSize (coordination loss)", () => {
-    // 480 person-min over 2 cleaners ≈ 260, not 240.
-    expect(elapsedMinutes(480, 2, undefined)).toBe(260);
+    // 480 person-min over 2 cleaners = ceil(480/1.8) = 267, not 240.
+    expect(elapsedMinutes(480, 2, undefined)).toBe(267);
     expect(elapsedMinutes(480, 1, undefined)).toBe(480);
+  });
+
+  it("consumes a resolved productivity map (team of 3 at 2500 permille)", () => {
+    // The map shape produced by @sweepr/quote-engine resolveTeamProductivityPermille.
+    const resolved = { "1": 1000, "2": 1800, "3": 2500 };
+    expect(effectiveCapacity(3, resolved)).toBeCloseTo(2.5, 5);
+    expect(elapsedMinutes(1000, 3, resolved)).toBe(400);
   });
 });
 
@@ -96,19 +103,52 @@ describe("computeCrewPlan — labor drives size, not sqft", () => {
   });
 });
 
+describe("engine staffing contract — requiredTeamSize floors the plan", () => {
+  it("the quote's requiredTeamSize floors the recommendation for a small-labor job", () => {
+    // 200 person-min alone sizes to 1, but the quote (e.g. an airbnb staffing
+    // matrix + tight turnover window) required a team of 2.
+    const p = computeCrewPlan({ personMinutes: 200, engineRequiredTeamSize: 2, config: CFG });
+    expect(p.recommendedCrewSize).toBe(2);
+    expect(p.minCrewSize).toBe(2);
+    expect(p.reasonCodes).toContain("QUOTE_REQUIRED_TEAM_SIZE");
+  });
+
+  it("a required team of 3 outranks the min-useful-work cap", () => {
+    // 200 person-min caps maxUseful at 2 (90 min each) — the engine floor wins.
+    const p = computeCrewPlan({ personMinutes: 200, engineRequiredTeamSize: 3, config: CFG });
+    expect(p.recommendedCrewSize).toBe(3);
+    expect(p.maxUsefulCrewSize).toBeGreaterThanOrEqual(3);
+  });
+
+  it("is capped at maxCrewSize and never lowers a larger labor-driven size", () => {
+    const capped = computeCrewPlan({ personMinutes: 700, engineRequiredTeamSize: 9, config: CFG });
+    expect(capped.recommendedCrewSize).toBeLessThanOrEqual(CFG.maxCrewSize);
+    // Labor already wants 3; an engine floor of 2 must not shrink it.
+    const larger = computeCrewPlan({ personMinutes: 1400, engineRequiredTeamSize: 2, config: CFG });
+    expect(larger.recommendedCrewSize).toBe(3);
+  });
+
+  it("no engine floor (legacy / v2-dark quote) leaves sizing unchanged", () => {
+    const a = computeCrewPlan({ personMinutes: 700, config: CFG });
+    const b = computeCrewPlan({ personMinutes: 700, engineRequiredTeamSize: null, config: CFG });
+    expect(b.recommendedCrewSize).toBe(a.recommendedCrewSize);
+    expect(b.reasonCodes).not.toContain("QUOTE_REQUIRED_TEAM_SIZE");
+  });
+});
+
 describe("payout split fractions", () => {
   it("solo = 100%", () => {
     expect(payoutSplitFractions(CFG, 1)).toEqual([1]);
   });
-  it("two-person = 60/40", () => {
+  it("two-person = 54/46 Lead/Support", () => {
     const s = payoutSplitFractions(CFG, 2);
-    expect(s[0]).toBeCloseTo(0.6, 5);
-    expect(s[1]).toBeCloseTo(0.4, 5);
+    expect(s[0]).toBeCloseTo(0.54, 5);
+    expect(s[1]).toBeCloseTo(0.46, 5);
     expect(s.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 5);
   });
-  it("three-person = 40/30/30", () => {
+  it("three-person = 36/32/32", () => {
     const s = payoutSplitFractions(CFG, 3);
-    expect(s).toEqual([0.4, 0.3, 0.3]);
+    expect(s).toEqual([0.36, 0.32, 0.32]);
   });
   it("falls back to an even split for an unconfigured size", () => {
     const s = payoutSplitFractions(CFG, 4);

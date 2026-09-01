@@ -10,8 +10,15 @@
 
 /**
  * Configurable payout engine.
- * Replaces the hardcoded PLATFORM_FEE_RATE = 0.2 constant used in payments.ts.
+ * Replaces the hardcoded platform-fee constant once used in payments.ts.
  * All fee parameters are loaded from platform_fee_settings (latest active row).
+ *
+ * The Marketplace Services Fee is 30% (owner decision, 2026-09): a standard
+ * booking splits 70% cleaner pool / 30% Sweepr. Tips are outside the split
+ * (100% to the cleaner, no fee). Founding-cleaner and tier multipliers apply
+ * on top of the cleaner pool with unchanged semantics. Migration 107 moves the
+ * stored platform_fee_settings row to 30%; the default below covers a missing
+ * row.
  */
 
 import type { Sql } from "./db";
@@ -40,7 +47,7 @@ interface FeeSettingsRow {
 
 const DEFAULT_SETTINGS: FeeSettings = {
   feeType: "percentage",
-  feeValue: 20,
+  feeValue: 30,
   minimumPlatformFee: 200,
   maximumPlatformFee: null,
   processingFeeStrategy: "absorb",

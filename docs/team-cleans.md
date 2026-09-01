@@ -10,8 +10,12 @@ run, and paid by a **crew** (1 LEAD + N MEMBER helpers) instead of a single
 cleaner. Design/audit rationale and every backward-compat touchpoint live in
 `docs/team-cleans-audit.md`; this doc is the shipped picture.
 
-**Everything is gated OFF by default** behind `isTeamFlagEnabled(...)`. With the
-flags off, bookings run the legacy single-cleaner path byte-for-byte unchanged.
+**Team Cleans is LIVE by default** (owner decision, 2026-09): every
+`isTeamFlagEnabled(...)` flag defaults ON (a missing `site_settings` row counts
+as enabled; migration 107 also seeds every flag row to `"true"`). The flags are
+kept as admin off-switches — a stored row not exactly `"true"` turns its stage
+off, and with the master flag off bookings run the legacy single-cleaner path
+byte-for-byte unchanged.
 
 ---
 
@@ -139,8 +143,19 @@ crew is there); the two are bridged by the **team-efficiency curve**.
   stamped v2 snapshot — trustworthy only when `bookings.pricing_version_id IS NOT
   NULL` (v2 was active at booking time). Legacy/v2-dark bookings have no estimate
   → sizing stays solo (reason `NO_LABOR_ESTIMATE`).
-- **Team-efficiency curve** (`teamProductivityPermille`, permille of one
-  cleaner, e.g. `{"1":1000,"2":1850,"3":2550}`): two people ≠ 2×.
+- **Engine staffing contract** (`@sweepr/quote-engine`, contract doc at the top
+  of `packages/quote-engine/src/index.ts`), consumed via
+  `crewStaffing.loadBookingLaborContext`:
+  `resolveTeamProductivityPermille(config)` supplies the RESOLVED
+  team-efficiency map (scheduling entries merged with the
+  marketplace-economics team sizes, e.g. a team of 3 at 2500 permille), and the
+  quote's `QuoteResultV2.requiredTeamSize` (airbnb staffing matrix +
+  turnover-window sizing via `computeAirbnbTeamSize`; the two-person threshold
+  for standard/move-in-out) is a hard FLOOR on the recommendation (reason
+  `QUOTE_REQUIRED_TEAM_SIZE`) — honored even with `autoSizing` off, since the
+  customer was quoted that team.
+- **Team-efficiency curve** (permille of one cleaner; local fallback mirrors
+  the engine's `{"1":1000,"2":1800,"3":2500}`): two people ≠ 2×.
   `effectiveCapacity(size)` reads it (extrapolating past the largest known point
   by the last marginal step); `elapsedMinutes = ceil(personMinutes / capacity)`.
 - **Bands** (`crewSizeThresholdsPersonMinutes`, e.g. `{"1":540,"2":900,"3":1320}`):
@@ -176,9 +191,12 @@ crew terms only reorder survivors — never smuggle in an ineligible cleaner.
 
 Additive, explainable terms (each candidate carries a full `breakdown`):
 
-- **LEAD candidates** (`rankLeadCandidates`): lead-eligibility (experience +
-  tier), reliability (low no-show/cancel), customer continuity (has led good
-  jobs for this customer).
+- **LEAD candidates** (`rankLeadCandidates`): HISTORICAL PERFORMANCE FIRST
+  (owner decision) — the exact formula is documented on the function:
+  `60·min(total_jobs/25,1) + 50·(rating/5) + 40·reliability + 10·continuity +
+  base`, where reliability combines completed vs `cancelled_by_cleaner`
+  bookings with MEMBER crew-seat outcomes. The performance ceiling (150)
+  exceeds the base ceiling (90), so track record dominates the ordering.
 - **MEMBER candidates** (`rankCrewCandidates`, scored relative to the accepted
   LEAD): availability overlap, distance, reliability, qualification,
   **prior-pairing** (peer thumbs with the LEAD — a thumbs-down sinks them),
@@ -220,9 +238,10 @@ the LEAD's tier/founding multipliers (since `bookings.cleaner_id` is the LEAD).
 `payouts` / `payout_ledger` stay **booking-level** (the pool); per-seat earnings
 and transfer ids live on `booking_crew_assignments`.
 
-- **Split** by the configured `payoutSplitByCrewSize` (primary/LEAD first):
-  `{"1":[100],"2":[60,40],"3":[40,30,30]}`. `splitPoolCents` conserves cents
-  exactly — the LEAD absorbs the rounding remainder.
+- **Split** by the configured `payoutSplitByCrewSize` (primary/LEAD first),
+  owner-decided 2026-09: `{"1":[100],"2":[54,46],"3":[36,32,32]}`.
+  `splitPoolCents` conserves cents exactly — every non-primary seat is rounded
+  from its fraction and the LEAD absorbs the remainder.
 - **No-show forfeit:** a `NO_SHOW` (or any non-present) seat earns 0 and is
   **excluded** from the split; the remaining crew divides the **same** pool by
   the reduced present size (the customer paid the same regardless of who showed).
@@ -326,7 +345,7 @@ safe):
 | `targetMaxElapsedMinutes` | 300 | preferred elapsed ceiling (soft, 30% tolerance) |
 | `leadOverheadMinutes` | 20 | extra LEAD workload (walkthrough/coordination) |
 | `crewSizeThresholdsPersonMinutes` | `{1:540,2:900,3:1320}` | labor-volume bands |
-| `payoutSplitByCrewSize` | `{1:[100],2:[60,40],3:[40,30,30]}` | pool split % (primary first, sum 100) |
+| `payoutSplitByCrewSize` | `{1:[100],2:[54,46],3:[36,32,32]}` | pool split % (primary first, sum 100) |
 
 ### Pricing-versioned team knobs (`pricing_versions.config`)
 
@@ -337,9 +356,12 @@ Knobs that must **snapshot with a quote** live in `PricingConfigV2`, not
 - `scheduling.twoPersonThresholdMinutes` — scheduled labor above which two are recommended.
 - `rates.extraCleanerFeeCentsPer100Sqft` — the customer-elected extra-cleaner fee.
 
-### Feature flags (boolean `site_settings` keys, read like `prelaunch_*`)
+### Feature flags (boolean `site_settings` keys)
 
-All default OFF (value must be exactly `"true"`; fail-closed on error).
+All default ON (owner decision, 2026-09): a missing row counts as enabled, and
+migration 107 seeds every flag row to `"true"`. A stored row turns its stage
+off unless its value is exactly `"true"`; any read error fails safe to OFF
+(the legacy solo path).
 
 | Flag key | `TeamFlag` | Gates |
 | --- | --- | --- |
@@ -351,20 +373,14 @@ All default OFF (value must be exactly `"true"`; fail-closed on error).
 
 ---
 
-## 11. Rollout sequence
+## 11. Rollout
 
-1. **Ship dark.** Migrations 101–103 + engines land with all flags OFF; the
-   solo path is unchanged and existing bookings are backfilled as one LEAD seat.
-2. **Pricing v2 active** in the target area (person-minutes only become
-   trustworthy while a version is Active) — crew sizing is v2-active-only.
-3. **`team_cleans_enabled`** on: crews can be created, but with
-   `autoSizing`/`autoMatching` off a job only crews when the customer buys an
-   extra cleaner, and admins fill seats manually.
-4. **`team_auto_crew_matching_enabled`** on: automatic LEAD/MEMBER invitation
-   dispatch + cascade.
-5. **`team_auto_crew_sizing_enabled`** on: labor-driven auto-sizing for all
-   eligible bookings.
-6. **`team_task_allocation_enabled`** / **`team_preferred_teammates_enabled`** on:
-   task decomposition/allocation and the preferred-teammate matching term.
-
-Each stage is independently reversible by flipping its flag back to non-`"true"`.
+Team Cleans is LIVE: as of migration 107 every flag defaults ON and the
+production rows are seeded `"true"`, so crews form on deploy with no manual
+toggle. The original staged sequence (ship dark → v2 active →
+`team_cleans_enabled` → `autoMatching` → `autoSizing` → task allocation /
+preferred teammates) remains the mental model for TURNING STAGES OFF: each
+stage is independently reversible from admin Crew Config by flipping its flag
+to a non-`"true"` value. Note crew sizing remains v2-active-only — legacy /
+v2-dark bookings still run solo (`NO_LABOR_ESTIMATE`), except that a v2
+quote's `requiredTeamSize` is honored even with `autoSizing` off.

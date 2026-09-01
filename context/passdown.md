@@ -11,12 +11,29 @@ Stable conventions live in root `/CLAUDE.md` — this file is state + recent wor
 
 ---
 
-## Team Cleans (multi-cleaner crews) — flag-gated OFF (branch)
+## Team Cleans (multi-cleaner crews) — LIVE (flags default ON)
 
 Extends the single-cleaner system to **crews** (1 LEAD + N MEMBER helpers).
 Full reference: **docs/team-cleans.md**; design/compat audit:
-docs/team-cleans-audit.md. **Everything is gated OFF by default** behind
-`isTeamFlagEnabled(...)` — with flags off the legacy solo path is unchanged.
+docs/team-cleans-audit.md.
+
+**Session 2026-09-01 (payout economics + enablement):** Marketplace Services
+Fee 20% → 30% (payoutEngine default + migration 107 fee row; 70/30 split,
+tips untouched). Crew splits now 54/46 (Lead/Support) and 36/32/32 (LEAD
+absorbs rounding remainder, unchanged pattern). All team_* flags DEFAULT ON
+(missing row = enabled; mig. 107 seeds rows "true"; admin Crew Config still
+turns stages off). crewSizing consumes the quote-engine staffing contract
+(resolveTeamProductivityPermille + QuoteResultV2.requiredTeamSize as a hard
+floor via crewStaffing.loadBookingLaborContext). LEAD selection is now
+performance-primary (formula documented on rankLeadCandidates). New:
+access-delay/lockout fee (lib/accessDelayFee.ts + admin
+POST /admin/jobs/:id/access-delay-fee + JobDetailPage card; ledger event
+'access_delay_fee'; payout allocation 80/20 cleaner/Sweepr). Cleaner job-type
+preferences (mig. 107 cleaners.accepted_job_types over
+standard/move_in_out/vacation_rental, default all; matching hard-filters —
+replaces the legacy preferred_service_types filter that silently excluded
+almost everyone from move_in_out/vacation_rental) + cleaning-type guide in
+cleaner onboarding + Settings (i18n: en + English copies in 9 locales).
 
 Shipped on the branch:
 - **Schema** — migrations 101 (`booking_crew_assignments` + `bookings.crew_status`

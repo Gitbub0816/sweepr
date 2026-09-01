@@ -11,6 +11,30 @@
 import type { Sql, BookingRow, CleanerRow } from "@sweepr/db";
 import { haversineDistance } from "./haversine";
 
+// ─── Canonical job types (cleaner job-type preferences, migration 107) ───────
+
+/** The three canonical job types a cleaner can accept or opt out of. */
+export const CANONICAL_JOB_TYPES = ["standard", "move_in_out", "vacation_rental"] as const;
+export type CanonicalJobType = (typeof CANONICAL_JOB_TYPES)[number];
+
+/**
+ * Map a booking's wire service type onto the canonical job-type preference
+ * domain, exactly the way the quote engine maps wire types to pricing paths
+ * (quoteEngine/bookingAdapter.mapWireServiceType):
+ *   move_in_out     → move_in_out
+ *   vacation_rental → vacation_rental
+ *   everything else → standard
+ * Deep Clean is auto-classified within Standard bookings (higher workload,
+ * same scope family), so 'deep' — like 'recurring', 'light', etc. — counts as
+ * 'standard' for preference purposes. Cleaners opt in/out of the three
+ * canonical types only; there is no separate deep-clean opt-out.
+ */
+export function canonicalJobType(wireServiceType: string | null | undefined): CanonicalJobType {
+  if (wireServiceType === "move_in_out") return "move_in_out";
+  if (wireServiceType === "vacation_rental") return "vacation_rental";
+  return "standard";
+}
+
 interface ScheduleRow {
   cleaner_id: string;
   slot_type: "recurring" | "flexible" | "available_now";
@@ -266,9 +290,9 @@ function serviceAreaPoints(miles: number, radius: number): number {
  * leaning toward the best match.
  *
  * Hard filters (a mismatch removes the cleaner entirely):
- *  - Service offering: a cleaner who has configured service types and does NOT
- *    offer this booking's service type is never assigned it (e.g. no deep
- *    clean in their profile → no deep-clean jobs).
+ *  - Job-type preference: a cleaner who opted out of the booking's canonical
+ *    job type (standard / move_in_out / vacation_rental — see
+ *    canonicalJobType; deep cleans count as standard) is never assigned it.
  *  - Service area: if a cleaner has set their own area and the booking is
  *    outside its radius, they are not offered the job.
  *
@@ -330,7 +354,7 @@ export async function rankCleanersForBooking(
         GROUP BY cleaner_id
       `,
       db`
-        SELECT id AS cleaner_id, preferred_service_types,
+        SELECT id AS cleaner_id, accepted_job_types,
                founding_member, founding_member_revoked
         FROM cleaners
         WHERE id = ANY(${cleanerIds})
@@ -368,7 +392,7 @@ export async function rankCleanersForBooking(
   }>;
   const serviceRows = serviceRaw as unknown as Array<{
     cleaner_id: string;
-    preferred_service_types: string[] | null;
+    accepted_job_types: string[] | null;
     founding_member: boolean;
     founding_member_revoked: boolean;
   }>;
@@ -397,21 +421,34 @@ export async function rankCleanersForBooking(
 
   const availByCleaner = byCleaner(availabilityRows);
   const areaByCleaner = byCleaner(areaRows);
-  const servicesByCleaner = new Map(
-    serviceRows.map((r) => [r.cleaner_id, r.preferred_service_types ?? []]),
+  const acceptedTypesByCleaner = new Map(
+    serviceRows.map((r) => [r.cleaner_id, r.accepted_job_types]),
   );
   const acceptByCleaner = new Map(acceptRows.map((r) => [r.cleaner_id, r]));
   const recentByCleaner = new Map(recentRows.map((r) => [r.cleaner_id, r.recent_offers]));
   const interactionByCleaner = new Map(interactionRows.map((r) => [r.cleaner_id, r]));
   const maxRecent = Math.max(1, ...recentRows.map((r) => r.recent_offers));
 
+  const bookingJobType = canonicalJobType(booking.service_type);
+
   const scores: MatchScore[] = [];
   for (const cleaner of availableCleaners) {
-    // ── HARD FILTER 1: service offering ─────────────────────────────────────
-    // A cleaner who lists service types and does not include this booking's
-    // type is never assigned it. (No configured types = generalist.)
-    const prefs = servicesByCleaner.get(cleaner.id) ?? [];
-    if (prefs.length > 0 && !prefs.includes(booking.service_type)) continue;
+    // ── HARD FILTER 1: job-type preference (cleaners.accepted_job_types) ────
+    // The booking's wire service type maps onto the canonical job-type domain
+    // (see canonicalJobType — deep-clean auto-classified bookings count as
+    // Standard); a cleaner who opted out of that type is never offered or
+    // assigned it, in the solo engine AND (via baseRanking + the accept-time
+    // revalidation) the crew engine. Preferences are respected STRICTLY: a
+    // booking with zero remaining candidates surfaces through the existing
+    // no-candidates path (status 'matching' + admin match_needed alert), never
+    // by ignoring an opt-out. Default (incl. a NULL pre-migration read) = all
+    // types accepted. Supersedes the legacy preferred_service_types filter,
+    // which by defaulting to ['standard','deep'] silently excluded nearly
+    // every cleaner from move_in_out and vacation_rental bookings.
+    const accepted = acceptedTypesByCleaner.get(cleaner.id) ?? null;
+    if (Array.isArray(accepted) && accepted.length > 0 && !accepted.includes(bookingJobType)) {
+      continue;
+    }
 
     // ── HARD FILTER 2: the cleaner's own service area ───────────────────────
     const area = (areaByCleaner.get(cleaner.id) ?? [])[0];

@@ -829,6 +829,8 @@ interface CrewBookingRow {
   id: string;
   cleaner_id: string | null;
   crew_status: string | null;
+  pricing_version_id: string | null;
+  pricing_quote_v2_id: string | null;
   address_lat: number | null;
   address_lng: number | null;
 }
@@ -839,6 +841,7 @@ async function loadCrewBooking(
 ): Promise<CrewBookingRow | null> {
   const rows = (await sql`
     SELECT b.id, b.cleaner_id, b.crew_status,
+           b.pricing_version_id, b.pricing_quote_v2_id,
            a.lat AS address_lat, a.lng AS address_lng
     FROM bookings b
     LEFT JOIN addresses a ON a.id = b.address_id
@@ -1000,7 +1003,20 @@ dayOfServiceRouter.post(
     if (!target || target.role === "LEAD") return c.json({ error: "Invalid seat" }, 400);
 
     const cfg = await loadCrewConfig(sql);
-    const res = await handleNoShow(sql, { bookingId, assignmentId, config: cfg });
+    // Re-plan the reduced crew with the SAME versioned productivity curve the
+    // original sizing used (the quote engine's resolved team-efficiency map),
+    // so a size-3 crew losing a member gets a consistent elapsed re-estimate.
+    const { loadBookingLaborContext } = await import("../lib/crew/crewStaffing");
+    const labor = await loadBookingLaborContext(sql, booking).catch(() => ({
+      personMinutes: null as number | null,
+      productivityPermille: undefined,
+    }));
+    const res = await handleNoShow(sql, {
+      bookingId,
+      assignmentId,
+      config: cfg,
+      productivityPermille: labor.productivityPermille,
+    });
     if (!res.ok) return c.json({ error: "Seat is not eligible to be marked no-show" }, 409);
 
     await audit(sql, {

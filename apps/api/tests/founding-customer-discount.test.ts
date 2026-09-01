@@ -17,7 +17,7 @@ import { calculatePayout, type FeeSettings } from "../src/lib/payoutEngine";
 
 const SETTINGS: FeeSettings = {
   feeType: "percentage",
-  feeValue: 20,
+  feeValue: 30, // production Marketplace Services Fee (owner decision 2026-09)
   minimumPlatformFee: 0,
   maximumPlatformFee: null,
   processingFeeStrategy: "absorb",
@@ -28,16 +28,16 @@ const SETTINGS: FeeSettings = {
 
 describe("calculatePayout with a founding customer discount", () => {
   it("matches the $100 job worked example exactly", () => {
-    // $100 job, 20% fee, 5% founding-customer discount: customer is charged
-    // $95 (the amount actually captured); the cleaner still earns $80, same
+    // $100 job, 30% fee, 5% founding-customer discount: customer is charged
+    // $95 (the amount actually captured); the cleaner still earns $70, same
     // as a non-discounted booking; the platform absorbs the $5 difference.
     const capturedAmountCents = 9500; // what was actually charged/captured
     const discountCents = 500; // 5% of $100
     const breakdown = calculatePayout(capturedAmountCents, SETTINGS, 1.0, discountCents);
 
     expect(breakdown.grossAmount).toBe(9500);
-    expect(breakdown.cleanerPayout).toBe(8000); // unaffected — same as a full-price $100 job
-    expect(breakdown.platformFee).toBe(1500); // $20 list fee minus the $5 discount absorbed
+    expect(breakdown.cleanerPayout).toBe(7000); // unaffected — same as a full-price $100 job
+    expect(breakdown.platformFee).toBe(2500); // $30 list fee minus the $5 discount absorbed
     expect(breakdown.reserveHold).toBe(0);
   });
 
@@ -55,7 +55,7 @@ describe("calculatePayout with a founding customer discount", () => {
     const withoutDiscount = calculatePayout(10000, SETTINGS, foundingCleanerMultiplier, 0);
     const withDiscount = calculatePayout(9500, SETTINGS, foundingCleanerMultiplier, 500);
     expect(withDiscount.cleanerPayout).toBe(withoutDiscount.cleanerPayout);
-    expect(withDiscount.cleanerPayout).toBe(8400); // $80 * 1.05
+    expect(withDiscount.cleanerPayout).toBe(7350); // $70 * 1.05
   });
 
   it("never returns a negative platform fee even if the discount exceeded the fee", () => {
@@ -67,16 +67,16 @@ describe("calculatePayout with a founding customer discount", () => {
   it("defaults to no discount when the parameter is omitted (existing call sites unaffected)", () => {
     const breakdown = calculatePayout(10000, SETTINGS, 1.0);
     expect(breakdown.grossAmount).toBe(10000);
-    expect(breakdown.platformFee).toBe(2000);
-    expect(breakdown.cleanerPayout).toBe(8000);
+    expect(breakdown.platformFee).toBe(3000);
+    expect(breakdown.cleanerPayout).toBe(7000);
   });
 
   it("respects min/max fee clamps against the undiscounted gross", () => {
-    const clamped: FeeSettings = { ...SETTINGS, minimumPlatformFee: 2500 };
+    const clamped: FeeSettings = { ...SETTINGS, minimumPlatformFee: 3500 };
     const breakdown = calculatePayout(9500, clamped, 1.0, 500);
-    // Undiscounted gross is $100, so the $25 minimum applies before the
-    // discount is subtracted back out: $25 - $5 = $20 actual platform fee.
-    expect(breakdown.platformFee).toBe(2000);
-    expect(breakdown.cleanerPayout).toBe(7500); // ($100 - $25 minimum fee)
+    // Undiscounted gross is $100, so the $35 minimum applies before the
+    // discount is subtracted back out: $35 - $5 = $30 actual platform fee.
+    expect(breakdown.platformFee).toBe(3000);
+    expect(breakdown.cleanerPayout).toBe(6500); // ($100 - $35 minimum fee)
   });
 });
