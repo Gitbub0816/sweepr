@@ -8,6 +8,47 @@
         document.documentElement.classList.toggle('dark', t === 'dark');
       })();
     </script>
+    <style>
+      /* Pure CSS/HTML pre-mount loader: covers the JS-bundle-fetch/parse gap
+         before React attaches. Colors are Sweepr's seafoam accent + warm
+         neutrals (packages/config/tailwind.ts), matching the CSS-spinner
+         fallback in packages/ui/src/components/SweeprLoader.tsx so there's no
+         visual swap once the real loader takes over. Lives as static content
+         inside #root, which React's createRoot silently replaces on mount. */
+      #boot-loader {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f9f8f6;
+      }
+      html.dark #boot-loader {
+        background: #1c1a17;
+      }
+      #boot-loader__spinner {
+        width: 40px;
+        height: 40px;
+        border-radius: 9999px;
+        border: 3px solid #e7e5e2;
+        border-top-color: #14b8a6;
+        animation: boot-loader-spin 0.8s linear infinite;
+      }
+      html.dark #boot-loader__spinner {
+        border-color: #44403b;
+        border-top-color: #2dd4bf;
+      }
+      @keyframes boot-loader-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #boot-loader__spinner {
+          animation: none;
+        }
+      }
+    </style>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -21,7 +62,11 @@
 
 </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="boot-loader" aria-hidden="true">
+        <div id="boot-loader__spinner"></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

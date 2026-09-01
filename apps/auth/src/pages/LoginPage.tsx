@@ -13,7 +13,7 @@ import { useSearchParams } from "react-router-dom";
 import { useAuth, useClerk } from "@clerk/clerk-react";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { SweeprLogo, ThemeToggle } from "@sweepr/ui";
-import { AuthForm } from "../components/AuthForm";
+import { AuthForm, type View } from "../components/AuthForm";
 import {
   buildRedirectUrl,
   completeTransaction,
@@ -121,6 +121,9 @@ function safeReturnTo(raw: string | null): string {
 function StandaloneLogin() {
   const [params] = useSearchParams();
   const { isLoaded: authLoaded, isSignedIn } = useAuth();
+  // Mirrors AuthForm's own signIn/signUp toggle so the heading above it reads
+  // correctly for whichever segment is active.
+  const [authView, setAuthView] = useState<View>("signIn");
   const returnTo = safeReturnTo(params.get("return_to"));
   const returnHost = (() => {
     try {
@@ -161,7 +164,7 @@ function StandaloneLogin() {
       <div className="flex flex-col items-center text-center">
         <SweeprLogo size="md" />
         <h1 className="mt-4 text-xl font-bold text-charcoal dark:text-white">
-          Sign in to Sweepr
+          {authView === "signUp" ? "Create your Sweepr account" : "Sign in to Sweepr"}
         </h1>
         <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-400">
           You'll continue to{" "}
@@ -169,7 +172,12 @@ function StandaloneLogin() {
         </p>
       </div>
 
-      <AuthForm context={{ display_name: "Sweepr" }} ssoCallbackUrl={ssoCallbackUrl} authedUrl={selfUrl} />
+      <AuthForm
+        context={{ display_name: "Sweepr" }}
+        ssoCallbackUrl={ssoCallbackUrl}
+        authedUrl={selfUrl}
+        onViewChange={setAuthView}
+      />
 
       <p className="mt-4 text-center text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">
         By continuing, you agree to Sweepr's{" "}
@@ -209,6 +217,9 @@ function BrokerCeremony({ tx }: { tx: string }) {
   // Gate: true once any lingering central session has been cleared, so the
   // completion effect only ever fires for an authentication performed HERE.
   const [readyForAuth, setReadyForAuth] = useState(false);
+  // Mirrors AuthForm's own signIn/signUp toggle so the heading above it reads
+  // correctly for whichever segment is active.
+  const [authView, setAuthView] = useState<View>("signIn");
   const loadedFor = useRef<string | null>(null);
   const clearing = useRef(false);
   const completing = useRef(false);
@@ -450,7 +461,7 @@ function BrokerCeremony({ tx }: { tx: string }) {
       <div className="flex flex-col items-center text-center">
         <Wordmark appId={context.app_id} displayName={context.display_name} />
         <h1 className="mt-4 text-xl font-bold text-charcoal dark:text-white">
-          {context.heading}
+          {authView === "signUp" ? `Create your ${context.display_name} account` : context.heading}
         </h1>
         <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-400">
           You are signing in to <span className="font-semibold text-charcoal dark:text-white">{context.display_name}</span>{" "}
@@ -466,7 +477,7 @@ function BrokerCeremony({ tx }: { tx: string }) {
           <span className="mt-3 text-sm">Preparing secure sign-in…</span>
         </div>
       ) : (
-        <AuthForm context={context} ssoCallbackUrl={ssoCallbackUrl} authedUrl={authedUrl} />
+        <AuthForm context={context} ssoCallbackUrl={ssoCallbackUrl} authedUrl={authedUrl} onViewChange={setAuthView} />
       )}
 
       <p className="mt-4 text-center text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">

@@ -8,7 +8,7 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSignIn, useSignUp, useClerk } from "@clerk/clerk-react";
 import { Loader2 } from "lucide-react";
 import {
@@ -30,7 +30,7 @@ import {
 // The form needs only the display name from the broker context, which lets
 // the standalone (transaction-less) ceremony reuse it with a synthetic value.
 
-type View = "signIn" | "signUp" | "reset";
+export type View = "signIn" | "signUp" | "reset";
 type Stage = "form" | "code" | "second_factor";
 type CodeKind = "email_code" | "signup" | "reset";
 type SecondStrategy = "totp" | "phone_code";
@@ -46,10 +46,15 @@ export function AuthForm({
   context,
   ssoCallbackUrl,
   authedUrl,
+  onViewChange,
 }: {
   context: { display_name: string };
   ssoCallbackUrl: string;
   authedUrl: string;
+  /** Reports the current signIn/signUp/reset view to the parent page, e.g. so
+   * it can switch its own heading in step with the SegmentedControl toggle
+   * below — `view` otherwise never leaves this component. */
+  onViewChange?: (view: View) => void;
 }) {
   const { signIn, isLoaded: signInLoaded } = useSignIn();
   const { signUp, isLoaded: signUpLoaded } = useSignUp();
@@ -58,6 +63,13 @@ export function AuthForm({
 
   const [view, setView] = useState<View>("signIn");
   const [stage, setStage] = useState<Stage>("form");
+
+  useEffect(() => {
+    onViewChange?.(view);
+    // onViewChange is expected to be a stable setState-style callback; only
+    // re-fire this when the view itself actually changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
