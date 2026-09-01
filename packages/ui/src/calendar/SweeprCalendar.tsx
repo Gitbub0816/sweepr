@@ -8,7 +8,7 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   addMonths,
@@ -68,6 +68,9 @@ export function SweeprCalendar(props: CalendarProps) {
     onDateChange,
     availabilityData,
     isLoading,
+    disabledDates,
+    dateMarkers,
+    onMonthChange,
   } = props;
 
   const [cursor, setCursor] = useState<Date>(selectedDate ?? new Date());
@@ -76,6 +79,16 @@ export function SweeprCalendar(props: CalendarProps) {
   const [dir, setDir] = useState(0);
 
   const today = startOfDay(new Date());
+
+  const disabledSet = useMemo(() => new Set(disabledDates ?? []), [disabledDates]);
+
+  // Report the visible month (on mount + whenever it changes) so parents can
+  // fetch month-scoped data like blocked dates without duplicating cursor state.
+  const monthKey = format(startOfMonth(cursor), "yyyy-MM-dd");
+  useEffect(() => {
+    onMonthChange?.(new Date(`${monthKey}T12:00:00`));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthKey]);
 
   const monthDays = useMemo(() => {
     const start = startOfWeek(startOfMonth(cursor));
@@ -98,6 +111,8 @@ export function SweeprCalendar(props: CalendarProps) {
   };
 
   const pickDay = (d: Date) => {
+    // Disabled dates (e.g. admin-blocked booking dates) never select.
+    if (disabledSet.has(keyOf(d))) return;
     // In customer-booking mode the parent (ScheduleStep) renders its own
     // API-backed arrival-window picker below the calendar, so the built-in
     // day-detail slide-over (which shows Morning/Afternoon/Evening as "Full"
@@ -189,6 +204,8 @@ export function SweeprCalendar(props: CalendarProps) {
                   {monthDays.map((day) => {
                     const inMonth = isSameMonth(day, cursor);
                     const past = isBefore(day, today);
+                    const unavailable = disabledSet.has(keyOf(day));
+                    const marker = dateMarkers?.[keyOf(day)];
                     const daySlots = slotsForDate(
                       day,
                       slots,
@@ -199,22 +216,46 @@ export function SweeprCalendar(props: CalendarProps) {
                       <button
                         key={keyOf(day)}
                         onClick={() => pickDay(day)}
+                        disabled={unavailable}
+                        aria-disabled={unavailable || undefined}
                         className={`flex min-h-[76px] flex-col items-start rounded-lg border p-1.5 text-left transition-colors ${
-                          isToday(day)
-                            ? "border-seafoam-400 bg-seafoam-50 dark:bg-seafoam-900/20"
-                            : "border-slate-100 hover:border-seafoam-300 dark:border-slate-800"
+                          unavailable
+                            ? "cursor-not-allowed border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/40"
+                            : isToday(day)
+                              ? "border-seafoam-400 bg-seafoam-50 dark:bg-seafoam-900/20"
+                              : "border-slate-100 hover:border-seafoam-300 dark:border-slate-800"
                         } ${past ? "opacity-40" : ""} ${
                           !inMonth ? "opacity-30" : ""
                         }`}
                       >
-                        <span className="text-xs font-semibold text-charcoal dark:text-white">
+                        <span
+                          className={`text-xs font-semibold ${
+                            unavailable
+                              ? "text-slate-300 dark:text-slate-600"
+                              : "text-charcoal dark:text-white"
+                          }`}
+                        >
                           {format(day, "d")}
                         </span>
                         <div className="mt-1 flex w-full flex-col gap-0.5 overflow-hidden">
-                          {mode === "customer-booking" ? (
-                            hasAvail && (
-                              <span className="h-1.5 w-1.5 rounded-full bg-seafoam-500" />
+                          {unavailable ? (
+                            mode === "customer-booking" &&
+                            !past && (
+                              <span className="text-[9px] text-slate-400 dark:text-slate-500">
+                                Unavailable
+                              </span>
                             )
+                          ) : mode === "customer-booking" ? (
+                            <>
+                              {hasAvail && (
+                                <span className="h-1.5 w-1.5 rounded-full bg-seafoam-500" />
+                              )}
+                              {marker && (
+                                <span className="w-full truncate text-[9px] font-medium text-seafoam-700 dark:text-seafoam-400">
+                                  {marker}
+                                </span>
+                              )}
+                            </>
                           ) : (
                             <>
                               {daySlots.slice(0, 2).map((s) => (
@@ -223,6 +264,11 @@ export function SweeprCalendar(props: CalendarProps) {
                               {daySlots.length > 2 && (
                                 <span className="text-[10px] text-slate-400">
                                   +{daySlots.length - 2} more
+                                </span>
+                              )}
+                              {marker && (
+                                <span className="w-full truncate text-[9px] font-medium text-seafoam-700 dark:text-seafoam-400">
+                                  {marker}
                                 </span>
                               )}
                             </>

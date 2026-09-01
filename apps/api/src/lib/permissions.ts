@@ -42,6 +42,7 @@ export interface PermissionGroup {
 const SCREENS: Array<{ slug: string; label: string; route: string }> = [
   { slug: "dashboard", label: "Dashboard", route: "/" },
   { slug: "jobs", label: "Jobs", route: "/jobs" },
+  { slug: "booking_calendar", label: "Booking Calendar", route: "/booking-calendar" },
   { slug: "customers", label: "Customers", route: "/customers" },
   { slug: "cleaners", label: "Cleaners", route: "/cleaners" },
   { slug: "applications", label: "Applications", route: "/applications" },
@@ -131,8 +132,8 @@ const ALL = new Set(ALL_PERMISSION_KEYS);
 /** Screen keys granted to a base role by default. */
 const ROLE_SCREEN_DEFAULTS: Record<string, string[]> = {
   admin: SCREENS.map((s) => s.slug).filter((s) => s !== "access_control"),
-  ops: ["dashboard", "jobs", "customers", "cleaners", "applications", "disputes", "service_areas", "scope_review", "trust_safety", "reports", "automation", "events"],
-  finance: ["dashboard", "payouts", "pricing", "cleaning_pricing", "pricing_studio", "approvals", "insurance"],
+  ops: ["dashboard", "jobs", "booking_calendar", "customers", "cleaners", "applications", "disputes", "service_areas", "scope_review", "trust_safety", "reports", "automation", "events"],
+  finance: ["dashboard", "payouts", "pricing", "cleaning_pricing", "pricing_studio", "approvals", "insurance", "booking_calendar"],
   support: ["dashboard", "customers", "jobs", "mail", "notifications", "disputes", "reports"],
   trainer: ["dashboard", "training", "courses"],
   it: ["dashboard", "it_portal", "errors", "observability", "notifications", "slack", "status"],

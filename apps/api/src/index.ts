@@ -45,6 +45,8 @@ import { adminNewsletterRouter } from "./routes/adminNewsletter";
 import { adminServiceAreasRouter } from "./routes/adminServiceAreas";
 import { adminBroadcastsRouter } from "./routes/adminBroadcasts";
 import { adminScheduleRouter } from "./routes/adminSchedule";
+import { adminCalendarRouter } from "./routes/adminCalendar";
+import { calendarRouter } from "./routes/calendar";
 import { adminFoundingRouter } from "./routes/adminFounding";
 import { adminPromotionsRouter } from "./routes/adminPromotions";
 import { foundingRouter } from "./routes/founding";
@@ -417,6 +419,11 @@ app.use("/reports/*", userReportsGate);
 // Prelaunch bypass-code verification — tight IP bucket to blunt code guessing.
 app.use("/status/bypass", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "bypass", strict: true }));
 app.use("/maps/*", rateLimit({ limit: 240, windowMs: 15 * 60_000, keyPrefix: "maps" }));
+// Booking-calendar availability (blocked dates + date pricing labels): a
+// read-only endpoint the wizard refetches on every month navigation, so it
+// gets its own generous bucket (convention 14 — never a strict mutation
+// bucket on polled/repeated reads).
+app.use("/calendar/*", rateLimit({ limit: 240, windowMs: 15 * 60_000, keyPrefix: "calendar" }));
 
 // Smart Entry: the read-only status/poll endpoints (feature status, connect-
 // webview status, device list, booking selection) are POLLED by the customer
@@ -506,6 +513,11 @@ app.route("/admin/newsletter", adminNewsletterRouter);
 app.route("/admin/service-areas", adminServiceAreasRouter);
 app.route("/admin/broadcasts", adminBroadcastsRouter);
 app.route("/admin/schedule", adminScheduleRouter);
+// Admin booking calendar (calendar_date_rules — date blocks, date pricing,
+// date coupons). DISTINCT from /admin/schedule, which is comms automations.
+app.route("/admin/calendar", adminCalendarRouter);
+// Public wizard-facing availability for the same rules (labels only).
+app.route("/calendar", calendarRouter);
 app.route("/admin/founding", adminFoundingRouter);
 app.route("/admin/promotions", adminPromotionsRouter);
 app.route("/founding", foundingRouter);

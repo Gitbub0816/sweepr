@@ -20,6 +20,7 @@ export const screenKey = (slug: string) => `screen.${slug}`;
 export const ROUTE_SCREEN: Record<string, string> = {
   "/": screenKey("dashboard"),
   "/jobs": screenKey("jobs"),
+  "/booking-calendar": screenKey("booking_calendar"),
   "/customers": screenKey("customers"),
   "/cleaners": screenKey("cleaners"),
   "/applications": screenKey("applications"),

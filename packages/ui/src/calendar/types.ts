@@ -43,6 +43,17 @@ export interface CalendarProps {
   onDateChange?: (date: Date) => void;
   availabilityData?: Record<string, CalendarSlot[]>; // date string → slots
   isLoading?: boolean;
+  /** "yyyy-MM-dd" keys of dates that cannot be selected (e.g. admin-blocked
+   *  booking dates). Disabled days render muted with an "Unavailable" note in
+   *  customer-booking mode and never fire onDateChange. Optional — absent
+   *  keeps the previous behavior for every existing caller. */
+  disabledDates?: string[];
+  /** "yyyy-MM-dd" → short label rendered as a small marker on the day cell
+   *  (e.g. a date pricing or promotion label). Optional. */
+  dateMarkers?: Record<string, string>;
+  /** Fires with the first day of the visible month on mount and whenever the
+   *  visible month changes, so parents can fetch month-scoped data. */
+  onMonthChange?: (monthStart: Date) => void;
 }
 
 export const SLOT_COLORS: Record<SlotType, string> = {

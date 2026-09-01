@@ -39,6 +39,16 @@ import { recordLedgerEntry, applyBookingPriceAdjustment } from "../lib/bookingLe
 import { autoApplyBestCoupon } from "../lib/coupons";
 import { foundingCustomerDiscountPct } from "../lib/foundingMember";
 import { loadZipMultiplierPct } from "../lib/zipPricing";
+import { computeArrivalInstant, localBookingDate } from "../lib/localDate";
+import { resolveServiceAreaId } from "../lib/serviceAreaGeo";
+import {
+  getEffectiveDateRules,
+  computeDateAdjustmentCents,
+  grantDateRuleCoupon,
+  BLOCKED_DATE_MESSAGE,
+  type CalendarRuleRow,
+  type EffectiveDateRules,
+} from "../lib/calendarRules";
 import { loadActivePricingVersion } from "../lib/quoteEngine/service";
 import { applyMembershipDiscount } from "../lib/smartEntryBilling";
 import { revokeSmartEntry } from "../lib/smartEntry";
@@ -138,6 +148,12 @@ const createSchema = z.object({
   // Pricing v2). Optional; defaults to false. Priced server-side; never a
   // client-supplied amount. Ignored while no v2 pricing version is Active.
   extraCleanerRequested: z.boolean().default(false),
+  // Address coordinates, used ONLY by POST /quote to resolve the service area
+  // for calendar date rules BEFORE the address row exists (the wizard saves
+  // the address at checkout). Never trusted on POST / — booking creation
+  // resolves coordinates from the saved, ownership-checked address row.
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
   // Client must NOT submit prices — server always calculates.
 });
 
@@ -245,54 +261,31 @@ export function isEmergencyBooking(scheduledAtIso: string, now: Date = new Date(
   return diffMs <= 48 * 60 * 60_000;
 }
 
-/** Format an ISO offset (minutes east of UTC) as "+HH:MM" / "-HH:MM". */
-function formatIsoOffset(offsetMinutes: number): string {
-  const sign = offsetMinutes >= 0 ? "+" : "-";
-  const abs = Math.abs(offsetMinutes);
-  const hh = String(Math.floor(abs / 60)).padStart(2, "0");
-  const mm = String(abs % 60).padStart(2, "0");
-  return `${sign}${hh}:${mm}`;
-}
-
-/** Parse an explicit ISO offset (minutes east of UTC) from a datetime string;
- *  null when the string carries no usable offset (e.g. ends in 'Z'). */
-function parseIsoOffsetMinutes(iso: string): number | null {
-  const m = /([+-])(\d{2}):(\d{2})$/.exec(iso);
-  if (!m) return null;
-  const mins = Number(m[2]) * 60 + Number(m[3]);
-  return m[1] === "-" ? -mins : mins;
-}
+// Arrival-instant / local-date helpers now live in lib/localDate.ts (shared
+// with the booking-calendar date-rules engine, which matches rules against the
+// same LOCAL calendar date). Re-exported here for existing importers/tests.
+export { computeArrivalInstant } from "../lib/localDate";
 
 /**
- * Resolve the authoritative arrival instant (UTC ISO) for a booking.
- *
- * When an arrival window is chosen the instant is the customer's LOCAL booking
- * date combined with the window's start time, interpreted at the customer's UTC
- * offset. The old code took the UTC date from toISOString() (which rolls to the
- * next day for evening bookings in negative-offset zones) and concatenated a
- * literal 'Z' onto the local wall-clock time (persisting local time AS UTC) —
- * both wrong. We derive the offset from an explicit timezoneOffsetMinutes, else
- * from an offset embedded in scheduledAt; when neither is available the client
- * already baked the window-start time into scheduledAt as a UTC instant, so we
- * trust it as-is rather than corrupting it.
+ * The booking's local calendar date + effective calendar date rules for the
+ * booking's scope. Shared by POST / (enforcement + pricing) and POST /quote
+ * (preview parity). Area resolution: the booking address's lat/lng against the
+ * live service_areas geometry; unresolvable → platform-wide rules only.
  */
-export function computeArrivalInstant(
-  scheduledAt: string,
-  arrivalWindowStart: string | undefined,
-  timezoneOffsetMinutes?: number,
-): string {
-  if (!arrivalWindowStart) return scheduledAt;
-  const offset =
-    timezoneOffsetMinutes ?? parseIsoOffsetMinutes(scheduledAt);
-  if (offset == null) {
-    // No timezone info: scheduledAt already encodes the correct instant.
-    return scheduledAt;
-  }
-  // Local date = the calendar date as seen at the customer's offset.
-  const localMs = new Date(scheduledAt).getTime() + offset * 60_000;
-  const localDate = new Date(localMs).toISOString().slice(0, 10);
-  const instant = new Date(`${localDate}T${arrivalWindowStart}:00${formatIsoOffset(offset)}`);
-  return instant.toISOString();
+async function resolveCalendarContext(
+  sql: ReturnType<typeof getDb>,
+  input: Pick<CreateInput, "scheduledAt" | "timezoneOffsetMinutes" | "arrivalWindowStart">,
+  lat: number | null,
+  lng: number | null,
+): Promise<{ localDate: string; areaId: string | null; rules: EffectiveDateRules }> {
+  const localDate = localBookingDate(
+    input.scheduledAt,
+    input.timezoneOffsetMinutes,
+    input.arrivalWindowStart,
+  );
+  const areaId = await resolveServiceAreaId(sql, lat, lng);
+  const rules = await getEffectiveDateRules(sql, localDate, areaId);
+  return { localDate, areaId, rules };
 }
 
 /** True if `err` is the unique-violation from migration 062's dedupe index. */
@@ -335,6 +328,18 @@ interface AssembledPricing {
    *  discount (0 otherwise). Snapshotted onto the booking row; never affects
    *  cleaner payout — see payoutEngine.calculatePayout. */
   foundingCustomerDiscountCents: number;
+  /** Cents added to (negative: subtracted from) totalPrice by an admin
+   *  calendar date price-adjustment rule matching the booking's LOCAL date
+   *  (lib/calendarRules.ts). Computed on the pre-tax service subtotal — the
+   *  engine's customer total minus its tax component, so it lands AFTER any
+   *  Pricing v2 minimum-booking floor — identically for the legacy chain and
+   *  v2. Rides inside total_price (itemized in pricing_line_items_json), so
+   *  it flows into the price ledger's initial_quote entry and, like the zip
+   *  adjustment, proportionally into the cleaner payout (payoutEngine
+   *  computes from the captured gross). */
+  dateAdjustmentCents: number;
+  /** Admin-configured customer-facing label for the date adjustment. */
+  dateAdjustmentLabel: string | null;
   lineItems: Array<{ label: string; cents: number }>;
   resolved: ResolvedPricing | null;
   roomPrice: Awaited<ReturnType<typeof roomConditionPricing>>;
@@ -355,7 +360,29 @@ async function computeBookingPricing(
   now: Date = new Date(),
   customerId: string | null = null,
   zip: string | null = null,
+  // Admin calendar date price-adjustment rule matching the booking's LOCAL
+  // date + area scope (resolved by the caller via resolveCalendarContext).
+  // Applied as the FINAL operational layer on top of whichever engine priced
+  // the job — this is the single hook point that covers BOTH the v2 path and
+  // the legacy chain, so the two can never disagree about date pricing.
+  dateRule: CalendarRuleRow | null = null,
 ): Promise<AssembledPricing> {
+  /** Layer the date price adjustment onto a finished assembly (both engines).
+   *  Percent adjustments are computed on the pre-tax service subtotal
+   *  (baseTotalPrice − taxCents): post engine minimum, pre surcharges/tax. */
+  const withDateAdjustment = (p: AssembledPricing): AssembledPricing => {
+    if (!dateRule) return p;
+    const preTaxSubtotalCents = p.baseTotalPrice - p.taxCents;
+    const cents = computeDateAdjustmentCents(dateRule, preTaxSubtotalCents);
+    if (cents === 0) return p;
+    return {
+      ...p,
+      dateAdjustmentCents: cents,
+      dateAdjustmentLabel: dateRule.label,
+      totalPrice: p.totalPrice + cents,
+      lineItems: [...p.lineItems, { label: dateRule.label, cents }],
+    };
+  };
   // Pricing v2: when an admin has PUBLISHED an Active pricing version, the
   // versioned labor-minutes engine (lib/quoteEngine) is authoritative — one
   // immutable quote snapshot per booking, one formula for every surface.
@@ -369,7 +396,7 @@ async function computeBookingPricing(
       zipMultiplierPct: await loadZipMultiplierPct(sql, zip),
     });
     if (v2) {
-      return {
+      return withDateAdjustment({
         engine: "v2",
         baseTotalPrice: v2.baseTotalPrice,
         basePrice: v2.basePrice,
@@ -383,11 +410,13 @@ async function computeBookingPricing(
         zipPricingAdjustmentCents: v2.zipPricingAdjustmentCents,
         totalPrice: v2.totalPrice,
         foundingCustomerDiscountCents: v2.foundingCustomerDiscountCents,
+        dateAdjustmentCents: 0,
+        dateAdjustmentLabel: null,
         lineItems: v2.lineItems,
         resolved: null,
         roomPrice: null,
         v2,
-      };
+      });
     }
   }
 
@@ -466,7 +495,7 @@ async function computeBookingPricing(
       : []),
   ];
 
-  return {
+  return withDateAdjustment({
     engine: roomPrice ? "rooms" : resolved ? "rule" : "legacy",
     v2: null,
     baseTotalPrice,
@@ -481,10 +510,12 @@ async function computeBookingPricing(
     zipPricingAdjustmentCents,
     totalPrice,
     foundingCustomerDiscountCents,
+    dateAdjustmentCents: 0,
+    dateAdjustmentLabel: null,
     lineItems,
     resolved,
     roomPrice,
-  };
+  });
 }
 
 /** JSON persisted to bookings.pricing_line_items_json for a given assembly. */
@@ -565,19 +596,31 @@ bookingsRouter.post(
   // server-side, for the ZIP-specific pricing multiplier below — never
   // trusted from the client.
   let resolvedZip: string | null = null;
+  let resolvedLat: number | null = null;
+  let resolvedLng: number | null = null;
   if (input.addressId) {
     // IDOR guard: the address MUST belong to this customer's user. Without this
     // a customer could book a cleaner to another user's address by guessing its
     // id. Scope the lookup by user_id (same pattern customerProfile uses).
+    // lat/lng feed the calendar date-rules service-area resolution — from the
+    // saved row, never the request body (convention 2).
     const addrRows = (await sql`
-      SELECT street, unit, zip FROM addresses
+      SELECT street, unit, zip, lat, lng FROM addresses
       WHERE id = ${input.addressId} AND user_id = ${user.id} LIMIT 1
-    `) as Array<{ street: string | null; unit: string | null; zip: string | null }>;
+    `) as Array<{
+      street: string | null;
+      unit: string | null;
+      zip: string | null;
+      lat: string | number | null;
+      lng: string | number | null;
+    }>;
     if (!addrRows[0]) {
       return c.json({ error: "invalid_address", message: "That address isn't on your account." }, 400);
     }
     const addr = addrRows[0];
     resolvedZip = addr?.zip ?? null;
+    resolvedLat = addr?.lat != null ? Number(addr.lat) : null;
+    resolvedLng = addr?.lng != null ? Number(addr.lng) : null;
     if (addr?.street && addr?.zip) {
       const key = normalizedGreylistKey(addr.street, addr.unit, addr.zip);
       const greylisted = (await sql`
@@ -615,10 +658,28 @@ bookingsRouter.post(
     );
   }
 
+  // Admin booking-calendar date rules, matched on the CUSTOMER'S LOCAL
+  // calendar date (never the UTC date of the instant) + the address's service
+  // area. A blocked date takes no NEW bookings — existing bookings on that
+  // date are deliberately untouched (the admin calendar surfaces them as
+  // conflicts for manual action). Formal 4xx, no internal reason leaked.
+  const calendar = await resolveCalendarContext(sql, input, resolvedLat, resolvedLng);
+  if (calendar.rules.blocked) {
+    return c.json({ error: "date_unavailable", message: BLOCKED_DATE_MESSAGE }, 409);
+  }
+
   // Server-side price calculation — client values are never trusted. This is
   // the SAME assembler POST /quote uses, so the review-step preview and the
-  // charge are identical (engine + level + emergency surcharges).
-  const p = await computeBookingPricing(sql, input, new Date(), customer.id, resolvedZip);
+  // charge are identical (engine + level + emergency surcharges + any calendar
+  // date price adjustment).
+  const p = await computeBookingPricing(
+    sql,
+    input,
+    new Date(),
+    customer.id,
+    resolvedZip,
+    calendar.rules.adjustment,
+  );
   const basePrice = p.basePrice;
   const addonsTotal = p.addonsTotal;
   const cleanerPayout = p.cleanerPayout;
@@ -758,7 +819,7 @@ bookingsRouter.post(
       previousTotalCents: 0,
       adjustmentCents: totalPrice,
       newTotalCents: totalPrice,
-      reason: `Initial quote (${input.cleaningLevel}); base ${p.baseTotalPrice}¢ + level surcharge ${levelSurchargeCents}¢ + rush ${p.emergencySurchargeCents}¢`,
+      reason: `Initial quote (${input.cleaningLevel}); base ${p.baseTotalPrice}¢ + level surcharge ${levelSurchargeCents}¢ + rush ${p.emergencySurchargeCents}¢${p.dateAdjustmentCents !== 0 ? ` + date adjustment ${p.dateAdjustmentCents}¢ (${p.dateAdjustmentLabel})` : ""}`,
       source: "system",
     });
   } catch (err) {
@@ -785,6 +846,20 @@ bookingsRouter.post(
       await sql`UPDATE bookings SET pricing_quote_id = ${quoteId} WHERE id = ${created.id}`;
     } catch (err) {
       logger.error("storeQuoteSnapshot failed", err, { bookingId: created.id });
+    }
+  }
+
+  // Calendar date promotion: a coupon-kind rule on the booking's local date
+  // mints a one-use, per-customer coupon (source 'calendar', once per rule per
+  // customer — DB-locked) BEFORE the best-coupon engine below runs, so the
+  // date promotion simply competes with whatever the customer already holds:
+  // a better existing coupon wins, and the coupon×booking redemption lock
+  // means the same coupon can never stack twice. Best-effort by design.
+  if (calendar.rules.coupon) {
+    try {
+      await grantDateRuleCoupon(sql, { userId: user.id, rule: calendar.rules.coupon });
+    } catch (err) {
+      logger.error("calendar date-coupon grant failed", err, { bookingId: created.id });
     }
   }
 
@@ -903,16 +978,39 @@ bookingsRouter.post("/quote", zValidator("json", createSchema), async (c) => {
   const customer = user ? await getCustomerByUserId(sql, user.id) : null;
 
   // Same IDOR-safe, user_id-scoped ZIP lookup POST / uses, so the quote
-  // preview reflects any area-specific pricing adjustment too.
+  // preview reflects any area-specific pricing adjustment too. lat/lng feed
+  // the calendar date-rules area resolution; when the address isn't saved yet
+  // (the wizard saves it at checkout) the client-supplied coordinates give the
+  // preview area — POST / re-resolves from the saved row, so the coordinates
+  // only ever shape the PREVIEW, never the charge.
   let quoteZip: string | null = null;
+  let quoteLat: number | null = input.lat ?? null;
+  let quoteLng: number | null = input.lng ?? null;
   if (input.addressId && user) {
     const addrRows = (await sql`
-      SELECT zip FROM addresses WHERE id = ${input.addressId} AND user_id = ${user.id} LIMIT 1
-    `) as Array<{ zip: string | null }>;
+      SELECT zip, lat, lng FROM addresses WHERE id = ${input.addressId} AND user_id = ${user.id} LIMIT 1
+    `) as Array<{ zip: string | null; lat: string | number | null; lng: string | number | null }>;
     quoteZip = addrRows[0]?.zip ?? null;
+    if (addrRows[0]?.lat != null) quoteLat = Number(addrRows[0].lat);
+    if (addrRows[0]?.lng != null) quoteLng = Number(addrRows[0].lng);
   }
 
-  const p = await computeBookingPricing(sql, input, new Date(), customer?.id ?? null, quoteZip);
+  // Calendar date rules: a blocked date quotes nothing (the wizard greys these
+  // out; this catches stale drafts), and a date price adjustment previews
+  // exactly as POST / will charge it.
+  const calendar = await resolveCalendarContext(sql, input, quoteLat, quoteLng);
+  if (calendar.rules.blocked) {
+    return c.json({ error: "date_unavailable", message: BLOCKED_DATE_MESSAGE }, 409);
+  }
+
+  const p = await computeBookingPricing(
+    sql,
+    input,
+    new Date(),
+    customer?.id ?? null,
+    quoteZip,
+    calendar.rules.adjustment,
+  );
   return c.json({
     total: p.totalPrice / 100,
     price: {
@@ -922,6 +1020,12 @@ bookingsRouter.post("/quote", zValidator("json", createSchema), async (c) => {
       isEmergency: p.isEmergency,
       zipPricingAdjustmentCents: p.zipPricingAdjustmentCents,
       foundingCustomerDiscountCents: p.foundingCustomerDiscountCents,
+      // Labeled calendar date adjustment (admin-configured label, shown to the
+      // customer on the review step). Absent when no rule matches.
+      dateAdjustment:
+        p.dateAdjustmentCents !== 0 && p.dateAdjustmentLabel
+          ? { label: p.dateAdjustmentLabel, cents: p.dateAdjustmentCents }
+          : undefined,
       lineItems: p.lineItems,
       requiresCustomQuote: p.resolved?.breakdown.requires_custom_quote ?? false,
     },
