@@ -54,20 +54,6 @@ import { BackgroundCheckStep } from "./onboarding/BackgroundCheckStep";
 import { Confetti } from "./TrainingPage";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
-const FORCE_PRELAUNCH = import.meta.env.VITE_PRELAUNCH_FORCE === "true";
-
-/** True while the cleaner-side prelaunch gate is active (env override OR DB toggle). */
-function usePrelaunch(): boolean {
-  const [active, setActive] = useState(FORCE_PRELAUNCH);
-  useEffect(() => {
-    if (FORCE_PRELAUNCH) return; // env hard-override, no need to fetch
-    fetch(`${API_URL}/status`)
-      .then((r) => r.json() as Promise<{ settings?: { prelaunch_cleaner?: boolean } }>)
-      .then((d) => setActive(d.settings?.prelaunch_cleaner ?? false))
-      .catch(() => {}); // non-fatal, defaults to false (no gate)
-  }, []);
-  return active;
-}
 
 type OnboardingMode = "individual" | "business";
 
@@ -252,7 +238,6 @@ export function OnboardingPage() {
     setDirection(1);
     track(Events.CLEANER_ONBOARDING_STARTED, { mode: next });
   }
-  const isPrelaunch = usePrelaunch();
   const [backgroundCheckStatus, setBackgroundCheckStatus] = useState<StatusFlow>("idle");
   const [diditStatus, setDiditStatus] = useState<StatusFlow>("idle");
   const [diditUrl, setDiditUrl] = useState<string | null>(null);
@@ -348,10 +333,8 @@ export function OnboardingPage() {
           form.authorizedRep.email.trim().length > 0
         );
       case "Background Check":
-        // During prelaunch the training gate is lifted so early applicants
-        // can complete their background check without finishing training first.
-        // Once prelaunch ends this condition automatically re-engages.
-        if (!isPrelaunch && !trainingComplete) return false;
+        // Training must be complete before the background check step unlocks.
+        if (!trainingComplete) return false;
         // Allow continuing once the Yardstik report was ordered (pending = check in progress)
         return backgroundCheckStatus === "submitted" || backgroundCheckStatus === "pending";
       case "Identity":
@@ -655,7 +638,6 @@ export function OnboardingPage() {
                     n={step + 1}
                     getToken={getToken}
                     trainingComplete={trainingComplete}
-                    isPrelaunch={isPrelaunch}
                     onComplete={() => {
                       setBackgroundCheckStatus("pending");
                       goNext();

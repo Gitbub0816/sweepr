@@ -47,7 +47,6 @@ export * from "./components/NotificationBell";
 export * from "./components/SuccessCheck";
 export * from "./components/SweeprLoader";
 export * from "./components/SMSOptIn";
-export * from "./components/PrelaunchGate";
 export * from "./components/WaitlistForm";
 export * from "./components/NewsletterSubscribe";
 export * from "./components/ReportProblem";

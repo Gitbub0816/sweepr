@@ -97,6 +97,12 @@ export function ReviewStep() {
   const derivedLevel = deriveCleaningLevel(rooms);
   const [total, setTotal] = useState<number | null>(null);
   const [quoteError, setQuoteError] = useState(false);
+  const [quoteErrorMessage, setQuoteErrorMessage] = useState<string | null>(null);
+  // Labeled admin calendar date adjustment included in the server total
+  // (label is admin-configured; rendered verbatim, never hardcoded here).
+  const [dateAdjustment, setDateAdjustment] = useState<{ label: string; cents: number } | null>(
+    null,
+  );
   // Pricing v2 explanation (present once a v2 pricing version is live).
   const [v2Info, setV2Info] = useState<{
     roomInference: Array<{
@@ -149,12 +155,31 @@ export function ReviewStep() {
             addOnKeys,
             extraCleanerRequested,
             scheduledAt: scheduledFor,
+            // Customer's UTC offset so the server matches calendar rules
+            // against the LOCAL date the customer picked.
+            timezoneOffsetMinutes: -new Date().getTimezoneOffset(),
+            // Address coordinates (preview only): resolve any area-scoped
+            // date rule before the address row exists.
+            ...(address?.lat != null && address?.lng != null
+              ? { lat: address.lat, lng: address.lng }
+              : {}),
           }),
         });
-        if (!res.ok) throw new Error("quote failed");
+        if (!res.ok) {
+          // A blocked date returns a formal message worth showing verbatim.
+          const err = (await res.json().catch(() => ({}))) as { message?: string };
+          if (!cancelled) {
+            setQuoteError(true);
+            setQuoteErrorMessage(err.message ?? null);
+          }
+          return;
+        }
         const data = (await res.json()) as {
           total?: number;
-          price?: { totalPrice?: number };
+          price?: {
+            totalPrice?: number;
+            dateAdjustment?: { label: string; cents: number };
+          };
           v2?: NonNullable<typeof v2Info>;
         };
         const dollars =
@@ -163,6 +188,7 @@ export function ReviewStep() {
         if (!cancelled && dollars != null) {
           setTotal(dollars);
           setV2Info(data.v2 ?? null);
+          setDateAdjustment(data.price?.dateAdjustment ?? null);
         } else if (!cancelled) setQuoteError(true);
       } catch {
         if (!cancelled) setQuoteError(true);
@@ -233,14 +259,17 @@ export function ReviewStep() {
           scheduledAt: scheduledFor,
           arrivalWindowStart,
           arrivalWindowEnd,
+          // Customer's UTC offset: the server builds the arrival instant from
+          // the LOCAL booking date and matches calendar date rules against it.
+          timezoneOffsetMinutes: -new Date().getTimezoneOffset(),
           notes: notes || undefined,
           ...(addressId ? { addressId } : {}),
         }),
       });
 
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(err.error ?? "Failed to create booking");
+        const err = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+        throw new Error(err.message ?? err.error ?? "Failed to create booking");
       }
 
       const data = (await res.json()) as { booking: { id: string } };
@@ -381,7 +410,8 @@ export function ReviewStep() {
             <div className="mt-1 h-9 w-32 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
             {quoteError && (
               <p className="mt-2 text-xs text-red-600">
-                We couldn't calculate your total. Please go back and try again.
+                {quoteErrorMessage ??
+                  "We couldn't calculate your total. Please go back and try again."}
               </p>
             )}
           </div>
@@ -411,6 +441,23 @@ export function ReviewStep() {
               {t("booking.review.includesEverything")}
             </p>
           </div>
+        )}
+        {/* Labeled date pricing line (server-computed and already included in
+            the total above). The label comes from the server, so any future
+            breakdown line renders without a code change here. */}
+        {total != null && dateAdjustment && (
+          <p
+            className={`mt-2 text-sm font-medium ${
+              dateAdjustment.cents < 0 ? "text-seafoam-700" : "text-amber-700"
+            }`}
+          >
+            {dateAdjustment.label}:{" "}
+            {dateAdjustment.cents < 0 ? "-" : "+"}$
+            {(Math.abs(dateAdjustment.cents) / 100).toFixed(2)}{" "}
+            <span className="font-normal text-slate-500">
+              {t("booking.review.includedInTotal", { defaultValue: "(included in your total)" })}
+            </span>
+          </p>
         )}
       </Card>
 

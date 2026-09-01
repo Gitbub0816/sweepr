@@ -54,9 +54,6 @@ const dateStr = z.string().regex(DATE_RE, "Expected YYYY-MM-DD");
 /** Statuses that no longer occupy the date (excluded from conflict counts). */
 const INACTIVE_BOOKING_STATUSES = ["cancelled_by_customer", "cancelled_by_cleaner", "refunded"];
 
-/** Fold NULL scope to the zero uuid — matches uq_calendar_date_rules_scope. */
-const PLATFORM_SCOPE = "00000000-0000-0000-0000-000000000000";
-
 interface BookingConflictRow {
   id: string;
   status: string;
@@ -262,8 +259,14 @@ adminCalendarRouter.post("/rules", zValidator("json", bulkCreateSchema), async (
   const b = c.req.valid("json");
   const sql = getDb(c.env.DATABASE_URL);
 
-  const endDate = b.endDate ?? b.startDate;
-  const dates = expandRuleDates(b.startDate, endDate, b.weekdays);
+  // Explicit selection (grid multi-select) wins; otherwise expand the range +
+  // weekday filter server-side (one auditable row per date either way).
+  const startDate = b.startDate ?? b.dates?.[0] ?? "";
+  const endDate = b.endDate ?? startDate;
+  const dates =
+    b.dates && b.dates.length > 0
+      ? Array.from(new Set(b.dates)).sort()
+      : expandRuleDates(startDate, endDate, b.weekdays);
   if (dates.length === 0) {
     return c.json({ error: "empty_selection", message: "The range and weekday filter select no dates." }, 400);
   }
@@ -285,7 +288,9 @@ adminCalendarRouter.post("/rules", zValidator("json", bulkCreateSchema), async (
   for (const date of dates) {
     // ON CONFLICT against uq_calendar_date_rules_scope: an active rule of this
     // kind already governs (date, scope) — skip rather than stack (stacking
-    // semantics documented in migration 106).
+    // semantics documented in migration 106). The zero-uuid fold MUST be a
+    // literal (not a bind param) so Postgres can structurally match the
+    // partial index expression and infer the arbiter.
     const rows = (await sql`
       INSERT INTO calendar_date_rules (
         rule_date, service_area_id, kind, adjustment_type, adjustment_value,
@@ -298,7 +303,7 @@ adminCalendarRouter.post("/rules", zValidator("json", bulkCreateSchema), async (
         ${b.kind === "coupon" ? b.couponValue : null},
         ${b.label}, ${b.reason ?? null}, ${actorClerkId}
       )
-      ON CONFLICT (rule_date, COALESCE(service_area_id, ${PLATFORM_SCOPE}::uuid), kind)
+      ON CONFLICT (rule_date, COALESCE(service_area_id, '00000000-0000-0000-0000-000000000000'::uuid), kind)
         WHERE active
       DO NOTHING
       RETURNING id
@@ -315,8 +320,9 @@ adminCalendarRouter.post("/rules", zValidator("json", bulkCreateSchema), async (
     metadata: {
       event: "calendar_rules_created",
       kind: b.kind,
-      startDate: b.startDate,
-      endDate,
+      explicitDates: b.dates && b.dates.length > 0 ? b.dates.length : null,
+      startDate: dates[0],
+      endDate: dates[dates.length - 1],
       weekdays: b.weekdays ?? null,
       serviceAreaId,
       label: b.label,

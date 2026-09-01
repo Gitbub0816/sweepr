@@ -122,7 +122,9 @@ export function computeDateAdjustmentCents(
     rule.adjustment_type === "percent"
       ? Math.round((preTaxSubtotalCents * value) / 100)
       : value;
-  return Math.max(raw, -Math.max(preTaxSubtotalCents, 0));
+  const clamped = Math.max(raw, -Math.max(preTaxSubtotalCents, 0));
+  // `|| 0` normalizes the -0 that Math.max can produce when clamping to zero.
+  return clamped || 0;
 }
 
 /** Customer-facing message for a blocked date. Never exposes the reason. */

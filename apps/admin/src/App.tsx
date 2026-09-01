@@ -48,6 +48,7 @@ import {
   Award,
   Gavel,
   CalendarClock,
+  CalendarRange,
   DoorOpen,
   Gauge,
   Orbit,
@@ -104,6 +105,7 @@ import { TrustSafetyPage } from "./pages/TrustSafetyPage";
 import { CrewConfigPage } from "./pages/CrewConfigPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { ReportDetailPage } from "./pages/ReportDetailPage";
+import { BookingCalendarPage } from "./pages/BookingCalendarPage";
 
 // Lazy: Site Analytics carries three.js (React Three Fiber KPIs) — keep it
 // out of the main admin bundle.
@@ -135,6 +137,7 @@ const navGroups = [
     items: [
       { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
       { to: "/jobs", label: "Jobs", icon: Briefcase },
+      { to: "/booking-calendar", label: "Booking Calendar", icon: CalendarRange },
       { to: "/scope-review", label: "Scope Review", icon: ScanEye },
       { to: "/disputes", label: "Disputes", icon: AlertTriangle },
       { to: "/service-areas", label: "Service Areas", icon: Map },
@@ -275,6 +278,7 @@ export default function App() {
       <Route path="/" element={<Guarded><DashboardPage /></Guarded>} />
       <Route path="/jobs" element={<Guarded><JobsPage /></Guarded>} />
       <Route path="/jobs/:id" element={<Guarded><JobDetailPage /></Guarded>} />
+      <Route path="/booking-calendar" element={<Guarded><BookingCalendarPage /></Guarded>} />
       <Route path="/customers" element={<Guarded><CustomersPage /></Guarded>} />
       <Route path="/cleaners" element={<Guarded><CleanersPage /></Guarded>} />
       <Route path="/applications" element={<Guarded><ApplicationsPage /></Guarded>} />

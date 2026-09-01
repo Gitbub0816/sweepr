@@ -66,15 +66,6 @@ function Label({ children }: { children: React.ReactNode }) {
 export default function Landing() {
   useSeo({ title: 'Sweepr, Home cleaning, ordered like delivery', description: 'Book trusted, background-checked home cleaners in minutes. Transparent pricing shown before you book, real-time tracking, and a satisfaction guarantee.', canonical: "https://getsweepr.com/" });
   const { t, i18n } = useTranslation();
-  const [pricingGated, setPricingGated] = useState(false);
-
-  useEffect(() => {
-    fetch(`${API}/status`)
-      .then((r) => r.json() as Promise<{ settings?: { prelaunch_pricing?: boolean } }>)
-      .then((d) => { if (d.settings?.prelaunch_pricing) setPricingGated(true); })
-      .catch(() => {});
-  }, []);
-
   const lang = i18n.language;
   const customerUrl = withLang(CUSTOMER_URL, lang);
   const cleanerUrl = withLang(CLEANER_URL, lang);
@@ -145,7 +136,7 @@ export default function Landing() {
             </div>
 
             <div className="sweepr-fade-up sweepr-fade-up-d2 flex justify-center lg:justify-end lg:pt-3">
-              <QuoteCalculator pricingGated={pricingGated} />
+              <QuoteCalculator />
             </div>
           </div>
         </section>
@@ -247,23 +238,7 @@ export default function Landing() {
       {/* ── Pricing ── */}
       <div className="bg-white dark:bg-slate-900/40">
         <section id="pricing" className="scroll-mt-20 mx-auto max-w-6xl px-4 py-24">
-          {pricingGated ? (
-            <div className="mx-auto max-w-xl py-6 text-center">
-              <Label>{t("pricing.gatedEyebrow", "Instant quote")}</Label>
-              <h2 className="mt-3 text-3xl font-black tracking-tight text-charcoal dark:text-white">
-                {t("pricing.gatedTitle", "Know your price before you book")}
-              </h2>
-              <p className="mt-4 text-lg leading-relaxed text-slate-600 dark:text-slate-400">
-                {t("pricing.gatedSubtitle", "Answer five questions, see your exact price.")}
-              </p>
-              <div className="mt-8">
-                <Button size="lg" onClick={() => (window.location.href = "/quote")}>
-                  {t("pricing.gatedCta", "Get a quote")} <ArrowRight aria-hidden="true" className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
+          <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
               <Reveal>
                 <h2 className="text-3xl font-black tracking-tight text-charcoal [text-wrap:balance] dark:text-white sm:text-4xl">
                   {t("pricing.title")}

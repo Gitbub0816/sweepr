@@ -24,7 +24,6 @@ interface Props {
   getToken: () => Promise<string | null>;
   onComplete: () => void;
   trainingComplete?: boolean;
-  isPrelaunch?: boolean;
 }
 
 type Phase =
@@ -34,7 +33,7 @@ type Phase =
   | { kind: "waiting"; status: ReportStatus }
   | { kind: "error"; message: string };
 
-export function BackgroundCheckStep({ n, getToken, onComplete, trainingComplete = false, isPrelaunch = false }: Props) {
+export function BackgroundCheckStep({ n, getToken, onComplete, trainingComplete = false }: Props) {
   const { user } = useUser();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -163,7 +162,7 @@ export function BackgroundCheckStep({ n, getToken, onComplete, trainingComplete 
   }
 
   if (phase.kind === "intro") {
-    if (!isPrelaunch && !trainingComplete) {
+    if (!trainingComplete) {
       return <div className="space-y-5"><StepHeader n={n} /><TrainingGate unlocked={false} /></div>;
     }
     return (

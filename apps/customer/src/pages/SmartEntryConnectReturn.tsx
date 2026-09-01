@@ -20,7 +20,7 @@
  * resolves instantly. The opener's 3s poll is the guaranteed fallback if these
  * signals are missed, so this page is purely a nicety plus a clean "close this
  * tab" confirmation. It makes NO API calls and shows no PII, so it lives outside
- * the auth/prelaunch gates.
+ * the auth gates.
  */
 
 import { useEffect } from "react";

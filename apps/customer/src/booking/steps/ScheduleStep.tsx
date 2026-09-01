@@ -39,8 +39,21 @@ interface AvailabilitySlotsResponse {
   slots: AvailabilitySlot[];
 }
 
+/** One entry per date carrying a calendar rule (GET /calendar/availability). */
+interface CalendarDayInfo {
+  date: string;
+  blocked?: boolean;
+  adjustmentLabel?: string;
+  promoLabel?: string;
+}
+
 function dateKey(d: Date) {
-  return d.toISOString().slice(0, 10);
+  // Local calendar date (what the customer sees on the picker) — NOT the UTC
+  // date of the instant, which rolls forward for evening times.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 export function ScheduleStep() {
@@ -68,6 +81,72 @@ export function ScheduleStep() {
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [slotsError, setSlotsError] = useState<string | null>(null);
+
+  // Admin calendar rules for the visible month: blocked dates (greyed out on
+  // the picker, no reason shown) + date pricing/promotion labels. Advisory
+  // only — the server re-checks at quote and booking creation.
+  const [calendarDays, setCalendarDays] = useState<Record<string, CalendarDayInfo>>({});
+  const [visibleMonth, setVisibleMonth] = useState<Date | null>(null);
+
+  useEffect(() => {
+    if (!visibleMonth) return;
+    let cancelled = false;
+    const y = visibleMonth.getFullYear();
+    const m = visibleMonth.getMonth();
+    const from = dateKey(new Date(y, m, 1));
+    const to = dateKey(new Date(y, m + 1, 0));
+    const params = new URLSearchParams({ from, to });
+    if (address?.lat != null && address?.lng != null) {
+      params.set("lat", String(address.lat));
+      params.set("lng", String(address.lng));
+    }
+    fetch(`${API_URL}/calendar/availability?${params.toString()}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error("availability failed");
+        return (await res.json()) as { days: CalendarDayInfo[] };
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setCalendarDays((prev) => {
+          const next = { ...prev };
+          for (const d of data.days ?? []) next[d.date] = d;
+          return next;
+        });
+      })
+      .catch(() => {
+        // Best-effort: without this data every date stays selectable and the
+        // server still enforces blocks at booking time.
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleMonth ? dateKey(visibleMonth) : null, address?.lat, address?.lng]);
+
+  const blockedDates = useMemo(
+    () => Object.values(calendarDays).filter((d) => d.blocked).map((d) => d.date),
+    [calendarDays]
+  );
+  const dateMarkers = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const d of Object.values(calendarDays)) {
+      const label = d.blocked ? null : d.adjustmentLabel ?? d.promoLabel ?? null;
+      if (label) out[d.date] = label;
+    }
+    return out;
+  }, [calendarDays]);
+
+  // If a stored draft points at a date that has since been blocked, clear it.
+  useEffect(() => {
+    if (pickedDate && calendarDays[dateKey(pickedDate)]?.blocked) {
+      setPickedDate(null);
+      setArrivalWindow(null);
+      clearSchedule();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blockedDates.join(","), pickedDate ? dateKey(pickedDate) : null]);
+
+  const pickedDayInfo = pickedDate ? calendarDays[dateKey(pickedDate)] : undefined;
 
 
   const cadences = [
@@ -156,6 +235,9 @@ export function ScheduleStep() {
         mode="customer-booking"
         selectedDate={pickedDate ?? undefined}
         onDateChange={onDateChange}
+        disabledDates={blockedDates}
+        dateMarkers={dateMarkers}
+        onMonthChange={setVisibleMonth}
       />
 
       {pickedDate && (
@@ -255,6 +337,16 @@ export function ScheduleStep() {
           {isEmergency && (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
               <Zap className="h-3 w-3" /> {t("booking.schedule.rushFeeApplied")}
+            </span>
+          )}
+          {pickedDayInfo?.adjustmentLabel && (
+            <span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+              {pickedDayInfo.adjustmentLabel}
+            </span>
+          )}
+          {pickedDayInfo?.promoLabel && (
+            <span className="inline-flex items-center rounded-full bg-seafoam-50 px-3 py-1 text-xs font-semibold text-seafoam-700 dark:bg-slate-800">
+              {pickedDayInfo.promoLabel}
             </span>
           )}
         </div>
