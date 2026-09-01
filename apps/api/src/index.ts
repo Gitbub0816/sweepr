@@ -90,6 +90,8 @@ import { mailboxInboundRouter } from "./routes/mailboxInbound";
 import { adminMailRouter } from "./routes/adminMail";
 import { privacyPublicRouter } from "./routes/privacyPublic";
 import { reportRouter } from "./routes/report";
+import { reportsRouter } from "./routes/reports";
+import { adminReportsRouter } from "./routes/adminReports";
 import { responseTemplatesRouter } from "./routes/responseTemplates";
 import { adminEmailRouter, mailersendWebhookRouter, unsubscribeRouter } from "./routes/adminEmail";
 import { requestLogger } from "./middleware/requestLogger";
@@ -402,6 +404,16 @@ app.use("/didit/*", (c, next) =>
 app.use("/reviews", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "reviews", by: "user" , strict: true }));
 // Public "Report a problem" intake — no signature/JWT required, so IP-keyed.
 app.use("/report/*", rateLimit({ limit: 20, windowMs: 15 * 60_000, keyPrefix: "report" , strict: true }));
+// Formal user reports (/reports, booking-scoped): submission + photo uploads
+// are per-user strict mutations (one submit + up to 6 photo PUTs fits well
+// under the cap). The list/detail GETs are loaded by booking/job detail pages
+// on every visit, so they stay on the general limit (convention 14 — never
+// put polled/list reads in a strict bucket).
+const userReportsStrict = rateLimit({ limit: 20, windowMs: 15 * 60_000, keyPrefix: "user-reports", by: "user", strict: true });
+const userReportsGate = (c: Parameters<typeof userReportsStrict>[0], next: Parameters<typeof userReportsStrict>[1]) =>
+  c.req.method === "GET" ? next() : userReportsStrict(c, next);
+app.use("/reports", userReportsGate);
+app.use("/reports/*", userReportsGate);
 // Prelaunch bypass-code verification — tight IP bucket to blunt code guessing.
 app.use("/status/bypass", rateLimit({ limit: 10, windowMs: 15 * 60_000, keyPrefix: "bypass", strict: true }));
 app.use("/maps/*", rateLimit({ limit: 240, windowMs: 15 * 60_000, keyPrefix: "maps" }));
@@ -529,6 +541,10 @@ app.route("/it-mail", itInboundRouter);
 // per-box MailerSend signing secrets, fail closed.
 app.route("/mail", mailboxInboundRouter);
 app.route("/report", reportRouter);
+// Formal user reports (Trust & Safety): booking-scoped customer↔cleaner
+// reports (user side) + the admin investigation console.
+app.route("/reports", reportsRouter);
+app.route("/admin/reports", adminReportsRouter);
 app.route("/admin/response-templates", responseTemplatesRouter);
 app.route("/admin/email", adminEmailRouter);
 app.route("/admin/settings", adminSettingsRouter);

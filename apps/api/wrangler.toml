@@ -33,6 +33,14 @@ binding = "RATE_LIMIT_KV"
 id = "ec932b508b6b43dd85d9cdeabaa850c3"
 preview_id = "ec932b508b6b43dd85d9cdeabaa850c3"
 
+# PRIVATE evidence bucket for formal user reports (Trust & Safety). Unlike the
+# public `sweepr` bucket (objects.getsweepr.com, presigned uploads), report
+# photos must never be publicly readable: uploads and reads stream through the
+# API — authenticated upload by the report owner, retrieval behind requireAdmin.
+[[r2_buckets]]
+binding = "REPORT_OBJECTS"
+bucket_name = "sweepr-report-objects"
+
 # Secrets stored in Cloudflare (set via wrangler secret put or dashboard):
 # CLERK_SECRET_KEY
 # DATABASE_URL

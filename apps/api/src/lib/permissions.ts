@@ -52,6 +52,7 @@ const SCREENS: Array<{ slug: string; label: string; route: string }> = [
   { slug: "approvals", label: "Approvals", route: "/approvals" },
   { slug: "scope_review", label: "Scope Review", route: "/scope-review" },
   { slug: "trust_safety", label: "Trust & Safety", route: "/trust-safety" },
+  { slug: "reports", label: "User Reports", route: "/reports" },
   { slug: "legal_archive", label: "Legal Archive", route: "/legal-archive" },
   { slug: "insurance", label: "Insurance", route: "/insurance" },
   { slug: "founding_members", label: "Founding Members", route: "/founding-members" },
@@ -130,12 +131,12 @@ const ALL = new Set(ALL_PERMISSION_KEYS);
 /** Screen keys granted to a base role by default. */
 const ROLE_SCREEN_DEFAULTS: Record<string, string[]> = {
   admin: SCREENS.map((s) => s.slug).filter((s) => s !== "access_control"),
-  ops: ["dashboard", "jobs", "customers", "cleaners", "applications", "disputes", "service_areas", "scope_review", "trust_safety", "automation", "events"],
+  ops: ["dashboard", "jobs", "customers", "cleaners", "applications", "disputes", "service_areas", "scope_review", "trust_safety", "reports", "automation", "events"],
   finance: ["dashboard", "payouts", "pricing", "cleaning_pricing", "pricing_studio", "approvals", "insurance"],
-  support: ["dashboard", "customers", "jobs", "mail", "notifications", "disputes"],
+  support: ["dashboard", "customers", "jobs", "mail", "notifications", "disputes", "reports"],
   trainer: ["dashboard", "training", "courses"],
   it: ["dashboard", "it_portal", "errors", "observability", "notifications", "slack", "status"],
-  security: ["dashboard", "security", "errors", "observability", "trust_safety"],
+  security: ["dashboard", "security", "errors", "observability", "trust_safety", "reports"],
 };
 
 const ROLE_CONTENT_DEFAULTS: Record<string, string[]> = {

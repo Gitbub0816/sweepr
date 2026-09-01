@@ -22,6 +22,7 @@ import { DashboardShell, Card, Button, ErrorState, Skeleton, toast, useReducedMo
 import { formatCurrency } from "@sweepr/utils";
 import { NavigationMap } from "@sweepr/ui";
 import { ScopeReviewSection } from "../components/ScopeReviewSection";
+import { ReportUserSection } from "../components/ReportUserSection";
 import { SmartEntryAccess } from "../components/SmartEntryAccess";
 import { CrewRoster } from "../components/CrewRoster";
 import { MemberPinCard, LeadVouchCard } from "../components/VouchPinCard";
@@ -554,6 +555,11 @@ export function JobDetailPage() {
 
       {/* Additional attention / refusal requests, only once checked in and job not completed */}
       {job.arrival_verified_at && !isCompleted && <ScopeReviewSection bookingId={job.id} />}
+
+      {/* Formal Trust & Safety report against the customer on this booking.
+          Separate from scope review (no money movement); available for any
+          confirmed-or-later job, including after completion. */}
+      <ReportUserSection bookingId={job.id} />
 
       {/* Photos taken */}
       {job.photos && job.photos.length > 0 && (

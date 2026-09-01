@@ -53,6 +53,7 @@ import {
   Orbit,
   FileUp,
   UsersRound,
+  Flag,
 } from "lucide-react";
 import { AppShell } from "@sweepr/ui";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -101,6 +102,8 @@ import { ScopeReviewPage } from "./pages/ScopeReviewPage";
 import { ScopeReviewDetailPage } from "./pages/ScopeReviewDetailPage";
 import { TrustSafetyPage } from "./pages/TrustSafetyPage";
 import { CrewConfigPage } from "./pages/CrewConfigPage";
+import { ReportsPage } from "./pages/ReportsPage";
+import { ReportDetailPage } from "./pages/ReportDetailPage";
 
 // Lazy: Site Analytics carries three.js (React Three Fiber KPIs) — keep it
 // out of the main admin bundle.
@@ -173,6 +176,7 @@ const navGroups = [
     label: "Trust & Safety",
     items: [
       { to: "/trust-safety", label: "Trust & Safety", icon: ShieldBan },
+      { to: "/reports", label: "User Reports", icon: Flag },
       { to: "/security", label: "Security", icon: ShieldAlert },
       { to: "/approvals", label: "Approvals", icon: GitPullRequest },
       { to: "/legal-archive", label: "Legal Archive", icon: Gavel },
@@ -357,6 +361,8 @@ export default function App() {
       <Route path="/scope-review" element={<Guarded><ScopeReviewPage /></Guarded>} />
       <Route path="/scope-review/:id" element={<Guarded><ScopeReviewDetailPage /></Guarded>} />
       <Route path="/trust-safety" element={<Guarded><TrustSafetyPage /></Guarded>} />
+      <Route path="/reports" element={<Guarded><ReportsPage /></Guarded>} />
+      <Route path="/reports/:id" element={<Guarded><ReportDetailPage /></Guarded>} />
       <Route path="/automation" element={<Guarded><AutomationPage /></Guarded>} />
       <Route path="/admins" element={<Guarded><AdminsPage /></Guarded>} />
       <Route path="/access-control" element={<Guarded><AccessControlPage /></Guarded>} />

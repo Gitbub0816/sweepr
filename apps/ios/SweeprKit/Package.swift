@@ -10,51 +10,51 @@
 //
 import PackageDescription
 
-// SweeprKit — the shared, dual-platform (iOS + transpiled Android) foundation
-// for the Sweepr customer and cleaner apps. Every product target depends on this
-// package for models, networking, auth, the design system, and shared UI.
+// SweeprKit — the shared foundation for the Sweepr customer and cleaner apps.
+// Every product target depends on this package for models, networking, auth,
+// the design system, and shared UI.
 //
-// SKIP: the `skip` and `skipstone` plugins transpile this Swift package into a
-// Kotlin/Jetpack-Compose Gradle module. Keep every symbol here inside the subset
-// of SwiftUI/Foundation that SkipUI/SkipFoundation/SkipModel support.
+// SKIP (Android transpilation) is currently NEUTRALIZED so a stock Xcode build
+// of the iOS apps needs nothing beyond Apple SDKs: no remote dependencies, no
+// build plugins, no plugin-trust prompt. No Swift source in this package
+// imports a Skip module (the code stays inside the SkipUI-supported SwiftUI
+// subset by convention), so re-enabling Android later is a manifest-only
+// change — restore the dependency/product/plugin lines below and run
+// `skip verify` to pin versions:
 //
-// Targets the iOS 26 SDK (Xcode 26+). `swift-tools-version` is 6.0; SKIP's 1.5.x
-// line is the first to support the Swift 6 language mode + iOS 26 SwiftUI surface
-// we adopt (see apps/ios/README.md → "SKIP / iOS 26 configuration").
+//   dependencies: [
+//       .package(url: "https://source.skip.tools/skip.git", from: "1.5.0"),
+//       .package(url: "https://source.skip.tools/skip-ui.git", from: "1.5.0"),
+//       .package(url: "https://source.skip.tools/skip-foundation.git", from: "1.5.0"),
+//       .package(url: "https://source.skip.tools/skip-model.git", from: "1.5.0"),
+//   ]
+//   target deps:  .product(name: "SkipUI", package: "skip-ui"),
+//                 .product(name: "SkipFoundation", package: "skip-foundation"),
+//                 .product(name: "SkipModel", package: "skip-model")
+//   test deps:    .product(name: "SkipTest", package: "skip")
+//   both targets: plugins: [.plugin(name: "skipstone", package: "skip")]
+//
+// The Skip/skip.yml markers and Skip.env files are kept in place for that
+// reintroduction.
+//
+// Targets the iOS 26 SDK (Xcode 26+); macOS is declared for host-side tests.
+// String platform versions (not `.v26`) so the manifest also parses on pre-6.2
+// Swift toolchains (Linux CI/verify) — semantics are identical.
 let package = Package(
     name: "SweeprKit",
     defaultLocalization: "en",
-    platforms: [.iOS(.v26), .macOS(.v15)],
+    platforms: [.iOS("26.0"), .macOS("15.0")],
     products: [
         .library(name: "SweeprKit", targets: ["SweeprKit"]),
-    ],
-    dependencies: [
-        // Pin these to the versions your `skip` toolchain reports via `skip verify`.
-        // Raised from the 1.2.0/1.0.0 foundation pins to the unified 1.5.x line,
-        // the first SKIP release train we target for Swift 6 / iOS 26.
-        .package(url: "https://source.skip.tools/skip.git", from: "1.5.0"),
-        .package(url: "https://source.skip.tools/skip-ui.git", from: "1.5.0"),
-        .package(url: "https://source.skip.tools/skip-foundation.git", from: "1.5.0"),
-        .package(url: "https://source.skip.tools/skip-model.git", from: "1.5.0"),
     ],
     targets: [
         .target(
             name: "SweeprKit",
-            dependencies: [
-                .product(name: "SkipUI", package: "skip-ui"),
-                .product(name: "SkipFoundation", package: "skip-foundation"),
-                .product(name: "SkipModel", package: "skip-model"),
-            ],
-            resources: [.process("Resources")],
-            plugins: [.plugin(name: "skipstone", package: "skip")]
+            resources: [.process("Resources")]
         ),
         .testTarget(
             name: "SweeprKitTests",
-            dependencies: [
-                "SweeprKit",
-                .product(name: "SkipTest", package: "skip"),
-            ],
-            plugins: [.plugin(name: "skipstone", package: "skip")]
+            dependencies: ["SweeprKit"]
         ),
     ]
 )

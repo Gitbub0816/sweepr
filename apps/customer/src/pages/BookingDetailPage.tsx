@@ -46,6 +46,7 @@ import { CrewTeamCard } from "../components/CrewTeamCard";
 import { TipCard } from "../components/TipCard";
 import { AddServicesCard } from "../components/AddServicesCard";
 import { SmartEntryCard } from "../components/SmartEntryCard";
+import { ReportIssueCard } from "../components/ReportIssueCard";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 
@@ -519,6 +520,10 @@ export function BookingDetailPage() {
               </p>
             )}
           </Card>
+
+          {/* Formal Trust & Safety report entry (visible once a cleaner is
+              committed to the booking; server enforces the same window). */}
+          <ReportIssueCard bookingId={booking.id} bookingStatus={booking.status} />
         </div>
 
         <PriceSummary quote={booking.quote} />
