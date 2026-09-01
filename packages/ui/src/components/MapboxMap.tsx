@@ -8,7 +8,7 @@
  * distribution, reverse engineering, or use is prohibited.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Feature } from "geojson";
 import {
   mapboxgl,
@@ -51,8 +51,9 @@ const ROUTE_LAYER = "sweepr-route-line";
 /**
  * Generic reusable Mapbox map. Handles markers, a route line, a live-location
  * dot, and bounds fitting, and cleans everything up on unmount. When no Mapbox
- * token is configured it renders a graceful styled fallback box showing the
- * first marker's label / the address, mirroring the old missing-token UX.
+ * token is configured, or the map otherwise fails to initialize (e.g. no
+ * WebGL support), it renders a graceful styled fallback box showing the first
+ * marker's label / the address, mirroring the old missing-token UX.
  */
 export function MapboxMap({
   center,
@@ -72,6 +73,7 @@ export function MapboxMap({
   const loadedRef = useRef(false);
 
   const hasToken = !!getMapboxToken();
+  const [mapFailed, setMapFailed] = useState(false);
 
   // Create the map once.
   useEffect(() => {
@@ -81,7 +83,12 @@ export function MapboxMap({
       zoom,
       interactive,
     });
-    if (!map) return;
+    if (!map) {
+      // No WebGL support, or the map threw during construction — fall back
+      // instead of leaving an empty container.
+      setMapFailed(true);
+      return;
+    }
     mapRef.current = map;
 
     const unbindTheme = bindMapTheme(map);
@@ -187,7 +194,7 @@ export function MapboxMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(fitTo), JSON.stringify(center), zoom]);
 
-  if (!hasToken) {
+  if (!hasToken || mapFailed) {
     const label = markers?.[0]?.label;
     return (
       <div

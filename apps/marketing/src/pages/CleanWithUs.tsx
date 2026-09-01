@@ -16,9 +16,9 @@ import { LanguageSelector } from "../i18n/LanguageSelector";
 import { MarketingShell, Button, Accordion } from "@sweepr/ui";
 import { Reveal } from "../components/Reveal";
 import { ArrowRight } from "lucide-react";
-// MapKit JS (loaded by CoverageMapSection from Apple's CDN) is only needed
-// once a visitor scrolls to the coverage-map section; this page is already
-// code-split from the entry, so this keeps it out of the page's own chunk.
+// Mapbox GL JS (loaded by CoverageMapSection) is only needed once a visitor
+// scrolls to the coverage-map section; this page is already code-split from
+// the entry, so this keeps it out of the page's own chunk.
 const CoverageMapSection = lazy(() =>
   import("../components/CoverageMapSection").then((m) => ({ default: m.CoverageMapSection })),
 );

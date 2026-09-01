@@ -37,6 +37,8 @@ import {
   toast,
   track,
   Events,
+  ErrorBoundary,
+  MapUnavailableFallback,
 } from "@sweepr/ui";
 import type { ServiceType, AddOn } from "@sweepr/types";
 import { ADD_ONS, formatCurrency } from "@sweepr/utils";
@@ -940,7 +942,18 @@ function StepArea({
         title="Your service area"
         subtitle="Set how far you're willing to travel."
       />
-      <ServiceAreaMap center={form.center} radiusMi={form.radiusMi} />
+      <ErrorBoundary
+        app="cleaner"
+        apiUrl={API_URL}
+        fallback={
+          <MapUnavailableFallback
+            areaName={form.basedIn || undefined}
+            className="flex h-[260px] w-full flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-seafoam-50 p-6 text-center dark:border-slate-700 dark:bg-slate-800"
+          />
+        }
+      >
+        <ServiceAreaMap center={form.center} radiusMi={form.radiusMi} areaLabel={form.basedIn || undefined} />
+      </ErrorBoundary>
       <div>
         <label className="mb-1.5 block text-sm font-medium text-charcoal dark:text-slate-200">
           Service radius: {form.radiusMi} miles

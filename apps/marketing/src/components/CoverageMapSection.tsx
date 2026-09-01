@@ -15,6 +15,8 @@ import {
   getMapboxToken,
   bindMapTheme,
   validateEmail,
+  ErrorBoundary,
+  MapUnavailableFallback,
 } from "@sweepr/ui";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
@@ -42,6 +44,15 @@ interface ServiceArea {
 interface StatusData {
   serviceAreas?: ServiceArea[];
   cityRequestPins?: Array<{ lat: number; lng: number }>;
+}
+
+/** Human-readable label for the live service area(s), for the map's static
+ *  fallback copy. Mirrors the "Live now" sidebar's own fallback to "Bay Area"
+ *  when the /status fetch hasn't returned anything yet. */
+function liveAreaLabel(areas: ServiceArea[]): string {
+  const live = areas.filter((a) => a.status === "live");
+  if (live.length === 0) return "the Bay Area";
+  return live.map((a) => a.name).join(", ");
 }
 
 /** A DOM element for a city-request marker: the broom pin image, falling back
@@ -200,9 +211,10 @@ function CoverageMap({ areas, pins }: { areas: ServiceArea[]; pins: Array<{ lat:
 
   if (unavailable) {
     return (
-      <div className="flex h-full items-center justify-center bg-slate-100 rounded-2xl dark:bg-slate-800">
-        <p className="text-slate-600 text-sm dark:text-slate-300">Map unavailable</p>
-      </div>
+      <MapUnavailableFallback
+        areaName={liveAreaLabel(areasRef.current)}
+        className="flex h-full w-full flex-col items-center justify-center gap-2 rounded-2xl bg-seafoam-50 p-6 text-center dark:bg-slate-800"
+      />
     );
   }
 
@@ -292,7 +304,18 @@ export function CoverageMapSection() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           {/* Map */}
           <div className="h-[420px] overflow-hidden rounded-2xl border border-slate-100 shadow-lg dark:border-slate-700 lg:col-span-2">
-            <CoverageMap areas={areas} pins={pins} />
+            <ErrorBoundary
+              app="marketing"
+              apiUrl={API}
+              fallback={
+                <MapUnavailableFallback
+                  areaName={liveAreaLabel(areas)}
+                  className="flex h-full w-full flex-col items-center justify-center gap-2 rounded-2xl bg-seafoam-50 p-6 text-center dark:bg-slate-800"
+                />
+              }
+            >
+              <CoverageMap areas={areas} pins={pins} />
+            </ErrorBoundary>
           </div>
 
           {/* Sidebar */}

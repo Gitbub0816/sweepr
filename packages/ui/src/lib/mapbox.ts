@@ -43,6 +43,29 @@ export function getMapboxToken(): string {
   }
 }
 
+/**
+ * True when the browser can actually create a WebGL context. Some browsers
+ * expose the WebGL APIs but fail at real context creation (blocked GPU,
+ * WebGL disabled in settings, some in-app webviews) — mapbox-gl's renderer
+ * then throws synchronously inside `new mapboxgl.Map()`. Mirrors the same
+ * check `canUseWebGL()` in apps/marketing's HeroScene.tsx (kept as a
+ * separate copy here so this package doesn't take on a dependency on that
+ * app).
+ */
+export function supportsWebGL(): boolean {
+  try {
+    const canvas = document.createElement("canvas");
+    return Boolean(
+      window.WebGLRenderingContext &&
+        (canvas.getContext("webgl2") ||
+          canvas.getContext("webgl") ||
+          canvas.getContext("experimental-webgl")),
+    );
+  } catch {
+    return false;
+  }
+}
+
 /** True when the app is in dark mode (Tailwind `dark` class or stored pref). */
 export function isDarkTheme(): boolean {
   if (
@@ -70,8 +93,10 @@ export interface CreateMapboxMapOptions
 
 /**
  * Creates a `mapboxgl.Map` with the access token applied, the theme style
- * selected, and sane defaults. Returns `null` when no token is configured so
- * callers can render a fallback. Remember to call `map.remove()` on unmount.
+ * selected, and sane defaults. Returns `null` when no token is configured,
+ * when the browser can't do WebGL, or when construction throws for any other
+ * reason — so callers can always render a fallback instead of crashing.
+ * Never throws. Remember to call `map.remove()` on unmount.
  */
 export function createMapboxMap(
   container: HTMLElement,
@@ -79,15 +104,24 @@ export function createMapboxMap(
 ): mapboxgl.Map | null {
   const token = getMapboxToken();
   if (!token) return null;
+  if (!supportsWebGL()) return null;
   mapboxgl.accessToken = token;
 
   const { style, ...rest } = opts;
-  return new mapboxgl.Map({
-    container,
-    style: style ?? mapStyleForTheme(),
-    attributionControl: true,
-    ...rest,
-  });
+  try {
+    return new mapboxgl.Map({
+      container,
+      style: style ?? mapStyleForTheme(),
+      attributionControl: true,
+      ...rest,
+    });
+  } catch (err) {
+    // Covers WebGL failures that pass the cheap capability check above but
+    // still fail at real context creation, plus any other constructor-time
+    // error (bad style URL, etc.) — never let a map failure crash the app.
+    console.warn("Sweepr: Mapbox map failed to initialize, falling back", err);
+    return null;
+  }
 }
 
 /**

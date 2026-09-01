@@ -43,6 +43,7 @@ export * from "./assets/SweeprLogo";
 // Components
 export * from "./components/NavigationMap";
 export * from "./components/MapboxMap";
+export * from "./components/MapUnavailableFallback";
 export * from "./components/NotificationBell";
 export * from "./components/SuccessCheck";
 export * from "./components/SweeprLoader";
@@ -77,6 +78,7 @@ export {
   isDarkTheme,
   mapStyleForTheme,
   createMapboxMap,
+  supportsWebGL,
   openInMapsUrl,
   bindMapTheme,
 } from "./lib/mapbox";

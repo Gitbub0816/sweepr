@@ -11,7 +11,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { useAppToken } from "@/lib/appToken";
-import { Card, Input, Button, toast } from "@sweepr/ui";
+import { Card, Input, Button, toast, ErrorBoundary, MapUnavailableFallback } from "@sweepr/ui";
 import { MapPin } from "lucide-react";
 import { ServiceAreaMap } from "./ServiceAreaMap";
 import { geocode } from "../lib/geocode";
@@ -105,7 +105,20 @@ export function ServiceAreaSection() {
         </p>
       </div>
 
-      {!loading && <ServiceAreaMap center={center} radiusMi={radius} />}
+      {!loading && (
+        <ErrorBoundary
+          app="cleaner"
+          apiUrl={API_URL}
+          fallback={
+            <MapUnavailableFallback
+              areaName={address || undefined}
+              className="flex h-[260px] w-full flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-seafoam-50 p-6 text-center dark:border-slate-700 dark:bg-slate-800"
+            />
+          }
+        >
+          <ServiceAreaMap center={center} radiusMi={radius} areaLabel={address || undefined} />
+        </ErrorBoundary>
+      )}
 
       <div className="flex items-end gap-2">
         <div className="flex-1">

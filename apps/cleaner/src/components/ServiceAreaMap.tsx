@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { mapboxgl, createMapboxMap, bindMapTheme } from "@sweepr/ui";
+import { mapboxgl, createMapboxMap, bindMapTheme, MapUnavailableFallback } from "@sweepr/ui";
 
 const METERS_PER_MILE = 1609.34;
 const SEAFOAM_FILL = "#14b8a6";
@@ -21,6 +21,9 @@ const CIRCLE_LINE_LAYER = "service-area-circle-line";
 export interface ServiceAreaMapProps {
   center: [number, number]; // [lng, lat]
   radiusMi: number;
+  /** Human label for the area (e.g. the address the cleaner entered), shown
+   *  in the static fallback when the interactive map can't render. */
+  areaLabel?: string;
 }
 
 /**
@@ -49,7 +52,7 @@ function circlePolygon(
   };
 }
 
-export function ServiceAreaMap({ center, radiusMi }: ServiceAreaMapProps) {
+export function ServiceAreaMap({ center, radiusMi, areaLabel }: ServiceAreaMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
@@ -139,13 +142,10 @@ export function ServiceAreaMap({ center, radiusMi }: ServiceAreaMapProps) {
 
   if (unavailable) {
     return (
-      <div
-        className="flex h-[260px] items-center justify-center rounded-2xl border border-slate-200 bg-seafoam-50 text-sm text-slate-600 dark:border-slate-700"
-        role="img"
-        aria-label="Service area map unavailable"
-      >
-        Service area map unavailable
-      </div>
+      <MapUnavailableFallback
+        areaName={areaLabel}
+        className="flex h-[260px] w-full flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-seafoam-50 p-6 text-center dark:border-slate-700 dark:bg-slate-800"
+      />
     );
   }
 
