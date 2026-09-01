@@ -438,9 +438,23 @@ export function computeQuoteV2(
       source: "adjustment",
     });
   }
-  if (subtotalCents < config.rates.minimumBookingCents) {
-    const floor = config.rates.minimumBookingCents - subtotalCents;
-    subtotalCents = config.rates.minimumBookingCents;
+  // Minimum job total ("hourly rate PLUS a minimum"). DELIBERATE CLAMP SPOT
+  // (docs/PRICING_V2.md): it floors the ENTIRE pre-tax subtotal — labor,
+  // fixed visit, extras, extra-cleaner fee — AFTER the zip-area and
+  // short-notice adjustments, and BEFORE tax/charm rounding. Rationale:
+  //  - after the adjustments, so a discounted zip area can never price a job
+  //    below the floor;
+  //  - inclusive of extras, i.e. standard minimum-order semantics — every
+  //    dollar the customer spends on the visit counts toward the minimum;
+  //  - pre-tax, so tax is computed on what is actually charged and the
+  //    customer-facing total is always ≥ minimum + tax.
+  // Optional field: absent (older stored configs) or 0 = no minimum.
+  const minimumBookingCents = config.rates.minimumBookingCents ?? 0;
+  let minimumApplied = false;
+  if (subtotalCents < minimumBookingCents) {
+    const floor = minimumBookingCents - subtotalCents;
+    subtotalCents = minimumBookingCents;
+    minimumApplied = true;
     components.push({
       code: "policy.minimum",
       label: "Minimum booking total",
@@ -477,7 +491,11 @@ export function computeQuoteV2(
     );
   }
 
-  // ---- 10. Cleaner payout (independent of the customer price) -------------
+  // ---- 10. Modeled cleaner-payout ESTIMATE (independent of the customer
+  // price). This figure is used for margin validation and planning only —
+  // actual cleaner compensation is captured proceeds minus the platform fee
+  // (default 20%, apps/api/src/lib/payoutEngine.ts) plus 100% of tips, and
+  // never reads this number.
   const cleanerPayoutCents =
     config.payout.mode === "per_labor_hour"
       ? roundDiv(expectedLaborMinutes * config.payout.centsPerLaborHour, 60)
@@ -505,6 +523,7 @@ export function computeQuoteV2(
     taxCents,
     totalCents,
     cleanerPayoutCents,
+    minimumApplied,
     warnings,
     manualReviewRequired,
     calculationFingerprint: fingerprint,

@@ -105,14 +105,17 @@ export function validatePricingConfig(config: PricingConfigV2): ValidationResult
   if (r.customerLaborRateCentsPerHour < B.minLaborRateCents || r.customerLaborRateCentsPerHour > B.maxLaborRateCents) {
     errors.push(`Customer labor rate must be between $${B.minLaborRateCents / 100} and $${B.maxLaborRateCents / 100} per labor-hour.`);
   }
+  // minimumBookingCents is optional (absent = no minimum = 0) for backward
+  // compatibility with configs stored before the field became first-class.
+  const minimumBookingCents = r.minimumBookingCents ?? 0;
   for (const [label, v] of [
     ["Fixed service amount", r.fixedServiceCents],
-    ["Minimum booking total", r.minimumBookingCents],
+    ["Minimum booking total", minimumBookingCents],
     ["Automatic quote limit", r.maxAutoQuoteCents],
   ] as const) {
     if (!Number.isInteger(v) || v < 0) errors.push(`${label} must be a whole number of cents ≥ 0.`);
   }
-  if (r.minimumBookingCents > r.maxAutoQuoteCents) {
+  if (minimumBookingCents > r.maxAutoQuoteCents) {
     errors.push("Minimum booking total cannot exceed the automatic quote limit.");
   }
   // Customer-elected extra-cleaner flat fee: must be present, a whole number of

@@ -283,6 +283,109 @@ describe("quote assembly", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Minimum job total ("hourly rate PLUS a minimum") — docs/PRICING_V2.md
+// ---------------------------------------------------------------------------
+
+describe("minimum job total", () => {
+  // A small light home whose natural subtotal sits well below the test minimums.
+  const small = (partial: Partial<QuoteInputV2> = {}): QuoteInputV2 =>
+    input({
+      counts: { kitchen: 1, bathroom: 1, bedroom: 1, living_room: 1 },
+      ...partial,
+    });
+  const withMinimum = (minimumBookingCents: number | undefined) => ({
+    ...cfg,
+    rates: { ...cfg.rates, minimumBookingCents, roundTotalUpToEndingDigit: null },
+  });
+  const taxOn = (cents: number) => Math.floor((2 * cents * cfg.rates.taxRateBps + 10_000) / 20_000);
+
+  it("below the minimum: tops up pre-tax, flags minimumApplied, explains the component", () => {
+    const q = computeQuoteV2(withMinimum(40_000), small(), OPTS);
+    expect(q.minimumApplied).toBe(true);
+    expect(q.subtotalCents).toBe(40_000);
+    const topUp = q.components.find((c) => c.code === "policy.minimum");
+    expect(topUp).toBeDefined();
+    expect(topUp!.amountCents).toBeGreaterThan(0);
+    // The top-up is exactly the gap between the natural subtotal and the minimum.
+    const baseline = computeQuoteV2(withMinimum(0), small(), OPTS);
+    expect(topUp!.amountCents).toBe(40_000 - baseline.subtotalCents);
+    // Total = minimum + tax on the floored subtotal (charm rounding disabled).
+    expect(q.totalCents).toBe(40_000 + taxOn(40_000));
+    expect(q.totalCents).toBeGreaterThanOrEqual(40_000);
+  });
+
+  it("exactly at the minimum: no top-up, no flag, price unchanged", () => {
+    const baseline = computeQuoteV2(withMinimum(0), small(), OPTS);
+    const q = computeQuoteV2(withMinimum(baseline.subtotalCents), small(), OPTS);
+    expect(q.minimumApplied).toBe(false);
+    expect(q.components.some((c) => c.code === "policy.minimum")).toBe(false);
+    expect(q.subtotalCents).toBe(baseline.subtotalCents);
+    expect(q.totalCents).toBe(baseline.totalCents);
+    // One cent above the subtotal and it bites.
+    const above = computeQuoteV2(withMinimum(baseline.subtotalCents + 1), small(), OPTS);
+    expect(above.minimumApplied).toBe(true);
+    expect(above.subtotalCents).toBe(baseline.subtotalCents + 1);
+  });
+
+  it("above the minimum: untouched", () => {
+    const baseline = computeQuoteV2(withMinimum(0), small(), OPTS);
+    const q = computeQuoteV2(withMinimum(baseline.subtotalCents - 5_000), small(), OPTS);
+    expect(q.minimumApplied).toBe(false);
+    expect(q.subtotalCents).toBe(baseline.subtotalCents);
+    expect(q.totalCents).toBe(baseline.totalCents);
+  });
+
+  it("interacts with condition levels: a heavy home outgrows the same minimum", () => {
+    const light = computeQuoteV2(withMinimum(0), small(), OPTS);
+    const heavyInput = small({ conditions: { kitchen: 4, bathroom: 4, bedroom: 4, living_room: 4 } });
+    const heavy = computeQuoteV2(withMinimum(0), heavyInput, OPTS);
+    const minimum = Math.floor((light.subtotalCents + heavy.subtotalCents) / 2);
+    const lightClamped = computeQuoteV2(withMinimum(minimum), small(), OPTS);
+    const heavyClamped = computeQuoteV2(withMinimum(minimum), heavyInput, OPTS);
+    expect(lightClamped.minimumApplied).toBe(true);
+    expect(lightClamped.subtotalCents).toBe(minimum);
+    expect(heavyClamped.minimumApplied).toBe(false);
+    expect(heavyClamped.subtotalCents).toBe(heavy.subtotalCents);
+  });
+
+  it("applies AFTER the zip multiplier: a discounted area still floors at the minimum", () => {
+    const noMin = computeQuoteV2(withMinimum(0), small({ zipMultiplierPct: -30 }), OPTS);
+    const minimum = noMin.subtotalCents + 2_000; // discounted price sits below it
+    const q = computeQuoteV2(withMinimum(minimum), small({ zipMultiplierPct: -30 }), OPTS);
+    expect(q.minimumApplied).toBe(true);
+    expect(q.subtotalCents).toBe(minimum);
+    // The zip adjustment component is still explained; the floor comes after it.
+    expect(q.components.some((c) => c.code === "adjustment.zip")).toBe(true);
+  });
+
+  it("applies AFTER the short-notice surcharge: a rush job floors exactly at the minimum", () => {
+    const q = computeQuoteV2(withMinimum(60_000), small({ emergency: true }), OPTS);
+    expect(q.minimumApplied).toBe(true);
+    // The surcharge lands inside the floored amount, never on top of it.
+    expect(q.subtotalCents).toBe(60_000);
+  });
+
+  it("backward compatible: a config WITHOUT the field prices exactly like minimum = 0", () => {
+    const legacy = withMinimum(0) as { rates: Record<string, unknown> };
+    delete legacy.rates.minimumBookingCents;
+    const withoutField = computeQuoteV2(legacy as typeof cfg, small(), OPTS);
+    const zeroMin = computeQuoteV2(withMinimum(0), small(), OPTS);
+    expect(withoutField.minimumApplied).toBe(false);
+    expect(withoutField.totalCents).toBe(zeroMin.totalCents);
+    expect(withoutField.calculationFingerprint).toBe(zeroMin.calculationFingerprint);
+    // …and the validator accepts it (absent = no minimum).
+    expect(validatePricingConfig(legacy as typeof cfg).ok).toBe(true);
+  });
+
+  it("validator rejects a minimum above the automatic quote limit", () => {
+    const bad = { ...cfg, rates: { ...cfg.rates, minimumBookingCents: cfg.rates.maxAutoQuoteCents + 1 } };
+    const res = validatePricingConfig(bad);
+    expect(res.ok).toBe(false);
+    expect(res.errors.join(" ")).toMatch(/Minimum booking total/);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Invariants / property tests (spec §12.2)
 // ---------------------------------------------------------------------------
 

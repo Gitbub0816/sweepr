@@ -108,10 +108,35 @@ export interface PricingConfigV2 {
   };
   extras: ExtraDefV2[];
   rates: {
+    /**
+     * Integer cents charged to the CUSTOMER per estimated labor-hour. This is
+     * a PRICING MODEL INPUT — a device that converts estimated labor minutes
+     * into a customer price. It is NOT a wage and NOT what cleaners receive:
+     * cleaners are paid from captured booking proceeds minus the platform fee
+     * (default 20% — apps/api/src/lib/payoutEngine.ts), regardless of this
+     * number.
+     */
     customerLaborRateCentsPerHour: number;
     /** Flat per-booking amount (trip/supplies), shown as its own line. */
     fixedServiceCents: number;
-    minimumBookingCents: number;
+    /**
+     * Minimum job total, integer cents. Supports "hourly rate PLUS a
+     * minimum" pricing (e.g. $25/labor-hour but at least $40 per job).
+     *
+     * WHERE IT CLAMPS (deliberate, see docs/PRICING_V2.md): it floors the
+     * ENTIRE pre-tax subtotal — labor + fixed service visit + extras +
+     * extra-cleaner fee, after the zip-area and short-notice adjustments —
+     * BEFORE tax and charm rounding. Standard minimum-order semantics: the
+     * customer must spend at least this much per visit and every line item
+     * counts toward it, so the customer-facing total can never fall below
+     * minimum + tax. When it bites, the top-up appears as the
+     * `policy.minimum` breakdown component and the result sets
+     * `minimumApplied: true`.
+     *
+     * Optional for backward compatibility with stored configs; absent or 0
+     * means no minimum.
+     */
+    minimumBookingCents?: number;
     /** Quotes above this require manual review instead of auto-booking. */
     maxAutoQuoteCents: number;
     taxRateBps: number;
@@ -217,7 +242,20 @@ export interface QuoteResultV2 {
   discountCents: number;
   taxCents: number;
   totalCents: number;
+  /**
+   * The config's payout model applied to this quote — an INTERNAL PLANNING
+   * ESTIMATE used for margin checks and capacity economics. It is NOT what
+   * pays cleaners: actual cleaner compensation is captured booking proceeds
+   * minus the platform fee (default 20%, apps/api/src/lib/payoutEngine.ts),
+   * plus 100% of tips.
+   */
   cleanerPayoutCents: number;
+  /**
+   * True when rates.minimumBookingCents topped up the pre-tax subtotal (the
+   * `policy.minimum` component carries the amount). Older stored snapshots
+   * predate this field — treat a missing value as false.
+   */
+  minimumApplied: boolean;
   warnings: string[];
   manualReviewRequired: boolean;
   calculationFingerprint: string;

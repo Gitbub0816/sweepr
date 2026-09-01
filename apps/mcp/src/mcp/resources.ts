@@ -41,7 +41,8 @@ export const RESOURCE_DEFS: ResourceDef[] = [
   {
     uri: "sweepr://workflow",
     name: "Pricing sandbox workflow",
-    description: "The explore → sandbox → simulate → emit → human-uploads operating guide.",
+    description:
+      "The explore → sandbox → simulate → human-loads-in-Studio operating guide (sandbox configs auto-appear in Pricing Studio → Proposals).",
     mimeType: "text/markdown",
   },
 ];
@@ -60,6 +61,31 @@ MINUTES, then into money. Three unit rules are absolute:
 Room types: \`kitchen\`, \`bathroom\`, \`bedroom\`, \`living_room\`.
 Condition levels 1–4 are ORDERED CATEGORIES (1 light … 4 heavy), never an
 equally spaced score.
+
+## How cleaners are actually paid (and how pricing relates)
+
+**Cleaners are NOT paid hourly, and nothing in this config sets their pay.**
+The real pay model, verified in the payout code
+(\`apps/api/src/lib/payoutEngine.ts\`, applied at capture in
+\`apps/api/src/routes/payments.ts\`):
+
+- A cleaner is paid from the booking's CAPTURED PROCEEDS minus Sweepr's
+  platform fee — **default 20%, so the cleaner receives ~80% of what the
+  customer actually paid** (tier and founding-member bonuses can raise it;
+  the fee is configured in Platform Fees settings, not here).
+- **Tips are 100% to the cleaner** — no platform fee, ever.
+- A bigger customer price therefore means a bigger cleaner payout,
+  automatically. There is no hourly wage anywhere in the system.
+
+How this config relates:
+- \`rates.customerLaborRateCentsPerHour\` is a **pricing-model input**: a cost
+  per ESTIMATED labor-hour used to translate estimated labor minutes into a
+  CUSTOMER price. It is not a wage and no cleaner ever receives it.
+- The \`payout\` block is an **internal planning estimate** used only for
+  margin validation and capacity economics; no payout transfer reads it.
+
+Never tell anyone (or let a summary imply) that cleaners "earn $X/hour"
+because of this config.
 
 ## laborMatrix
 Per room type, an array of four integers: expected minutes for ONE room at
@@ -125,10 +151,22 @@ Do NOT invent config fields outside this shape — the validator refuses unknown
 shapes.
 
 ## rates
-- \`customerLaborRateCentsPerHour\`: integer cents per labor-hour.
-  **Bounds: 2000–25000** ($20–$250).
+- \`customerLaborRateCentsPerHour\`: integer cents per ESTIMATED labor-hour,
+  charged to the CUSTOMER. **Bounds: 2000–25000** ($20–$250). Modeling input
+  only — cleaner compensation is ~80% of captured proceeds regardless of this
+  number (see "How cleaners are actually paid" above).
 - \`fixedServiceCents\`: flat per-booking amount, own line item.
-- \`minimumBookingCents\`: floor on the pre-tax total (≤ maxAutoQuoteCents).
+- \`minimumBookingCents\`: **minimum job total**, integer cents (optional;
+  absent or 0 = no minimum; must be ≤ maxAutoQuoteCents). This is how you
+  express "an hourly rate PLUS a minimum" — e.g. rate 2500 with minimum 4000
+  means $25/labor-hour but never less than $40 per job. Where it clamps: it
+  floors the ENTIRE pre-tax subtotal (labor + fixed visit + extras, after the
+  zip-area and short-notice adjustments), BEFORE tax and charm rounding — so
+  the customer total is never below minimum + tax, and every dollar the
+  customer spends on the visit counts toward the minimum. When it bites, the
+  quote result carries a \`policy.minimum\` breakdown component with the
+  top-up amount and sets \`minimumApplied: true\` (also surfaced in
+  \`simulate_quote\`'s customerSummary).
 - \`maxAutoQuoteCents\`: quotes above this require manual review.
 - \`taxRateBps\`: 0–2000 bps.
 - \`roundTotalUpToEndingDigit\`: charm rounding — round the total UP so its
@@ -142,6 +180,12 @@ shapes.
   crew size, and it never touches labor minutes or cleaner payout.
 
 ## payout
+**Internal planning estimate — NOT how cleaners are paid.** Cleaners are not
+paid hourly; they receive captured booking proceeds minus the platform fee
+(default 20%), plus 100% of tips (see "How cleaners are actually paid"
+above). This block only models an estimated cost-of-labor figure used for
+margin validation (the validator rejects configs whose modeled payout meets
+or exceeds the pre-tax subtotal) and planning; no payout transfer reads it.
 - \`mode\`: \`per_labor_hour\` → \`centsPerLaborHour\` must be positive;
   \`percent_of_subtotal\` → \`percentBps\` in 1–10000.
 
@@ -185,7 +229,7 @@ You are connected to Sweepr's QUARANTINED pricing sandbox. You can NEVER
 change live pricing. Your only write target is your own simulator config;
 everything else is read-only. Every tool call is audit-logged.
 
-## The loop: explore → sandbox → simulate → emit → human uploads
+## The loop: explore → sandbox → simulate → human loads in Studio
 
 1. **Explore** the live setup read-only: \`get_active_pricing\`,
    \`list_pricing_versions\` / \`get_pricing_version\`,
@@ -199,12 +243,15 @@ everything else is read-only. Every tool call is audit-logged.
 3. **Simulate**: \`simulate_quote\` for specific homes;
    \`compare_scenarios\` for a side-by-side vs. the active version.
    \`get_simulator_link\` gives the human a customer-look page.
-4. **Emit**: \`draft_pricing_payload\` produces the upload artifact
-   ({name, note, config}).
-5. **Human uploads**: give the JSON to a Sweepr admin. In the admin
-   console they open Pricing → Import Payload, paste it, review the
-   validation output, then review and publish in Pricing Studio. Only that
-   human publish can ever affect customers.
+4. **Human loads it in the Studio**: every stored sandbox config
+   automatically appears in the admin console under Pricing Studio →
+   Proposals. The admin clicks "Load into Studio" and gets a DRAFT with
+   every field pre-filled and individually editable, which then goes through
+   the normal validate → test-quote → publish pipeline. (Alternative:
+   \`draft_pricing_payload\` emits the raw {name, note, config} JSON for the
+   Pricing → Import Payload paste path.) Only that human review-and-publish
+   can ever affect customers — you cannot import, draft, or publish pricing
+   versions yourself.
 
 ## Hard rules
 
@@ -213,6 +260,11 @@ everything else is read-only. Every tool call is audit-logged.
 - Do not invent config fields; start from sweepr://payload-template.
 - Never claim a change is live: your work products are proposals only.
 - Prices you compute are simulations, not quotes to customers.
+- **Cleaners are NOT paid hourly.** They earn captured booking proceeds
+  minus the platform fee (default 20% → ~80% to the cleaner) plus 100% of
+  tips. The config's labor rate prices CUSTOMERS from estimated minutes and
+  its payout block is a planning estimate — never describe either as cleaner
+  wages (see the field guide's "How cleaners are actually paid").
 `;
 
 /** Read one resource by uri; returns null for unknown uris. */

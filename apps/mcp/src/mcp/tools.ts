@@ -17,9 +17,17 @@
  *    Never PII, never money rows.
  *  - The ONLY writes are to mcp_simulator_configs (the per-admin sandbox)
  *    and mcp_action_log (audit). There is no path to live pricing: going
- *    live requires a human uploading the drafted payload in the admin
- *    console and publishing in Pricing Studio.
+ *    live requires a human loading the proposal in the admin console
+ *    (Pricing Studio → Proposals, or Pricing → Import Payload) and
+ *    publishing in Pricing Studio.
  *  - Every tool call is logged to mcp_action_log.
+ *
+ * Pay-model language (keep it precise everywhere this worker speaks):
+ * cleaners are NOT paid hourly. They are paid from captured booking proceeds
+ * minus the platform fee (default 20% — apps/api/src/lib/payoutEngine.ts),
+ * plus 100% of tips. The config's "customer labor rate" is a pricing-model
+ * input (estimated-labor-minutes → customer price) and the config's payout
+ * block is an internal planning estimate; neither is a wage.
  */
 
 import {
@@ -117,7 +125,7 @@ export const TOOL_DEFS: ToolDef[] = [
   {
     name: "set_simulator_config",
     description:
-      "SANDBOX: store/replace your quarantined simulator config (upsert by name). Provide ALL PricingConfigV2 fields, or accept the built-in defaults: any field you omit is filled from the cold-start defaults BEFORE validation and reported back in defaultedFields, so a partial config becomes complete-with-defaults (never a partial pricing model). The completed config is then validated: hard errors REFUSE the save; warnings are stored and returned. This NEVER affects live pricing.",
+      "SANDBOX: store/replace your quarantined simulator config (upsert by name). Provide ALL PricingConfigV2 fields, or accept the built-in defaults: any field you omit is filled from the cold-start defaults BEFORE validation and reported back in defaultedFields, so a partial config becomes complete-with-defaults (never a partial pricing model). The completed config is then validated: hard errors REFUSE the save; warnings are stored and returned. Stored configs automatically appear in the admin console's Pricing Studio under the Proposals tab, where an admin can 'Load into Studio' to open them as a fully pre-filled, field-by-field editable DRAFT. This NEVER affects live pricing — only a human can import, review, and publish. Minimum-plus-hourly pricing is expressed via rates.minimumBookingCents (integer cents; 0 = no minimum).",
     inputSchema: {
       type: "object",
       properties: {
@@ -146,7 +154,7 @@ export const TOOL_DEFS: ToolDef[] = [
   {
     name: "simulate_quote",
     description:
-      "Run one quote through the real Pricing v2 engine against your SANDBOX config (default), or read-only against a stored version's config by passing versionId. Returns the full engine result plus a customer-facing summary. Purely computational — nothing is stored or charged.",
+      "Run one quote through the real Pricing v2 engine against your SANDBOX config (default), or read-only against a stored version's config by passing versionId. Returns the full engine result plus a customer-facing summary; customerSummary.minimumApplied tells you when rates.minimumBookingCents topped the job up to the minimum (the 'policy.minimum' component carries the amount). Note: result.cleanerPayoutCents is the config's internal planning estimate, NOT cleaner pay — cleaners earn captured proceeds minus the ~20% platform fee, plus 100% of tips. Purely computational — nothing is stored or charged.",
     inputSchema: {
       type: "object",
       properties: {
@@ -195,7 +203,7 @@ export const TOOL_DEFS: ToolDef[] = [
   {
     name: "draft_pricing_payload",
     description:
-      "Validate your sandbox config and, if valid, emit the exact JSON upload artifact for a HUMAN admin to import in the admin console (Pricing → Import Payload) and later review/publish in Pricing Studio. This tool does NOT change live pricing — it only produces the artifact.",
+      "Validate your sandbox config and, if valid, emit the exact JSON upload artifact for a HUMAN admin to import in the admin console (Pricing → Import Payload) and later review/publish in Pricing Studio. Usually unnecessary: every stored sandbox config already shows up in Pricing Studio → Proposals for one-click 'Load into Studio' autofill — use this tool when the human specifically wants the raw JSON. This tool does NOT change live pricing — it only produces the artifact.",
     inputSchema: {
       type: "object",
       properties: {
@@ -372,19 +380,27 @@ function customerSummary(q: QuoteResultV2): Record<string, unknown> {
     estimatedElapsedMinutes: q.estimatedElapsedMinutes,
     recommendedTeamSize: q.recommendedTeamSize,
     manualReviewRequired: q.manualReviewRequired,
+    minimumApplied: q.minimumApplied === true,
+    ...(q.minimumApplied
+      ? {
+          minimumNote:
+            "The configured minimum job total (rates.minimumBookingCents) kicked in — the pre-tax subtotal was topped up to the minimum; see the 'policy.minimum' component for the amount.",
+        }
+      : {}),
     warnings: q.warnings,
   };
 }
 
 export const PAYLOAD_INSTRUCTIONS =
-  "Give this JSON to a Sweepr admin. In the admin console, open Pricing → Import Payload, " +
-  "paste it, review the validation output, then review and publish in Pricing Studio. " +
-  "Nothing here changes live pricing until a human completes that review and publish.";
+  "Hand off to a Sweepr admin: this proposal is already visible in the admin console under " +
+  "Pricing Studio → Proposals, where 'Load into Studio' opens it as a fully pre-filled draft " +
+  "for field-by-field review. Alternatively they can paste this JSON in Pricing → Import Payload. " +
+  "Either way, nothing changes live pricing until a human reviews and publishes in Pricing Studio.";
 
 export function buildPayloadTemplate(): Record<string, unknown> {
   return {
     description:
-      "PricingConfigV2 upload template (all values are the built-in cold-start defaults — a complete, valid config). Units: labor is INTEGER MINUTES, money is INTEGER CENTS, percentage-like rates are basis points (bps, 1/100 of a percent) or permille (1/1000).",
+      "PricingConfigV2 upload template (all values are the built-in cold-start defaults — a complete, valid config). Units: labor is INTEGER MINUTES, money is INTEGER CENTS, percentage-like rates are basis points (bps, 1/100 of a percent) or permille (1/1000). Pay-model reminder: nothing in this config sets cleaner wages — cleaners earn captured booking proceeds minus the ~20% platform fee, plus 100% of tips; the labor rate here only converts estimated minutes into a CUSTOMER price.",
     template: buildColdStartConfig(),
     instructions: {
       laborMatrix:
@@ -405,9 +421,10 @@ export function buildPayloadTemplate(): Record<string, unknown> {
       extras:
         "Catalog of purchasable extras. mode: 'minutes' (billed via labor rate), 'fixed' (flat cents), 'both'. minutesPerUnit whole minutes; fixedCentsPerUnit whole cents; min/maxQuantity; payoutTreatment 'standard' or 'cleaner_full'; active toggles availability. Do not invent fields.",
       "rates.customerLaborRateCentsPerHour":
-        "Integer cents per labor-hour charged to the customer. Bounds: 2000–25000 ($20–$250).",
+        "Integer cents charged to the CUSTOMER per ESTIMATED labor-hour. Bounds: 2000–25000 ($20–$250). PRICING MODEL INPUT ONLY — it converts estimated labor minutes into a customer price. It is NOT a wage and NOT what cleaners receive: cleaners are paid captured booking proceeds minus the platform fee (default 20%), plus 100% of tips, regardless of this number.",
       "rates.fixedServiceCents": "Flat per-booking amount (trip/supplies), integer cents.",
-      "rates.minimumBookingCents": "Floor on the pre-tax total, integer cents.",
+      "rates.minimumBookingCents":
+        "Minimum job total, integer cents (0 = no minimum; must be ≤ maxAutoQuoteCents). Expresses 'hourly rate PLUS a minimum' (e.g. rate 2500 + minimum 4000 = $25/labor-hour but at least $40/job). Floors the ENTIRE pre-tax subtotal (labor + fixed visit + extras, after zip/short-notice adjustments) before tax and charm rounding, so the customer total is never below minimum + tax. When it bites, the quote carries a 'policy.minimum' component and minimumApplied: true.",
       "rates.maxAutoQuoteCents": "Quotes above this require manual review, integer cents.",
       "rates.taxRateBps": "Tax rate in basis points (825 = 8.25%). Max 2000.",
       "rates.roundTotalUpToEndingDigit":
@@ -416,7 +433,7 @@ export function buildPayloadTemplate(): Record<string, unknown> {
       "rates.extraCleanerFeeCentsPer100Sqft":
         "Flat fee in INTEGER CENTS per 100 sqft, charged ONLY when the customer opts to add one extra cleaner for speed. Whole cents ≥ 0, max 5000 ($50) per 100 sqft. Default 100 ($1) per 100 sqft. Never multiplies the whole price by crew size.",
       payout:
-        "Cleaner compensation: mode 'per_labor_hour' (centsPerLaborHour, integer cents) or 'percent_of_subtotal' (percentBps, 1–10000).",
+        "INTERNAL PLANNING ESTIMATE — NOT how cleaners are paid. Cleaners are NOT paid hourly: they receive captured booking proceeds minus the platform fee (default 20%, configured separately in Platform Fees), plus 100% of tips. This block only models an estimated cost-of-labor figure (mode 'per_labor_hour' with centsPerLaborHour, or 'percent_of_subtotal' with percentBps 1–10000) used for margin validation and planning; no payout transfer ever reads it.",
       "scheduling.reservePercentile": "Capacity planning percentile 50–99 (NOT billed).",
       "scheduling.bufferRatePermille": "Extra cold-start buffer on scheduled minutes, permille (max 500).",
       "scheduling.roundUpToIncrementMinutes": "Scheduled minutes round up to this increment.",
@@ -639,7 +656,7 @@ export async function callTool(
               total: dollars(q.totalCents),
               totalCents: q.totalCents,
               expectedLaborMinutes: q.expectedLaborMinutes,
-              cleanerPayout: dollars(q.cleanerPayoutCents),
+              modeledCleanerPayout: dollars(q.cleanerPayoutCents),
             };
           } catch (err) {
             return { error: err instanceof Error ? err.message : String(err) };
@@ -664,6 +681,8 @@ export async function callTool(
         sandboxSource: sandboxRow ? "stored sandbox config" : "cold-start defaults (nothing stored yet)",
         activeVersion: active ? { id: active.id, name: active.name } : null,
         comparison: rowsOut,
+        payoutNote:
+          "modeledCleanerPayout is the config's internal planning estimate, not what cleaners are paid — actual cleaner pay is captured proceeds minus the ~20% platform fee, plus 100% of tips.",
       };
     }
 

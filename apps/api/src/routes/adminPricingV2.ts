@@ -24,6 +24,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { getDb } from "../lib/db";
+import { logger } from "../lib/logger";
 import { requireAuth } from "../middleware/auth";
 import { requireAdmin, requireAdminRole } from "../middleware/adminRoles";
 import {
@@ -158,6 +159,112 @@ adminPricingV2Router.get("/versions/:id/impact", async (c) => {
     validation: validatePricingConfig(draft.config),
   });
 });
+
+// ---------------------------------------------------------------------------
+// MCP sandbox proposals → Studio drafts (the payload-autofill bridge)
+//
+// LLM-drafted configs land in mcp_simulator_configs (migration 100, written
+// ONLY by the quarantined MCP worker). Listing them here and importing one as
+// a DRAFT pricing version lets an admin open the proposal in Pricing Studio
+// with every field pre-filled and individually editable — the draft then
+// flows through the normal validate/test-quote/publish pipeline. The MCP
+// itself still has NO path to pricing_versions: import (like publish) only
+// happens here, behind admin auth + the finance edit gate.
+// ---------------------------------------------------------------------------
+
+adminPricingV2Router.get("/proposals", async (c) => {
+  const sql = getDb(c.env.DATABASE_URL);
+  try {
+    const rows = (await sql`
+      SELECT id, admin_email, name, notes, based_on_version_id, created_at, updated_at
+      FROM mcp_simulator_configs
+      ORDER BY updated_at DESC
+      LIMIT 100
+    `) as unknown[];
+    return c.json({ proposals: rows });
+  } catch (err) {
+    // Pre-migration or transient failure — the Studio just shows none.
+    logger.warn("mcp proposals list failed", { message: err instanceof Error ? err.message : String(err) });
+    return c.json({ proposals: [] });
+  }
+});
+
+const importProposalSchema = z.object({
+  /** Optional draft name; defaults to the proposal's sandbox name. */
+  name: z.string().trim().min(1).max(120).optional(),
+});
+
+adminPricingV2Router.post(
+  "/proposals/:id/import",
+  editGate,
+  zValidator("json", importProposalSchema),
+  async (c) => {
+    const id = c.req.param("id");
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return c.json({ error: "Invalid proposal id" }, 400);
+    const body = c.req.valid("json");
+    const sql = getDb(c.env.DATABASE_URL);
+    const actor = c.get("user").clerkId;
+
+    const rows = (await sql`
+      SELECT id, admin_email, name, config, notes, based_on_version_id, updated_at
+      FROM mcp_simulator_configs WHERE id = ${id}::uuid LIMIT 1
+    `) as Array<{
+      id: string;
+      admin_email: string;
+      name: string;
+      config: PricingConfigV2;
+      notes: string | null;
+      based_on_version_id: string | null;
+      updated_at: string;
+    }>;
+    const proposal = rows[0];
+    if (!proposal) return c.json({ error: "Proposal not found" }, 404);
+
+    // Validate before creating the draft. A structurally broken config (the
+    // MCP normally can't store one) is refused rather than imported.
+    let validation;
+    try {
+      validation = validatePricingConfig(proposal.config);
+    } catch (err) {
+      return c.json(
+        {
+          error: "invalid_config",
+          message: `Proposal config is structurally invalid: ${err instanceof Error ? err.message : String(err)}`,
+        },
+        400,
+      );
+    }
+
+    const draftName = body.name ?? proposal.name;
+    const created = (await sql`
+      INSERT INTO pricing_versions (name, status, config, inference_provenance, source_version_id,
+                                    validation, created_by_clerk_id)
+      VALUES (${draftName}, 'draft', ${JSON.stringify(proposal.config)},
+              ${proposal.config.inference?.provenance ?? "cold_start"}, NULL,
+              ${JSON.stringify(validation)}, ${actor})
+      RETURNING *
+    `) as VersionRow[];
+
+    // Provenance lands in the append-only audit trail (queryable by version),
+    // deliberately NOT as an FK — the sandbox stays decoupled from live
+    // pricing (migration 100 quarantine note).
+    await pricingAudit(sql, {
+      versionId: created[0].id,
+      actorClerkId: actor,
+      event: "draft_created",
+      detail: {
+        source: "mcp_proposal",
+        proposalId: proposal.id,
+        proposalName: proposal.name,
+        proposalAdmin: proposal.admin_email,
+        proposalUpdatedAt: proposal.updated_at,
+        basedOnVersionId: proposal.based_on_version_id,
+        notes: proposal.notes,
+      },
+    });
+    return c.json({ version: created[0], validation }, 201);
+  },
+);
 
 // ---------------------------------------------------------------------------
 // Preview / simulate (production engine in non-persisting mode)

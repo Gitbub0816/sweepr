@@ -10,8 +10,10 @@
 
 import { describe, it, expect } from "vitest";
 import { buildColdStartConfig } from "@sweepr/quote-engine";
-import { callTool, TOOL_DEFS, type ToolContext } from "../src/mcp/tools";
+import { buildPayloadTemplate, callTool, TOOL_DEFS, type ToolContext } from "../src/mcp/tools";
 import { handleMcpMessage } from "../src/mcp/protocol";
+import { CONFIG_FIELD_GUIDE, WORKFLOW_GUIDE } from "../src/mcp/resources";
+import { PRICING_ASSISTANT_PROMPT } from "../src/mcp/prompts";
 import type { Sql } from "../src/lib/db";
 import type { Env } from "../src/types";
 
@@ -248,6 +250,88 @@ describe("introducing a brand-new add-on via the payload", () => {
     };
     expect(out.ok).toBe(true);
     expect(out.payload.config.extras.some((e) => e.key === NEW_EXTRA.key)).toBe(true);
+  });
+});
+
+describe("minimum job total (hourly rate + minimum) via MCP", () => {
+  it("accepts and stores a config expressing an hourly rate PLUS a minimum", async () => {
+    const cfg = buildColdStartConfig();
+    cfg.rates.customerLaborRateCentsPerHour = 2500; // $25/labor-hour…
+    cfg.rates.minimumBookingCents = 4000; // …but at least $40/job
+    cfg.payout.centsPerLaborHour = 1500; // keep the modeled margin positive
+    const { ctx, calls } = ctxWith(() => []);
+    const out = (await callTool(ctx, "set_simulator_config", { config: cfg })) as {
+      stored: boolean;
+      ok: boolean;
+    };
+    expect(out.ok).toBe(true);
+    expect(out.stored).toBe(true);
+    const ins = calls.find((c) => c.text.includes("INSERT INTO mcp_simulator_configs"));
+    const storedJson = ins!.values.find(
+      (v) => typeof v === "string" && v.includes("minimumBookingCents"),
+    ) as string;
+    expect(JSON.parse(storedJson).rates.minimumBookingCents).toBe(4000);
+  });
+
+  it("simulate_quote surfaces minimumApplied when the minimum bites", async () => {
+    const cfg = buildColdStartConfig();
+    cfg.rates.minimumBookingCents = 90_000; // far above a small light home
+    const { ctx } = ctxWith((text) =>
+      text.includes("FROM mcp_simulator_configs")
+        ? [{ config: cfg, notes: null, updated_at: "2026-08-31" }]
+        : [],
+    );
+    const out = (await callTool(ctx, "simulate_quote", {
+      input: {
+        counts: { kitchen: 1, bathroom: 1, bedroom: 1, living_room: 1 },
+        conditions: { kitchen: 1, bathroom: 1, bedroom: 1, living_room: 1 },
+        extras: [],
+      },
+    })) as {
+      customerSummary: { minimumApplied: boolean; minimumNote?: string };
+      result: { minimumApplied: boolean; subtotalCents: number; components: Array<{ code: string }> };
+    };
+    expect(out.result.minimumApplied).toBe(true);
+    expect(out.result.subtotalCents).toBe(90_000);
+    expect(out.result.components.some((c) => c.code === "policy.minimum")).toBe(true);
+    expect(out.customerSummary.minimumApplied).toBe(true);
+    expect(out.customerSummary.minimumNote).toContain("minimumBookingCents");
+  });
+
+  it("reports minimumApplied false when the job prices above the minimum", async () => {
+    const { ctx } = ctxWith(() => []); // cold-start defaults ($99 minimum)
+    const out = (await callTool(ctx, "simulate_quote", {
+      input: {
+        counts: { kitchen: 1, bathroom: 2, bedroom: 3, living_room: 1 },
+        conditions: { kitchen: 3, bathroom: 3, bedroom: 3, living_room: 3 },
+        sqft: 2000,
+        extras: [],
+      },
+    })) as { customerSummary: { minimumApplied: boolean } };
+    expect(out.customerSummary.minimumApplied).toBe(false);
+  });
+});
+
+describe("pay-model language (cleaners are NOT paid hourly)", () => {
+  it("the field guide states the real pay model prominently", () => {
+    expect(CONFIG_FIELD_GUIDE).toContain("How cleaners are actually paid");
+    expect(CONFIG_FIELD_GUIDE).toContain("NOT paid hourly");
+    expect(CONFIG_FIELD_GUIDE).toContain("20%");
+    expect(CONFIG_FIELD_GUIDE).toContain("100% to the cleaner");
+  });
+
+  it("payload-template instructions mark the rate and payout as modeling inputs, not wages", () => {
+    const out = buildPayloadTemplate() as { instructions: Record<string, string> };
+    expect(out.instructions["rates.customerLaborRateCentsPerHour"]).toContain("NOT a wage");
+    expect(out.instructions.payout).toContain("NOT how cleaners are paid");
+    expect(out.instructions["rates.minimumBookingCents"]).toContain("Minimum job total");
+  });
+
+  it("the assistant prompt carries the pay-model hard rule and the Studio proposals handoff", () => {
+    expect(PRICING_ASSISTANT_PROMPT).toContain("CLEANERS ARE NOT PAID HOURLY");
+    expect(PRICING_ASSISTANT_PROMPT).toContain("Proposals");
+    expect(WORKFLOW_GUIDE).toContain("Load into Studio");
+    expect(WORKFLOW_GUIDE).toContain("NOT paid hourly");
   });
 });
 

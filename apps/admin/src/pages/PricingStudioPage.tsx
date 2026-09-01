@@ -31,6 +31,7 @@ import {
   FlaskConical,
   Grid3x3,
   History,
+  Inbox,
   LayoutDashboard,
   Plus,
   Rocket,
@@ -86,7 +87,8 @@ interface Config {
   rates: {
     customerLaborRateCentsPerHour: number;
     fixedServiceCents: number;
-    minimumBookingCents: number;
+    /** Optional job-total floor (pre-tax); absent/0 = no minimum. */
+    minimumBookingCents?: number;
     maxAutoQuoteCents: number;
     taxRateBps: number;
     roundTotalUpToEndingDigit: number | null;
@@ -252,6 +254,7 @@ type Tab =
   | "rates"
   | "scheduling"
   | "test"
+  | "proposals"
   | "publish"
   | "history";
 
@@ -264,6 +267,7 @@ const TABS: Array<{ id: Tab; label: string; icon: typeof Grid3x3 }> = [
   { id: "rates", label: "Rates & payout", icon: BadgeDollarSign },
   { id: "scheduling", label: "Scheduling", icon: Clock },
   { id: "test", label: "Test quote", icon: FlaskConical },
+  { id: "proposals", label: "Proposals", icon: Inbox },
   { id: "publish", label: "Review & publish", icon: Rocket },
   { id: "history", label: "History", icon: History },
 ];
@@ -429,7 +433,17 @@ export function PricingStudioPage() {
         </div>
       )}
 
-      {!config ? (
+      {tab === "proposals" ? (
+        <ProposalsTab
+          api={api}
+          onImported={(id) => {
+            void loadVersions().then(() => {
+              setSelectedId(id);
+              setTab("overview");
+            });
+          }}
+        />
+      ) : !config ? (
         <Card>
           <p className="py-10 text-center text-sm text-slate-500">
             {versions.length === 0
@@ -506,8 +520,10 @@ function OverviewTab({
           </p>
         </Card>
         <Card>
-          <p className="text-sm text-slate-500">Minimum booking</p>
-          <p className="mt-1 text-2xl font-bold text-charcoal dark:text-white">{dollars(config.rates.minimumBookingCents)}</p>
+          <p className="text-sm text-slate-500">Minimum job total</p>
+          <p className="mt-1 text-2xl font-bold text-charcoal dark:text-white">
+            {(config.rates.minimumBookingCents ?? 0) > 0 ? dollars(config.rates.minimumBookingCents) : "None"}
+          </p>
         </Card>
         <Card>
           <p className="text-sm text-slate-500">Cleaner payout basis</p>
@@ -580,6 +596,134 @@ function ScenarioTable({ scenarios }: { scenarios: Scenario[] }) {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// MCP proposals (payload → Studio autofill bridge)
+// ---------------------------------------------------------------------------
+
+interface Proposal {
+  id: string;
+  admin_email: string;
+  name: string;
+  notes: string | null;
+  based_on_version_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Lists the LLM-drafted configs sitting in the quarantined MCP sandbox
+ * (mcp_simulator_configs). "Load into Studio" imports one as a DRAFT pricing
+ * version with every field pre-filled — it then behaves like any other draft:
+ * tweak field by field across the tabs, test-quote, and publish (humans only;
+ * the MCP itself can never create or publish a pricing version).
+ */
+function ProposalsTab({
+  api,
+  onImported,
+}: {
+  api: ReturnType<typeof useApi>;
+  onImported: (versionId: string) => void;
+}) {
+  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api("proposals");
+      if (res.ok) {
+        const data = (await res.json()) as { proposals: Proposal[] };
+        setProposals(data.proposals);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [api]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function importProposal(p: Proposal) {
+    setImporting(p.id);
+    try {
+      const res = await api(`proposals/${p.id}/import`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      const data = (await res.json().catch(() => null)) as
+        | { version?: { id: string }; validation?: { ok: boolean; errors: string[] }; error?: string; message?: string }
+        | null;
+      if (!res.ok || !data?.version?.id) {
+        toast.error(data?.message ?? data?.error ?? "Import failed");
+        return;
+      }
+      if (data.validation && !data.validation.ok) {
+        toast.error(
+          `Draft created with ${data.validation.errors.length} validation error(s) — fix them before publishing.`,
+        );
+      } else {
+        toast.success("Draft created — every field is now editable in the Studio tabs.");
+      }
+      onImported(data.version.id);
+    } finally {
+      setImporting(null);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <h3 className="mb-1 text-sm font-semibold text-charcoal dark:text-white">
+          MCP sandbox proposals
+        </h3>
+        <p className="mb-3 text-xs text-slate-500">
+          Pricing configs drafted through the MCP assistant land here automatically. Loading one
+          creates a DRAFT with every field pre-filled and editable across the Studio tabs — nothing
+          reaches customers until a human reviews and publishes it. (The paste-a-payload path still
+          exists under Pricing → Import Payload.)
+        </p>
+        {loading ? (
+          <p className="py-8 text-center text-sm text-slate-500">Loading proposals…</p>
+        ) : proposals.length === 0 ? (
+          <p className="py-8 text-center text-sm text-slate-500">
+            No sandbox proposals yet. Ask the pricing assistant (MCP) to store one with
+            set_simulator_config — it appears here immediately.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {proposals.map((p) => (
+              <li
+                key={p.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 px-3 py-2.5 text-sm dark:border-slate-800"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-charcoal dark:text-white">
+                    {p.name}
+                    <span className="ml-2 text-xs font-normal text-slate-500">{p.admin_email}</span>
+                  </p>
+                  <p className="truncate text-xs text-slate-500">
+                    {p.notes ?? "No notes"} · updated {new Date(p.updated_at).toLocaleString()}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  loading={importing === p.id}
+                  disabled={importing !== null && importing !== p.id}
+                  onClick={() => void importProposal(p)}
+                >
+                  <Inbox className="mr-1 h-3.5 w-3.5" /> Load into Studio
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
     </div>
   );
 }
@@ -1170,7 +1314,8 @@ function RatesTab({
             onChange={(v) => patch((c) => { c.rates.customerLaborRateCentsPerHour = Math.max(0, v); return c; })} />
           <NumField label="Fixed service visit" unit="per booking (trip/supplies)" money value={config.rates.fixedServiceCents} disabled={!editable}
             onChange={(v) => patch((c) => { c.rates.fixedServiceCents = Math.max(0, v); return c; })} />
-          <NumField label="Minimum booking total" unit="floor applied pre-tax" money value={config.rates.minimumBookingCents} disabled={!editable}
+          <NumField label="Minimum job total" unit="floor applied pre-tax · $0 = no minimum" money value={config.rates.minimumBookingCents ?? 0} disabled={!editable}
+            help="Supports hourly-rate-plus-minimum pricing (e.g. $25/labor-hour but at least $40 per job). Floors the whole pre-tax subtotal — labor, service visit, extras, area/rush adjustments — before tax and rounding; the test-quote breakdown shows a 'Minimum booking total' line when it kicks in."
             onChange={(v) => patch((c) => { c.rates.minimumBookingCents = Math.max(0, v); return c; })} />
           <NumField label="Automatic quote limit" unit="above this → manual review" money value={config.rates.maxAutoQuoteCents} disabled={!editable}
             onChange={(v) => patch((c) => { c.rates.maxAutoQuoteCents = Math.max(0, v); return c; })} />
@@ -1200,9 +1345,12 @@ function RatesTab({
         </div>
       </Card>
       <Card>
-        <h3 className="mb-3 text-sm font-semibold text-charcoal dark:text-white">Cleaner payout</h3>
+        <h3 className="mb-3 text-sm font-semibold text-charcoal dark:text-white">Cleaner payout (planning estimate)</h3>
         <p className="mb-3 text-xs text-slate-500">
-          Independent of the customer price: changing one never silently changes the other.
+          Independent of the customer price: changing one never silently changes the other. This is
+          a MODELING estimate for margin checks — actual cleaner pay is captured booking proceeds
+          minus the platform fee (default 20%, Platform Fees settings), plus 100% of tips. It is not
+          set here and cleaners are never paid hourly.
         </p>
         <div className="space-y-4">
           <label className="block">
@@ -1284,6 +1432,7 @@ function TestQuoteTab({ api, versionId }: { api: ReturnType<typeof useApi>; vers
     recommendedTeamSize: number;
     warnings: string[];
     manualReviewRequired: boolean;
+    minimumApplied?: boolean;
   } | null>(null);
   const [running, setRunning] = useState(false);
 
@@ -1379,8 +1528,17 @@ function TestQuoteTab({ api, versionId }: { api: ReturnType<typeof useApi>; vers
                 <span>Customer total</span><span className="tabular-nums">{dollars(result.totalCents)}</span>
               </div>
               <div className="mt-1 flex justify-between text-slate-500">
-                <span>Cleaner payout</span><span className="tabular-nums">{dollars(result.cleanerPayoutCents)}</span>
+                <span title="Planning estimate from this config's payout model — actual cleaner pay is captured proceeds minus the platform fee (default 20%), plus 100% of tips.">
+                  Modeled cleaner payout (est.)
+                </span>
+                <span className="tabular-nums">{dollars(result.cleanerPayoutCents)}</span>
               </div>
+              {result.minimumApplied && (
+                <p className="mt-1 rounded-lg bg-sky-50 px-2 py-1 text-xs font-medium text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
+                  Minimum applied — this job priced below the configured minimum and was topped up
+                  to it (see the “Minimum booking total” line above).
+                </p>
+              )}
               <p className="mt-2 text-xs text-slate-500">
                 {minutesLabel(result.expectedLaborMinutes)} expected · {minutesLabel(result.scheduledLaborMinutes)} scheduled ·{" "}
                 ~{minutesLabel(result.estimatedElapsedMinutes)} on site · team of {result.recommendedTeamSize}

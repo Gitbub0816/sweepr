@@ -56,9 +56,71 @@ Scenario: 3 bed / 2 bath / 1 kitchen / 1 living, all reported Level 2,
 4. **Expected labor** = 189+28+32 = **249 min** (the single float→int boundary).
 5. **Money**: labor 249×6000/60 = 24 900¢ + fixed visit 4 900¢ = 29 800¢ →
    tax 8.25% = 2 459¢ → 32 259¢ → charm-round up to end in 9 → **$329.00**.
-6. **Payout** (independent): 249×3900/60 = 16 185¢ = $161.85.
+6. **Modeled payout estimate** (independent knob): 249×3900/60 = 16 185¢ =
+   $161.85. This is planning/margin math only — see "How cleaners are paid"
+   below; it is NOT what the cleaner receives.
 7. **Scheduling**: 75th-percentile posterior labor, rounded up to 15 min →
    255 min reserved; team of 2 above 240 min; elapsed ≈ 255/1.8 = 142 min.
+
+### Minimum job total (hourly rate + minimum)
+
+`rates.minimumBookingCents` expresses "an hourly labor rate PLUS a minimum"
+(e.g. $25/labor-hour but at least $40 per job). It is optional — absent or 0
+means no minimum — so configs stored before the field was first-class price
+identically.
+
+**Where it clamps (deliberate):** the minimum floors the ENTIRE pre-tax
+subtotal — labor + fixed service visit + extras + extra-cleaner fee — AFTER
+the zip-area and short-notice adjustments, and BEFORE tax and charm rounding
+(`packages/quote-engine/src/engine.ts`, the `policy.minimum` block). Why
+there:
+
+- **After the adjustments**, so a discounted zip area can never price a job
+  below the floor.
+- **Inclusive of extras** — standard minimum-order semantics: the customer
+  must spend at least the minimum per visit and every line item counts
+  toward it (a $30 core + $70 of add-ons meets a $99 minimum; flooring only
+  the core would surprise-charge minimum + add-ons).
+- **Pre-tax**, so tax is computed on what is actually charged and the
+  customer-facing total is always ≥ minimum + tax. Charm rounding then only
+  moves the total up.
+
+When it bites, the breakdown carries a `policy.minimum` component with the
+top-up amount and the result sets `minimumApplied: true` (surfaced in the
+Studio test quote and the MCP `simulate_quote` summary), so customer-facing
+explanations stay honest. Older stored quote snapshots predate the flag —
+treat a missing `minimumApplied` as false; their `policy.minimum` component
+already told the same story.
+
+## How cleaners are paid (and how pricing relates)
+
+**Cleaners are NOT paid hourly, and nothing in a pricing config sets their
+pay.** The authoritative payout math:
+
+- `apps/api/src/lib/payoutEngine.ts` — the platform fee defaults to **20% of
+  captured proceeds** (`DEFAULT_SETTINGS.feeValue = 20`, percentage mode;
+  overridable via `platform_fee_settings`); the cleaner receives the
+  remainder (~**80%**), adjusted by tier and founding-member multipliers.
+- `apps/api/src/routes/payments.ts` — the Stripe transfer at payout release
+  uses exactly that breakdown on the booking's captured total.
+- **Tips are 100% to the cleaner** — separate immediate-capture PIs, no
+  platform fee, ever (CLAUDE.md convention 4).
+
+Inside the pricing config:
+
+- `rates.customerLaborRateCentsPerHour` is a **pricing-model input**: a cost
+  per ESTIMATED labor hour that converts estimated labor minutes into a
+  CUSTOMER price. It is not a wage; no cleaner ever receives it.
+- The `payout` block (`per_labor_hour` / `percent_of_subtotal`) produces
+  `cleanerPayoutCents` on each quote — an **internal planning estimate** used
+  by the validator's negative-margin gate and by Studio margin columns, and
+  stamped on bookings as `estimated_cleaner_payout_cents`. No payout transfer
+  reads it.
+
+Raising customer prices raises cleaner pay automatically (80% of a bigger
+capture); the config's payout knob changes only the margin model. Every
+MCP-facing surface (tool descriptions, field guide, prompt) states this —
+keep it that way.
 
 Every component lands in `components[]` with code/label/minutes/cents; the
 `calculationFingerprint` (FNV-1a over version id + canonical input) makes
@@ -87,7 +149,14 @@ optional buffer) is capacity planning and is never billed.
 ## Admin guide (Pricing Studio, admin → Money → Pricing Studio)
 
 1. **New draft** starts from the current live pricing translated into minutes
-   (see below) — customers unaffected.
+   (see below) — customers unaffected. Or open **Proposals** to load an
+   MCP-drafted config: sandbox configs stored via the pricing MCP
+   (`mcp_simulator_configs`, migration 100) appear there automatically, and
+   "Load into Studio" imports one as a fully pre-filled draft (provenance is
+   recorded in the audit trail as `draft_created` / `source: mcp_proposal`).
+   The MCP itself can never create, import, or publish a version — both
+   bridges (Proposals and Pricing → Import Payload) are human, admin-gated
+   actions.
 2. Edit **Room labor** (minutes per room per condition; click a cell for the
    price effect), **Clutter & size**, **Extras** (overlap groups prevent
    double-billing), **Rates & payout** (every field carries its unit),
@@ -129,8 +198,8 @@ underpricing).
 | Level-1 base room minutes | K25 / B20 / Bed12 / L15 | old model had no per-room base |
 | Fixed service visit | $49 | replaces the $89 base fee + 10% service fee |
 | Operational minutes | 10+10+2/room | new concept |
-| Cleaner payout | $39 / labor-hour (~65%) | independent knob |
-| Minimum booking | $99 | old engine had none explicit |
+| Modeled cleaner-payout estimate | $39 / labor-hour (~65%) | planning knob only — actual pay is ~80% of captured proceeds (payoutEngine) |
+| Minimum booking (minimum job total) | $99 | old engine had none explicit; optional field, 0/absent = none |
 | Auto-quote limit | $1,000 | above → manual review |
 | Scheduling percentile / buffer | 75th / 0% | capacity, not billed |
 | Clutter minutes + 50% unobserved factor | see defaults | new concept |
