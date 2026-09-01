@@ -114,7 +114,7 @@ export const TOOL_DEFS: ToolDef[] = [
   {
     name: "get_site_settings",
     description:
-      "READ-ONLY: the explicitly allowlisted site settings (platform basics, prelaunch gates, scope-review fee tiers, founding-member program gates). No other settings are reachable.",
+      "READ-ONLY: the explicitly allowlisted site settings (platform basics, scope-review fee tiers, founding-member program gates). No other settings are reachable.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {

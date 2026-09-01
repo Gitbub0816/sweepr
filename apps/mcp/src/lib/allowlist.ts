@@ -20,7 +20,6 @@
  *
  * Key sources (keep in sync when those change):
  *  - SETTING_KEYS + SCOPE_REVIEW_KEYS in apps/api/src/routes/adminSettings.ts
- *  - prelaunch_* toggles (lib/scheduledActions.ts prelaunch_toggle action)
  *  - founding.* seeds in packages/db/src/migrations/085_founding_and_promotions.sql
  */
 export const SITE_SETTINGS_ALLOWLIST: readonly string[] = [
@@ -29,10 +28,6 @@ export const SITE_SETTINGS_ALLOWLIST: readonly string[] = [
   "support_email",
   "service_fee_pct",
   "tax_rate_pct",
-  // Prelaunch gates
-  "prelaunch_customer",
-  "prelaunch_cleaner",
-  "prelaunch_pricing",
   // Scope-review fee tiers + policy knobs (adminSettings.ts SCOPE_REVIEW_KEYS)
   "scope_review.fee_additional_attention_small_cents",
   "scope_review.fee_additional_attention_medium_cents",
