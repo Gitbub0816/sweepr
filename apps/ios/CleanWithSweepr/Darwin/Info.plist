@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright © 2026–Present ClearKey Solutions, LLC.
+  All Rights Reserved. Proprietary and Confidential.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleDisplayName</key>
+    <string>Clean with Sweepr</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.getsweepr.cleaner</string>
+    <key>CFBundleName</key>
+    <string>Clean with Sweepr</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <!-- App targets the iOS 26 SDK (Xcode 26+). Mirrors Package.swift
+         .iOS(.v26) + Skip.env IPHONEOS_DEPLOYMENT_TARGET. -->
+    <key>MinimumOSVersion</key>
+    <string>26.0</string>
+    <key>UILaunchScreen</key>
+    <dict/>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+    </array>
+
+    <!-- ===== Privacy usage strings (App Review 5.1.1) ===== -->
+
+    <!-- Foreground routing + live-arrival sharing. Maps handoff opens the
+         system Maps app for directions; no embedded turn-by-turn. -->
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Clean with Sweepr uses your location while the app is open to route you to each job and to share your live arrival with the customer.</string>
+
+    <!-- Day-of-service background location powers continuous live-arrival
+         updates and geofenced Smart Entry when you reach the property. -->
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>Clean with Sweepr uses your location in the background during an active job to keep the customer's live arrival updated and to enable geofenced Smart Entry when you reach the property. It is not used outside of a scheduled job.</string>
+
+    <!-- Before/after and scope photos required for check-in and checkout. -->
+    <key>NSCameraUsageDescription</key>
+    <string>Clean with Sweepr uses the camera to capture the before and after photos required for check-in, checkout, and scope reviews.</string>
+
+    <!-- Attaching existing job or scope photos to a work order. -->
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Clean with Sweepr needs access to your photo library so you can attach existing job and scope photos to a work order.</string>
+
+    <!-- Biometric re-auth gate before revealing/unlocking Smart Entry access. -->
+    <key>NSFaceIDUsageDescription</key>
+    <string>Clean with Sweepr uses Face ID to confirm it's you before revealing or unlocking a customer's Smart Entry access.</string>
+
+    <!-- ===== Background execution ===== -->
+    <!-- location: day-of-service en-route tracking + geofenced Smart Entry.
+         remote-notification: job assignment and schedule push. -->
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>location</string>
+        <string>remote-notification</string>
+    </array>
+</dict>
+</plist>
