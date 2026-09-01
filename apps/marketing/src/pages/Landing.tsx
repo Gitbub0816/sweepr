@@ -10,7 +10,6 @@
 
 import { MarketingShell, Button, Accordion, SweeprLogo, NewsletterSubscribe, type AccordionItemData } from "@sweepr/ui";
 import { useSeo } from "../lib/useSeo";
-import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { LanguageSelector } from "../i18n/LanguageSelector";
 import { withLang } from "../i18n/languages";
@@ -50,8 +49,6 @@ const trust = [
   { titleKey: "trust.guaranteeTitle" as const, bodyKey: "trust.guaranteeBody" as const },
 ];
 
-
-const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
 /** Small uppercase label. The only sanctioned "eyebrow" treatment: 11px,
  * tracked, no background, no border, no pill. Used sparingly. */
@@ -264,8 +261,7 @@ export default function Landing() {
                   ))}
                 </ul>
               </Reveal>
-            </div>
-          )}
+          </div>
         </section>
       </div>
 

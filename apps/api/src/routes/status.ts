@@ -18,11 +18,6 @@ import type { AppBindings } from "../types";
 
 export const statusRouter = new Hono<AppBindings>();
 
-interface SettingRow {
-  key: string;
-  value: string;
-}
-
 interface IncidentRow {
   id: string;
   title: string;
@@ -30,7 +25,6 @@ interface IncidentRow {
   status: string;
   severity: string;
   affected_features: string[];
-  is_prelaunch_update: boolean;
   created_at: string;
   updated_at: string;
   resolved_at: string | null;
@@ -45,41 +39,12 @@ interface UpdateRow {
 }
 
 statusRouter.get("/", async (c) => {
-  // Fail-safe: if the DB is unreachable, keep the gate UP so the app stays gated.
-  const defaultResponse = {
-    settings: { prelaunch_cleaner: true, prelaunch_customer: true, prelaunch_pricing: true },
-    incidents: [],
-    maintenance: [],
-  };
-
   try {
     const sql = getDb(c.env.DATABASE_URL);
 
-    const settingsRows = (await sql`
-      SELECT key, value FROM site_settings
-      WHERE key IN ('prelaunch_cleaner', 'prelaunch_customer', 'prelaunch_pricing')
-    `) as SettingRow[];
-
-    // Default to true (gate UP / prelaunch on) when a row is missing.
-    // Explicit "false" in the DB is the only way to open the gate.
-    const settings = {
-      prelaunch_cleaner: true,
-      prelaunch_customer: true,
-      prelaunch_pricing: true,
-    };
-    for (const row of settingsRows) {
-      if (row.key === "prelaunch_cleaner") {
-        settings.prelaunch_cleaner = row.value !== "false";
-      } else if (row.key === "prelaunch_customer") {
-        settings.prelaunch_customer = row.value !== "false";
-      } else if (row.key === "prelaunch_pricing") {
-        settings.prelaunch_pricing = row.value !== "false";
-      }
-    }
-
     const incidents = (await sql`
       SELECT id, title, summary, status, severity, affected_features,
-             is_prelaunch_update, created_at, updated_at, resolved_at
+             created_at, updated_at, resolved_at
       FROM status_incidents
       WHERE status != 'resolved'
       ORDER BY created_at DESC
@@ -126,9 +91,9 @@ statusRouter.get("/", async (c) => {
       WHERE lat IS NOT NULL AND lng IS NOT NULL
     `) as Array<{ lat: number; lng: number }>;
 
-    return c.json({ settings, incidents: incidentsWithUpdates, maintenance, serviceAreas, cityRequestPins });
+    return c.json({ incidents: incidentsWithUpdates, maintenance, serviceAreas, cityRequestPins });
   } catch {
-    return c.json({ ...defaultResponse, settings: { prelaunch_cleaner: false, prelaunch_customer: false, prelaunch_pricing: false }, serviceAreas: [], cityRequestPins: [], maintenance: [] });
+    return c.json({ incidents: [], maintenance: [], serviceAreas: [], cityRequestPins: [] });
   }
 });
 
@@ -289,37 +254,5 @@ statusRouter.post(
     } catch { /* non-fatal */ }
 
     return c.json({ ok: true });
-  }
-);
-
-// ─── Prelaunch bypass code verification ──────────────────────────────────────
-// The bypass code lives ONLY server-side (site_settings 'prelaunch_bypass_code',
-// with the PRELAUNCH_BYPASS_CODE Worker secret as fallback) — it is never baked
-// into a frontend bundle. Public but rate-limited at the app level; returns a
-// bare ok/false with no hint of whether a code is configured.
-statusRouter.post(
-  "/bypass",
-  zValidator("json", z.object({ code: z.string().min(1).max(64) }).strict()),
-  async (c) => {
-    const { code } = c.req.valid("json");
-    let expected = "";
-    try {
-      const sql = getDb(c.env.DATABASE_URL);
-      const rows = (await sql`
-        SELECT value FROM site_settings WHERE key = 'prelaunch_bypass_code' LIMIT 1
-      `) as SettingRow[];
-      expected = rows[0]?.value?.trim() ?? "";
-    } catch { /* fall through to env */ }
-    if (!expected) expected = ((c.env as { PRELAUNCH_BYPASS_CODE?: string }).PRELAUNCH_BYPASS_CODE ?? "").trim();
-    if (!expected) return c.json({ ok: false });
-
-    // Constant-time comparison — same pattern as webhook signature checks.
-    const a = new TextEncoder().encode(code);
-    const b = new TextEncoder().encode(expected);
-    let diff = a.length ^ b.length;
-    for (let i = 0; i < Math.max(a.length, b.length); i++) {
-      diff |= (a[i] ?? 0) ^ (b[i] ?? 0);
-    }
-    return c.json({ ok: diff === 0 });
   }
 );
