@@ -264,6 +264,16 @@ public struct TextField: View {
     public init(_ titleKey: String, text: Binding<String>) {}
 }
 
+public struct SecureField: View {
+    public typealias Body = AnyShimView
+    public init(_ titleKey: String, text: Binding<String>) {}
+}
+
+public struct Group: View {
+    public typealias Body = AnyShimView
+    public init(@ViewBuilder content: () -> AnyShimView) {}
+}
+
 public struct ContentUnavailableView: View {
     public typealias Body = AnyShimView
     public init(

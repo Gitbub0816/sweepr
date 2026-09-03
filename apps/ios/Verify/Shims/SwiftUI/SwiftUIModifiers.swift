@@ -54,6 +54,16 @@ public extension View {
     func scaleEffect(x: CGFloat = 1, y: CGFloat = 1, anchor: UnitPoint = .center) -> AnyShimView { AnyShimView() }
     func rotationEffect(_ angle: Angle, anchor: UnitPoint = .center) -> AnyShimView { AnyShimView() }
 
+    // Text input traits (real SwiftUI takes UIKit's UIKeyboardType /
+    // UITextContentType on iOS; the faithful shim types are declared below —
+    // app code only ever names the contextual members, never the types).
+    func keyboardType(_ type: UIKeyboardType) -> AnyShimView { AnyShimView() }
+    func textContentType(_ textContentType: UITextContentType?) -> AnyShimView { AnyShimView() }
+    func textInputAutocapitalization(_ autocapitalization: TextInputAutocapitalization?) -> AnyShimView { AnyShimView() }
+    func autocorrectionDisabled(_ disable: Bool = true) -> AnyShimView { AnyShimView() }
+    func submitLabel(_ submitLabel: SubmitLabel) -> AnyShimView { AnyShimView() }
+    func onSubmit(_ action: @escaping () -> Void) -> AnyShimView { AnyShimView() }
+
     // Safe area
     func ignoresSafeArea(edges: Edge.Set = .all) -> AnyShimView { AnyShimView() }
 
@@ -122,4 +132,50 @@ public extension View {
 
     // Modifiers
     func modifier<M: ViewModifier>(_ modifier: M) -> AnyShimView { AnyShimView() }
+}
+
+// MARK: - Text-input trait types (faithful minimal declarations)
+//
+// On iOS these come from UIKit through SwiftUI's modifier signatures; app code
+// only names the dot-members. These shims declare exactly the members Sweepr
+// uses so contextual lookup type-checks identically.
+
+public enum UIKeyboardType: Sendable {
+    case `default`
+    case emailAddress
+    case numberPad
+    case phonePad
+    case decimalPad
+    case URL
+}
+
+public struct UITextContentType: Equatable, Sendable {
+    private let raw: String
+    private init(_ raw: String) { self.raw = raw }
+    public static let emailAddress = UITextContentType("emailAddress")
+    public static let password = UITextContentType("password")
+    public static let newPassword = UITextContentType("newPassword")
+    public static let oneTimeCode = UITextContentType("oneTimeCode")
+    public static let givenName = UITextContentType("givenName")
+    public static let familyName = UITextContentType("familyName")
+    public static let telephoneNumber = UITextContentType("telephoneNumber")
+    public static let streetAddressLine1 = UITextContentType("streetAddressLine1")
+    public static let addressCity = UITextContentType("addressCity")
+    public static let postalCode = UITextContentType("postalCode")
+}
+
+public struct TextInputAutocapitalization: Sendable {
+    public static let never = TextInputAutocapitalization()
+    public static let words = TextInputAutocapitalization()
+    public static let sentences = TextInputAutocapitalization()
+    public static let characters = TextInputAutocapitalization()
+}
+
+public struct SubmitLabel: Sendable {
+    public static let done = SubmitLabel()
+    public static let go = SubmitLabel()
+    public static let next = SubmitLabel()
+    public static let `continue` = SubmitLabel()
+    public static let search = SubmitLabel()
+    public static let send = SubmitLabel()
 }

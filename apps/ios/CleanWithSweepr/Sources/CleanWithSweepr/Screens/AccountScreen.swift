@@ -360,9 +360,12 @@ public struct AccountScreen: View {
     }
 
     private func signOut() {
-        // TODO(Clerk): sign out via the injected AuthTokenProvider / Clerk iOS
-        // SDK session teardown.
-        env.toasts.show("Signed out", kind: .info)
+        Task {
+            // Revokes the broker session and wipes the keychain; the root
+            // view flips to the auth wall on the phase change.
+            await env.session.signOut()
+            env.toasts.show("Signed out", kind: .info)
+        }
     }
 
     private func deleteAccount() {
@@ -374,8 +377,9 @@ public struct AccountScreen: View {
                 try await env.cleanerAPI.requestAccountDeletion(confirmEmail: deleteConfirmEmail.trimmingCharacters(in: .whitespaces))
                 env.toasts.show("Your account has been deleted.", kind: .success)
                 showDeleteFlow = false
-                // TODO(Clerk): tear down the local session after deletion.
-                signOut()
+                // The server removed the Clerk identity; clear the broker
+                // session + keychain so the device forgets too.
+                await env.session.signOut()
             } catch {
                 env.toasts.show("We couldn't delete your account. Please try again or contact support.", kind: .error)
             }

@@ -10,14 +10,39 @@
 import SwiftUI
 import SweeprKit
 
-// Cleaner tab bar: Jobs, Route (map), Earnings, Account. The shared toast
-// center is rendered once here so any screen can surface a transient banner.
+// Root of the cleaner app. The auth wall gates everything: a persisted broker
+// session (Keychain) opens the tabs instantly and refreshes the profile in the
+// background; without one, the native sign-in/sign-up flow renders. A broker
+// revocation flips the phase and lands back here automatically.
 public struct RootView: View {
     @EnvironmentObject private var env: AppEnvironment
 
     public init() {}
 
     public var body: some View {
+        Group {
+            switch env.session.phase {
+            case .unknown:
+                // One frame at most: bootstrap() decides from local state.
+                SweeprColor.background.ignoresSafeArea()
+            case .signedOut:
+                AuthFlowView(engine: env.authEngine, branding: .cleaner) {
+                    await env.session.didSignIn()
+                }
+            case .signedIn:
+                tabs
+            }
+        }
+        .animation(SweeprMotion.smooth, value: env.session.phase)
+        .task {
+            env.session.bootstrap()
+            if env.session.phase == .signedIn {
+                await env.session.refresh()
+            }
+        }
+    }
+
+    private var tabs: some View {
         TabView {
             JobsScreen()
                 .tabItem { Label("Jobs", systemImage: "list.bullet.clipboard.fill") }

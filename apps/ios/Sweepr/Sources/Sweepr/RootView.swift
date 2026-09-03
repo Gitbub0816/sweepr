@@ -10,13 +10,41 @@
 import SwiftUI
 import SweeprKit
 
-// Root DoorDash-style tab bar. Four tabs: Home, Book, Bookings, Account.
+// Root of the customer app. The auth wall gates the tabs: a persisted broker
+// session (Keychain) opens the app instantly — the profile and bookings load
+// in the background — while a fresh install lands on the native welcome /
+// sign-in flow. Broker revocation flips the phase back here automatically.
 public struct RootView: View {
     @EnvironmentObject private var env: AppEnvironment
 
     public init() {}
 
     public var body: some View {
+        Group {
+            switch env.session.phase {
+            case .unknown:
+                // One frame at most: bootstrap() decides from local state.
+                SweeprColor.background.ignoresSafeArea()
+            case .signedOut:
+                AuthFlowView(engine: env.authEngine, branding: .customer) {
+                    await env.session.didSignIn()
+                    await env.bookingStore.load()
+                }
+            case .signedIn:
+                tabs
+            }
+        }
+        .animation(SweeprMotion.smooth, value: env.session.phase)
+        .task {
+            env.session.bootstrap()
+            if env.session.phase == .signedIn {
+                await env.session.refresh()
+                await env.bookingStore.load()
+            }
+        }
+    }
+
+    private var tabs: some View {
         TabView {
             HomeScreen()
                 .tabItem { Label("Home", systemImage: "house.fill") }
@@ -31,10 +59,6 @@ public struct RootView: View {
                 .tabItem { Label("Account", systemImage: "person.crop.circle") }
         }
         .sweeprToast(env.toast)
-        .task {
-            await env.session.refresh()
-            await env.bookingStore.load()
-        }
     }
 }
 
