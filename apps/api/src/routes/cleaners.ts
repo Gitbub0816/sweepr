@@ -71,8 +71,8 @@ cleanersRouter.get("/onboarding-progress", async (c) => {
   const submitted = ch?.status === "pending" || ch?.status === "approved";
   const approved = ch?.status === "approved";
 
-  // Validated insurance: Sweepr Coverage active OR an approved, unexpired
-  // personal policy. Mirrors the server-side job-accept enforcement.
+  // Validated insurance: the cleaner's own policy, approved and unexpired.
+  // Mirrors the server-side job-accept enforcement.
   let insurance = false;
   const cleanerId = (cleaner as { id?: string } | null)?.id;
   if (cleanerId) {

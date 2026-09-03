@@ -20,30 +20,33 @@ export interface InsuranceCheck {
 }
 
 /**
- * A cleaner has valid insurance when they are either:
- *  - actively enrolled in the Sweepr Coverage Program, or
- *  - covered by a personal policy that an admin approved ('active') and
- *    that has not passed its expiry date.
+ * A cleaner has valid insurance when their OWN policy has been approved by an
+ * admin ('active') and has not passed its expiry date.
+ *
+ * Sweepr does not provide insurance. The withdrawn "Sweepr Coverage Program"
+ * (coverage_type 'sweepr_program') never put a real policy in force, so a
+ * legacy row carrying it is explicitly NOT valid coverage — that cleaner is
+ * uninsured and must buy a policy (the cleaner app links our Coverdash
+ * affiliate) and upload the certificate before accepting jobs.
  */
 export async function checkInsurance(sql: Sql, cleanerId: string): Promise<InsuranceCheck> {
   const rows = (await sql`
-    SELECT coverage_type, policy_status, policy_expires_at, program_cancelled_at
+    SELECT coverage_type, policy_status, policy_expires_at
     FROM cleaner_insurance WHERE cleaner_id = ${cleanerId} LIMIT 1
   `) as Array<{
     coverage_type: string;
     policy_status: string;
     policy_expires_at: string | null;
-    program_cancelled_at: string | null;
   }>;
   const ins = rows[0];
   if (!ins) return { valid: false, reason: "none" };
 
-  if (ins.coverage_type === "sweepr_program") {
-    const active = ins.policy_status === "active" && !ins.program_cancelled_at;
-    return { valid: active, reason: active ? "ok" : "none" };
-  }
+  // A legacy enrollment in the withdrawn program is not coverage. Treated as
+  // "none" so the cleaner is prompted to get a real policy, rather than
+  // slipping through on a policy_status='active' row with no insurer behind it.
+  if (ins.coverage_type === "sweepr_program") return { valid: false, reason: "none" };
 
-  // personal_policy
+  // The cleaner's own policy
   if (ins.policy_status === "rejected") return { valid: false, reason: "rejected" };
   if (ins.policy_status !== "active" && ins.policy_status !== "expiring_soon") {
     return { valid: false, reason: "pending_review" };

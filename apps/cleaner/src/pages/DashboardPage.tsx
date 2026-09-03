@@ -162,7 +162,7 @@ function OnboardingChecklist({ status }: { status: string | undefined }) {
     { label: t("cleaner.dashboard.onboarding.training"), desc: `${passed}/${total} required modules`, step: -1, done: p?.training ?? false },
     { label: t("cleaner.dashboard.onboarding.backgroundCheck"), desc: "Verify your record", step: 3, done: p?.background ?? false },
     { label: t("cleaner.dashboard.onboarding.identity"), desc: "Confirm who you are", step: 4, done: p?.identity ?? false },
-    { label: t("cleaner.dashboard.onboarding.insurance"), desc: "Sweepr Coverage or your own validated policy", step: -2, done: p?.insurance ?? false },
+    { label: t("cleaner.dashboard.onboarding.insurance"), desc: "Upload your liability policy for review", step: -2, done: p?.insurance ?? false },
     { label: t("cleaner.dashboard.onboarding.review"), desc: "Send your application", step: 5, done: p?.submitted ?? false },
   ];
 

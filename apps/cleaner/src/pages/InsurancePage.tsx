@@ -9,9 +9,7 @@
  */
 
 import { useEffect, useState, useRef } from "react";
-import { Link } from "react-router";
-import { Shield, ShieldCheck, ShieldAlert, Upload, CheckCircle2, AlertTriangle, Clock, ExternalLink } from "lucide-react";
-import { useAuth } from "@clerk/clerk-react";
+import { ShieldCheck, ShieldAlert, Upload, Clock, ExternalLink } from "lucide-react";
 import { useAppToken } from "@/lib/appToken";
 import { DashboardShell, Card, Button, toast } from "@sweepr/ui";
 import { cn } from "@sweepr/utils";
@@ -19,9 +17,16 @@ import { COVERDASH_QUOTE_URL } from "@/lib/partners";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 
+/**
+ * Sweepr does NOT provide insurance. A cleaner carries their own general
+ * liability policy — optionally bought through the Coverdash affiliate link
+ * below — and uploads the certificate here for review. `coverage_type` is
+ * legacy: rows predating this may still say "sweepr_program", which no
+ * longer counts as coverage anywhere (see apps/api/src/lib/cleanerRequirements.ts).
+ */
 interface InsuranceRecord {
   id: string;
-  coverage_type: "sweepr_program" | "personal_policy";
+  coverage_type: string;
   policy_status: string;
   policy_number?: string;
   insurer_name?: string;
@@ -29,8 +34,6 @@ interface InsuranceRecord {
   policy_expires_at?: string;
   doc_uploaded_at?: string;
   review_notes?: string;
-  program_active_since?: string;
-  program_cancelled_at?: string;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -54,13 +57,8 @@ const STATUS_COLORS: Record<string, string> = {
 export function InsurancePage() {
   const { getToken } = useAppToken();
   const [record, setRecord] = useState<InsuranceRecord | null>(null);
-  const [stripeConnected, setStripeConnected] = useState(false);
-  const [consentSigned, setConsentSigned] = useState(false);
-  const [consentChecked, setConsentChecked] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [enrolling, setEnrolling] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [tab, setTab] = useState<"sweepr" | "personal">("sweepr");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [policyForm, setPolicyForm] = useState({
@@ -85,14 +83,8 @@ export function InsurancePage() {
   async function load() {
     try {
       const res = await authFetch("/insurance/me");
-      const data = (await res.json()) as {
-        insurance: InsuranceRecord | null;
-        stripeConnected?: boolean;
-        consentSigned?: boolean;
-      };
+      const data = (await res.json()) as { insurance: InsuranceRecord | null };
       setRecord(data.insurance);
-      setStripeConnected(data.stripeConnected ?? false);
-      setConsentSigned(data.consentSigned ?? false);
     } catch {
       // silently ignore
     } finally {
@@ -101,35 +93,6 @@ export function InsurancePage() {
   }
 
   useEffect(() => { load(); }, []);
-
-  async function enrollProgram() {
-    if (!consentChecked && !consentSigned) {
-      toast.error("Please review and accept the Insurance Protection Policy first.");
-      return;
-    }
-    setEnrolling(true);
-    try {
-      const res = await authFetch("/insurance/enroll-program", {
-        method: "POST",
-        body: JSON.stringify({ consentAccepted: true }),
-      });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as { error?: string; message?: string } | null;
-        if (data?.error === "stripe_required") {
-          toast.error("Set up payouts (Stripe) before enrolling in Sweepr Coverage.");
-        } else {
-          toast.error(data?.message ?? "Could not enroll. Please try again.");
-        }
-        return;
-      }
-      toast.success("Enrolled in Sweepr Coverage Program");
-      await load();
-    } catch {
-      toast.error("Could not enroll. Please try again.");
-    } finally {
-      setEnrolling(false);
-    }
-  }
 
   async function uploadPolicy(file: File) {
     if (!policyForm.insurerName.trim() || !policyForm.policyNumber.trim()) {
@@ -183,15 +146,12 @@ export function InsurancePage() {
     if (file) uploadPolicy(file);
   }
 
-  const isActive =
-    record?.coverage_type === "sweepr_program"
-      ? record.policy_status === "active" && !record.program_cancelled_at
-      : record?.policy_status === "active";
+  const isActive = record?.policy_status === "active";
 
   return (
     <DashboardShell
       title="Insurance"
-      description="Sweepr requires all cleaners to carry coverage before accepting jobs."
+      description="Sweepr requires every cleaner to carry their own liability insurance before accepting jobs."
     >
       {/* Status banner */}
       {!loading && (
@@ -205,10 +165,7 @@ export function InsurancePage() {
             </p>
             {record && (
               <p className="text-sm text-slate-600 mt-0.5">
-                {record.coverage_type === "sweepr_program"
-                  ? `Sweepr Coverage Program · active since ${new Date(record.program_active_since!).toLocaleDateString()}`
-                  : `Personal policy · ${STATUS_LABELS[record.policy_status] ?? record.policy_status}`
-                }
+                Your policy · {STATUS_LABELS[record.policy_status] ?? record.policy_status}
               </p>
             )}
             {record?.policy_status === "rejected" && record.review_notes && (
@@ -223,215 +180,124 @@ export function InsurancePage() {
         </Card>
       )}
 
-      {/* Option tabs */}
-      <div className="flex gap-2 border-b border-slate-200">
-        {(["sweepr", "personal"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
-              tab === t
-                ? "border-seafoam-500 text-seafoam-700"
-                : "border-transparent text-slate-500 hover:text-slate-700"
-            )}
-          >
-            {t === "sweepr" ? "Sweepr Coverage Program" : "My Own Policy"}
-          </button>
-        ))}
-      </div>
-
-      {tab === "sweepr" ? (
-        <Card className="space-y-4">
-          <div className="flex items-start gap-3">
-            <Shield className="h-6 w-6 text-seafoam-500 mt-0.5 shrink-0" />
-            <div>
-              <h3 className="font-semibold text-charcoal">Sweepr Coverage Program</h3>
-              <p className="text-sm text-slate-500 mt-1">
-                $15/month added to your next payout deduction. Covers general liability up to $1M per
-                occurrence while on Sweepr jobs. No paperwork, no renewals.
-              </p>
-            </div>
-          </div>
-
-          <ul className="space-y-2 text-sm text-slate-600 pl-2">
-            {[
-              "$1,000,000 general liability coverage",
-              "Covers property damage during Sweepr jobs",
-              "Included in your existing earnings flow, no separate payment",
-              "Certificate of insurance available on request",
-            ].map((item) => (
-              <li key={item} className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                {item}
-              </li>
-            ))}
-          </ul>
-
-          {record?.coverage_type === "sweepr_program" && record.program_active_since ? (
-            <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700 font-medium">
-              You're enrolled. Coverage is active.
-            </div>
-          ) : !stripeConnected ? (
-            <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
-              <p className="font-medium">Payouts must be set up first</p>
-              <p className="mt-1">
-                Sweepr Coverage is billed through your payouts, so a connected
-                Stripe account is required before you can enroll.
-              </p>
-              <Link to="/earnings" className="mt-2 inline-block font-semibold text-seafoam-700 underline">
-                Set up payouts →
-              </Link>
-            </div>
-          ) : (
-            <>
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 text-sm">
-                <input
-                  type="checkbox"
-                  checked={consentChecked || consentSigned}
-                  disabled={consentSigned}
-                  onChange={(e) => setConsentChecked(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 accent-teal-500"
-                />
-                <span className="text-slate-600">
-                  I have read and agree to the{" "}
-                  <a
-                    href="https://legal.getsweepr.com/insurance-protection"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-medium text-seafoam-700 underline"
-                  >
-                    Insurance Protection Policy
-                  </a>
-                  , and I authorize the monthly coverage fee to be deducted from my payouts.
-                </span>
-              </label>
-              <Button
-                onClick={enrollProgram}
-                loading={enrolling}
-                disabled={!consentChecked && !consentSigned}
-                fullWidth
-              >
-                Enroll, $15/mo
-              </Button>
-            </>
-          )}
-        </Card>
-      ) : (
-        <Card className="space-y-4">
-          <div className="flex items-start gap-3">
-            <Upload className="h-6 w-6 text-seafoam-500 mt-0.5 shrink-0" />
-            <div>
-              <h3 className="font-semibold text-charcoal">Upload Your Own Policy</h3>
-              <p className="text-sm text-slate-500 mt-1">
-                Already covered? Upload your certificate of insurance or declarations page. We require
-                at least $500,000 general liability.
-              </p>
-            </div>
-          </div>
-
-          {/* Coverdash partner quote flow. Purchasing there does NOT auto-link
-              the policy: the COI upload below is still required for approval. */}
-          <div className="rounded-xl border border-seafoam-200 bg-seafoam-50 p-4 dark:border-seafoam-900/40 dark:bg-seafoam-900/20">
-            <p className="font-semibold text-seafoam-800 dark:text-seafoam-200">
-              Don't have a policy yet?
-            </p>
-            <p className="mt-1 text-sm text-seafoam-800/90 dark:text-seafoam-200/90">
-              You can buy general liability coverage through our partner Coverdash.
-              Quotes take a few minutes and coverage can start the same day.
-            </p>
-            <a
-              href={COVERDASH_QUOTE_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-seafoam-600 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-seafoam-700"
-            >
-              Get a quote through Coverdash
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-            <p className="mt-3 text-xs text-seafoam-800/80 dark:text-seafoam-200/80">
-              Heads up: buying through Coverdash doesn't connect the policy to Sweepr
-              automatically. Once your policy is issued, upload your COI below so our
-              team can review and approve it.
+      <Card className="space-y-4">
+        <div className="flex items-start gap-3">
+          <Upload className="h-6 w-6 text-seafoam-500 mt-0.5 shrink-0" />
+          <div>
+            <h3 className="font-semibold text-charcoal">Your liability policy</h3>
+            <p className="text-sm text-slate-500 mt-1">
+              You carry your own general liability insurance as an independent
+              business. Sweepr does not sell or provide coverage. Upload your
+              certificate of insurance (COI) or declarations page here and our
+              team will review it. We require at least $500,000 in general
+              liability.
             </p>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-slate-600 block mb-1">Insurer name</label>
-              <input
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400"
-                value={policyForm.insurerName}
-                onChange={(e) => setPolicyForm((p) => ({ ...p, insurerName: e.target.value }))}
-                placeholder="State Farm, Hiscox…"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-600 block mb-1">Policy number</label>
-              <input
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400"
-                value={policyForm.policyNumber}
-                onChange={(e) => setPolicyForm((p) => ({ ...p, policyNumber: e.target.value }))}
-                placeholder="ABC-123456"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-600 block mb-1">Coverage amount ($)</label>
-              <input
-                type="number"
-                min="500000"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400"
-                value={policyForm.coverageAmountUsd}
-                onChange={(e) => setPolicyForm((p) => ({ ...p, coverageAmountUsd: e.target.value }))}
-                placeholder="1000000"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-600 block mb-1">Policy expiry date</label>
-              <input
-                type="date"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400"
-                value={policyForm.policyExpiresAt}
-                onChange={(e) => setPolicyForm((p) => ({ ...p, policyExpiresAt: e.target.value }))}
-              />
-            </div>
-          </div>
-
-          {record?.coverage_type === "personal_policy" && record.doc_uploaded_at && (
-            <div className="flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-600">
-              <Clock className="h-4 w-4 text-slate-600 shrink-0" />
-              <span>
-                Document uploaded {new Date(record.doc_uploaded_at).toLocaleDateString()} ·{" "}
-                <span className={cn("font-medium", STATUS_COLORS[record.policy_status])}>
-                  {STATUS_LABELS[record.policy_status] ?? record.policy_status}
-                </span>
-              </span>
-            </div>
-          )}
-
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,application/pdf"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-          <Button
-            onClick={() => fileRef.current?.click()}
-            loading={uploading}
-            variant="secondary"
-            fullWidth
-          >
-            {record?.coverage_type === "personal_policy" && record.doc_uploaded_at
-              ? "Replace document"
-              : "Upload COI or declarations page"}
-          </Button>
-
-          <p className="text-xs text-slate-600">
-            Accepted formats: PDF, JPG, PNG, WEBP · Max 10 MB
+        {/* Coverdash affiliate quote flow. Sweepr does not underwrite,
+            resell, or administer this policy — the cleaner buys directly
+            from Coverdash, and the COI upload below is still required. */}
+        <div className="rounded-xl border border-seafoam-200 bg-seafoam-50 p-4 dark:border-seafoam-900/40 dark:bg-seafoam-900/20">
+          <p className="font-semibold text-seafoam-800 dark:text-seafoam-200">
+            Don't have a policy yet?
           </p>
-        </Card>
-      )}
+          <p className="mt-1 text-sm text-seafoam-800/90 dark:text-seafoam-200/90">
+            Coverdash is our insurance partner. You buy the policy from them
+            directly, in your own business's name. Quotes take a few minutes
+            and coverage can start the same day.
+          </p>
+          <a
+            href={COVERDASH_QUOTE_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-seafoam-600 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-seafoam-700"
+          >
+            Get a quote through Coverdash
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+          <p className="mt-3 text-xs text-seafoam-800/80 dark:text-seafoam-200/80">
+            Buying through Coverdash doesn't connect the policy to Sweepr
+            automatically. Once it's issued, upload your COI below so our team
+            can review and approve it.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-medium text-slate-600 block mb-1">Insurer name</label>
+            <input
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400"
+              value={policyForm.insurerName}
+              onChange={(e) => setPolicyForm((p) => ({ ...p, insurerName: e.target.value }))}
+              placeholder="State Farm, Hiscox…"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 block mb-1">Policy number</label>
+            <input
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400"
+              value={policyForm.policyNumber}
+              onChange={(e) => setPolicyForm((p) => ({ ...p, policyNumber: e.target.value }))}
+              placeholder="ABC-123456"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 block mb-1">Coverage amount ($)</label>
+            <input
+              type="number"
+              min="500000"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400"
+              value={policyForm.coverageAmountUsd}
+              onChange={(e) => setPolicyForm((p) => ({ ...p, coverageAmountUsd: e.target.value }))}
+              placeholder="1000000"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 block mb-1">Policy expiry date</label>
+            <input
+              type="date"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-seafoam-400"
+              value={policyForm.policyExpiresAt}
+              onChange={(e) => setPolicyForm((p) => ({ ...p, policyExpiresAt: e.target.value }))}
+            />
+          </div>
+        </div>
+
+        {record?.coverage_type === "personal_policy" && record.doc_uploaded_at && (
+          <div className="flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-600">
+            <Clock className="h-4 w-4 text-slate-600 shrink-0" />
+            <span>
+              Document uploaded {new Date(record.doc_uploaded_at).toLocaleDateString()} ·{" "}
+              <span className={cn("font-medium", STATUS_COLORS[record.policy_status])}>
+                {STATUS_LABELS[record.policy_status] ?? record.policy_status}
+              </span>
+            </span>
+          </div>
+        )}
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,application/pdf"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+        <Button
+          onClick={() => fileRef.current?.click()}
+          loading={uploading}
+          variant="secondary"
+          fullWidth
+        >
+          {record?.coverage_type === "personal_policy" && record.doc_uploaded_at
+            ? "Replace document"
+            : "Upload COI or declarations page"}
+        </Button>
+
+        <p className="text-xs text-slate-600">
+          Accepted formats: PDF, JPG, PNG, WEBP · Max 10 MB
+        </p>
+      </Card>
     </DashboardShell>
   );
 }
