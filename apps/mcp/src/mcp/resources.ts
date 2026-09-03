@@ -16,6 +16,9 @@
 
 import { buildPayloadTemplate } from "./tools";
 import {
+  COURSE_COMPLETION_RULE_TYPES,
+  COURSE_SLIDE_TYPES,
+  describeCourseBlockProps,
   PROMO_CTA_ACTIONS,
   PROMO_CLAIM_ACTIONS,
   PROMO_REQUIRE_FIELDS,
@@ -651,11 +654,14 @@ cleaner works through top to bottom. \`save_course_draft\` and
 
 ## Slides
 Each slide: \`{ title?, slide_type?, slide_order, background?,
-completion_rule?, blocks: [...] }\`. \`slide_order\` controls sequence
-(0-indexed). \`background\` is usually just \`{ color: "#ffffff" }\`.
-\`completion_rule\` defaults to \`{ type: "viewed" }\` (advancing past the
-slide is enough — there's no time-on-slide or scroll requirement to
-configure here yet).
+completion_rule?, blocks: [...] }\`.
+- \`slide_order\` controls sequence (0-indexed).
+- \`slide_type\`: ${COURSE_SLIDE_TYPES.map((t) => `\`"${t}"\``).join(" | ")}.
+- \`background\`: \`{ color?: "#ffffff" }\` — that one key, nothing else.
+- \`completion_rule\`: \`{ type }\`, one of
+  ${COURSE_COMPLETION_RULE_TYPES.map((t) => `\`"${t}"\``).join(" | ")}.
+  Defaults to \`{ type: "viewed" }\`. NOTE: none of these are enforced by
+  the player yet — advancing past a slide is always enough today.
 
 ## Blocks — positioned on a 16:9 canvas, coordinates as PERCENTAGES (0-100)
 Every block: \`{ block_type, x, y, width, height, z_index?, props }\`.
@@ -663,37 +669,35 @@ Every block: \`{ block_type, x, y, width, height, z_index?, props }\`.
 percent of the slide canvas — e.g. \`{x:8, y:8, width:84, height:20}\` is a
 banner near the top spanning almost the full width.
 
-- **text** / **heading** — \`props: { content, size?, weight?, color?,
-  align?, font?, italic?, underline?, lineHeight? }\`.
-- **image** — \`props: { url, caption?, fit?: "cover"|"contain" }\`.
-- **video** — \`props: { streamId }\`. streamId comes from a Cloudflare
-  Stream upload — **this MCP surface cannot upload video** (the admin
-  console's direct-upload flow requires a browser). preview_course flags
-  any video block with no streamId so you know it needs a human to finish.
-- **embed** — \`props: { url }\` (rendered in an iframe).
-- **shape** — \`props: { shape?: "rect"|"ellipse"|"line", fill?, radius?,
-  border?, borderColor?, opacity? }\`.
-- **divider** — \`props: { thickness?, color? }\`.
-- **spacer** — no props; pure layout gap.
-- **callout** — \`props: { variant?: "info"|"warning"|"success"|"tip",
-  title?, body? }\`.
-- **checklist** — \`props: { items: string[] }\` (rendered as checkboxes).
-- **acknowledgment** — \`props: { statement }\` (a single "I acknowledge"
-  checkbox).
-- **button** — \`props: { label?, color? }\` (visual only — it does not yet
-  navigate or gate anything).
-- **quiz** — \`props: { questions: [...] }\`. KNOWN GAP: the learner player
-  currently renders this as an inert "N question(s)" placeholder — it is
-  not interactive, graded, or completion-gating yet. Don't tell a human
-  their quiz will grade cleaners; it won't, today.
+**Props are validated on write, per block type, against the table below** —
+which is generated from the same source the admin editor and the learner
+player read (\`packages/utils/src/courseSchema.ts\`), so it cannot drift
+from what actually renders. An unknown key or a wrong value type is
+REJECTED by \`save_course_draft\` / \`publish_course\` rather than stored.
+Two mistakes this specifically catches, both of which used to save happily
+and then render blank or crash the learner's slide:
+
+- \`{text: "…"}\` on a text/heading block. The key is **\`content\`**.
+- \`items: [{text: "…"}]\` on a checklist. Items are **plain strings**.
+
+Every prop is optional — a block with \`props: {}\` renders its defaults.
+
+${describeCourseBlockProps()}
+
+If you are ever unsure of the shape, build one slide by hand in the admin
+editor and read it back with \`get_course\`: its \`slides\` come back in
+exactly the shape \`save_course_draft\` accepts, so you can copy a
+known-good structure rather than guess.
 
 ## Workflow
 1. \`list_courses\` to see what exists (courses + the legacy modules array,
    so you can see which legacy modules still need a v2 replacement).
 2. \`save_course_draft\` to create (with slides inline, or empty and filled
-   in with a follow-up call) or keep iterating on an existing draft.
-3. \`preview_course\` to sanity-check slide/block counts and quiz question
-   counts before publishing.
+   in with a follow-up call) or keep iterating on an existing draft. If it
+   rejects a block, the error names the block type and the offending key.
+3. \`preview_course\` to sanity-check slide/block counts, quiz question
+   counts, and \`propIssues\` (blocks stored before write validation
+   existed) before publishing.
 4. \`publish_course\` — see sweepr://courses-mcp-exception first.
 `;
 

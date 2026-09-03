@@ -12,6 +12,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useAuth } from "@clerk/clerk-react";
 import { useAppToken } from "@/lib/appToken";
+import { COURSE_CALLOUT_STYLES, courseChecklistItems, courseText } from "@sweepr/utils";
 import { ChevronLeft, ChevronRight, BookOpen, CheckCircle2 } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
@@ -198,13 +199,13 @@ function CoursePlayer({ courseId }: { courseId: string }) {
   );
 }
 
-const CALLOUT_STYLES: Record<string, { bg: string; border: string; text: string }> = {
-  info: { bg: "#eff6ff", border: "#bfdbfe", text: "#1e40af" },
-  warning: { bg: "#fffbeb", border: "#fde68a", text: "#92400e" },
-  success: { bg: "#ecfdf5", border: "#a7f3d0", text: "#065f46" },
-  tip: { bg: "#f5f3ff", border: "#ddd6fe", text: "#5b21b6" },
-};
-
+/**
+ * Every prop that becomes a React child goes through courseText /
+ * courseChecklistItems (@sweepr/utils). Blocks saved before the MCP
+ * validated props can hold an object where a string belongs — rendering that
+ * raw throws React error #31 and blanks the whole slide, so a malformed
+ * block degrades to empty text instead of taking the course down with it.
+ */
 function LearnerBlock({ block }: { block: Block }) {
   const p = block.props;
   switch (block.block_type) {
@@ -218,7 +219,7 @@ function LearnerBlock({ block }: { block: Block }) {
           fontStyle: p.italic ? "italic" : "normal",
           textDecoration: p.underline ? "underline" : "none",
           lineHeight: (p.lineHeight as number) ?? 1.3,
-        }}>{(p.content as string) ?? ""}</div>
+        }}>{courseText(p.content)}</div>
       );
     case "shape": {
       const isEllipse = p.shape === "ellipse";
@@ -235,11 +236,11 @@ function LearnerBlock({ block }: { block: Block }) {
     case "spacer":
       return null;
     case "callout": {
-      const st = CALLOUT_STYLES[(p.variant as string) ?? "info"] ?? CALLOUT_STYLES.info;
+      const st = COURSE_CALLOUT_STYLES[(p.variant as string) ?? "info"] ?? COURSE_CALLOUT_STYLES.info;
       return (
         <div className="h-full w-full overflow-auto rounded-lg p-3" style={{ background: st.bg, border: `1px solid ${st.border}`, color: st.text }}>
-          <div className="text-sm font-semibold">{(p.title as string) ?? "Note"}</div>
-          <div className="mt-0.5 text-xs">{(p.body as string) ?? ""}</div>
+          <div className="text-sm font-semibold">{courseText(p.title) || "Note"}</div>
+          <div className="mt-0.5 text-xs">{courseText(p.body)}</div>
         </div>
       );
     }
@@ -249,8 +250,8 @@ function LearnerBlock({ block }: { block: Block }) {
       ) : null;
     case "image":
       return (p.url as string) ? (
-        <img src={p.url as string} alt={(p.caption as string) ?? ""} className="h-full w-full rounded-lg"
-          style={{ objectFit: (p.fit as "cover") ?? "cover" }} />
+        <img src={p.url as string} alt={courseText(p.caption)} className="h-full w-full"
+          style={{ objectFit: (p.fit as "cover") ?? "cover", borderRadius: `${(p.radius as number) ?? 12}px` }} />
       ) : null;
     case "video":
       return (p.streamId as string) ? (
@@ -267,21 +268,21 @@ function LearnerBlock({ block }: { block: Block }) {
     case "button":
       return (
         <div className="grid h-full w-full place-items-center rounded-lg text-sm font-semibold text-white" style={{ background: (p.color as string) ?? "#14b8a6" }}>
-          {(p.label as string) ?? "Button"}
+          {courseText(p.label) || "Button"}
         </div>
       );
     case "checklist":
       return (
         <div className="h-full w-full overflow-auto rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
-          {((p.items as string[]) ?? []).map((it) => (
-            <label key={it} className="flex items-center gap-2 py-0.5"><input type="checkbox" /> {it}</label>
+          {courseChecklistItems(p.items).map((it, i) => (
+            <label key={i} className="flex items-center gap-2 py-0.5"><input type="checkbox" /> {it}</label>
           ))}
         </div>
       );
     case "acknowledgment":
       return (
         <label className="flex h-full w-full items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
-          <input type="checkbox" /> {(p.statement as string) ?? "I acknowledge."}
+          <input type="checkbox" /> {courseText(p.statement) || "I acknowledge."}
         </label>
       );
     case "quiz":

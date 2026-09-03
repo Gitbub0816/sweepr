@@ -22,6 +22,7 @@
  *     cleanly when it isn't)
  */
 import { describe, it, expect } from "vitest";
+import { COURSE_BLOCK_DEFAULTS, COURSE_BLOCK_TYPES } from "@sweepr/utils";
 import { callTool, TOOL_DEFS, ToolError, type ToolContext } from "../src/mcp/tools";
 import { COURSE_TOOL_NAMES } from "../src/mcp/courseTools";
 import type { Sql } from "../src/lib/db";
@@ -201,6 +202,116 @@ describe("save_course_draft — draft-only writes", () => {
   it("rejects a caller who fails the courses admin gate", async () => {
     const { ctx } = ctxWith(() => [], NON_ADMIN_EMAIL); // no users row → no_user_row
     await expect(callTool(ctx, "save_course_draft", { title: "x" })).rejects.toThrow(/Not authorized/);
+  });
+});
+
+describe("block prop validation — rejects what the renderers can't render", () => {
+  function saveWith(blocks: unknown[]) {
+    const { ctx } = ctxWith((text) => {
+      if (text.includes("SELECT id FROM courses WHERE id")) return [{ id: COURSE_ID }];
+      if (text.includes("SELECT id FROM course_versions WHERE course_id")) return [{ id: "v-draft" }];
+      if (text.includes("INSERT INTO course_slides")) return [{ id: "s1" }];
+      if (text.includes("FROM courses WHERE id")) return [courseRow()];
+      return [];
+    });
+    return callTool(ctx, "save_course_draft", {
+      id: COURSE_ID,
+      slides: [{ slide_order: 0, blocks }],
+    });
+  }
+
+  const geom = { x: 0, y: 0, width: 50, height: 20 };
+
+  it("REJECTS checklist items as objects — the shape that crashed the player with React error #31", async () => {
+    await expect(
+      saveWith([{ block_type: "checklist", ...geom, props: { items: [{ text: "Ring the bell" }] } }]),
+    ).rejects.toThrow(/items must be an array of plain strings.*objects like/s);
+  });
+
+  it("accepts checklist items as plain strings", async () => {
+    const out = (await saveWith([
+      { block_type: "checklist", ...geom, props: { items: ["Ring the bell", "Photograph every room"] } },
+    ])) as { saved: boolean };
+    expect(out.saved).toBe(true);
+  });
+
+  it("REJECTS `text` on a text block — the key is `content`, and `text` would render blank", async () => {
+    await expect(
+      saveWith([{ block_type: "text", ...geom, props: { text: "hello" } }]),
+    ).rejects.toThrow(/"text" is not a prop of a text block.*content/s);
+  });
+
+  it("REJECTS `content` on a callout — a callout's copy key is `body`", async () => {
+    await expect(
+      saveWith([{ block_type: "callout", ...geom, props: { title: "Note", content: "hi" } }]),
+    ).rejects.toThrow(/"content" is not a prop of a callout block/);
+  });
+
+  it("REJECTS a value of the wrong type, and an out-of-set enum value", async () => {
+    await expect(
+      saveWith([{ block_type: "text", ...geom, props: { content: "hi", size: "20px" } }]),
+    ).rejects.toThrow(/text\.size must be a number/);
+    await expect(
+      saveWith([{ block_type: "callout", ...geom, props: { variant: "danger" } }]),
+    ).rejects.toThrow(/callout\.variant must be one of: info, warning, success, tip/);
+  });
+
+  it("REJECTS props on a spacer, which takes none", async () => {
+    await expect(
+      saveWith([{ block_type: "spacer", ...geom, props: { content: "x" } }]),
+    ).rejects.toThrow(/a spacer block takes no props/);
+  });
+
+  it("accepts every block type's documented defaults verbatim", async () => {
+    const blocks = COURSE_BLOCK_TYPES.map((t) => ({
+      block_type: t,
+      ...geom,
+      props: COURSE_BLOCK_DEFAULTS[t].props,
+    }));
+    const out = (await saveWith(blocks)) as { saved: boolean };
+    expect(out.saved).toBe(true);
+  });
+
+  it("names the offending slide and block in the error path", async () => {
+    await expect(
+      saveWith([{ block_type: "text", ...geom, props: { content: "ok" } }, { block_type: "text", ...geom, props: { nope: 1 } }]),
+    ).rejects.toThrow(/slides\.0\.blocks\.1\.props/);
+  });
+});
+
+describe("get_course round-trips into save_course_draft", () => {
+  it("returns slides in exactly the shape save_course_draft accepts, and flags stored blocks that don't validate", async () => {
+    const storedBlock = {
+      id: "b1", slide_id: "s1", block_type: "checklist",
+      x: 1, y: 2, width: 3, height: 4, z_index: 0,
+      props: { items: [{ text: "saved before validation existed" }] },
+    };
+    const { ctx } = ctxWith((text) => {
+      if (text.includes("FROM courses WHERE id")) return [courseRow()];
+      if (text.includes("ORDER BY (status = 'draft')")) return [{ id: "v-draft", course_id: COURSE_ID, version_number: 2, status: "draft" }];
+      if (text.includes("FROM course_slides")) {
+        return [{ id: "s1", course_version_id: "v-draft", title: "Intro", slide_type: "content", slide_order: 0, background: { color: "#fff" }, completion_rule: { type: "viewed" } }];
+      }
+      if (text.includes("FROM slide_blocks")) return [storedBlock];
+      return [];
+    });
+    const out = (await callTool(ctx, "get_course", { id: COURSE_ID })) as {
+      slides: Array<{ blocks: Array<Record<string, unknown>> }>;
+      propIssues: Array<{ blockId: string; problems: string[] }>;
+    };
+
+    // DB-internal keys the save schema has no field for are dropped.
+    const block = out.slides[0].blocks[0];
+    expect(block).not.toHaveProperty("slide_id");
+    expect(out.slides[0]).not.toHaveProperty("course_version_id");
+    expect(Object.keys(block).sort()).toEqual(
+      ["block_type", "height", "id", "props", "width", "x", "y", "z_index"],
+    );
+
+    // …and the malformed stored props are reported rather than passed off as fine.
+    expect(out.propIssues).toHaveLength(1);
+    expect(out.propIssues[0].blockId).toBe("b1");
+    expect(out.propIssues[0].problems[0]).toMatch(/plain strings/);
   });
 });
 

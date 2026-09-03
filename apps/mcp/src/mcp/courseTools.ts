@@ -74,6 +74,13 @@
  */
 
 import { z } from "zod";
+import {
+  COURSE_BLOCK_TYPES,
+  COURSE_COMPLETION_RULE_TYPES,
+  COURSE_SLIDE_TYPES,
+  describeCourseBlockProps,
+  validateCourseBlockProps,
+} from "@sweepr/utils";
 import { verifyAdminForCourses } from "../lib/adminAuth";
 import { ToolError, type ToolContext } from "./toolContext";
 import type { ToolDef } from "./tools";
@@ -86,32 +93,45 @@ export const COURSE_TOOL_NAMES = [
   "publish_course",
 ] as const;
 
-// ── zod schema (mirrors apps/api/src/routes/admin/courses.ts field-for-field) ──
+// ── zod schema ──────────────────────────────────────────────────────────────
+// Geometry mirrors apps/api/src/routes/admin/courses.ts field-for-field. The
+// PROPS, though, are validated per block type against @sweepr/utils's
+// courseSchema — the same table both renderers read — instead of the
+// `Record<string, unknown>` the admin route still accepts. A prop key the
+// renderers don't understand is rejected here rather than stored, because
+// storing it means a block that renders blank (or, for the object-shaped
+// checklist items this used to accept, a slide that crashes the player).
 
-const BLOCK_TYPES = [
-  "text", "heading", "image", "video", "embed",
-  "shape", "divider", "spacer", "callout",
-  "quiz", "button", "checklist", "acknowledgment",
-] as const;
-
-const blockSchema = z.object({
-  id: z.string().uuid().optional(),
-  block_type: z.enum(BLOCK_TYPES),
-  x: z.number(),
-  y: z.number(),
-  width: z.number(),
-  height: z.number(),
-  z_index: z.number().int().default(0),
-  props: z.record(z.unknown()).default({}),
-});
+const blockSchema = z
+  .object({
+    id: z.string().uuid().optional(),
+    block_type: z.enum(COURSE_BLOCK_TYPES),
+    x: z.number(),
+    y: z.number(),
+    width: z.number(),
+    height: z.number(),
+    z_index: z.number().int().default(0),
+    props: z.record(z.unknown()).default({}),
+  })
+  .superRefine((block, ctx) => {
+    for (const message of validateCourseBlockProps(block.block_type, block.props)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message, path: ["props"] });
+    }
+  });
 
 const slideSchema = z.object({
   id: z.string().uuid().optional(),
   title: z.string().nullable().optional(),
-  slide_type: z.string().default("content"),
+  slide_type: z.enum(COURSE_SLIDE_TYPES).default("content"),
   slide_order: z.number().int(),
-  background: z.record(z.unknown()).default({}),
-  completion_rule: z.record(z.unknown()).default({ type: "viewed" }),
+  background: z
+    .object({ color: z.string().max(80).optional() })
+    .strict()
+    .default({}),
+  completion_rule: z
+    .object({ type: z.enum(COURSE_COMPLETION_RULE_TYPES) })
+    .strict()
+    .default({ type: "viewed" }),
   blocks: z.array(blockSchema).max(100).default([]),
 });
 
@@ -132,14 +152,17 @@ const saveArgsSchema = z.object({
 
 const slidesArgDescription =
   "Full slide list (wholesale replace — matches the admin editor's own " +
-  "autosave semantics): [{ id?, title?, slide_type?, slide_order, " +
-  "background?, completion_rule?, blocks: [{ id?, block_type: 'text'|" +
-  "'heading'|'image'|'video'|'embed'|'shape'|'divider'|'spacer'|'callout'|" +
-  "'quiz'|'button'|'checklist'|'acknowledgment', x, y, width, height, " +
-  "z_index?, props }] }]. x/y/width/height are percentages of a 16:9 " +
-  "canvas (0-100). props is block-type-specific — see the " +
-  "sweepr://courses-design-guide resource for the shape of every block " +
-  "type's props before calling this with slides.";
+  "autosave semantics): [{ id?, title?, slide_type?: 'content'|'title'|" +
+  "'section'|'assessment', slide_order, background?: {color?}, " +
+  "completion_rule?: {type}, blocks: [{ id?, block_type, x, y, width, " +
+  "height, z_index?, props }] }]. x/y/width/height are percentages of a " +
+  "16:9 canvas (0-100). EVERY block type has its own fixed set of prop " +
+  "keys, validated on write against the exact table both renderers read — " +
+  "an unknown key (e.g. `text` on a text block, whose key is `content`) or " +
+  "a wrong value type (e.g. checklist `items` as [{text}] rather than " +
+  "[\"…\"]) is REJECTED, not stored. Read sweepr://courses-design-guide, " +
+  "or round-trip get_course's output, for the exact per-type shape:\n" +
+  describeCourseBlockProps();
 
 export const COURSE_TOOL_DEFS: ToolDef[] = [
   {
@@ -151,7 +174,7 @@ export const COURSE_TOOL_DEFS: ToolDef[] = [
   {
     name: "get_course",
     description:
-      "READ-ONLY: fetch one course by id, including its slides and blocks. By default returns the editable DRAFT version (what get_course + save_course_draft round-trip on); pass published:true to instead see the currently LIVE version a cleaner is actually served — useful to compare what's live against what you're editing.",
+      "READ-ONLY: fetch one course by id. Its `slides` come back in EXACTLY the shape save_course_draft's `slides` argument takes, so a course built by hand in the admin editor can be read here and passed straight back to save_course_draft — the reliable way to copy a known-good block structure. By default returns the editable DRAFT version; pass published:true to instead see the currently LIVE version a cleaner is served. Any stored block whose props don't match the schema (content saved before write validation existed) is listed under `propIssues` rather than silently returned as valid.",
     inputSchema: {
       type: "object",
       properties: {
@@ -183,7 +206,7 @@ export const COURSE_TOOL_DEFS: ToolDef[] = [
   {
     name: "preview_course",
     description:
-      "READ-ONLY / pure computation: summarize a course's DRAFT (default) or published slides — per-slide title, block-type counts, and for any quiz block its question count — without needing to read the raw slide/block JSON yourself. Flags any video block missing a streamId (Cloudflare Stream video must be uploaded through the admin console; this MCP surface cannot upload video).",
+      "READ-ONLY / pure computation: summarize a course's DRAFT (default) or published slides — per-slide title, block-type counts, and for any quiz block its question count — without reading the raw slide/block JSON yourself. Flags video blocks missing a streamId (this MCP surface cannot upload video) AND any block whose stored props fail schema validation, which is how you find blocks saved before write validation existed that render blank or break the learner's slide.",
     inputSchema: {
       type: "object",
       properties: {
@@ -306,6 +329,54 @@ async function fetchSlidesWithBlocks(
   return slides.map((s) => ({ ...s, blocks: blocks.filter((b) => b.slide_id === s.id) }));
 }
 
+/**
+ * Re-shape stored rows into EXACTLY the `slides` argument save_course_draft
+ * takes, so get_course → save_course_draft is a clean round-trip: a course
+ * assembled by hand in the admin editor can be read here and handed straight
+ * back, which is the reliable way to copy a known-good block structure. Drops
+ * only the DB-internal keys (course_version_id, slide_id) the save schema
+ * has no field for.
+ */
+function toSaveShape(slides: Array<SlideRow & { blocks: BlockRow[] }>) {
+  return slides.map((s) => ({
+    id: s.id,
+    title: s.title,
+    slide_type: s.slide_type,
+    slide_order: s.slide_order,
+    background: s.background,
+    completion_rule: s.completion_rule,
+    blocks: s.blocks.map((b) => ({
+      id: b.id,
+      block_type: b.block_type,
+      x: b.x,
+      y: b.y,
+      width: b.width,
+      height: b.height,
+      z_index: b.z_index,
+      props: b.props,
+    })),
+  }));
+}
+
+/**
+ * Schema problems in blocks ALREADY stored. Content written before this tool
+ * validated props can hold keys no renderer reads (renders blank) or values
+ * of the wrong type (crashed the learner's slide, for object-shaped
+ * checklist items). Surfacing them on read is how an author finds them.
+ */
+function collectPropIssues(slides: Array<SlideRow & { blocks: BlockRow[] }>) {
+  const issues: Array<{ slideId: string; blockId: string; blockType: string; problems: string[] }> = [];
+  for (const s of slides) {
+    for (const b of s.blocks) {
+      const problems = validateCourseBlockProps(b.block_type, b.props);
+      if (problems.length) {
+        issues.push({ slideId: s.id, blockId: b.id, blockType: b.block_type, problems });
+      }
+    }
+  }
+  return issues;
+}
+
 /** The draft version to read/write: the latest status='draft' row, or (for
  *  reads only) the latest version overall if somehow none is a draft. */
 async function resolveVersion(
@@ -388,8 +459,21 @@ export async function callCourseTool(
       const [course] = (await ctx.sql`SELECT * FROM courses WHERE id = ${id} LIMIT 1`) as CourseRow[];
       if (!course) throw new ToolError("No course with that id.");
       const version = await resolveVersion(ctx, id, published);
-      const slides = version ? await fetchSlidesWithBlocks(ctx, version.id) : [];
-      return { course, version, slides };
+      const rows = version ? await fetchSlidesWithBlocks(ctx, version.id) : [];
+      const propIssues = collectPropIssues(rows);
+      return {
+        course,
+        version,
+        // Exactly save_course_draft's `slides` shape — pass it straight back.
+        slides: toSaveShape(rows),
+        propIssues,
+        ...(propIssues.length
+          ? {
+              note:
+                "Some stored blocks have props that fail schema validation (see propIssues). They were saved before this tool validated props; fix them and save_course_draft will accept the corrected slides.",
+            }
+          : {}),
+      };
     }
 
     case "preview_course": {
@@ -401,12 +485,14 @@ export async function callCourseTool(
       const version = await resolveVersion(ctx, id, published);
       if (!version) return { course: { id: course.id, title: course.title }, slideCount: 0, slides: [] };
       const slides = await fetchSlidesWithBlocks(ctx, version.id);
+      const propIssues = collectPropIssues(slides);
       return {
         course: { id: course.id, title: course.title, status: course.status, replacesModuleId: course.replaces_module_id },
         versionNumber: version.version_number,
         versionStatus: version.status,
         slideCount: slides.length,
         slides: describeSlides(slides),
+        propIssues,
       };
     }
 

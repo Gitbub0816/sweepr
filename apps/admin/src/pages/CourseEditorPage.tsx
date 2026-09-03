@@ -12,6 +12,13 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useAuth } from "@clerk/clerk-react";
 import {
+  COURSE_BLOCK_DEFAULTS,
+  COURSE_CALLOUT_STYLES,
+  COURSE_FONTS,
+  courseChecklistItems,
+  courseText,
+} from "@sweepr/utils";
+import {
   Undo2, Redo2, Plus, Type, Heading, Image as ImageIcon, Video, ListChecks,
   CheckSquare, MousePointerClick, HelpCircle, Eye, Send, ChevronLeft,
   Copy, Trash2, Save, Palette, Square, Minus, MessageSquare,
@@ -48,23 +55,12 @@ interface Slide {
 const uid = () =>
   (crypto.randomUUID ? crypto.randomUUID() : `tmp-${Math.random().toString(36).slice(2)}`);
 
-const FONTS = ["Inter", "Georgia", "Arial", "Times New Roman", "Courier New", "Verdana"];
-
-const BLOCK_DEFAULTS: Record<BlockType, Partial<Block>> = {
-  heading: { width: 80, height: 14, props: { content: "Slide title", size: 40, weight: 700, color: "#0f172a", align: "left", font: "Inter", italic: false, underline: false } },
-  text: { width: 70, height: 16, props: { content: "Add your text here", size: 20, weight: 400, color: "#334155", align: "left", font: "Inter", italic: false, underline: false, lineHeight: 1.4 } },
-  image: { width: 50, height: 50, props: { url: "", caption: "", fit: "cover", radius: 12 } },
-  video: { width: 60, height: 55, props: { streamId: "", requireWatchPercent: 95, allowSkip: false } },
-  embed: { width: 60, height: 55, props: { url: "" } },
-  shape: { width: 26, height: 26, props: { shape: "rect", fill: "#2DD4BF", border: 0, borderColor: "#0f766e", radius: 12, opacity: 1 } },
-  divider: { width: 60, height: 2, props: { color: "#cbd5e1", thickness: 2 } },
-  spacer: { width: 40, height: 8, props: {} },
-  callout: { width: 64, height: 22, props: { variant: "info", title: "Note", body: "Important information for the learner." } },
-  quiz: { width: 70, height: 44, props: { passingScore: 80, questions: [] } },
-  button: { width: 28, height: 10, props: { label: "Next", action: "next", color: "#14b8a6" } },
-  checklist: { width: 60, height: 30, props: { items: ["First step", "Second step"] } },
-  acknowledgment: { width: 70, height: 14, props: { statement: "I acknowledge this policy.", method: "checkbox" } },
-};
+// Fonts, block defaults and the callout palette all come from
+// @sweepr/utils's courseSchema — the single source of truth this editor, the
+// learner player, and the MCP course tools' write validation all read, so a
+// block this editor can produce is always a block the other two understand.
+const FONTS = COURSE_FONTS;
+const BLOCK_DEFAULTS = COURSE_BLOCK_DEFAULTS;
 
 const INSERT_GROUPS: { label: string; items: { type: BlockType; label: string; icon: typeof Type }[] }[] = [
   {
@@ -133,9 +129,11 @@ const SLIDE_LAYOUTS: { id: string; label: string; build: () => Block[] }[] = [
 ];
 
 function mk(type: BlockType, over: Partial<Block> & { props?: Record<string, unknown> }): Block {
+  // Every entry in COURSE_BLOCK_DEFAULTS supplies width/height, so this
+  // spreads size from the shared schema and only x/y/z_index are seeded here.
   const def = BLOCK_DEFAULTS[type];
   return {
-    id: uid(), block_type: type, x: 8, y: 8, width: 40, height: 16, z_index: 0,
+    id: uid(), block_type: type, x: 8, y: 8, z_index: 0,
     ...def, ...over,
     props: { ...(def.props ?? {}), ...(over.props ?? {}) },
   } as Block;
@@ -677,13 +675,6 @@ function BlockView({ block, selected, editing, preview, onSelect, onStartEdit, o
   );
 }
 
-const CALLOUT_STYLES: Record<string, { bg: string; border: string; text: string }> = {
-  info: { bg: "#eff6ff", border: "#bfdbfe", text: "#1e40af" },
-  warning: { bg: "#fffbeb", border: "#fde68a", text: "#92400e" },
-  success: { bg: "#ecfdf5", border: "#a7f3d0", text: "#065f46" },
-  tip: { bg: "#f5f3ff", border: "#ddd6fe", text: "#5b21b6" },
-};
-
 function BlockContent({ block, editing, onEditContent, onEndEdit }: {
   block: Block; editing: boolean; onEditContent: (v: string) => void; onEndEdit: () => void;
 }) {
@@ -705,7 +696,7 @@ function BlockContent({ block, editing, onEditContent, onEndEdit }: {
       return editing ? (
         <textarea
           autoFocus
-          defaultValue={(p.content as string) ?? ""}
+          defaultValue={courseText(p.content)}
           onBlur={(e) => { onEditContent(e.target.value); onEndEdit(); }}
           onKeyDown={(e) => { if (e.key === "Escape") (e.target as HTMLTextAreaElement).blur(); }}
           className="h-full w-full resize-none bg-transparent outline-none"
@@ -713,12 +704,12 @@ function BlockContent({ block, editing, onEditContent, onEndEdit }: {
         />
       ) : (
         <div className="h-full w-full overflow-hidden whitespace-pre-wrap" style={textStyle}>
-          {(p.content as string) ?? ""}
+          {courseText(p.content)}
         </div>
       );
     case "image":
       return (p.url as string) ? (
-        <img src={p.url as string} alt={(p.caption as string) ?? ""} className="h-full w-full"
+        <img src={p.url as string} alt={courseText(p.caption)} className="h-full w-full"
           style={{ objectFit: (p.fit as "cover") ?? "cover", borderRadius: `${(p.radius as number) ?? 12}px` }} />
       ) : (
         <div className="grid h-full w-full place-items-center bg-slate-100 text-xs text-slate-600" style={{ borderRadius: `${(p.radius as number) ?? 12}px` }}>
@@ -755,24 +746,24 @@ function BlockContent({ block, editing, onEditContent, onEndEdit }: {
     case "spacer":
       return <div className="h-full w-full" />;
     case "callout": {
-      const st = CALLOUT_STYLES[(p.variant as string) ?? "info"] ?? CALLOUT_STYLES.info;
+      const st = COURSE_CALLOUT_STYLES[(p.variant as string) ?? "info"] ?? COURSE_CALLOUT_STYLES.info;
       return (
         <div className="h-full w-full overflow-hidden rounded-lg p-3" style={{ background: st.bg, border: `1px solid ${st.border}`, color: st.text }}>
-          <div className="text-sm font-semibold">{(p.title as string) ?? "Note"}</div>
-          <div className="mt-0.5 text-xs">{(p.body as string) ?? ""}</div>
+          <div className="text-sm font-semibold">{courseText(p.title) || "Note"}</div>
+          <div className="mt-0.5 text-xs">{courseText(p.body)}</div>
         </div>
       );
     }
     case "button":
       return (
         <div className="grid h-full w-full place-items-center rounded-lg text-sm font-semibold text-white" style={{ background: (p.color as string) ?? "#14b8a6" }}>
-          {(p.label as string) ?? "Button"}
+          {courseText(p.label) || "Button"}
         </div>
       );
     case "checklist":
       return (
         <div className="h-full w-full overflow-hidden rounded-lg bg-slate-50 p-2 text-xs text-slate-700">
-          {((p.items as string[]) ?? []).map((it, i) => (
+          {courseChecklistItems(p.items).map((it, i) => (
             <div key={i} className="flex items-center gap-1.5 py-0.5"><CheckSquare className="h-3 w-3 text-slate-600" />{it}</div>
           ))}
         </div>
@@ -780,7 +771,7 @@ function BlockContent({ block, editing, onEditContent, onEndEdit }: {
     case "acknowledgment":
       return (
         <div className="flex h-full w-full items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
-          <CheckSquare className="h-4 w-4" />{(p.statement as string) ?? "I acknowledge."}
+          <CheckSquare className="h-4 w-4" />{courseText(p.statement) || "I acknowledge."}
         </div>
       );
     case "quiz":
@@ -799,7 +790,7 @@ function ThumbBlock({ block }: { block: Block }) {
   const p = block.props;
   const common: React.CSSProperties = { left: `${block.x}%`, top: `${block.y}%`, width: `${block.width}%`, height: `${block.height}%`, position: "absolute" };
   if (block.block_type === "heading" || block.block_type === "text") {
-    return <div style={{ ...common, color: (p.color as string) ?? "#0f172a", fontSize: 4, overflow: "hidden", fontWeight: (p.weight as number) ?? 400, textAlign: (p.align as "left") ?? "left" }}>{(p.content as string) ?? ""}</div>;
+    return <div style={{ ...common, color: (p.color as string) ?? "#0f172a", fontSize: 4, overflow: "hidden", fontWeight: (p.weight as number) ?? 400, textAlign: (p.align as "left") ?? "left" }}>{courseText(p.content)}</div>;
   }
   if (block.block_type === "shape") {
     return <div style={{ ...common, background: (p.fill as string) ?? "#2DD4BF", borderRadius: p.shape === "ellipse" ? "50%" : 2 }} />;
@@ -1037,7 +1028,7 @@ function BlockInspector({ block, onChange, onGeom, onDelete }: {
       {(block.block_type === "text" || block.block_type === "heading") && (
         <>
           <Field label="Content">
-            <textarea className={inputCls} rows={3} value={(p.content as string) ?? ""} onChange={(e) => onChange({ content: e.target.value })} />
+            <textarea className={inputCls} rows={3} value={courseText(p.content)} onChange={(e) => onChange({ content: e.target.value })} />
           </Field>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Size"><input type="number" className={inputCls} value={(p.size as number) ?? 18} onChange={(e) => onChange({ size: Number(e.target.value) })} /></Field>
@@ -1055,7 +1046,7 @@ function BlockInspector({ block, onChange, onGeom, onDelete }: {
       {block.block_type === "image" && (
         <>
           <Field label="Image URL"><input className={inputCls} value={(p.url as string) ?? ""} onChange={(e) => onChange({ url: e.target.value })} placeholder="https://…" /></Field>
-          <Field label="Caption"><input className={inputCls} value={(p.caption as string) ?? ""} onChange={(e) => onChange({ caption: e.target.value })} /></Field>
+          <Field label="Caption"><input className={inputCls} value={courseText(p.caption)} onChange={(e) => onChange({ caption: e.target.value })} /></Field>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Fit">
               <select className={inputCls} value={(p.fit as string) ?? "cover"} onChange={(e) => onChange({ fit: e.target.value })}>
@@ -1098,8 +1089,8 @@ function BlockInspector({ block, onChange, onGeom, onDelete }: {
               <option value="success">Success</option><option value="tip">Tip</option>
             </select>
           </Field>
-          <Field label="Title"><input className={inputCls} value={(p.title as string) ?? ""} onChange={(e) => onChange({ title: e.target.value })} /></Field>
-          <Field label="Body"><textarea className={inputCls} rows={3} value={(p.body as string) ?? ""} onChange={(e) => onChange({ body: e.target.value })} /></Field>
+          <Field label="Title"><input className={inputCls} value={courseText(p.title)} onChange={(e) => onChange({ title: e.target.value })} /></Field>
+          <Field label="Body"><textarea className={inputCls} rows={3} value={courseText(p.body)} onChange={(e) => onChange({ body: e.target.value })} /></Field>
         </>
       )}
 
@@ -1124,7 +1115,7 @@ function BlockInspector({ block, onChange, onGeom, onDelete }: {
 
       {block.block_type === "button" && (
         <>
-          <Field label="Label"><input className={inputCls} value={(p.label as string) ?? ""} onChange={(e) => onChange({ label: e.target.value })} /></Field>
+          <Field label="Label"><input className={inputCls} value={courseText(p.label)} onChange={(e) => onChange({ label: e.target.value })} /></Field>
           <Field label="Color"><input type="color" className="h-9 w-full rounded border border-slate-300 bg-white" value={(p.color as string) ?? "#14b8a6"} onChange={(e) => onChange({ color: e.target.value })} /></Field>
           <Field label="Action">
             <select className={inputCls} value={(p.action as string) ?? "next"} onChange={(e) => onChange({ action: e.target.value })}>
@@ -1140,14 +1131,14 @@ function BlockInspector({ block, onChange, onGeom, onDelete }: {
 
       {block.block_type === "checklist" && (
         <Field label="Items (one per line)">
-          <textarea className={inputCls} rows={5} value={((p.items as string[]) ?? []).join("\n")}
+          <textarea className={inputCls} rows={5} value={courseChecklistItems(p.items).join("\n")}
             onChange={(e) => onChange({ items: e.target.value.split("\n").filter(Boolean) })} />
         </Field>
       )}
 
       {block.block_type === "acknowledgment" && (
         <>
-          <Field label="Statement"><textarea className={inputCls} rows={3} value={(p.statement as string) ?? ""} onChange={(e) => onChange({ statement: e.target.value })} /></Field>
+          <Field label="Statement"><textarea className={inputCls} rows={3} value={courseText(p.statement)} onChange={(e) => onChange({ statement: e.target.value })} /></Field>
           <Field label="Method">
             <select className={inputCls} value={(p.method as string) ?? "checkbox"} onChange={(e) => onChange({ method: e.target.value })}>
               <option value="checkbox">Checkbox</option><option value="typed_name">Typed name</option>
