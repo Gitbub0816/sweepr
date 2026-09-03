@@ -228,20 +228,44 @@ public actor ClerkAPI {
         _ = try? await post("v1/client/sessions/\(sessionId)/remove", [], as: ClerkSession.self)
     }
 
+    /// This device's Clerk client (sessions + any in-flight sign-in/up).
+    public func fetchClient() async throws -> ClerkClientState {
+        try await request(method: "GET", path: "v1/client", fields: [], as: ClerkClientState.self)
+    }
+
+    /// End every session on this device's Clerk client. Best-effort by design:
+    /// used to clear ceremony residue — a session left behind when the broker
+    /// hand-off failed midway — so a fresh sign-in/sign-up can start instead of
+    /// dead-ending on Clerk's single-session `session_exists` refusal.
+    public func signOutAllSessions() async {
+        guard let client = try? await fetchClient() else { return }
+        for session in client.sessions ?? [] {
+            await removeSession(sessionId: session.id)
+        }
+    }
+
     // MARK: Core request
 
     private func post<T: Decodable>(_ path: String, _ fields: [(String, String)], as type: T.Type) async throws -> T {
+        try await request(method: "POST", path: path, fields: fields, as: type)
+    }
+
+    private func request<T: Decodable>(
+        method: String, path: String, fields: [(String, String)], as type: T.Type
+    ) async throws -> T {
         guard let url = URL(string: "\(config.baseURL.absoluteString)/\(path)?_is_native=1") else {
             throw ClerkAPIError.transport("bad URL")
         }
         var req = URLRequest(url: url)
-        req.httpMethod = "POST"
-        req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        req.httpMethod = method
         req.setValue("application/json", forHTTPHeaderField: "Accept")
         if let clientToken = vault.get(.clerkClientToken) {
             req.setValue(clientToken, forHTTPHeaderField: "Authorization")
         }
-        req.httpBody = Data(Self.formEncode(fields).utf8)
+        if method != "GET" {
+            req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+            req.httpBody = Data(Self.formEncode(fields).utf8)
+        }
 
         let data: Data
         let http: HTTPURLResponse

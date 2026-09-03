@@ -286,6 +286,90 @@ final class AuthEngineTests: XCTestCase {
         })
     }
 
+    // A session left on the device's Clerk client (e.g. the broker hand-off
+    // failed after Clerk sign-in succeeded) must be cleared and the ceremony
+    // retried — not dead-end the auth wall with "you're already signed in".
+    private let sessionExistsError = """
+    {"errors":[{"message":"Session already exists.",
+     "long_message":"You're currently in single session mode. You can only be signed into one account at a time.",
+     "code":"session_exists"}]}
+    """
+    private let staleClientState = """
+    {"response":{"object":"client","sessions":[{"id":"sess_stale","status":"active"}],
+     "last_active_session_id":"sess_stale"}}
+    """
+
+    func testStaleClerkSessionIsClearedThenSignInRetries() async throws {
+        let transport = ScriptedTransport()
+        transport.on("/v1/client/sign_ins?", status: 403, body: sessionExistsError)
+        transport.on("/v1/client?", body: staleClientState)
+        transport.on("/sessions/sess_stale/remove", body: #"{"response":{"id":"sess_stale","status":"removed"}}"#)
+        transport.on("/v1/client/sign_ins?", body: completeSignIn)
+        transport.on("/sessions/sess_1/tokens", body: sessionTokenReply)
+        transport.on("/mobile-auth/session", body: brokerGrantReply)
+        transport.on("/sessions/sess_1/remove", body: #"{"response":{"id":"sess_1"}}"#)
+
+        let (engine, provider, vault) = makeStack(transport: transport)
+        let step = try await engine.signIn(identifier: "user@example.com", password: "pw")
+
+        XCTAssertEqual(step, .complete)
+        XCTAssertEqual(vault.get(.brokerSessionToken), "broker-opaque-token")
+        XCTAssertTrue(provider.hasPersistedSession)
+        // The stale session was explicitly removed before the retry.
+        XCTAssertTrue(transport.requests.contains {
+            ($0.url?.absoluteString ?? "").contains("/sessions/sess_stale/remove")
+        })
+    }
+
+    func testStaleClerkSessionIsClearedThenSignUpRetries() async throws {
+        let transport = ScriptedTransport()
+        transport.on("/v1/client/sign_ups?", status: 403, body: sessionExistsError)
+        transport.on("/v1/client?", body: staleClientState)
+        transport.on("/sessions/sess_stale/remove", body: #"{"response":{"id":"sess_stale","status":"removed"}}"#)
+        transport.on("/v1/client/sign_ups?", body: """
+        {"response":{"object":"sign_up_attempt","id":"sua_1","status":"missing_requirements",
+         "missing_fields":[],"unverified_fields":["email_address"],
+         "email_address":"new@example.com"},"client":{}}
+        """)
+        transport.on("/sign_ups/sua_1/prepare_verification", body: """
+        {"response":{"object":"sign_up_attempt","id":"sua_1","status":"missing_requirements",
+         "unverified_fields":["email_address"],"email_address":"new@example.com"},"client":{}}
+        """)
+
+        let (engine, _, _) = makeStack(transport: transport)
+        let step = try await engine.signUp(
+            email: "new@example.com", password: "str0ng-pw!", firstName: "New", lastName: "Person"
+        )
+        XCTAssertEqual(step, .needsCode(channel: .email, hint: "new@example.com"))
+        XCTAssertTrue(transport.requests.contains {
+            ($0.url?.absoluteString ?? "").contains("/sessions/sess_stale/remove")
+        })
+    }
+
+    func testFailedBrokerHandOffRemovesClerkSessionAndNamesConfigError() async {
+        let transport = ScriptedTransport()
+        transport.on("/v1/client/sign_ins?", body: completeSignIn)
+        transport.on("/sessions/sess_1/tokens", body: sessionTokenReply)
+        transport.on("/mobile-auth/session", status: 503, body: #"{"error":"auth_unconfigured"}"#)
+        transport.on("/sessions/sess_1/remove", body: #"{"response":{"id":"sess_1"}}"#)
+
+        let (engine, provider, _) = makeStack(transport: transport)
+        do {
+            _ = try await engine.signIn(identifier: "user@example.com", password: "pw")
+            XCTFail("expected failure")
+        } catch let error as AuthEngineError {
+            XCTAssertEqual(error.code, "auth_unconfigured")
+        } catch {
+            XCTFail("unexpected \(error)")
+        }
+        XCTAssertFalse(provider.hasPersistedSession)
+        // No residue: the Clerk session was removed so the next attempt
+        // starts a clean ceremony instead of hitting session_exists.
+        XCTAssertTrue(transport.requests.contains {
+            ($0.url?.absoluteString ?? "").contains("/sessions/sess_1/remove")
+        })
+    }
+
     func testFormEncodingEscapesReservedCharacters() {
         let encoded = ClerkAPI.formEncode([("password", "a&b=c d+e😀")])
         XCTAssertEqual(encoded, "password=a%26b%3Dc%20d%2Be%F0%9F%98%80")

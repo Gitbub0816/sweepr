@@ -37,13 +37,24 @@ curl -s https://sweepr.fly.dev/healthz   # → ok
 
 ## 2. API worker secrets (the mobile BFF)
 
-From `apps/api/` (use `printf`, never `echo` — trailing-newline hazard):
+**Preferred: GitHub repo secrets + a deploy.** The deploy workflow's "Sync
+worker secrets" step (API worker job) pushes `BROKER_KEY_CUSTOMER`,
+`BROKER_KEY_CLEANER`, `ORIGIN_SHARED_SECRET`, and `API_BROKER_TOKEN_SECRET`
+from GitHub repo secrets to the `sweepr-api` worker on every main deploy —
+the same GitHub secrets the central-auth Pages sync already uses, so the
+broker keys are likely set already. Make sure **`API_BROKER_TOKEN_SECRET`**
+exists too (any long random value; it's the HMAC key the worker uses to mint
+and verify the short-lived mobile API tokens):
+repo → Settings → Secrets and variables → Actions → New repository secret,
+then re-run the "Deploy Sweepr" workflow (or push any commit to main).
+
+Manual alternative, from `apps/api/` (use `printf`, never `echo` —
+trailing-newline hazard):
 
 ```bash
 printf '<same BROKER_KEY_CUSTOMER>' | wrangler secret put BROKER_KEY_CUSTOMER
 printf '<same BROKER_KEY_CLEANER>'  | wrangler secret put BROKER_KEY_CLEANER
 printf '<same ORIGIN_SHARED_SECRET>'| wrangler secret put ORIGIN_SHARED_SECRET
-# Only if not already set for the web central-auth pilot:
 printf '<long random>'              | wrangler secret put API_BROKER_TOKEN_SECRET
 # Optional (defaults to https://sweepr.fly.dev):
 printf 'https://sweepr.fly.dev'     | wrangler secret put BROKER_URL
@@ -56,6 +67,11 @@ curl -s -X POST https://api.getsweepr.com/mobile-auth/session \
   -H 'content-type: application/json' \
   -d '{"app":"customer","clerkToken":"xxxxxxxxxxxxxxxxxxxxxxxxx"}'
 ```
+
+Still `503 {"error":"auth_unconfigured"}`? The worker is missing the app's
+`BROKER_KEY_*` or `API_BROKER_TOKEN_SECRET` — check
+`wrangler secret list` in `apps/api/`, or the "Sync worker secrets" step in
+the latest deploy run (unset GitHub secrets are skipped silently).
 
 ## 3. Xcode / App Store (Mac steps)
 

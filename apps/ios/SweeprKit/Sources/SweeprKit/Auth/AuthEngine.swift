@@ -80,7 +80,7 @@ public actor AuthEngine {
     public func signIn(identifier: String, password: String) async throws -> AuthStep {
         resetCeremony()
         do {
-            let signIn = try await clerk.createSignIn(identifier: identifier, password: password)
+            let signIn = try await createSignInClearingStale(identifier: identifier, password: password)
             signInId = signIn.id
             return try await advance(signIn)
         } catch let error as ClerkAPIError {
@@ -92,7 +92,7 @@ public actor AuthEngine {
     public func signInWithCode(identifier: String) async throws -> AuthStep {
         resetCeremony()
         do {
-            let created = try await clerk.createSignIn(identifier: identifier)
+            let created = try await createSignInClearingStale(identifier: identifier)
             signInId = created.id
             let factors = created.supportedFirstFactors ?? []
             let factor = factors.first { $0.strategy == "email_code" }
@@ -145,7 +145,7 @@ public actor AuthEngine {
     public func forgotPassword(email: String) async throws -> AuthStep {
         resetCeremony()
         do {
-            let created = try await clerk.createSignIn(identifier: email)
+            let created = try await createSignInClearingStale(identifier: email)
             signInId = created.id
             let factor = (created.supportedFirstFactors ?? [])
                 .first { $0.strategy == "reset_password_email_code" }
@@ -184,8 +184,8 @@ public actor AuthEngine {
     ) async throws -> AuthStep {
         resetCeremony()
         do {
-            let created = try await clerk.createSignUp(
-                emailAddress: email, password: password, firstName: firstName, lastName: lastName
+            let created = try await createSignUpClearingStale(
+                email: email, password: password, firstName: firstName, lastName: lastName
             )
             signUpId = created.id
             if created.status == "complete", let sessionId = created.createdSessionId {
@@ -222,6 +222,42 @@ public actor AuthEngine {
     public func resendSignUpCode() async {
         guard let id = signUpId else { return }
         _ = try? await clerk.prepareEmailVerification(signUpId: id)
+    }
+
+    // MARK: - Stale-session recovery
+
+    // Clerk runs single-session per device client: starting a ceremony while a
+    // session is already active fails with `session_exists`. That session is
+    // ceremony residue — most commonly a sign-in/sign-up that succeeded at
+    // Clerk but whose broker hand-off failed (server outage, misconfig) —
+    // never a credential this app honors, since only the broker session signs
+    // a user in. So clear the client's sessions and retry the ceremony once
+    // instead of dead-ending the auth wall with "you're already signed in".
+
+    private func createSignInClearingStale(
+        identifier: String, password: String? = nil
+    ) async throws -> ClerkSignIn {
+        do {
+            return try await clerk.createSignIn(identifier: identifier, password: password)
+        } catch let error as ClerkAPIError where error.code == "session_exists" {
+            await clerk.signOutAllSessions()
+            return try await clerk.createSignIn(identifier: identifier, password: password)
+        }
+    }
+
+    private func createSignUpClearingStale(
+        email: String, password: String, firstName: String, lastName: String
+    ) async throws -> ClerkSignUp {
+        do {
+            return try await clerk.createSignUp(
+                emailAddress: email, password: password, firstName: firstName, lastName: lastName
+            )
+        } catch let error as ClerkAPIError where error.code == "session_exists" {
+            await clerk.signOutAllSessions()
+            return try await clerk.createSignUp(
+                emailAddress: email, password: password, firstName: firstName, lastName: lastName
+            )
+        }
     }
 
     // MARK: - Ceremony advancement
@@ -286,7 +322,17 @@ public actor AuthEngine {
                 code: "not_authorized_for_application",
                 message: "This account can't use this app. Contact support if that seems wrong."
             )
+        } catch MobileAuthError.unavailable(let code) where code == "auth_unconfigured" {
+            await clerk.removeSession(sessionId: clerkSessionId)
+            throw AuthEngineError(
+                code: "auth_unconfigured",
+                message: "Sweepr sign-in isn't switched on for the app yet. Please try again soon."
+            )
         } catch {
+            // Whatever failed, don't leave the Clerk session dangling — a
+            // leftover session makes the NEXT ceremony fail `session_exists`.
+            // The retry redoes the full ceremony from the still-filled form.
+            await clerk.removeSession(sessionId: clerkSessionId)
             throw AuthEngineError(
                 code: "session_unavailable",
                 message: "We couldn't finish signing you in. Check your connection and try again."
@@ -320,7 +366,9 @@ public actor AuthEngine {
         case "form_password_length_too_short":
             message = "Your password needs to be longer."
         case "session_exists":
-            message = "You're already signed in."
+            // Only reachable when the automatic stale-session cleanup itself
+            // failed — the ceremony residue could not be cleared this attempt.
+            message = "A previous sign-in was still active on this device. Please try again."
         case "too_many_requests":
             message = "Too many attempts. Wait a moment and try again."
         case "transport_error":
