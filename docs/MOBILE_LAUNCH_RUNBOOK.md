@@ -83,11 +83,10 @@ the latest deploy run (unset GitHub secrets are skipped silently).
    `applinks:clean.getsweepr.com`).
 3. The customer app links the Stripe iOS SDK and registers the `sweepr://`
    URL scheme (PaymentSheet's redirect return target) — both already wired in
-   Package.swift / Info.plist, nothing to do, **except**:
-   swap `StripeConfig.publishableKey` (`apps/ios/Sweepr/Sources/Sweepr/Support/StripeConfig.swift`)
-   for the real `pk_live_…` value (same one the web apps use as
-   `VITE_STRIPE_PUBLISHABLE_KEY`) before archiving — it ships as an obvious
-   placeholder that fails loudly if forgotten. Xcode resolves the
+   Package.swift / Info.plist, nothing to do.
+   `StripeConfig.publishableKey` carries the REAL live key (extracted from
+   the deployed web bundle 2026-09-03 — same account as the site; update it
+   only if the Stripe account's keys are ever rolled). Xcode resolves the
    `stripe-ios-spm` package automatically the first time it opens the
    workspace (version + product names verified against the real manifest,
    release 26.9.0, on 2026-09-03). Apple Pay stays

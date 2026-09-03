@@ -44,6 +44,21 @@ public enum TokenVaults {
         return UserDefaultsTokenVault()
         #endif
     }
+
+    /// iOS Keychain items SURVIVE app deletion, so a broker session from a
+    /// previous install (or an old test account) silently signs back in after
+    /// a delete-and-reinstall — no login wall, and everything saves to that
+    /// stale account. Call once at startup, before any sign-in phase decision:
+    /// UserDefaults IS erased on uninstall, so a missing marker means this is
+    /// the first run of a fresh install — wipe any leftover credentials so a
+    /// reinstall lands on the auth wall like people expect. Normal launches
+    /// and app updates keep the marker, so sessions persist as designed.
+    public static func wipeOnFreshInstall(_ vault: TokenVault, defaults: UserDefaults = .standard) {
+        let marker = "com.getsweepr.install_marker"
+        guard defaults.object(forKey: marker) == nil else { return }
+        for key in TokenVaultKey.allCases { vault.remove(key) }
+        defaults.set(true, forKey: marker)
+    }
 }
 
 #if canImport(Security)

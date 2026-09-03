@@ -17,6 +17,30 @@ Stable conventions live in root `/CLAUDE.md` — this file is state + recent wor
 Four customer-requested iOS fixes, all verified together via
 `bash apps/ios/Verify/verify.sh` (41 tests green):
 
+**Follow-up round (same day, after Caleb's on-device test video):**
+- PaymentSheet presented but failed to load → the placeholder publishable key.
+  `StripeConfig.publishableKey` now carries the REAL live key, extracted from
+  the deployed customer web bundle (app.getsweepr.com/assets — public
+  client-side material; the second `pk_live_…` in that bundle is CLERK's, not
+  Stripe's). Payments should now complete end-to-end on device.
+- "Opens as a guest, never asks to log in": iOS Keychain SURVIVES app
+  deletion, so a broker session from an earlier install/test account signs
+  back in silently after reinstall — and bookings/addresses save to that
+  stale account, which also explains "address didn't save". Fix:
+  `TokenVaults.wipeOnFreshInstall` (UserDefaults install marker — wiped on
+  uninstall — gates a one-time vault wipe), called at both apps'
+  AppEnvironment init. NOTE: the build that first ships this signs everyone
+  out once (marker doesn't exist yet) — fine pre-launch, remember at GA.
+- Pricing doubts: unfounded — the app quotes via POST /bookings/quote (same
+  endpoint/engine chain as the site, v2 gated on an Active version) and
+  renders the server lineItems verbatim.
+- "No cleaner on the map": LiveTrackingScreen is wired (cleaner pin from
+  booking cleaner_lat/lng pings, home pin from saved-address lat/lng, 10s
+  poll) but only reachable once a booking is trackable — the test booking
+  died at payment. Two Xcode-side map errors ("preview", "observability")
+  reported without text — not yet diagnosed; get the exact errors before
+  touching MapPreview.swift.
+
 - **Native Stripe PaymentSheet** replaces the hosted-page/Safari bounce-out
   for both booking payment and tips. Customer app (only —
   `apps/ios/Sweepr/Package.swift`, never SweeprKit/CleanWithSweepr) now links

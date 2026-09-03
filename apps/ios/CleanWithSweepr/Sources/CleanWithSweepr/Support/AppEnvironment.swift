@@ -35,6 +35,9 @@ public final class AppEnvironment: ObservableObject {
     @Published public var activeJob: CleanerJob?
 
     public init(vault: TokenVault = TokenVaults.platformDefault()) {
+        // Keychain survives app deletion — without this, a session from a
+        // previous install signs back in silently after a reinstall.
+        TokenVaults.wipeOnFreshInstall(vault)
         let relay = SessionInvalidationRelay()
         let mobileAuth = MobileAuthAPI()
         let tokenProvider = BrokerTokenProvider(

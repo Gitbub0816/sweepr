@@ -14,13 +14,12 @@ import Foundation
 // "Secrets hygiene" explicitly allows publishable keys in source. This is the
 // SAME value already used by the web apps (VITE_STRIPE_PUBLISHABLE_KEY).
 public enum StripeConfig {
-    /// OWNER ACTION REQUIRED before shipping: replace with the real live
-    /// publishable key (same value as the web apps' VITE_STRIPE_PUBLISHABLE_KEY
-    /// GitHub secret — it's public-safe, just copy it in). Left as an obvious
-    /// placeholder rather than guessed so a forgotten swap fails loudly (a
-    /// real Stripe SDK call with this key errors immediately) instead of
-    /// silently hitting the wrong account. See docs/MOBILE_LAUNCH_RUNBOOK.md.
-    public static let publishableKey = "pk_live_REPLACE_WITH_REAL_STRIPE_PUBLISHABLE_KEY"
+    /// The REAL live publishable key, extracted 2026-09-03 from the deployed
+    /// customer web bundle (app.getsweepr.com — the same value the site ships
+    /// to every visitor as VITE_STRIPE_PUBLISHABLE_KEY, so the app and web
+    /// charge against the same Stripe account). Client-side-safe by design;
+    /// only sk_…/whsec_… are secret. See docs/MOBILE_LAUNCH_RUNBOOK.md.
+    public static let publishableKey = "pk_live_51TbQfnCssmqib76cfj6O4TYCLllJ2wGwCXO6206R5vut7Go6z47N0o08GvdRXGqsYA4vrz8ntBuTGYdI9cXlXjPI00XzobPsjE"
 
     /// Apple Pay is OFF (nil) until a real Apple Developer Merchant ID exists
     /// here AND the `com.apple.developer.in-app-payments` entitlement is
