@@ -33,11 +33,12 @@ final class CleanWithSweeprAppTests: XCTestCase {
         XCTAssertFalse(env.smartEntrySessionId.isEmpty)
     }
 
-    /// An offered job must keep the exact address masked behind an area label
-    /// (mirrors the reveal-only-after-accept rule).
-    func testOfferedJobMasksExactAddress() {
-        let offer = SweeprMock.jobs.first { $0.isOffer }
+    /// An offered job only ever exposes an area label — exact addresses stay
+    /// server-side until start-route reveals them (privacy rule).
+    func testOfferedJobExposesOnlyAreaLabel() {
+        let offer = CleanerMock.jobs.first { $0.isOffer }
         XCTAssertNotNil(offer)
-        XCTAssertEqual(offer?.maskedAreaLabel, "Denver area · 80202")
+        XCTAssertEqual(offer?.areaLabel, "Denver, CO")
+        XCTAssertNil(offer?.status)
     }
 }

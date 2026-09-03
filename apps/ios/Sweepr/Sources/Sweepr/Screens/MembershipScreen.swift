@@ -179,7 +179,7 @@ public struct MembershipScreen: View {
     // MARK: - Actions
 
     private func load() async {
-        info = (try? await env.api.membershipInfo()) ?? SweeprMock.membershipInfo
+        info = try? await env.api.membershipInfo()
         isLoading = false
     }
 

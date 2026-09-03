@@ -9,11 +9,11 @@
 //
 import Foundation
 
-// Typed models mirroring the web app's key entities. These map onto the Hono API
-// JSON shapes (api.getsweepr.com). Money is INTEGER CENTS on the wire — mirroring
-// the DB convention — and is only converted to dollars for display via
-// `Money.dollarsString`. Never do price math on the client; totals are computed
-// server-side.
+// Typed models mirroring the REAL Hono API wire shapes (field-audited against
+// apps/api/src/routes — see each type's doc note for its source route). The
+// booking endpoints return RAW snake_case DB rows (decoded via
+// convertFromSnakeCase); money is INTEGER CENTS everywhere. Never do price
+// math on the client; totals are computed server-side.
 
 // MARK: - Money
 
@@ -65,6 +65,17 @@ public enum BookingStatus: String, Codable, Hashable, Sendable, CaseIterable {
         }
     }
 
+    /// The only customer-permitted transition is cancellation, and the server
+    /// (`statusMachine.ts`) accepts it only from these states.
+    public var isCustomerCancellable: Bool {
+        switch self {
+        case .draft, .quoted, .payment_pending, .booked, .matching, .offered_to_cleaner:
+            return true
+        default:
+            return false
+        }
+    }
+
     public var displayLabel: String {
         switch self {
         case .draft: return "Draft"
@@ -88,6 +99,22 @@ public enum BookingStatus: String, Codable, Hashable, Sendable, CaseIterable {
     }
 }
 
+// MARK: - Day-of-service status (`bookings.day_status`)
+
+/// The server-owned day-of-service machine (`routes/dayOfService.ts`):
+/// en_route → arrived (GPS-verified, server flips it) → in_progress →
+/// awaiting_checkout → completed. The client never sets this directly — each
+/// transition is its own endpoint with its own guards.
+public enum DayStatus: String, Codable, Hashable, Sendable {
+    case en_route, arrived, in_progress, awaiting_checkout, completed
+    case unknown
+
+    public init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = DayStatus(rawValue: raw) ?? .unknown
+    }
+}
+
 // MARK: - Cleaning level (HOW much labor — surcharge, never scope)
 
 public enum CleaningLevel: String, Codable, Hashable, Sendable {
@@ -102,69 +129,58 @@ public enum CleaningLevel: String, Codable, Hashable, Sendable {
     }
 }
 
-// MARK: - Address
-
-public struct Address: Codable, Hashable, Identifiable, Sendable {
-    public let id: String
-    public let street: String
-    public let unit: String?
-    public let city: String?
-    public let state: String?
-    public let zip: String
-    public let latitude: Double?
-    public let longitude: Double?
-
-    public var oneLine: String {
-        let unitPart = unit.map { " \($0)" } ?? ""
-        let cityPart = city.map { ", \($0)" } ?? ""
-        return "\(street)\(unitPart)\(cityPart) \(zip)"
-    }
-}
-
-// MARK: - Cleaner
-
-public struct Cleaner: Codable, Hashable, Identifiable, Sendable {
-    public let id: String
-    public let firstName: String
-    public let lastName: String?
-    public let avatarUrl: String?
-    public let rating: Double?
-    public let completedJobs: Int?
-    /// Present only while a job is trackable — the cleaner's last-known position.
-    public let latitude: Double?
-    public let longitude: Double?
-
-    public var displayName: String {
-        if let l = lastName, let initial = l.first { return "\(firstName) \(initial)." }
-        return firstName
-    }
-}
-
-// MARK: - Quote (server-authoritative pricing snapshot)
-
-public struct Quote: Codable, Hashable, Sendable {
-    public let subtotal: Money
-    public let levelSurcharge: Money
-    public let addOnsTotal: Money
-    public let discount: Money
-    public let tax: Money
-    public let total: Money
-}
-
-// MARK: - Booking
+// MARK: - Booking (raw row from GET /bookings, GET /bookings/:id, POST /bookings)
+//
+// The API returns `SELECT bookings.*` — snake_case columns, no nesting. The
+// detail route additionally aliases the address join onto the row
+// (address_line1/city/state/zip) and adds addon_keys + deep_clean_applied;
+// those keys are simply absent on the list route, so they're all optional.
 
 public struct Booking: Codable, Hashable, Identifiable, Sendable {
     public let id: String
     public let status: BookingStatus
+    public let dayStatus: DayStatus?
+    public let cleanerId: String?
+    public let addressId: String?
     public let serviceType: String          // the "package" — WHAT gets cleaned
     public let cleaningLevel: CleaningLevel?
     public let bedrooms: Int?
     public let bathrooms: Double?
+    public let sqft: Int?
+    public let homeType: String?
     public let scheduledAt: Date?
-    public let address: Address?
-    public let cleaner: Cleaner?
-    public let quote: Quote?
-    public let addOns: [String]?
+    public let durationMinutes: Int?
+    /// Postgres TIME columns ("HH:MM:SS") — kept as strings.
+    public let arrivalWindowStart: String?
+    public let arrivalWindowEnd: String?
+
+    // Money (integer cents, server-computed)
+    public let basePrice: Int?
+    public let addonsTotal: Int?
+    public let serviceFee: Int?
+    public let tax: Int?
+    public let totalPrice: Int?
+    public let cleaningLevelSurchargeCents: Int?
+    public let smartEntryFeeCents: Int?
+    public let sweeprPlusDiscountCents: Int?
+
+    // Live-tracking position (present while the cleaner shares location)
+    public let cleanerLat: Double?
+    public let cleanerLng: Double?
+
+    // Detail-route extras (absent on the list route)
+    public let addressLine1: String?
+    public let addressCity: String?
+    public let addressState: String?
+    public let addressZip: String?
+    public let addonKeys: [String]?
+    public let deepCleanApplied: Bool?
+
+    public let notes: String?
+    public let entryNotes: String?
+    public let parkingNotes: String?
+    public let accessMethod: String?
+    public let createdAt: Date?
 
     public var packageDisplayName: String {
         serviceType
@@ -172,9 +188,96 @@ public struct Booking: Codable, Hashable, Identifiable, Sendable {
             .map { $0.prefix(1).uppercased() + $0.dropFirst() }
             .joined(separator: " ")
     }
+
+    public var totalMoney: Money? { totalPrice.map { Money(cents: $0) } }
+
+    /// One-line address when the detail route included the join.
+    public var addressOneLine: String? {
+        guard let line1 = addressLine1 else { return nil }
+        let city = addressCity.map { ", \($0)" } ?? ""
+        let zip = addressZip.map { " \($0)" } ?? ""
+        return "\(line1)\(city)\(zip)"
+    }
+
+    /// A short "2 bd · 1 ba" summary for rows.
+    public var homeSummary: String? {
+        guard let bedrooms else { return nil }
+        let ba = bathrooms.map { $0.truncatingRemainder(dividingBy: 1) == 0 ? String(Int($0)) : String($0) }
+        return "\(bedrooms) bd" + (ba.map { " · \($0) ba" } ?? "")
+    }
 }
 
-// MARK: - Membership
+/// The privacy-gated cleaner summary on GET /bookings/:id — present only once
+/// a cleaner is assigned, the status qualifies, and it's within 24h of the
+/// appointment. camelCase on the wire.
+public struct BookingCleanerSummary: Codable, Hashable, Sendable {
+    public let displayName: String
+    public let foundingMember: Bool?
+    public let foundingMemberId: Int?
+
+    public init(displayName: String, foundingMember: Bool? = nil, foundingMemberId: Int? = nil) {
+        self.displayName = displayName
+        self.foundingMember = foundingMember
+        self.foundingMemberId = foundingMemberId
+    }
+}
+
+/// GET /bookings/:id envelope: `{ booking, cleaner }`.
+public struct BookingDetail: Sendable {
+    public let booking: Booking
+    public let cleaner: BookingCleanerSummary?
+
+    public init(booking: Booking, cleaner: BookingCleanerSummary?) {
+        self.booking = booking
+        self.cleaner = cleaner
+    }
+}
+
+// MARK: - Customer addresses (GET/POST /customer-profile/addresses)
+
+/// camelCase, mapped server-side.
+public struct CustomerAddress: Codable, Hashable, Identifiable, Sendable {
+    public let id: String
+    public let label: String?
+    public let line1: String
+    public let line2: String?
+    public let city: String
+    public let state: String
+    public let zip: String
+    public let lat: Double?
+    public let lng: Double?
+    public let isDefault: Bool?
+    public let propertyType: String?
+
+    public var oneLine: String {
+        let unit = line2.map { " \($0)" } ?? ""
+        return "\(line1)\(unit), \(city) \(zip)"
+    }
+}
+
+/// POST /customer-profile/addresses body (state is the 2-letter code).
+public struct CreateAddressRequest: Codable, Hashable, Sendable {
+    public var street: String
+    public var unit: String?
+    public var city: String
+    public var state: String
+    public var zip: String
+    public var label: String?
+    public var makeDefault: Bool?
+
+    public init(street: String, unit: String? = nil, city: String, state: String,
+                zip: String, label: String? = nil, makeDefault: Bool? = nil) {
+        self.street = street
+        self.unit = unit
+        self.city = city
+        self.state = state
+        self.zip = zip
+        self.label = label
+        self.makeDefault = makeDefault
+    }
+}
+
+// MARK: - Membership (legacy compact shape kept for old call sites)
 
 public struct Membership: Codable, Hashable, Sendable {
     public let active: Bool
@@ -182,72 +285,4 @@ public struct Membership: Codable, Hashable, Sendable {
     public let renewsAt: Date?
     public let creditsCents: Int?
     public let discountPct: Int?
-}
-
-// MARK: - Smart Entry access (reveal-unlock on the cleaner side)
-
-public struct SmartEntryAccess: Codable, Hashable, Sendable {
-    public enum Method: String, Codable, Sendable {
-        case lockbox, smart_lock, doorman, garage_code, other
-    }
-    public let method: Method
-    /// Sensitive: only returned by the API to a checked-in cleaner near check-in
-    /// time. The UI keeps it hidden behind a deliberate reveal-unlock gesture.
-    public let instructions: String?
-    public let code: String?
-    public let revealedAt: Date?
-}
-
-// MARK: - Day-of-service status (cleaner job lifecycle)
-
-public struct DayOfServiceStatus: Codable, Hashable, Sendable {
-    public let bookingId: String
-    public let status: BookingStatus
-    public let checkedInAt: Date?
-    public let arrivedAt: Date?
-    public let startedAt: Date?
-    public let completedAt: Date?
-    public let requiresBeforePhotos: Bool
-    public let requiresAfterPhotos: Bool
-    public let smartEntry: SmartEntryAccess?
-
-    // Public memberwise init so the cleaner app (a separate module) can build a
-    // local fallback status when the day-of-service fetch fails offline.
-    public init(
-        bookingId: String,
-        status: BookingStatus,
-        checkedInAt: Date?,
-        arrivedAt: Date?,
-        startedAt: Date?,
-        completedAt: Date?,
-        requiresBeforePhotos: Bool,
-        requiresAfterPhotos: Bool,
-        smartEntry: SmartEntryAccess?
-    ) {
-        self.bookingId = bookingId
-        self.status = status
-        self.checkedInAt = checkedInAt
-        self.arrivedAt = arrivedAt
-        self.startedAt = startedAt
-        self.completedAt = completedAt
-        self.requiresBeforePhotos = requiresBeforePhotos
-        self.requiresAfterPhotos = requiresAfterPhotos
-        self.smartEntry = smartEntry
-    }
-}
-
-// MARK: - Cleaner-facing job + earnings
-
-public struct Job: Codable, Hashable, Identifiable, Sendable {
-    public let id: String
-    public let booking: Booking
-    public let payoutEstimate: Money?
-    public let distanceMeters: Double?
-}
-
-public struct EarningsSummary: Codable, Hashable, Sendable {
-    public let weekToDate: Money
-    public let pendingPayout: Money
-    public let lifetime: Money
-    public let jobsThisWeek: Int
 }

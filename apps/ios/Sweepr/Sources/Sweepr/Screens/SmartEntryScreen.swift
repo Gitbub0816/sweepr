@@ -71,7 +71,7 @@ public struct SmartEntryScreen: View {
         .background(SweeprColor.background.ignoresSafeArea())
         .navigationTitle("Access")
         .navigationBarTitleDisplayMode(.inline)
-        .task { status = (try? await env.api.smartEntryStatus()) ?? SweeprMock.smartEntryStatus }
+        .task { status = try? await env.api.smartEntryStatus() }
     }
 
     private var smartEntryDetail: some View {

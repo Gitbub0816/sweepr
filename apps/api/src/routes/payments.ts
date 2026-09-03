@@ -67,6 +67,41 @@ paymentsRouter.get("/methods", requireAuth, async (c) => {
   }
 });
 
+/**
+ * Payment state of a booking's intent — the native apps poll this while the
+ * customer confirms in the hosted pay page (bookings are created 'booked'
+ * before payment, so booking status alone can't signal authorization).
+ * `paid` = the manual-capture intent is authorized (requires_capture) or has
+ * settled (processing/succeeded). Read-only, owner-gated.
+ */
+paymentsRouter.get("/intent-status/:bookingId", requireAuth, async (c) => {
+  const bookingId = c.req.param("bookingId");
+  const sql = getDb(c.env.DATABASE_URL);
+  const rows = (await sql`
+    SELECT b.stripe_payment_intent_id, cust.user_id AS customer_user_id
+    FROM bookings b
+    JOIN customers cust ON cust.id = b.customer_id
+    WHERE b.id = ${bookingId}
+    LIMIT 1
+  `) as Array<{ stripe_payment_intent_id: string | null; customer_user_id: string }>;
+  const row = rows[0];
+  if (!row) return c.json({ error: "Booking not found" }, 404);
+  const users = (await sql`SELECT id FROM users WHERE clerk_id = ${c.get("user").clerkId}`) as Array<{ id: string }>;
+  if (!users[0] || users[0].id !== row.customer_user_id) {
+    return c.json({ error: "Forbidden" }, 403);
+  }
+  const pid = row.stripe_payment_intent_id;
+  if (!pid || pid.startsWith("pending:")) return c.json({ status: null, paid: false });
+  try {
+    const stripe = getStripe(c.env.STRIPE_SECRET_KEY);
+    const intent = await stripe.paymentIntents.retrieve(pid);
+    const paid = ["requires_capture", "processing", "succeeded"].includes(intent.status);
+    return c.json({ status: intent.status, paid });
+  } catch {
+    return c.json({ status: null, paid: false });
+  }
+});
+
 paymentsRouter.post(
   "/create-intent",
   requireAuth,

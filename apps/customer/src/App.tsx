@@ -56,6 +56,7 @@ function PromoHostMount() {
 }
 
 import { BookingLayout } from "./booking/BookingLayout";
+import MobilePayPage from "./pages/MobilePayPage";
 import { SubscriptionsPage } from "./pages/SubscriptionsPage";
 import { AddressStep } from "./booking/steps/AddressStep";
 import { HomeStep } from "./booking/steps/HomeStep";
@@ -238,6 +239,12 @@ export default function App() {
             calls or PII, so it sits outside the auth gates and always renders
             after the provider redirect. It signals the opener tab's poll. */}
         <Route path="/smart-entry/connect/return" element={<SmartEntryConnectReturn />} />
+
+        {/* Native apps' payment surface: renders Stripe Elements for a
+            PaymentIntent client secret carried in the URL FRAGMENT (see
+            MobilePayPage). No auth — possession of the secret only permits
+            paying that one intent, and no PII is shown. */}
+        <Route path="/pay" element={<MobilePayPage />} />
 
         {/* Auth routes, outside the onboarding gate so sign-in is always accessible */}
         <Route path="/sign-in" element={CENTRAL_AUTH_ENABLED ? <RedirectToCentralLogin /> : <SignInPage />} />

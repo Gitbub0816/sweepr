@@ -21,10 +21,12 @@ public struct AccountScreen: View {
     @EnvironmentObject private var env: AppEnvironment
 
     @State private var user: CurrentUser?
-    @State private var verification: VerificationStatus = CleanerMock.verification
-    @State private var isAvailable = true
-    @State private var serviceAreaZip = "80202"
-    @State private var isSavingZip = false
+    @State private var progress: OnboardingProgress?
+    @State private var slots: [AvailabilitySlot] = []
+    @State private var isSavingSlots = false
+    @State private var area: ServiceArea?
+    @State private var radiusMiles = 15
+    @State private var isSavingArea = false
     @State private var showSignOutConfirm = false
 
     // Delete-account flow
@@ -119,11 +121,13 @@ public struct AccountScreen: View {
         return s.isEmpty ? "S" : s.uppercased()
     }
 
-    // MARK: - Availability
+    // MARK: - Weekly availability (PUT /cleaner-dashboard/availability)
+
+    private static let dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
     private var availabilityCard: some View {
         SweeprCard {
-            Toggle(isOn: $isAvailable) {
+            VStack(alignment: .leading, spacing: SweeprSpacing.md) {
                 HStack(spacing: SweeprSpacing.md) {
                     Image(systemName: "calendar.badge.clock")
                         .font(.system(size: 16, weight: .semibold))
@@ -132,23 +136,64 @@ public struct AccountScreen: View {
                         .background(SweeprColor.brand.opacity(0.12))
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Available for jobs")
+                        Text("Weekly availability")
                             .font(SweeprFont.body().weight(.semibold))
                             .foregroundColor(SweeprColor.textPrimary)
-                        Text(isAvailable ? "You're visible for new offers." : "You won't receive new offers.")
+                        Text("Days you're open to offers (\(activeDaysLabel)).")
                             .font(SweeprFont.caption())
                             .foregroundColor(SweeprColor.textSecondary)
                     }
+                    Spacer(minLength: 0)
                 }
-            }
-            .onChange(of: isAvailable) { _, newValue in
-                SweeprHaptics.selection()
-                Task { try? await env.cleanerAPI.setAvailability(newValue) }
+                HStack(spacing: SweeprSpacing.sm) {
+                    ForEach(0..<7, id: \.self) { day in
+                        dayChip(day)
+                    }
+                }
+                SweeprButton(isSavingSlots ? "Saving…" : "Save availability", style: .secondary, isLoading: isSavingSlots) {
+                    saveAvailability()
+                }
+                .disabled(isSavingSlots)
             }
         }
     }
 
-    // MARK: - Service area
+    private var activeDaysLabel: String {
+        let active = slots.filter(\.active).map { Self.dayNames[$0.dayOfWeek % 7] }
+        return active.isEmpty ? "none yet" : active.joined(separator: " ")
+    }
+
+    private func dayChip(_ day: Int) -> some View {
+        let isOn = slots.first(where: { $0.dayOfWeek == day })?.active ?? false
+        return Button {
+            SweeprHaptics.selection()
+            toggleDay(day)
+        } label: {
+            Text(Self.dayNames[day])
+                .font(SweeprFont.footnote().weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .foregroundColor(isOn ? .white : SweeprColor.textSecondary)
+                .background(isOn ? SweeprColor.brand : SweeprColor.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(isOn ? SweeprColor.brand : SweeprColor.separator, lineWidth: 1)
+                )
+        }
+        .buttonStyle(SweeprPressableButtonStyle())
+        .accessibilityLabel("\(Self.dayNames[day]) \(isOn ? "available" : "unavailable")")
+    }
+
+    private func toggleDay(_ day: Int) {
+        if let idx = slots.firstIndex(where: { $0.dayOfWeek == day }) {
+            slots[idx].active.toggle()
+        } else {
+            slots.append(AvailabilitySlot(dayOfWeek: day, startTime: "08:00", endTime: "18:00", active: true))
+        }
+    }
+
+    // MARK: - Service area (PUT /cleaner-dashboard/service-area)
 
     private var serviceAreaCard: some View {
         SweeprCard {
@@ -160,55 +205,69 @@ public struct AccountScreen: View {
                         .frame(width: 36, height: 36)
                         .background(SweeprColor.brand.opacity(0.12))
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    Text("Service area")
-                        .font(SweeprFont.body().weight(.semibold))
-                        .foregroundColor(SweeprColor.textPrimary)
-                    Spacer()
-                    TextField("ZIP", text: $serviceAreaZip)
-                        #if os(iOS)
-                        .keyboardType(.numberPad)
-                        #endif
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 90)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Service area")
+                            .font(SweeprFont.body().weight(.semibold))
+                            .foregroundColor(SweeprColor.textPrimary)
+                        Text(area?.label ?? (area == nil ? "Not set — jobs match to your area" : "Centered on your saved location"))
+                            .font(SweeprFont.caption())
+                            .foregroundColor(SweeprColor.textSecondary)
+                    }
+                    Spacer(minLength: 0)
                 }
-                SweeprButton(isSavingZip ? "Saving…" : "Save service area", style: .secondary, isLoading: isSavingZip) {
+                HStack {
+                    Text("Radius").font(SweeprFont.body()).foregroundColor(SweeprColor.textPrimary)
+                    Spacer()
+                    Stepper("\(radiusMiles) mi", value: $radiusMiles, in: 1...100, step: 5)
+                        .fixedSize()
+                }
+                SweeprButton(
+                    isSavingArea ? "Saving…" : "Center on my location & save",
+                    style: .secondary, systemIcon: "location.fill", isLoading: isSavingArea
+                ) {
                     saveServiceArea()
                 }
-                .disabled(isSavingZip)
+                .disabled(isSavingArea)
             }
         }
     }
 
-    // MARK: - Verification
+    // MARK: - Onboarding / verification (GET /cleaners/onboarding-progress)
 
     private var verificationCard: some View {
         SweeprCard {
             VStack(alignment: .leading, spacing: SweeprSpacing.sm) {
-                SweeprSectionTitle("Trust & verification")
-                verificationRow("Identity (Didit)", systemIcon: "person.badge.shield.checkmark.fill",
-                                 label: verification.diditLabel, state: verification.didit)
-                SweeprDivider()
-                verificationRow("Background check (Yardstik)", systemIcon: "checkmark.shield.fill",
-                                 label: verification.yardstikLabel, state: verification.yardstik)
-                SweeprDivider()
-                HStack(spacing: SweeprSpacing.md) {
-                    Image(systemName: "banknote.fill")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(SweeprColor.brand)
-                        .frame(width: 36, height: 36)
-                        .background(SweeprColor.brand.opacity(0.12))
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    Text("Payout method (Stripe Connect)")
-                        .font(SweeprFont.body().weight(.semibold))
-                        .foregroundColor(SweeprColor.textPrimary)
+                HStack {
+                    SweeprSectionTitle("Trust & verification")
                     Spacer()
-                    SweeprBadge("Connected", tone: .success)
+                    if let p = progress {
+                        SweeprBadge(
+                            p.status == "approved" ? "Approved"
+                                : p.status == "pending_review" ? "Under review" : "In progress",
+                            tone: p.status == "approved" ? .success
+                                : p.status == "pending_review" ? .warning : .neutral
+                        )
+                    }
+                }
+                if let steps = progress?.steps {
+                    verificationRow("Profile", systemIcon: "person.crop.circle.fill", done: steps.profile)
+                    SweeprDivider()
+                    verificationRow("Identity check", systemIcon: "person.badge.shield.checkmark.fill", done: steps.identity)
+                    SweeprDivider()
+                    verificationRow("Background check", systemIcon: "checkmark.shield.fill", done: steps.background)
+                    SweeprDivider()
+                    verificationRow("Training", systemIcon: "graduationcap.fill", done: steps.training)
+                    SweeprDivider()
+                    verificationRow("Insurance on file", systemIcon: "cross.case.fill", done: steps.insurance)
+                } else {
+                    Text("Verification status loads when you're online.")
+                        .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
                 }
             }
         }
     }
 
-    private func verificationRow(_ title: String, systemIcon: String, label: String, state: VerificationStatus.State) -> some View {
+    private func verificationRow(_ title: String, systemIcon: String, done: Bool) -> some View {
         HStack(spacing: SweeprSpacing.md) {
             Image(systemName: systemIcon)
                 .font(.system(size: 16, weight: .semibold))
@@ -220,7 +279,7 @@ public struct AccountScreen: View {
                 .font(SweeprFont.body().weight(.semibold))
                 .foregroundColor(SweeprColor.textPrimary)
             Spacer(minLength: SweeprSpacing.sm)
-            SweeprBadge(label, tone: tone(for: state))
+            SweeprBadge(done ? "Done" : "Needed", tone: done ? .success : .warning)
         }
     }
 
@@ -337,25 +396,40 @@ public struct AccountScreen: View {
 
     // MARK: - Actions
 
-    private func tone(for state: VerificationStatus.State) -> SweeprBadge.Tone {
-        switch state {
-        case .cleared: return .success
-        case .pending: return .warning
-        case .actionNeeded: return .danger
-        case .notStarted: return .neutral
+    private func saveAvailability() {
+        isSavingSlots = true
+        Task {
+            do {
+                try await env.cleanerAPI.setAvailability(slots)
+                env.toasts.show("Availability saved", kind: .success)
+            } catch {
+                env.toasts.show("Couldn't save availability", kind: .error)
+            }
+            isSavingSlots = false
         }
     }
 
     private func saveServiceArea() {
-        isSavingZip = true
+        isSavingArea = true
         Task {
+            // Center on the device's position (the natural "my area" anchor);
+            // fall back to the previously saved center.
+            let fix = await currentDeviceFix()
+            let lat = fix?.latitude ?? area?.centerLat
+            let lng = fix?.longitude ?? area?.centerLng
+            guard let lat, let lng else {
+                env.toasts.show("Turn on location access so we can center your area.", kind: .warning)
+                isSavingArea = false
+                return
+            }
             do {
-                try await env.cleanerAPI.setServiceAreaZip(serviceAreaZip)
+                try await env.cleanerAPI.setServiceArea(centerLat: lat, centerLng: lng, radiusMiles: radiusMiles)
                 env.toasts.show("Service area saved", kind: .success)
+                area = ServiceArea(centerLat: lat, centerLng: lng, radiusMiles: Double(radiusMiles), label: area?.label)
             } catch {
                 env.toasts.show("Couldn't save service area", kind: .error)
             }
-            isSavingZip = false
+            isSavingArea = false
         }
     }
 
@@ -396,7 +470,12 @@ public struct AccountScreen: View {
 
     private func load() async {
         user = try? await env.api.currentUser()
-        verification = (try? await env.cleanerAPI.verificationStatus()) ?? CleanerMock.verification
+        progress = try? await env.cleanerAPI.onboardingProgress()
+        slots = (try? await env.cleanerAPI.availability()) ?? slots
+        if let loaded = try? await env.cleanerAPI.serviceArea() {
+            area = loaded
+            radiusMiles = Int(loaded.radiusMiles.rounded())
+        }
     }
 }
 

@@ -32,7 +32,7 @@ public final class AppEnvironment: ObservableObject {
     public let smartEntrySessionId = UUID().uuidString
     /// True while the cleaner is actively mid-shift on a job — drives the
     /// pinned in-shift banner on the Jobs tab.
-    @Published public var activeJob: Job?
+    @Published public var activeJob: CleanerJob?
 
     public init(vault: TokenVault = TokenVaults.platformDefault()) {
         let relay = SessionInvalidationRelay()

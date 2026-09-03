@@ -11,54 +11,32 @@ import SwiftUI
 import MapKit
 import SweeprKit
 
-// Route/map — the day's jobs plotted with a connecting polyline, plus an ETA
-// card list and a prominent "Start navigation" handoff to the system maps app.
-// There is NO embedded turn-by-turn (the locked architecture decision); routing
-// is handed to Apple/Google Maps via `SweeprMaps.openInMaps`. SKIP maps MapKit
-// to maps-compose on Android.
+// Today's route — the day's accepted jobs in time order. Exact addresses are
+// PRIVACY-GATED: they only unlock per job via start-route, so this screen maps
+// only the job you're actively working (from /jobs/bookings/:id/live) and
+// shows honest arrival windows — no fabricated ETAs. Turn-by-turn hands off to
+// the system maps app (locked architecture decision: no embedded navigation).
 public struct RouteScreen: View {
     @EnvironmentObject private var env: AppEnvironment
-    @State private var jobs: [Job] = []
+    @State private var jobs: [CleanerJob] = []
+    @State private var activeAddress: LiveJobAddress?
     @State private var isLoading = true
-    @State private var selectedStopId: String?
+    @State private var loadFailed = false
 
     public init() {}
 
-    /// Ordered stops with a sequence number and a stub ETA. Real ETAs should
-    /// come from a routing call once a device location is available; this is a
-    /// deterministic placeholder so the ETA cards render meaningfully offline.
-    private var routeStops: [RouteStop] {
+    private var todaysJobs: [CleanerJob] {
         jobs
-            .filter { $0.booking.status.isActive && !$0.isOffer }
-            .enumerated()
-            .compactMap { index, job in
-                guard let a = job.booking.address, a.latitude != nil, a.longitude != nil else { return nil }
-                return RouteStop(id: job.id, job: job, etaMinutes: 8 + index * 12, sequence: index + 1)
-            }
+            .filter { !$0.isOffer && ($0.status?.isActive ?? true) && isToday($0.scheduledAt) }
+            .sorted { ($0.scheduledAt ?? .distantFuture) < ($1.scheduledAt ?? .distantFuture) }
     }
 
-    private var markers: [MapMarker] {
-        routeStops.compactMap { stop in
-            guard let a = stop.job.booking.address, let lat = a.latitude, let lon = a.longitude else { return nil }
-            let isSelected = selectedStopId == stop.id
-            return MapMarker(
-                id: stop.id,
-                coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
-                systemIcon: "\(stop.sequence).circle.fill",
-                tint: isSelected ? SweeprColor.seafoam600 : SweeprColor.brand,
-                title: "Stop \(stop.sequence)"
-            )
-        }
-    }
+    private var activeJob: CleanerJob? { todaysJobs.first(where: \.isActiveShift) }
 
-    private var routeLine: [CLLocationCoordinate2D] {
-        routeStops.compactMap { stop in
-            guard let a = stop.job.booking.address, let lat = a.latitude, let lon = a.longitude else { return nil }
-            return CLLocationCoordinate2D(latitude: lat, longitude: lon)
-        }
+    private var activeCoordinate: CLLocationCoordinate2D? {
+        guard let a = activeAddress, let lat = a.lat, let lng = a.lng else { return nil }
+        return CLLocationCoordinate2D(latitude: lat, longitude: lng)
     }
-
-    private var nextStop: RouteStop? { routeStops.first }
 
     public var body: some View {
         NavigationStack {
@@ -67,14 +45,20 @@ public struct RouteScreen: View {
                     if isLoading {
                         SkeletonBlock(height: 240)
                         SkeletonBlock(height: 96)
-                    } else if routeStops.isEmpty {
+                    } else if loadFailed && jobs.isEmpty {
+                        SweeprErrorState(
+                            message: "We couldn't load your route. Check your connection and try again.",
+                            onRetry: { Task { await load() } }
+                        )
+                        .padding(.top, SweeprSpacing.xl)
+                    } else if todaysJobs.isEmpty {
                         emptyState
                     } else {
-                        mapCard
-                        if let next = nextStop {
-                            nextStopCard(next)
+                        if let active = activeJob {
+                            activeJobCard(active)
                         }
-                        stopsList
+                        scheduleList
+                        privacyNote
                     }
                 }
                 .padding(SweeprSpacing.md)
@@ -86,16 +70,57 @@ public struct RouteScreen: View {
         .task { await load() }
     }
 
-    // MARK: - Map
+    // MARK: - Active job (address revealed → mappable)
 
-    private var mapCard: some View {
+    private func activeJobCard(_ job: CleanerJob) -> some View {
         VStack(spacing: 0) {
-            MapPreview(
-                markers: markers,
-                route: routeLine.count >= 2 ? routeLine : nil,
-                height: 260,
-                cornerRadius: SweeprRadius.card
-            )
+            if let coord = activeCoordinate {
+                MapPreview(
+                    coordinate: coord,
+                    systemIcon: "house.fill",
+                    title: "Active job",
+                    height: 200,
+                    cornerRadius: 0
+                )
+            }
+            VStack(alignment: .leading, spacing: SweeprSpacing.md) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("ACTIVE JOB")
+                            .font(SweeprFont.footnote())
+                            .foregroundColor(SweeprColor.textSecondary)
+                        Text(job.packageDisplayName)
+                            .font(SweeprFont.heading())
+                            .foregroundColor(SweeprColor.textPrimary)
+                    }
+                    Spacer()
+                    SweeprBadge("In shift", tone: .brand)
+                }
+                if let addr = activeAddress {
+                    Label(addr.oneLine, systemImage: "mappin.and.ellipse")
+                        .font(SweeprFont.caption())
+                        .foregroundColor(SweeprColor.textSecondary)
+                }
+                HStack(spacing: SweeprSpacing.sm) {
+                    SweeprButton("Navigate", systemIcon: "location.north.line.fill") {
+                        navigateToActive(job)
+                    }
+                    NavigationLink(destination: JobDetailScreen(job: job)) {
+                        HStack(spacing: SweeprSpacing.sm) {
+                            Image(systemName: "list.bullet.clipboard")
+                            Text("Open job").font(SweeprFont.body().weight(.semibold))
+                        }
+                        .foregroundColor(SweeprColor.brand)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(SweeprColor.brand.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: SweeprRadius.button, style: .continuous))
+                    }
+                    .buttonStyle(SweeprPressableButtonStyle())
+                }
+            }
+            .padding(SweeprSpacing.md)
+            .background(SweeprColor.surface)
         }
         .clipShape(RoundedRectangle(cornerRadius: SweeprRadius.card, style: .continuous))
         .overlay(
@@ -105,51 +130,18 @@ public struct RouteScreen: View {
         .sweeprElevation(.medium)
     }
 
-    private func nextStopCard(_ stop: RouteStop) -> some View {
-        SweeprCard(elevation: .medium) {
-            VStack(alignment: .leading, spacing: SweeprSpacing.md) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("NEXT STOP")
-                            .font(SweeprFont.footnote())
-                            .foregroundColor(SweeprColor.textSecondary)
-                        Text(stop.job.booking.packageDisplayName)
-                            .font(SweeprFont.heading())
-                            .foregroundColor(SweeprColor.textPrimary)
-                    }
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text("\(stop.etaMinutes) min")
-                            .font(SweeprFont.subheading())
-                            .foregroundColor(SweeprColor.brand)
-                        Text("ETA")
-                            .font(SweeprFont.footnote())
-                            .foregroundColor(SweeprColor.textSecondary)
-                    }
-                }
-                Label(stop.job.maskedAreaLabel, systemImage: "mappin.and.ellipse")
-                    .font(SweeprFont.caption())
-                    .foregroundColor(SweeprColor.textSecondary)
-                SweeprButton("Start navigation", systemIcon: "location.north.line.fill") {
-                    navigate(to: stop)
-                }
-            }
-        }
-    }
+    // MARK: - Schedule
 
-    private var stopsList: some View {
+    private var scheduleList: some View {
         VStack(alignment: .leading, spacing: SweeprSpacing.sm) {
-            SweeprSectionTitle("All stops")
+            SweeprSectionTitle("Today's schedule")
             VStack(spacing: 0) {
-                ForEach(Array(routeStops.enumerated()), id: \.element.id) { idx, stop in
-                    Button {
-                        SweeprHaptics.selection()
-                        selectedStopId = stop.id
-                    } label: {
-                        etaRow(stop)
+                ForEach(Array(todaysJobs.enumerated()), id: \.element.id) { idx, job in
+                    NavigationLink(destination: JobDetailScreen(job: job)) {
+                        scheduleRow(job, sequence: idx + 1)
                     }
                     .buttonStyle(SweeprPressableButtonStyle())
-                    if idx < routeStops.count - 1 {
+                    if idx < todaysJobs.count - 1 {
                         SweeprDivider(inset: SweeprSpacing.xl)
                     }
                 }
@@ -165,65 +157,95 @@ public struct RouteScreen: View {
         }
     }
 
-    private func etaRow(_ stop: RouteStop) -> some View {
+    private func scheduleRow(_ job: CleanerJob, sequence: Int) -> some View {
         HStack(spacing: SweeprSpacing.md) {
             ZStack {
                 Circle()
-                    .fill(selectedStopId == stop.id ? SweeprColor.brand : SweeprColor.seafoam100)
+                    .fill(job.isActiveShift ? SweeprColor.brand : SweeprColor.seafoam100)
                     .frame(width: 34, height: 34)
-                Text("\(stop.sequence)")
+                Text("\(sequence)")
                     .font(SweeprFont.caption().weight(.bold))
-                    .foregroundColor(selectedStopId == stop.id ? .white : SweeprColor.brand)
+                    .foregroundColor(job.isActiveShift ? .white : SweeprColor.brand)
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(stop.job.booking.packageDisplayName)
+                Text(job.packageDisplayName)
                     .font(SweeprFont.body().weight(.semibold))
                     .foregroundColor(SweeprColor.textPrimary)
-                Text(stop.job.maskedAreaLabel)
+                Text("\(job.areaLabel) · \(job.homeSummary)")
                     .font(SweeprFont.caption())
                     .foregroundColor(SweeprColor.textSecondary)
                     .lineLimit(1)
             }
             Spacer(minLength: SweeprSpacing.sm)
-            Text("ETA \(stop.etaMinutes)m")
-                .font(SweeprFont.caption().weight(.semibold))
-                .foregroundColor(SweeprColor.brand)
-            Button {
-                navigate(to: stop)
-            } label: {
-                Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(SweeprColor.brand)
+            VStack(alignment: .trailing, spacing: 2) {
+                if let when = job.scheduledAt {
+                    Text(when.formatted(date: .omitted, time: .shortened))
+                        .font(SweeprFont.caption().weight(.semibold))
+                        .foregroundColor(SweeprColor.brand)
+                }
+                if let payout = job.payoutMoney {
+                    Text(payout.dollarsString)
+                        .font(SweeprFont.footnote())
+                        .foregroundColor(SweeprColor.textSecondary)
+                }
             }
-            .buttonStyle(SweeprPressableButtonStyle())
         }
         .padding(.vertical, SweeprSpacing.sm)
         .contentShape(Rectangle())
+    }
+
+    private var privacyNote: some View {
+        HStack(alignment: .top, spacing: SweeprSpacing.sm) {
+            Image(systemName: "lock.shield").foregroundColor(SweeprColor.textSecondary)
+            Text("Exact addresses unlock per job when you start your route — that's what keeps customers' homes private.")
+                .font(SweeprFont.footnote())
+                .foregroundColor(SweeprColor.textSecondary)
+        }
+        .padding(.horizontal, SweeprSpacing.xs)
     }
 
     private var emptyState: some View {
         SweeprEmptyState(
             systemIcon: "map",
             title: "No stops today",
-            message: "Accepted jobs with a scheduled address will appear here, mapped and ready to navigate."
+            message: "Accepted jobs will appear here in time order, ready to work through."
         )
         .padding(.top, SweeprSpacing.xl)
     }
 
-    // MARK: - Navigation handoff
+    // MARK: - Actions
 
-    private func navigate(to stop: RouteStop) {
+    private func navigateToActive(_ job: CleanerJob) {
         SweeprHaptics.impact(.medium)
-        guard let a = stop.job.booking.address, let lat = a.latitude, let lon = a.longitude else {
-            env.toasts.show("This stop has no mappable address yet.", kind: .warning)
-            return
+        if let coord = activeCoordinate {
+            SweeprMaps.openInMaps(latitude: coord.latitude, longitude: coord.longitude,
+                                  label: job.packageDisplayName)
+        } else if let addr = activeAddress {
+            SweeprMaps.openInMaps(address: addr.oneLine)
+        } else {
+            env.toasts.show("Start the route in the job to unlock the address.", kind: .info)
         }
-        SweeprMaps.openInMaps(latitude: lat, longitude: lon, label: stop.job.booking.packageDisplayName)
+    }
+
+    private func isToday(_ date: Date?) -> Bool {
+        guard let date else { return false }
+        return Calendar.current.isDateInToday(date)
     }
 
     private func load() async {
-        isLoading = true
-        jobs = (try? await env.api.cleanerJobs()) ?? SweeprMock.jobs
+        isLoading = jobs.isEmpty
+        do {
+            jobs = try await env.cleanerAPI.myJobs()
+            loadFailed = false
+        } catch {
+            loadFailed = true
+        }
+        // The active job's revealed address (mappable) comes from its live status.
+        if let active = activeJob {
+            activeAddress = (try? await env.cleanerAPI.liveStatus(bookingId: active.id))?.booking.address
+        } else {
+            activeAddress = nil
+        }
         isLoading = false
     }
 }

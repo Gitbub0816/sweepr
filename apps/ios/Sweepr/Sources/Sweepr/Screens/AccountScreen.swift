@@ -228,8 +228,8 @@ public struct AccountScreen: View {
         await env.session.refresh()
         async let m = env.api.membershipInfo()
         async let c = env.api.coupons()
-        membership = (try? await m) ?? SweeprMock.membershipInfo
-        coupons = (try? await c) ?? SweeprMock.coupons
+        membership = try? await m
+        coupons = (try? await c) ?? []
         isLoading = false
     }
 }

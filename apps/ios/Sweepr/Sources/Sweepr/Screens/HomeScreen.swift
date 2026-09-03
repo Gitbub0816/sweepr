@@ -162,12 +162,11 @@ public struct HomeScreen: View {
                         if let when = booking.scheduledAt {
                             infoRow("calendar", when.formatted(date: .abbreviated, time: .shortened))
                         }
-                        if let cleaner = booking.cleaner {
-                            infoRow("person.fill", cleaner.displayName
-                                    + (cleaner.rating.map { "  ·  ★ \(String(format: "%.1f", $0))" } ?? ""))
+                        if let home = booking.homeSummary {
+                            infoRow("house.fill", home)
                         }
-                        if let addr = booking.address {
-                            infoRow("mappin.and.ellipse", addr.oneLine)
+                        if let level = booking.cleaningLevel {
+                            infoRow("sparkles", level.displayLabel)
                         }
                     }
 
@@ -324,6 +323,7 @@ public struct HomeScreen: View {
     }
 
     private func loadMembership() async {
-        membership = (try? await env.api.membershipInfo()) ?? SweeprMock.membershipInfo
+        // nil (unknown) keeps the Sweepr+ upsell visible; never a mock state.
+        membership = try? await env.api.membershipInfo()
     }
 }

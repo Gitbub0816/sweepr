@@ -106,7 +106,9 @@ public struct BookingsScreen: View {
                             .listRowBackground(SweeprColor.background)
                             .listRowSeparator(.hidden)
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                if booking.status.isActive {
+                                // Server rule: customers can cancel only before
+                                // a cleaner accepts (statusMachine.ts).
+                                if booking.status.isCustomerCancellable {
                                     Button(role: .destructive) {
                                         SweeprHaptics.impact(.medium)
                                         pendingCancel = booking
@@ -159,8 +161,8 @@ public struct BookingsScreen: View {
                             if let when = booking.scheduledAt {
                                 Text(when.formatted(date: .abbreviated, time: .shortened))
                                     .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
-                            } else if let addr = booking.address {
-                                Text(addr.oneLine).font(SweeprFont.caption())
+                            } else if let home = booking.homeSummary {
+                                Text(home).font(SweeprFont.caption())
                                     .foregroundColor(SweeprColor.textSecondary).lineLimit(1)
                             }
                         }

@@ -8,48 +8,74 @@
 // distribution, reverse engineering, or use is prohibited.
 //
 import SwiftUI
-import MapKit
 import SweeprKit
 
-// Booking detail — a status hero with the assigned cleaner, a live-tracking entry
-// while active, a vertical progress timeline, a location map card with an
-// Open-in-Maps handoff, the Smart Entry access card, add-ons entry, a price
-// breakdown, and a tip + review section once completed. Seeded with the list
-// snapshot so it renders instantly, then refreshed from GET /bookings/:id.
+// Booking detail — status hero with the privacy-gated cleaner summary, live
+// tracking while active, a progress timeline, the Smart Entry access card, a
+// server-priced breakdown, and tip + review once completed. Seeded with the
+// list snapshot so it renders instantly, then refreshed from GET /bookings/:id
+// (which is what carries the address join + add-on keys).
+//
+// Tips run through the real money path: POST /tips mints the immediate-capture
+// intent, the hosted pay page confirms it, and this screen polls
+// GET /tips/booking/:id until the webhook settles — nothing is faked.
 public struct BookingDetailScreen: View {
     @EnvironmentObject private var env: AppEnvironment
     private let bookingId: String
+
     @State private var booking: Booking
+    @State private var cleaner: BookingCleanerSummary?
     @State private var access: BookingAccessAuthorization?
-    @State private var tipSelection: Int?      // cents
-    @State private var rating: Int = 0
-    @State private var tipSent = false
+    @State private var loadFailed = false
+
+    // Tip flow
+    @State private var tipSelection: Int?          // cents
+    @State private var tip: TipRecord?
+    @State private var isStartingTip = false
+    @State private var tipPollTask: Task<Void, Never>?
+
+    // Review flow
+    @State private var rating = 0
+    @State private var reviewSubmitted = false
+    @State private var isSubmittingReview = false
+
+    // Cancel flow
+    @State private var showCancelConfirm = false
+    @State private var isCancelling = false
 
     public init(bookingId: String, initial: Booking) {
         self.bookingId = bookingId
         _booking = State(initialValue: initial)
     }
 
+    private var isCompleted: Bool {
+        booking.status == .completed || booking.status == .completed_pending_review
+    }
+
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: SweeprSpacing.lg) {
                 statusCard
+                if loadFailed {
+                    offlineBanner
+                }
                 if booking.status.isTrackable {
                     trackButton
                 }
                 timelineCard
-                if let coord = homeCoordinate {
-                    locationCard(coord)
-                }
-                if booking.status.isActive {
+                if booking.status.isActive && !isCompleted {
                     accessCard
-                    addServicesCard
                 }
                 detailsCard
-                if let quote = booking.quote { priceCard(quote) }
-                if booking.status == .completed || booking.status == .completed_pending_review {
+                if booking.totalPrice != nil {
+                    priceCard
+                }
+                if isCompleted {
                     tipCard
                     reviewCard
+                }
+                if booking.status.isCustomerCancellable {
+                    cancelSection
                 }
             }
             .padding(SweeprSpacing.md)
@@ -60,11 +86,17 @@ public struct BookingDetailScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }
         .task { await load() }
-    }
-
-    private var homeCoordinate: CLLocationCoordinate2D? {
-        guard let a = booking.address, let lat = a.latitude, let lon = a.longitude else { return nil }
-        return CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        .onDisappear { tipPollTask?.cancel() }
+        .confirmationDialog(
+            "Cancel this cleaning?",
+            isPresented: $showCancelConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Cancel cleaning", role: .destructive) {
+                Task { await cancelBooking() }
+            }
+            Button("Keep booking", role: .cancel) {}
+        }
     }
 
     // MARK: - Cards
@@ -81,7 +113,7 @@ public struct BookingDetailScreen: View {
                     Spacer(minLength: 0)
                     SweeprBadge(status: booking.status)
                 }
-                if let cleaner = booking.cleaner {
+                if let cleaner {
                     SweeprDivider()
                     HStack(spacing: SweeprSpacing.md) {
                         ZStack {
@@ -91,24 +123,31 @@ public struct BookingDetailScreen: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(cleaner.displayName).font(SweeprFont.body().weight(.semibold))
                                 .foregroundColor(SweeprColor.textPrimary)
-                            HStack(spacing: SweeprSpacing.sm) {
-                                if let r = cleaner.rating {
-                                    Text("★ \(String(format: "%.1f", r))")
-                                        .font(SweeprFont.caption()).foregroundColor(SweeprColor.amber)
-                                }
-                                if let jobs = cleaner.completedJobs {
-                                    Text("\(jobs) cleanings")
-                                        .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
-                                }
-                            }
+                            Text("Your Sweepr professional")
+                                .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
                         }
                         Spacer(minLength: 0)
+                        if cleaner.foundingMember == true {
+                            SweeprBadge("Founding", tone: .brand)
+                        }
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Your cleaner is \(cleaner.displayName)")
                 }
             }
         }
+    }
+
+    private var offlineBanner: some View {
+        HStack(spacing: SweeprSpacing.sm) {
+            Image(systemName: "wifi.slash").foregroundColor(SweeprColor.amber)
+            Text("Showing the last loaded details — pull to refresh.")
+                .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
+        }
+        .padding(SweeprSpacing.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(SweeprColor.surface)
+        .clipShape(RoundedRectangle(cornerRadius: SweeprRadius.button, style: .continuous))
     }
 
     private var trackButton: some View {
@@ -139,65 +178,6 @@ public struct BookingDetailScreen: View {
             VStack(alignment: .leading, spacing: SweeprSpacing.md) {
                 SweeprSectionTitle("Progress")
                 SweeprStatusTimeline(current: booking.status)
-            }
-        }
-    }
-
-    private func locationCard(_ coord: CLLocationCoordinate2D) -> some View {
-        SweeprCard(elevation: .low) {
-            VStack(alignment: .leading, spacing: SweeprSpacing.md) {
-                SweeprSectionTitle("Location")
-                MapPreview(
-                    coordinate: coord,
-                    systemIcon: "house.fill",
-                    tint: SweeprColor.brand,
-                    title: "Home",
-                    height: 150,
-                    cornerRadius: SweeprRadius.button
-                )
-                .accessibilityHidden(true)
-                if let addr = booking.address {
-                    Text(addr.oneLine).font(SweeprFont.caption())
-                        .foregroundColor(SweeprColor.textSecondary)
-                }
-                Button(action: {
-                    SweeprHaptics.impact(.light)
-                    SweeprMaps.openInMaps(latitude: coord.latitude, longitude: coord.longitude,
-                                          label: booking.address?.street)
-                }) {
-                    HStack(spacing: SweeprSpacing.sm) {
-                        Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
-                        Text("Open in Maps").font(SweeprFont.body().weight(.semibold))
-                    }
-                    .foregroundColor(SweeprColor.brand)
-                }
-                .buttonStyle(SweeprPressableButtonStyle())
-                .accessibilityLabel("Open the address in Maps")
-            }
-        }
-    }
-
-    private var addServicesCard: some View {
-        SweeprCard(elevation: .low) {
-            HStack(spacing: SweeprSpacing.md) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 22, weight: .semibold)).foregroundColor(SweeprColor.brand)
-                    .frame(width: 36, height: 36)
-                    .background(SweeprColor.seafoam100)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Add services").font(SweeprFont.body().weight(.semibold))
-                        .foregroundColor(SweeprColor.textPrimary)
-                    Text("Purchase add-ons up until check-in.")
-                        .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right").foregroundColor(SweeprColor.separator)
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                SweeprHaptics.selection()
-                env.toast.show("Add-ons stay open until check-in", kind: .info)
             }
         }
     }
@@ -233,71 +213,102 @@ public struct BookingDetailScreen: View {
             VStack(alignment: .leading, spacing: SweeprSpacing.md) {
                 SweeprSectionTitle("Details")
                 VStack(alignment: .leading, spacing: SweeprSpacing.sm) {
-                    if let level = booking.cleaningLevel {
-                        detailRow("Level", level.displayLabel)
-                    }
-                    if let br = booking.bedrooms, let ba = booking.bathrooms {
-                        detailRow("Home", "\(br) bd · \(ba.clean) ba")
-                    }
-                    if let addr = booking.address {
-                        detailRow("Address", addr.oneLine)
-                    }
-                    if let addOns = booking.addOns, !addOns.isEmpty {
-                        detailRow("Add-ons", addOns.map { $0.humanized }.joined(separator: ", "))
-                    }
                     if let when = booking.scheduledAt {
                         detailRow("Scheduled", when.formatted(date: .long, time: .shortened))
                     }
+                    if let level = booking.cleaningLevel {
+                        detailRow("Level", level.displayLabel)
+                    }
+                    if let home = booking.homeSummary {
+                        detailRow("Home", home)
+                    }
+                    if let addr = booking.addressOneLine {
+                        detailRow("Address", addr)
+                    }
+                    if let addOns = booking.addonKeys, !addOns.isEmpty {
+                        detailRow("Add-ons", addOns.map { $0.humanized }.joined(separator: ", "))
+                    }
+                }
+                if let addr = booking.addressOneLine {
+                    Button(action: {
+                        SweeprHaptics.impact(.light)
+                        SweeprMaps.openInMaps(address: addr)
+                    }) {
+                        HStack(spacing: SweeprSpacing.sm) {
+                            Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
+                            Text("Open in Maps").font(SweeprFont.body().weight(.semibold))
+                        }
+                        .foregroundColor(SweeprColor.brand)
+                    }
+                    .buttonStyle(SweeprPressableButtonStyle())
+                    .accessibilityLabel("Open the address in Maps")
                 }
             }
         }
     }
 
-    private func priceCard(_ quote: Quote) -> some View {
+    /// Price breakdown from the booking row's server-computed columns.
+    private var priceCard: some View {
         SweeprCard(elevation: .low) {
             VStack(alignment: .leading, spacing: SweeprSpacing.md) {
                 SweeprSectionTitle("Price")
                 VStack(spacing: SweeprSpacing.sm) {
-                    priceRow("Subtotal", quote.subtotal)
-                    priceRow("Level surcharge", quote.levelSurcharge)
-                    priceRow("Add-ons", quote.addOnsTotal)
-                    if quote.discount.cents != 0 { priceRow("Discount", quote.discount) }
+                    if let base = booking.basePrice { priceRow("Cleaning", Money(cents: base)) }
+                    if let surcharge = booking.cleaningLevelSurchargeCents, surcharge > 0 {
+                        priceRow("Level surcharge", Money(cents: surcharge))
+                    }
+                    if let addOns = booking.addonsTotal, addOns > 0 {
+                        priceRow("Add-ons", Money(cents: addOns))
+                    }
+                    if let fee = booking.serviceFee, fee > 0 { priceRow("Service fee", Money(cents: fee)) }
+                    if let smartEntry = booking.smartEntryFeeCents, smartEntry > 0 {
+                        priceRow("Smart Entry", Money(cents: smartEntry))
+                    }
+                    if let discount = booking.sweeprPlusDiscountCents, discount > 0 {
+                        priceRow("Sweepr+ discount", Money(cents: -discount))
+                    }
+                    if let tax = booking.tax, tax > 0 { priceRow("Tax", Money(cents: tax)) }
                     SweeprDivider()
-                    priceRow("Total", quote.total, bold: true)
+                    if let total = booking.totalMoney { priceRow("Total", total, bold: true) }
                 }
-                Text("Authorized at booking, charged after your cleaning.")
-                    .font(SweeprFont.footnote()).foregroundColor(SweeprColor.textSecondary)
+                if booking.status.isActive && !isCompleted {
+                    Text("Authorized at booking, charged after your cleaning.")
+                        .font(SweeprFont.footnote()).foregroundColor(SweeprColor.textSecondary)
+                }
             }
         }
     }
 
-    // MARK: - Tip & review (completed)
+    // MARK: - Tip (real money — POST /tips + hosted pay page + webhook poll)
 
-    private var tipCard: some View {
+    @ViewBuilder private var tipCard: some View {
         SweeprCard(elevation: .low) {
             VStack(alignment: .leading, spacing: SweeprSpacing.md) {
                 SweeprSectionTitle("Add a tip")
-                Text("100% of your tip goes to \(booking.cleaner?.firstName ?? "your cleaner").")
-                    .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
-                if tipSent {
+                if tip?.status == "succeeded" {
                     HStack(spacing: SweeprSpacing.sm) {
                         Image(systemName: "checkmark.circle.fill").foregroundColor(SweeprColor.brand)
-                        Text("Thank you! Your tip is on the way.")
+                        Text("Thank you! 100% of your tip goes to your cleaner.")
                             .font(SweeprFont.body().weight(.semibold))
                             .foregroundColor(SweeprColor.textPrimary)
                     }
+                } else if tip?.status == "pending" {
+                    HStack(spacing: SweeprSpacing.sm) {
+                        ProgressView()
+                        Text("Finishing your tip payment…")
+                            .font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
+                    }
                 } else {
+                    Text("100% goes to your cleaner — Sweepr takes nothing.")
+                        .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
                     HStack(spacing: SweeprSpacing.sm) {
                         ForEach([500, 1000, 1500, 2000], id: \.self) { cents in
                             tipChip(cents)
                         }
                     }
                     if tipSelection != nil {
-                        SweeprButton("Send tip", systemIcon: "heart.fill") {
-                            SweeprHaptics.notify(.success)
-                            env.toast.show("Thank you! Tip sent.", kind: .success)
-                            withAnimation(SweeprMotion.snappy) { tipSent = true }
-                            tipSelection = nil
+                        SweeprButton("Continue to payment", systemIcon: "heart.fill", isLoading: isStartingTip) {
+                            Task { await startTip() }
                         }
                     }
                 }
@@ -327,29 +338,129 @@ public struct BookingDetailScreen: View {
         .accessibilityLabel("Tip \(Money(cents: cents).dollarsString)")
     }
 
+    private func startTip() async {
+        guard let cents = tipSelection else { return }
+        isStartingTip = true
+        defer { isStartingTip = false }
+        do {
+            let grant = try await env.api.createTip(bookingId: bookingId, amountCents: cents)
+            guard let secret = grant.clientSecret,
+                  let url = PayPage.url(clientSecret: secret, kind: .tip, amountCents: cents) else {
+                env.toast.show("Couldn't start the tip — try again.", kind: .error)
+                return
+            }
+            SweeprHaptics.impact(.medium)
+            SweeprExternal.open(url)
+            tip = TipRecord(id: grant.id ?? "pending", amountCents: cents, status: "pending", createdAt: Date())
+            startTipPolling()
+        } catch {
+            let code = (error as? SweeprAPIError)?.serverCode
+            if code == "tip_window_closed" {
+                env.toast.show("Tips close 3 days after a cleaning.", kind: .warning)
+            } else {
+                env.toast.show("Couldn't start the tip — try again.", kind: .error)
+            }
+        }
+    }
+
+    /// Poll the tip status while the person pays in the browser; the webhook
+    /// settles the row.
+    private func startTipPolling() {
+        tipPollTask?.cancel()
+        tipPollTask = Task {
+            for _ in 0..<40 {
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                if Task.isCancelled { return }
+                if let latest = try? await env.api.tipStatus(bookingId: bookingId) {
+                    tip = latest
+                    if latest.status == "succeeded" {
+                        SweeprHaptics.notify(.success)
+                        env.toast.show("Tip sent — thank you!", kind: .success)
+                        return
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Review (real POST /reviews)
+
     private var reviewCard: some View {
         SweeprCard(elevation: .low) {
             VStack(alignment: .leading, spacing: SweeprSpacing.md) {
                 SweeprSectionTitle("Rate your cleaning")
-                HStack(spacing: SweeprSpacing.sm) {
-                    ForEach(1...5, id: \.self) { star in
-                        Image(systemName: star <= rating ? "star.fill" : "star")
-                            .font(.system(size: 30))
-                            .foregroundColor(star <= rating ? SweeprColor.amber : SweeprColor.separator)
-                            .onTapGesture {
-                                SweeprHaptics.impact(.light)
-                                withAnimation(SweeprMotion.snappy) { rating = star }
-                            }
-                            .accessibilityLabel("\(star) star\(star == 1 ? "" : "s")")
+                if reviewSubmitted {
+                    HStack(spacing: SweeprSpacing.sm) {
+                        Image(systemName: "checkmark.circle.fill").foregroundColor(SweeprColor.brand)
+                        Text("Thanks for the feedback!")
+                            .font(SweeprFont.body().weight(.semibold))
+                            .foregroundColor(SweeprColor.textPrimary)
                     }
-                }
-                if rating > 0 {
-                    SweeprButton("Submit review") {
-                        SweeprHaptics.notify(.success)
-                        env.toast.show("Thanks for the feedback!", kind: .success)
+                } else {
+                    HStack(spacing: SweeprSpacing.sm) {
+                        ForEach(1...5, id: \.self) { star in
+                            Image(systemName: star <= rating ? "star.fill" : "star")
+                                .font(.system(size: 30))
+                                .foregroundColor(star <= rating ? SweeprColor.amber : SweeprColor.separator)
+                                .onTapGesture {
+                                    SweeprHaptics.impact(.light)
+                                    withAnimation(SweeprMotion.snappy) { rating = star }
+                                }
+                                .accessibilityLabel("\(star) star\(star == 1 ? "" : "s")")
+                        }
+                    }
+                    if rating > 0 {
+                        SweeprButton("Submit review", isLoading: isSubmittingReview) {
+                            Task { await submitReview() }
+                        }
                     }
                 }
             }
+        }
+    }
+
+    private func submitReview() async {
+        guard let cleanerId = booking.cleanerId else {
+            env.toast.show("This booking can't be reviewed yet.", kind: .warning)
+            return
+        }
+        isSubmittingReview = true
+        defer { isSubmittingReview = false }
+        do {
+            try await env.api.submitReview(bookingId: bookingId, cleanerId: cleanerId, rating: rating)
+            SweeprHaptics.notify(.success)
+            withAnimation(SweeprMotion.snappy) { reviewSubmitted = true }
+        } catch {
+            if let apiError = error as? SweeprAPIError,
+               case let .http(status, _) = apiError, status == 409 {
+                // Already reviewed (or not reviewable) — treat as done.
+                withAnimation { reviewSubmitted = true }
+            } else {
+                SweeprHaptics.notify(.error)
+                env.toast.show("Couldn't submit your review — try again.", kind: .error)
+            }
+        }
+    }
+
+    // MARK: - Cancel
+
+    private var cancelSection: some View {
+        SweeprButton("Cancel cleaning", style: .destructive, systemIcon: "xmark.circle", isLoading: isCancelling) {
+            showCancelConfirm = true
+        }
+    }
+
+    private func cancelBooking() async {
+        isCancelling = true
+        defer { isCancelling = false }
+        do {
+            try await env.bookingStore.cancel(id: bookingId)
+            if let updated = env.bookingStore.booking(id: bookingId) { booking = updated }
+            SweeprHaptics.notify(.success)
+            env.toast.show("Cleaning cancelled", kind: .info)
+        } catch {
+            SweeprHaptics.notify(.error)
+            env.toast.show("This booking can no longer be cancelled in-app — contact support.", kind: .error)
         }
     }
 
@@ -376,17 +487,18 @@ public struct BookingDetailScreen: View {
     }
 
     private func load() async {
-        if let updated = await env.bookingStore.refreshDetail(id: bookingId) {
-            booking = updated
+        do {
+            let detail = try await env.api.bookingDetail(id: bookingId)
+            booking = detail.booking
+            cleaner = detail.cleaner
+            loadFailed = false
+        } catch {
+            loadFailed = true
         }
-        access = (try? await env.api.bookingAccess(bookingId: bookingId)) ?? nil
-    }
-}
-
-private extension Double {
-    /// Drops a trailing ".0" so 1.5 -> "1.5" but 2.0 -> "2".
-    var clean: String {
-        self == rounded() ? String(Int(self)) : String(self)
+        access = try? await env.api.bookingAccess(bookingId: bookingId)
+        if isCompleted {
+            tip = try? await env.api.tipStatus(bookingId: bookingId)
+        }
     }
 }
 

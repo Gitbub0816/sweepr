@@ -12,8 +12,9 @@ import Observation
 
 // BookingStore — the customer's bookings with explicit loading/error states.
 // `@Observable` (iOS 26 / SKIP SkipModel). Every screen that shows bookings reads
-// from one shared store so Home, Bookings, and Detail stay consistent, and every
-// network failure degrades to `SweeprMock` so the UI is never blank.
+// from one shared store so Home, Bookings, and Detail stay consistent. Failures
+// keep whatever real data is already loaded and surface `.failed` — production
+// screens render a retryable error state, NEVER fabricated bookings.
 
 @MainActor
 @Observable
@@ -75,9 +76,23 @@ public final class BookingStore {
             bookings = try await api.bookings()
             state = .loaded
         } catch {
-            if bookings.isEmpty { bookings = SweeprMock.bookings }
-            state = .failed(String(describing: error))
+            // Keep any real rows already on screen; never substitute mock data.
+            state = .failed(friendlyMessage(for: error))
         }
+    }
+
+    private func friendlyMessage(for error: Error) -> String {
+        if let apiError = error as? SweeprAPIError {
+            switch apiError {
+            case .unauthorized:
+                return "Your session needs a refresh — pull to try again."
+            case .transport:
+                return "Can't reach Sweepr. Check your connection."
+            case .decoding, .http, .badURL:
+                return "Something went wrong loading your bookings."
+            }
+        }
+        return "Something went wrong loading your bookings."
     }
 
     /// Refresh a single booking's detail (merges into the list).

@@ -112,6 +112,13 @@ public extension View {
     func listRowSeparator(_ visibility: Visibility) -> AnyShimView { AnyShimView() }
     func swipeActions<V: View>(edge: HorizontalEdge = .trailing, allowsFullSwipe: Bool = true, @ViewBuilder content: () -> V) -> AnyShimView { AnyShimView() }
 
+    // Sheets
+    func sheet<Content: View>(
+        isPresented: Binding<Bool>,
+        onDismiss: (() -> Void)? = nil,
+        @ViewBuilder content: @escaping () -> Content
+    ) -> AnyShimView { AnyShimView() }
+
     // Dialogs
     func confirmationDialog<A: View>(
         _ title: String,

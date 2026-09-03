@@ -23,8 +23,21 @@ public struct BookFlowScreen: View {
     @State private var step = 0
     @State private var draft = BookingDraft()
     @State private var quote: QuoteResponse?
+    @State private var quoteError: String?
     @State private var smartEntry: SmartEntryStatus?
     @State private var isWorking = false
+
+    // Address selection (server-side rule: bookings should carry an addressId
+    // the cleaner can be routed to).
+    @State private var savedAddresses: [CustomerAddress] = []
+    @State private var selectedAddressId: String?
+
+    // Payment hand-off: after the booking is created, the hosted pay page
+    // (Stripe Elements, Apple Pay in Safari) confirms the manual-capture
+    // intent while we poll /payments/intent-status.
+    @State private var payingBookingId: String?
+    @State private var paymentConfirmed = false
+    @State private var paymentPollTask: Task<Void, Never>?
 
     private let stepTitles = [
         "Address", "Your home", "Package", "Add-ons", "Schedule", "Access", "Review"
@@ -70,7 +83,8 @@ public struct BookFlowScreen: View {
         .background(SweeprColor.background.ignoresSafeArea())
         .navigationTitle("Book")
         .navigationBarTitleDisplayMode(.inline)
-        .task { smartEntry = (try? await env.api.smartEntryStatus()) ?? SweeprMock.smartEntryStatus }
+        .task { smartEntry = try? await env.api.smartEntryStatus() }
+        .onDisappear { paymentPollTask?.cancel() }
     }
 
     // MARK: - Progress
@@ -109,13 +123,31 @@ public struct BookFlowScreen: View {
 
     private var addressStep: some View {
         VStack(alignment: .leading, spacing: SweeprSpacing.md) {
-            fieldCard("Street address", text: $draft.street, placeholder: "1200 Market St")
-            fieldCard("Unit (optional)", text: $draft.unit, placeholder: "Apt 4B")
-            HStack(spacing: SweeprSpacing.md) {
-                fieldCard("City", text: $draft.city, placeholder: "Denver")
+            if !savedAddresses.isEmpty {
+                SweeprSectionTitle("Saved addresses")
+                ForEach(savedAddresses) { addr in
+                    SweeprChoiceRow(
+                        title: addr.label ?? addr.line1,
+                        subtitle: addr.oneLine,
+                        systemIcon: "house.fill",
+                        isSelected: selectedAddressId == addr.id
+                    ) {
+                        selectedAddressId = selectedAddressId == addr.id ? nil : addr.id
+                    }
+                }
+                SweeprSectionTitle(selectedAddressId == nil ? "Or add a new address" : "New address")
+            }
+            if selectedAddressId == nil {
+                fieldCard("Street address", text: $draft.street, placeholder: "1200 Market St")
+                fieldCard("Unit (optional)", text: $draft.unit, placeholder: "Apt 4B")
+                HStack(spacing: SweeprSpacing.md) {
+                    fieldCard("City", text: $draft.city, placeholder: "Denver")
+                    fieldCard("State", text: $draft.state, placeholder: "CO")
+                }
                 fieldCard("ZIP", text: $draft.zip, placeholder: "80202")
             }
         }
+        .task { savedAddresses = (try? await env.api.addresses()) ?? [] }
     }
 
     private var homeStep: some View {
@@ -218,11 +250,70 @@ public struct BookFlowScreen: View {
         }
     }
 
-    private var reviewStep: some View {
-        VStack(alignment: .leading, spacing: SweeprSpacing.md) {
-            summaryCard
-            quoteCard
-            payStub
+    @ViewBuilder private var reviewStep: some View {
+        if let bookingId = payingBookingId {
+            paymentPendingCard(bookingId)
+        } else {
+            VStack(alignment: .leading, spacing: SweeprSpacing.md) {
+                summaryCard
+                quoteCard
+                paymentInfoCard
+            }
+        }
+    }
+
+    /// Shown after the booking is created while the hosted pay page confirms.
+    private func paymentPendingCard(_ bookingId: String) -> some View {
+        SweeprCard(elevation: .medium) {
+            VStack(alignment: .leading, spacing: SweeprSpacing.md) {
+                if paymentConfirmed {
+                    HStack(spacing: SweeprSpacing.sm) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.system(size: 28)).foregroundColor(SweeprColor.brand)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("You're booked!").font(SweeprFont.heading())
+                                .foregroundColor(SweeprColor.textPrimary)
+                            Text("Payment authorized — you're charged after the cleaning.")
+                                .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
+                        }
+                    }
+                    SweeprButton("Done", systemIcon: "checkmark") {
+                        finishAndClose()
+                    }
+                } else {
+                    HStack(spacing: SweeprSpacing.sm) {
+                        ProgressView()
+                        Text("Finish paying in the secure Stripe window…")
+                            .font(SweeprFont.body().weight(.semibold))
+                            .foregroundColor(SweeprColor.textPrimary)
+                    }
+                    Text("We opened your browser to confirm payment (Apple Pay works there too). This screen updates the moment it's done.")
+                        .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
+                    SweeprButton("Reopen payment page", style: .secondary, systemIcon: "safari") {
+                        Task { await openPaymentPage(bookingId: bookingId) }
+                    }
+                }
+            }
+        }
+    }
+
+    private var paymentInfoCard: some View {
+        SweeprCard {
+            HStack(spacing: SweeprSpacing.md) {
+                Image(systemName: "lock.shield.fill")
+                    .font(.system(size: 17, weight: .semibold)).foregroundColor(SweeprColor.brand)
+                    .frame(width: 36, height: 36)
+                    .background(SweeprColor.seafoam100)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Pay securely with Stripe").font(SweeprFont.body().weight(.semibold))
+                        .foregroundColor(SweeprColor.textPrimary)
+                    Text("Card or Apple Pay. Authorized now, charged after service.")
+                        .font(SweeprFont.caption())
+                        .foregroundColor(SweeprColor.textSecondary)
+                }
+                Spacer(minLength: 0)
+            }
         }
     }
 
@@ -264,6 +355,16 @@ public struct BookFlowScreen: View {
                     .foregroundColor(SweeprColor.textPrimary)
                     Text("Authorized now, charged after your cleaning.")
                         .font(SweeprFont.footnote()).foregroundColor(SweeprColor.textSecondary)
+                } else if let quoteError {
+                    HStack(alignment: .top, spacing: SweeprSpacing.sm) {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .foregroundColor(SweeprColor.amber)
+                        Text(quoteError)
+                            .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
+                    }
+                    SweeprButton("Try pricing again", style: .secondary, systemIcon: "arrow.clockwise") {
+                        Task { await fetchQuote() }
+                    }
                 } else {
                     SkeletonBlock(height: 18)
                     SkeletonBlock(height: 18)
@@ -274,53 +375,35 @@ public struct BookFlowScreen: View {
         }
     }
 
-    private var payStub: some View {
-        SweeprCard {
-            HStack(spacing: SweeprSpacing.md) {
-                Image(systemName: "creditcard.fill")
-                    .font(.system(size: 17, weight: .semibold)).foregroundColor(SweeprColor.brand)
-                    .frame(width: 36, height: 36)
-                    .background(SweeprColor.seafoam100)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Visa •••• 4242").font(SweeprFont.body().weight(.semibold))
-                        .foregroundColor(SweeprColor.textPrimary)
-                    Text("Manual capture — pay after service").font(SweeprFont.caption())
-                        .foregroundColor(SweeprColor.textSecondary)
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right").foregroundColor(SweeprColor.separator)
-            }
-        }
-    }
-
     // MARK: - Footer
 
-    private var footer: some View {
-        VStack(spacing: SweeprSpacing.sm) {
-            if isLastStep, let q = quote {
-                HStack {
-                    Text("Total due").font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
-                    Spacer()
-                    Text(q.totalMoney.dollarsString).font(SweeprFont.heading())
-                        .foregroundColor(SweeprColor.textPrimary)
-                }
-            }
-            HStack(spacing: SweeprSpacing.md) {
-                if step > 0 {
-                    SweeprButton("Back", style: .secondary) {
-                        SweeprHaptics.selection()
-                        withAnimation(SweeprMotion.snappy) { step -= 1 }
+    @ViewBuilder private var footer: some View {
+        if payingBookingId == nil {
+            VStack(spacing: SweeprSpacing.sm) {
+                if isLastStep, let q = quote {
+                    HStack {
+                        Text("Total due").font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
+                        Spacer()
+                        Text(q.totalMoney.dollarsString).font(SweeprFont.heading())
+                            .foregroundColor(SweeprColor.textPrimary)
                     }
                 }
-                SweeprButton(isLastStep ? "Confirm & pay" : "Continue", isLoading: isWorking) {
-                    Task { await advance() }
+                HStack(spacing: SweeprSpacing.md) {
+                    if step > 0 {
+                        SweeprButton("Back", style: .secondary) {
+                            SweeprHaptics.selection()
+                            withAnimation(SweeprMotion.snappy) { step -= 1 }
+                        }
+                    }
+                    SweeprButton(isLastStep ? "Confirm & pay" : "Continue", isLoading: isWorking) {
+                        Task { await advance() }
+                    }
+                    .disabled(isWorking || !canContinue || (isLastStep && quote == nil))
                 }
-                .disabled(isWorking || !canContinue)
             }
+            .padding(SweeprSpacing.md)
+            .background(SweeprColor.surface.ignoresSafeArea(edges: .bottom))
         }
-        .padding(SweeprSpacing.md)
-        .background(SweeprColor.surface.ignoresSafeArea(edges: .bottom))
     }
 
     // MARK: - Validation
@@ -328,7 +411,9 @@ public struct BookFlowScreen: View {
     private var canContinue: Bool {
         switch step {
         case 0:
-            return !draft.street.trimmed.isEmpty && !draft.city.trimmed.isEmpty && !draft.zip.trimmed.isEmpty
+            if selectedAddressId != nil { return true }
+            return !draft.street.trimmed.isEmpty && !draft.city.trimmed.isEmpty
+                && draft.state.trimmed.count == 2 && draft.zip.trimmed.count >= 5
         default:
             return true
         }
@@ -348,30 +433,96 @@ public struct BookFlowScreen: View {
         }
     }
 
+    /// Server-authoritative pricing. NEVER a fabricated fallback: a failure
+    /// shows a retryable error and blocks confirm (the button needs a quote).
     private func fetchQuote() async {
         quote = nil
+        quoteError = nil
         do {
             quote = try await env.api.quote(draft.toQuoteRequest())
         } catch {
-            quote = SweeprMock.quoteResponse
-            env.toast.show("Showing an estimate — sign in for live pricing", kind: .warning)
+            let code = (error as? SweeprAPIError)?.serverCode
+            quoteError = code == "date_unavailable"
+                ? "That date isn't available — pick another time."
+                : "We couldn't price this clean. Check your connection and try again."
         }
     }
 
+    /// Create (or reuse) the address → create the booking → hand off to the
+    /// hosted Stripe page → poll until the manual-capture intent is authorized.
     private func submit() async {
+        guard quote != nil else { return }
         isWorking = true
         defer { isWorking = false }
         do {
-            let booking = try await env.api.createBooking(draft.toQuoteRequest())
-            await env.bookingStore.refresh()
-            SweeprHaptics.notify(.success)
-            env.toast.show("Booked! We're finding your cleaner.", kind: .success)
-            _ = booking
-            dismiss()
+            var request = draft.toQuoteRequest()
+            if let selected = selectedAddressId {
+                request.addressId = selected
+            } else {
+                request.addressId = try await env.api.createAddress(CreateAddressRequest(
+                    street: draft.street.trimmed,
+                    unit: draft.unit.trimmed.isEmpty ? nil : draft.unit.trimmed,
+                    city: draft.city.trimmed,
+                    state: draft.state.trimmed.uppercased(),
+                    zip: draft.zip.trimmed,
+                    makeDefault: savedAddresses.isEmpty ? true : nil
+                ))
+            }
+            let booking = try await env.api.createBooking(request)
+            withAnimation(SweeprMotion.smooth) { payingBookingId = booking.id }
+            await openPaymentPage(bookingId: booking.id)
+            startPaymentPolling(bookingId: booking.id)
         } catch {
             SweeprHaptics.notify(.error)
-            env.toast.show("Couldn't complete booking — try again", kind: .error)
+            let code = (error as? SweeprAPIError)?.serverCode
+            switch code {
+            case "address_unavailable":
+                env.toast.show("We can't service that address yet.", kind: .warning)
+            case "date_unavailable":
+                env.toast.show("That date isn't available — pick another.", kind: .warning)
+            case "manual_review_required":
+                env.toast.show("This clean needs a custom quote — we'll reach out.", kind: .info)
+            default:
+                env.toast.show("Couldn't complete booking — try again", kind: .error)
+            }
         }
+    }
+
+    private func openPaymentPage(bookingId: String) async {
+        do {
+            let grant = try await env.api.createBookingPaymentIntent(bookingId: bookingId)
+            guard let secret = grant.clientSecret,
+                  let url = PayPage.url(clientSecret: secret, kind: .booking,
+                                        amountCents: grant.resolvedAmountCents) else {
+                env.toast.show("Couldn't start payment — tap Reopen to retry.", kind: .error)
+                return
+            }
+            SweeprExternal.open(url)
+        } catch {
+            env.toast.show("Couldn't start payment — tap Reopen to retry.", kind: .error)
+        }
+    }
+
+    private func startPaymentPolling(bookingId: String) {
+        paymentPollTask?.cancel()
+        paymentPollTask = Task {
+            for _ in 0..<100 { // ~5 minutes
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                if Task.isCancelled { return }
+                if let status = try? await env.api.bookingPaymentStatus(bookingId: bookingId), status.paid {
+                    SweeprHaptics.notify(.success)
+                    withAnimation(SweeprMotion.smooth) { paymentConfirmed = true }
+                    await env.bookingStore.refresh()
+                    return
+                }
+            }
+        }
+    }
+
+    private func finishAndClose() {
+        paymentPollTask?.cancel()
+        env.toast.show("Booked! We're finding your cleaner.", kind: .success)
+        dismiss()
     }
 
     // MARK: - Small builders
@@ -450,6 +601,7 @@ struct BookingDraft {
     var street = ""
     var unit = ""
     var city = ""
+    var state = ""
     var zip = ""
     var bedrooms = 2
     var bathrooms = 1

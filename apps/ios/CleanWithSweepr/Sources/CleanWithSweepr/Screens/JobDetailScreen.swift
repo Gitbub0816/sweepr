@@ -14,27 +14,39 @@ import SweeprKit
 import LocalAuthentication
 #endif
 
-// Day-of-service job detail — the heart of the app, mirrors the web
-// `JobDetailPage.tsx`. A stepper drives: Confirmed → Start route → Arrive →
-// Smart Entry (reveal credential + backend-driven TapToUnlock) → Before photos →
-// In-progress checklist → After photos → Secure the door → Checkout.
+// Day-of-service job detail — drives the REAL server machine
+// (routes/dayOfService.ts). There is no generic "transition" call: each step
+// is its own endpoint with its own guards, and the SERVER is authoritative —
+// a failed call never advances the UI.
 //
-// Smart Entry is BACKEND-DRIVEN (locked architecture decision): the reveal and
-// the unlock/lock are server calls (`CleanerAPI.revealAccessCredential` /
-// `unlockDoor` / `lockDoor`) carrying a proof-of-presence location. The unlock
-// is presented through the deliberate `TapToUnlock` press-and-hold control, and
-// is only ENABLED once the cleaner is checked in — the server re-validates every
-// call regardless. The server status transition (`lib/statusMachine.ts`) stays
-// authoritative; `DayOfServiceStep` only tracks the on-device flow position.
+//   confirmed ──start-route──▶ en_route ──GPS pings──▶ arrived
+//     arrived ──start-clean──▶ in_progress ──finish-clean──▶ awaiting_checkout
+//     awaiting_checkout ──complete(checkout photo)──▶ completed
+//
+// Arrival is GPS-verified server-side (within 150 m of the property). Photos
+// upload to R2 through presigned URLs and are recorded per phase; the server
+// enforces the before/after minimums at completion. Smart Entry stays
+// backend-driven (reveal + TapToUnlock + lock through /cleaner/bookings/…),
+// gated on being checked in, with a biometric re-auth before reveal.
 public struct JobDetailScreen: View {
     @EnvironmentObject private var env: AppEnvironment
-    private let job: Job
+    private let job: CleanerJob
 
-    @State private var dos: DayOfServiceStatus?
+    @State private var live: LiveJobStatus?
+    @State private var loadFailed = false
     @State private var isLoading = true
-    @State private var step: DayOfServiceStep = .confirmed
+    @State private var isActing = false
 
-    // Smart Entry (backend-driven)
+    // Address revealed by start-route (before `live` catches up).
+    @State private var revealedAddress: RevealedAddress?
+    // Legacy access codes handed out by start-clean (keypad/lockbox notes).
+    @State private var accessCodes: [JobAccessCode] = []
+
+    // Arrival pinging
+    @State private var pingTask: Task<Void, Never>?
+    @State private var lastPingDistanceHint: String?
+
+    // Smart Entry
     @State private var credential: CleanerAPI.AccessCredential?
     @State private var credentialRevealed = false
     @State private var revealRemaining = 0
@@ -45,34 +57,58 @@ public struct JobDetailScreen: View {
     @State private var isSecuringDoor = false
 
     // Photos
-    @State private var beforePhotos: [CapturedPhoto] = []
-    @State private var afterPhotos: [CapturedPhoto] = []
+    @State private var captureFor: PhotoPhase?
+    @State private var isUploadingPhoto = false
+    @State private var checkoutPhotoKey: String?
 
-    // Checklist
-    @State private var checklist: [RoomChecklist] = []
+    // Local working guide (client-side only; server gates are the photos)
+    @State private var guide: [RoomChecklist] = []
 
-    // Transitions in flight
-    @State private var isAdvancing = false
+    public init(job: CleanerJob) { self.job = job }
 
-    public init(job: Job) { self.job = job }
+    // MARK: - Derived state
 
-    private var status: BookingStatus { dos?.status ?? job.booking.status }
-    private var checklistComplete: Bool { !checklist.isEmpty && checklist.allSatisfy(\.isComplete) }
-    private var checklistProgress: Double {
-        let total = checklist.reduce(0) { $0 + $1.items.count }
-        guard total > 0 else { return 0 }
-        let done = checklist.reduce(0) { $0 + $1.items.filter(\.done).count }
-        return Double(done) / Double(total)
-    }
+    private var dayStatus: DayStatus? { live?.booking.dayStatus ?? job.dayStatus }
+    private var beforeCount: Int { live?.beforeCount ?? 0 }
+    private var afterCount: Int { live?.afterCount ?? 0 }
+    private let requiredPhotos = 3 // server default (site_settings can raise it)
 
-    /// Smart Entry is only enabled once the cleaner is checked in / on site.
     private var isCheckedIn: Bool {
-        dos?.checkedInAt != nil || dos?.arrivedAt != nil
-            || status == .arrived || status == .in_progress || step >= .arrived
+        switch dayStatus {
+        case .arrived, .in_progress, .awaiting_checkout: return true
+        default: return live?.booking.arrivalVerifiedAt != nil
+        }
     }
 
-    private var stepProgress: Double {
-        Double(step.rawValue) / Double(DayOfServiceStep.done.rawValue)
+    private var addressText: String? {
+        live?.booking.address?.oneLine ?? revealedAddress.map(\.oneLine)
+    }
+
+    private var addressCoordinate: CLLocationCoordinate2D? {
+        guard let a = live?.booking.address, let lat = a.lat, let lng = a.lng else { return nil }
+        return CLLocationCoordinate2D(latitude: lat, longitude: lng)
+    }
+
+    private var stepIndex: Int {
+        switch dayStatus {
+        case nil, .unknown: return 0
+        case .en_route: return 1
+        case .arrived: return 2
+        case .in_progress: return 3
+        case .awaiting_checkout: return 4
+        case .completed: return 5
+        }
+    }
+
+    private var stepTitle: String {
+        switch dayStatus {
+        case nil, .unknown: return "Ready when you are"
+        case .en_route: return "On the way"
+        case .arrived: return "On site"
+        case .in_progress: return "Cleaning"
+        case .awaiting_checkout: return "Wrap up"
+        case .completed: return "Complete"
+        }
     }
 
     public var body: some View {
@@ -82,17 +118,38 @@ public struct JobDetailScreen: View {
                 progressCard
                 if isLoading {
                     SkeletonBlock(height: 180)
+                } else if loadFailed && live == nil {
+                    SweeprCard {
+                        SweeprErrorState(
+                            message: "Couldn't load this job. Check your connection and try again.",
+                            onRetry: { Task { await refresh() } }
+                        )
+                    }
                 } else {
-                    stepCard
+                    stageCards
                 }
             }
             .padding(SweeprSpacing.md)
         }
         .background(SweeprColor.background.ignoresSafeArea())
-        .navigationTitle(job.booking.packageDisplayName)
+        .navigationTitle(job.packageDisplayName)
         .navigationBarTitleDisplayMode(.inline)
-        .task { await load() }
-        .onDisappear { revealTask?.cancel() }
+        .refreshable { await refresh() }
+        .task { await refresh() }
+        .onDisappear {
+            revealTask?.cancel()
+            pingTask?.cancel()
+        }
+        .sheet(isPresented: Binding(
+            get: { captureFor != nil },
+            set: { if !$0 { captureFor = nil } }
+        )) {
+            PhotoCaptureSheet { data in
+                if let phase = captureFor {
+                    Task { await uploadPhoto(data, phase: phase) }
+                }
+            }
+        }
     }
 
     // MARK: - Header
@@ -105,23 +162,21 @@ public struct JobDetailScreen: View {
                         Text("TODAY'S JOB")
                             .font(SweeprFont.footnote())
                             .foregroundColor(.white.opacity(0.85))
-                        Text(job.booking.packageDisplayName)
+                        Text(job.packageDisplayName)
                             .font(SweeprFont.title())
                             .foregroundColor(.white)
                     }
                     Spacer(minLength: 0)
-                    SweeprBadge(status.displayLabel, tone: .neutral)
+                    SweeprBadge(stepTitle, tone: .neutral)
                 }
                 HStack(spacing: SweeprSpacing.lg) {
-                    if let payout = job.payoutEstimate {
-                        headerStat(icon: "dollarsign.circle.fill", value: payout.dollarsString, label: "Est. payout")
+                    if let payout = job.payoutMoney {
+                        headerStat(icon: "dollarsign.circle.fill", value: payout.dollarsString, label: "Your payout")
                     }
-                    if let when = job.booking.scheduledAt {
+                    if let when = job.scheduledAt {
                         headerStat(icon: "clock.fill", value: when.formatted(date: .omitted, time: .shortened), label: "Scheduled")
                     }
-                    if let d = job.distanceMeters {
-                        headerStat(icon: "location.fill", value: String(format: "%.1f mi", d / 1609.34), label: "Distance")
-                    }
+                    headerStat(icon: "house.fill", value: job.homeSummary, label: "Home")
                 }
             }
             .padding(SweeprSpacing.md)
@@ -133,9 +188,9 @@ public struct JobDetailScreen: View {
                 )
             )
 
-            if let addr = job.booking.address, let lat = addr.latitude, let lon = addr.longitude {
+            if let coord = addressCoordinate {
                 MapPreview(
-                    coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+                    coordinate: coord,
                     systemIcon: "house.fill",
                     title: "Job location",
                     height: 130,
@@ -144,9 +199,9 @@ public struct JobDetailScreen: View {
             }
 
             HStack(spacing: SweeprSpacing.sm) {
-                Image(systemName: status.isTrackable ? "mappin.circle.fill" : "mappin.and.ellipse")
+                Image(systemName: addressText == nil ? "mappin.and.ellipse" : "mappin.circle.fill")
                     .foregroundColor(SweeprColor.brand)
-                Text(status.isTrackable ? (job.booking.address?.oneLine ?? job.maskedAreaLabel) : job.maskedAreaLabel)
+                Text(addressText ?? "\(job.areaLabel) — address unlocks when you start your route")
                     .font(SweeprFont.caption())
                     .foregroundColor(SweeprColor.textSecondary)
                     .lineLimit(2)
@@ -174,95 +229,95 @@ public struct JobDetailScreen: View {
         }
     }
 
-    // MARK: - Progress
-
     private var progressCard: some View {
         SweeprCard {
             VStack(alignment: .leading, spacing: SweeprSpacing.sm) {
                 HStack {
-                    Text(step.title)
+                    Text(stepTitle)
                         .font(SweeprFont.body().weight(.semibold))
                         .foregroundColor(SweeprColor.textPrimary)
                     Spacer()
-                    Text("Step \(step.rawValue + 1) of \(DayOfServiceStep.allCases.count)")
+                    Text("Step \(stepIndex + 1) of 6")
                         .font(SweeprFont.footnote())
                         .foregroundColor(SweeprColor.textSecondary)
                 }
-                SweeprProgressBar(value: stepProgress)
+                SweeprProgressBar(value: Double(stepIndex) / 5.0)
             }
         }
     }
 
-    // MARK: - Step card (the flow)
+    // MARK: - Stage cards
 
-    @ViewBuilder private var stepCard: some View {
-        switch step {
-        case .confirmed: confirmedCard
-        case .enRoute: enRouteCard
-        case .arrived: arrivedCard
-        case .smartEntry: smartEntryCard
-        case .beforePhotos: photoCard(phase: .before)
-        case .inProgress: checklistCard
-        case .afterPhotos: photoCard(phase: .after)
-        case .secureDoor: secureDoorCard
-        case .checkout: checkoutCard
-        case .done: doneCard
+    @ViewBuilder private var stageCards: some View {
+        switch dayStatus {
+        case nil, .unknown:
+            startRouteCard
+        case .en_route:
+            enRouteCard
+        case .arrived:
+            smartEntrySection
+            photosCard(phase: .before)
+            startCleanCard
+        case .in_progress:
+            guideCard
+            photosCard(phase: .after)
+            finishCleanCard
+        case .awaiting_checkout:
+            secureDoorCard
+            checkoutCard
+        case .completed:
+            doneCard
         }
     }
 
-    private var confirmedCard: some View {
-        stepShell(icon: "checkmark.seal.fill", title: "You're confirmed") {
-            Text("You're booked for this job. Start your route when you're ready to head over.")
+    private var startRouteCard: some View {
+        stepShell(icon: "car.fill", title: "Start your route") {
+            Text("Starting your route reveals the exact address and lets the customer track your arrival.")
                 .font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
-            SweeprButton(isAdvancing ? "Starting…" : "Start route", systemIcon: "car.fill", isLoading: isAdvancing) {
-                advance(to: .enRoute, transition: .cleaner_on_the_way)
+            SweeprButton("Start route", systemIcon: "car.fill", isLoading: isActing) {
+                Task { await startRoute() }
             }
-            .disabled(isAdvancing)
+            .disabled(isActing)
         }
     }
 
     private var enRouteCard: some View {
-        stepShell(icon: "car.fill", title: "On the way") {
-            if let addr = job.booking.address {
-                Text(addr.oneLine).font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
+        stepShell(icon: "location.fill", title: "Heading there") {
+            if let addressText {
+                Text(addressText).font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
+                SweeprButton("Open in Maps", style: .secondary, systemIcon: "arrow.triangle.turn.up.right.diamond.fill") {
+                    if let coord = addressCoordinate {
+                        SweeprMaps.openInMaps(latitude: coord.latitude, longitude: coord.longitude, label: "Job")
+                    } else {
+                        SweeprMaps.openInMaps(address: addressText)
+                    }
+                }
             }
-            SweeprButton("Open in Maps", style: .secondary, systemIcon: "location.north.line.fill") {
-                openInMaps()
-            }
-            SweeprButton(isAdvancing ? "Confirming…" : "I've arrived", systemIcon: "mappin.circle.fill", isLoading: isAdvancing) {
-                advance(to: .arrived, transition: .arrived)
-            }
-            .disabled(isAdvancing)
-        }
-    }
-
-    private var arrivedCard: some View {
-        stepShell(icon: "mappin.circle.fill", title: "You've arrived") {
+            SweeprDivider()
             HStack(spacing: SweeprSpacing.sm) {
-                Image(systemName: "location.fill").foregroundColor(SweeprColor.brand)
-                Text("Location check-in confirmed")
+                ProgressView()
+                Text("We check you in automatically when you're within 150 m of the property.")
                     .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
             }
-            Text("Continue to Smart Entry to get in.")
-                .font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
-            SweeprButton("Continue to Smart Entry", systemIcon: "key.fill") {
-                withAnimation(SweeprMotion.snappy) { step = .smartEntry }
-                Task { await ensureChecklistLoaded() }
+            if let hint = lastPingDistanceHint {
+                Text(hint).font(SweeprFont.footnote()).foregroundColor(SweeprColor.amber)
             }
+            SweeprButton("I'm here — check me in", systemIcon: "mappin.circle.fill", isLoading: isActing) {
+                Task { await pingLocation(manual: true) }
+            }
+            .disabled(isActing)
         }
     }
 
-    // Smart Entry — backend-driven reveal + TapToUnlock (gated by check-in).
-    private var smartEntryCard: some View {
+    // Smart Entry — backend-driven reveal + TapToUnlock, only once checked in.
+    @ViewBuilder private var smartEntrySection: some View {
         SweeprCard(elevation: .medium) {
             VStack(alignment: .leading, spacing: SweeprSpacing.md) {
                 HStack {
-                    Label("Smart Entry", systemImage: "key.fill")
+                    Label("Getting in", systemImage: "key.fill")
                         .font(SweeprFont.heading()).foregroundColor(SweeprColor.textPrimary)
                     Spacer()
-                    if let entry = dos?.smartEntry {
-                        SweeprBadge(entry.method.rawValue.replacingOccurrences(of: "_", with: " "), tone: .brand)
-                    }
+                    SweeprBadge("Checked in", tone: .success)
                 }
 
                 if credentialRevealed, let cred = credential {
@@ -270,10 +325,6 @@ public struct JobDetailScreen: View {
                         Text(cred.credential)
                             .font(SweeprFont.mono(size: 38))
                             .foregroundColor(SweeprColor.textPrimary)
-                        if let instructions = dos?.smartEntry?.instructions {
-                            Text(instructions).font(SweeprFont.caption())
-                                .foregroundColor(SweeprColor.textSecondary)
-                        }
                         HStack(spacing: SweeprSpacing.md) {
                             Label("Hides in \(revealRemaining)s", systemImage: "timer")
                                 .font(SweeprFont.footnote()).foregroundColor(SweeprColor.textSecondary)
@@ -288,17 +339,28 @@ public struct JobDetailScreen: View {
                     .background(SweeprColor.seafoam50)
                     .clipShape(RoundedRectangle(cornerRadius: SweeprRadius.button, style: .continuous))
                 } else {
-                    Text("Access details stay hidden until you reveal them at the door. Revealing requires a quick identity check.")
+                    Text("Access details stay hidden until you reveal them at the door. Revealing takes a quick identity check.")
                         .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
                     SweeprButton(isRevealing ? "Verifying…" : "Reveal access", style: .secondary, systemIcon: "eye.fill", isLoading: isRevealing) {
                         revealCredential()
                     }
-                    .disabled(isRevealing || !isCheckedIn)
+                    .disabled(isRevealing)
+                }
+
+                if !accessCodes.isEmpty {
+                    ForEach(Array(accessCodes.enumerated()), id: \.offset) { _, code in
+                        if let notes = code.notes {
+                            HStack(alignment: .top, spacing: SweeprSpacing.sm) {
+                                Image(systemName: "note.text").foregroundColor(SweeprColor.brand)
+                                Text(notes).font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
+                            }
+                        }
+                    }
                 }
 
                 SweeprDivider()
 
-                // The deliberate press-and-hold unlock, wired to the backend.
+                // Deliberate press-and-hold remote unlock (Seam, server-side).
                 TapToUnlock(isEnabled: isCheckedIn && !isDoorUnlocked) {
                     await performUnlock()
                 }
@@ -308,90 +370,81 @@ public struct JobDetailScreen: View {
                     Text("Powered by Seam · every unlock is logged")
                 }
                 .font(SweeprFont.footnote()).foregroundColor(SweeprColor.textSecondary)
-
-                if isDoorUnlocked {
-                    SweeprButton("Continue to before photos", systemIcon: "arrow.right") {
-                        withAnimation(SweeprMotion.snappy) { step = .beforePhotos }
-                    }
-                }
             }
         }
     }
 
-    private func photoCard(phase: PhotoPhase) -> some View {
-        let photos = phase == .before ? beforePhotos : afterPhotos
-        let minRequired = 2
+    private func photosCard(phase: PhotoPhase) -> some View {
+        let count = phase == .before ? beforeCount : afterCount
         return stepShell(
             icon: "camera.fill",
             title: phase == .before ? "Before photos" : "After photos"
         ) {
-            Text("Capture at least \(minRequired) photos. These upload to secure storage and gate "
-                 + (phase == .before ? "the start of cleaning." : "checkout."))
+            Text("Capture at least \(requiredPhotos). They upload to secure storage and are required before checkout.")
                 .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())],
-                      spacing: SweeprSpacing.sm) {
-                ForEach(photos) { _ in
+            HStack(spacing: SweeprSpacing.md) {
+                ForEach(0..<max(count, requiredPhotos), id: \.self) { i in
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(SweeprColor.seafoam100)
-                        .frame(height: 76)
+                        .fill(i < count ? SweeprColor.seafoam100 : SweeprColor.surface)
+                        .frame(width: 64, height: 64)
                         .overlay(
-                            Image(systemName: "checkmark.circle.fill")
+                            Image(systemName: i < count ? "checkmark.circle.fill" : "camera")
                                 .font(.system(size: 20, weight: .semibold))
-                                .foregroundColor(SweeprColor.brand)
+                                .foregroundColor(i < count ? SweeprColor.brand : SweeprColor.separator)
                         )
-                }
-                Button {
-                    capturePhoto(phase: phase)
-                } label: {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(SweeprColor.separator, lineWidth: 1)
-                        .frame(height: 76)
                         .overlay(
-                            VStack(spacing: 2) {
-                                Image(systemName: "camera.fill").foregroundColor(SweeprColor.brand)
-                                Text("Add").font(SweeprFont.footnote()).foregroundColor(SweeprColor.textSecondary)
-                            }
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(SweeprColor.separator, lineWidth: i < count ? 0 : 1)
                         )
                 }
-                .buttonStyle(SweeprPressableButtonStyle())
             }
 
             HStack {
-                Text("\(photos.count)/\(minRequired) captured")
+                Text("\(count)/\(requiredPhotos) uploaded")
                     .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
                 Spacer()
-                if photos.count >= minRequired {
+                if count >= requiredPhotos {
                     SweeprBadge("Ready", tone: .success)
                 }
             }
 
-            if photos.count >= minRequired {
-                SweeprButton(
-                    phase == .before ? "Start cleaning" : "Continue to secure the door",
-                    systemIcon: phase == .before ? "play.fill" : "arrow.right"
-                ) {
-                    if phase == .before {
-                        advance(to: .inProgress, transition: .in_progress)
-                    } else {
-                        withAnimation(SweeprMotion.snappy) { step = .secureDoor }
-                    }
-                }
+            SweeprButton(
+                isUploadingPhoto ? "Uploading…" : "Take photo",
+                style: count >= requiredPhotos ? .secondary : .primary,
+                systemIcon: "camera.fill",
+                isLoading: isUploadingPhoto
+            ) {
+                captureFor = phase
             }
+            .disabled(isUploadingPhoto)
         }
     }
 
-    private var checklistCard: some View {
+    private var startCleanCard: some View {
+        stepShell(icon: "play.fill", title: "Start cleaning") {
+            Text("Starting the clean releases any entry codes and starts the service clock.")
+                .font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
+            SweeprButton("Start cleaning", systemIcon: "play.fill", isLoading: isActing) {
+                Task { await startClean() }
+            }
+            .disabled(isActing)
+        }
+    }
+
+    private var guideCard: some View {
         SweeprCard {
             VStack(alignment: .leading, spacing: SweeprSpacing.md) {
                 HStack {
-                    Text("In progress").font(SweeprFont.heading()).foregroundColor(SweeprColor.textPrimary)
+                    Text("Your working guide").font(SweeprFont.heading()).foregroundColor(SweeprColor.textPrimary)
                     Spacer()
-                    Text("\(Int(checklistProgress * 100))%")
+                    Text("\(Int(guideProgress * 100))%")
                         .font(SweeprFont.caption().weight(.semibold)).foregroundColor(SweeprColor.brand)
                 }
-                SweeprProgressBar(value: checklistProgress)
-                ForEach($checklist) { $room in
+                Text("A local checklist built from this home's scope — for your own pacing. Checkout is gated by photos, not this list.")
+                    .font(SweeprFont.footnote()).foregroundColor(SweeprColor.textSecondary)
+                SweeprProgressBar(value: guideProgress)
+                ForEach($guide) { $room in
                     VStack(alignment: .leading, spacing: SweeprSpacing.xs) {
                         Text(room.room).font(SweeprFont.body().weight(.semibold))
                             .foregroundColor(SweeprColor.textPrimary)
@@ -415,11 +468,25 @@ public struct JobDetailScreen: View {
                     }
                     SweeprDivider()
                 }
-                SweeprButton("Move to after photos", systemIcon: "camera.fill") {
-                    withAnimation(SweeprMotion.snappy) { step = .afterPhotos }
-                }
-                .disabled(!checklistComplete)
             }
+        }
+    }
+
+    private var guideProgress: Double {
+        let total = guide.reduce(0) { $0 + $1.items.count }
+        guard total > 0 else { return 0 }
+        let done = guide.reduce(0) { $0 + $1.items.filter(\.done).count }
+        return Double(done) / Double(total)
+    }
+
+    private var finishCleanCard: some View {
+        stepShell(icon: "flag.checkered", title: "Finish cleaning") {
+            Text("Done with the clean? This moves you to checkout — after photos and the door check happen there.")
+                .font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
+            SweeprButton("Finish cleaning", systemIcon: "flag.checkered", isLoading: isActing) {
+                Task { await finishClean() }
+            }
+            .disabled(isActing)
         }
     }
 
@@ -436,29 +503,62 @@ public struct JobDetailScreen: View {
                 secureDoor()
             }
             .disabled(isDoorSecured || isSecuringDoor)
-            if isDoorSecured {
-                SweeprButton("Continue to checkout", systemIcon: "arrow.right") {
-                    withAnimation(SweeprMotion.snappy) { step = .checkout }
-                }
-            }
         }
     }
 
     private var checkoutCard: some View {
         stepShell(icon: "checkmark.seal.fill", title: "Checkout") {
-            Text("Review complete. Submitting marks this job completed and starts payout processing.")
-                .font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
-            if let payout = job.payoutEstimate {
+            if beforeCount < requiredPhotos || afterCount < requiredPhotos {
+                HStack(alignment: .top, spacing: SweeprSpacing.sm) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundColor(SweeprColor.amber)
+                    Text("You still need \(max(0, requiredPhotos - beforeCount)) before and \(max(0, requiredPhotos - afterCount)) after photos to check out.")
+                        .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
+                }
+                photoBackfillButtons
+            }
+            if checkoutPhotoKey == nil {
+                Text("Last step: one checkout photo of the secured door / entry area.")
+                    .font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
+                SweeprButton(
+                    isUploadingPhoto ? "Uploading…" : "Take checkout photo",
+                    style: .secondary, systemIcon: "camera.fill", isLoading: isUploadingPhoto
+                ) {
+                    captureFor = .checkout
+                }
+                .disabled(isUploadingPhoto)
+            } else {
+                HStack(spacing: SweeprSpacing.sm) {
+                    Image(systemName: "checkmark.circle.fill").foregroundColor(SweeprColor.brand)
+                    Text("Checkout photo captured").font(SweeprFont.body().weight(.semibold))
+                        .foregroundColor(SweeprColor.textPrimary)
+                }
+            }
+            if let payout = job.payoutMoney {
                 HStack {
-                    Text("Est. payout").font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
+                    Text("Your payout").font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
                     Spacer()
                     Text(payout.dollarsString).font(SweeprFont.heading()).foregroundColor(SweeprColor.brand)
                 }
             }
-            SweeprButton(isAdvancing ? "Submitting…" : "Complete job", systemIcon: "checkmark.seal.fill", isLoading: isAdvancing) {
-                advance(to: .done, transition: .completed_pending_review)
+            SweeprButton("Complete job", systemIcon: "checkmark.seal.fill", isLoading: isActing) {
+                Task { await completeJob() }
             }
-            .disabled(isAdvancing)
+            .disabled(isActing || checkoutPhotoKey == nil)
+        }
+    }
+
+    private var photoBackfillButtons: some View {
+        HStack(spacing: SweeprSpacing.sm) {
+            if beforeCount < requiredPhotos {
+                SweeprButton("Add before", style: .secondary, systemIcon: "camera") {
+                    captureFor = .before
+                }
+            }
+            if afterCount < requiredPhotos {
+                SweeprButton("Add after", style: .secondary, systemIcon: "camera") {
+                    captureFor = .after
+                }
+            }
         }
     }
 
@@ -469,7 +569,7 @@ public struct JobDetailScreen: View {
                     .font(.system(size: 40, weight: .semibold))
                     .foregroundColor(SweeprColor.brand)
                 Text("Job complete").font(SweeprFont.heading()).foregroundColor(SweeprColor.textPrimary)
-                Text("Nice work. Payout will process after the platform review window.")
+                Text("Nice work. Your payout processes after the platform review window.")
                     .font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
             }
         }
@@ -493,16 +593,171 @@ public struct JobDetailScreen: View {
         }
     }
 
+    // MARK: - Server actions (authoritative — failures never advance the UI)
+
+    private func refresh() async {
+        do {
+            live = try await env.cleanerAPI.liveStatus(bookingId: job.id)
+            loadFailed = false
+            if let codes = live?.booking.accessCodes, !codes.isEmpty {
+                accessCodes = codes
+            }
+            if guide.isEmpty {
+                guide = CleaningGuide.build(
+                    bedrooms: job.bedrooms,
+                    bathrooms: job.bathrooms,
+                    deepClean: live?.booking.deepCleanApplied ?? false
+                )
+            }
+            if dayStatus == .en_route { startArrivalPinging() }
+        } catch {
+            loadFailed = true
+        }
+        isLoading = false
+    }
+
+    private func startRoute() async {
+        isActing = true
+        defer { isActing = false }
+        SweeprHaptics.impact(.medium)
+        do {
+            let fix = await currentDeviceFix()
+            let resp = try await env.cleanerAPI.startRoute(
+                bookingId: job.id, lat: fix?.latitude, lng: fix?.longitude
+            )
+            revealedAddress = resp.address
+            SweeprHaptics.notify(.success)
+            await refresh()
+            startArrivalPinging()
+        } catch {
+            surfaceServerDenial(error, fallback: "Couldn't start the route — try again closer to the appointment window.")
+        }
+    }
+
+    /// Pings the server with the device position; within 150 m the SERVER
+    /// flips day_status to arrived.
+    private func pingLocation(manual: Bool) async {
+        if manual { isActing = true }
+        defer { if manual { isActing = false } }
+        guard let fix = await currentDeviceFix() else {
+            if manual {
+                env.toasts.show("Turn on location access so we can check you in.", kind: .warning)
+            }
+            return
+        }
+        do {
+            let resp = try await env.cleanerAPI.sendLocation(
+                bookingId: job.id, lat: fix.latitude, lng: fix.longitude,
+                accuracyMeters: fix.accuracyMeters
+            )
+            if resp.arrivalVerified == true {
+                pingTask?.cancel()
+                SweeprHaptics.notify(.success)
+                env.toasts.show("Checked in — you're on site.", kind: .success)
+                lastPingDistanceHint = nil
+                await refresh()
+            } else if manual {
+                lastPingDistanceHint = "Not quite there yet — check-in unlocks within 150 m of the property."
+                SweeprHaptics.notify(.warning)
+            }
+        } catch {
+            if manual {
+                surfaceServerDenial(error, fallback: "Couldn't send your location — try again.")
+            }
+        }
+    }
+
+    private func startArrivalPinging() {
+        guard pingTask == nil || pingTask?.isCancelled == true else { return }
+        pingTask = Task {
+            while !Task.isCancelled {
+                await pingLocation(manual: false)
+                if dayStatus != .en_route { return }
+                try? await Task.sleep(nanoseconds: 25_000_000_000) // 25s
+            }
+        }
+    }
+
+    private func startClean() async {
+        isActing = true
+        defer { isActing = false }
+        SweeprHaptics.impact(.medium)
+        do {
+            let resp = try await env.cleanerAPI.startClean(bookingId: job.id)
+            accessCodes = resp.accessCodes ?? accessCodes
+            SweeprHaptics.notify(.success)
+            await refresh()
+        } catch {
+            surfaceServerDenial(error, fallback: "Couldn't start — make sure you're checked in at the property.")
+        }
+    }
+
+    private func finishClean() async {
+        isActing = true
+        defer { isActing = false }
+        SweeprHaptics.impact(.medium)
+        do {
+            _ = try await env.cleanerAPI.finishClean(bookingId: job.id)
+            SweeprHaptics.notify(.success)
+            await refresh()
+        } catch {
+            surfaceServerDenial(error, fallback: "Couldn't finish the clean — try again.")
+        }
+    }
+
+    private func completeJob() async {
+        guard let key = checkoutPhotoKey else { return }
+        isActing = true
+        defer { isActing = false }
+        SweeprHaptics.impact(.heavy)
+        do {
+            _ = try await env.cleanerAPI.completeJob(bookingId: job.id, checkoutPhotoKey: key)
+            SweeprHaptics.notify(.success)
+            env.activeJob = nil
+            await refresh()
+        } catch {
+            surfaceServerDenial(error, fallback: "Couldn't complete — check the photo requirements above.")
+        }
+    }
+
+    // MARK: - Photos
+
+    private enum PhotoPhase: String { case before, after, checkout }
+
+    private func uploadPhoto(_ data: Data, phase: PhotoPhase) async {
+        captureFor = nil
+        isUploadingPhoto = true
+        defer { isUploadingPhoto = false }
+        do {
+            let signed = try await env.cleanerAPI.signPhotoUpload(
+                bookingId: job.id,
+                fileName: "\(phase.rawValue)-\(Int(Date().timeIntervalSince1970)).jpg",
+                contentType: "image/jpeg",
+                sizeBytes: data.count
+            )
+            try await env.cleanerAPI.uploadPhotoData(data, to: signed)
+            try await env.cleanerAPI.recordPhoto(
+                bookingId: job.id, photoType: phase.rawValue, storageKey: signed.storageKey
+            )
+            if phase == .checkout { checkoutPhotoKey = signed.storageKey }
+            SweeprHaptics.notify(.success)
+            await refresh()
+        } catch {
+            SweeprHaptics.notify(.error)
+            surfaceServerDenial(error, fallback: "Photo upload failed — try again.")
+        }
+    }
+
     // MARK: - Smart Entry actions
 
-    /// Builds a proof-of-presence body. In production the coordinate/accuracy
-    /// come from CoreLocation; without a live fix we send the job coordinate.
-    private func smartEntryLocation(reauthenticated: Bool) -> CleanerAPI.SmartEntryLocation {
-        let addr = job.booking.address
+    private func smartEntryLocation(reauthenticated: Bool) async -> CleanerAPI.SmartEntryLocation {
+        let fix = await currentDeviceFix()
+        let lat = fix?.latitude ?? live?.booking.address?.lat ?? 0
+        let lng = fix?.longitude ?? live?.booking.address?.lng ?? 0
         return .now(
-            latitude: addr?.latitude ?? 0,
-            longitude: addr?.longitude ?? 0,
-            accuracyMeters: 12,
+            latitude: lat,
+            longitude: lng,
+            accuracyMeters: fix?.accuracyMeters ?? 50,
             sessionId: env.smartEntrySessionId,
             reauthenticated: reauthenticated
         )
@@ -515,28 +770,18 @@ public struct JobDetailScreen: View {
             let ok = await requestBiometricReauth()
             guard ok else { isRevealing = false; return }
             do {
+                let location = await smartEntryLocation(reauthenticated: true)
                 let cred = try await env.cleanerAPI.revealAccessCredential(
-                    bookingId: job.booking.id,
-                    location: smartEntryLocation(reauthenticated: true)
+                    bookingId: job.id, location: location
                 )
                 credential = cred
                 credentialRevealed = true
                 SweeprHaptics.notify(.success)
                 startAutoHideTimer(seconds: cred.displaySeconds)
             } catch {
-                // Offline/demo fallback so the flow stays exercisable.
-                if let se = dos?.smartEntry, let code = se.code {
-                    let seconds = Int(CleanerMock.smartEntryRevealSeconds)
-                    credential = CleanerAPI.AccessCredential(
-                        credentialType: se.method.rawValue, credential: code,
-                        expiresAtRaw: nil, displaySeconds: seconds, remainingRevealCount: 1
-                    )
-                    credentialRevealed = true
-                    SweeprHaptics.notify(.success)
-                    startAutoHideTimer(seconds: seconds)
-                } else {
-                    env.toasts.show("Access isn't available yet — confirm you're checked in at the property.", kind: .warning)
-                }
+                // The server said no (not checked in, no credential, out of
+                // reveals). NEVER substitute a credential from anywhere else.
+                surfaceServerDenial(error, fallback: "Access isn't available yet — confirm you're checked in at the property.")
             }
             isRevealing = false
         }
@@ -556,14 +801,10 @@ public struct JobDetailScreen: View {
         }
     }
 
-    /// Injected into `TapToUnlock`: performs the backend unlock and reports
-    /// success so the control can settle into its unlocked/failed state.
     private func performUnlock() async -> Bool {
         do {
-            let result = try await env.cleanerAPI.unlockDoor(
-                bookingId: job.booking.id,
-                location: smartEntryLocation(reauthenticated: true)
-            )
+            let location = await smartEntryLocation(reauthenticated: true)
+            let result = try await env.cleanerAPI.unlockDoor(bookingId: job.id, location: location)
             if result.succeeded {
                 isDoorUnlocked = true
                 return true
@@ -581,62 +822,21 @@ public struct JobDetailScreen: View {
         SweeprHaptics.impact(.medium)
         Task {
             do {
-                let result = try await env.cleanerAPI.lockDoor(
-                    bookingId: job.booking.id,
-                    location: smartEntryLocation(reauthenticated: false)
-                )
+                let location = await smartEntryLocation(reauthenticated: false)
+                let result = try await env.cleanerAPI.lockDoor(bookingId: job.id, location: location)
                 if result.succeeded {
+                    isDoorSecured = true
                     env.toasts.show("Door secured", kind: .success)
                 } else {
-                    env.toasts.show(result.message ?? "Couldn't confirm the lock — please check the door.", kind: .warning)
+                    // Provider failure — the cleaner confirms the physical
+                    // door instead; don't block checkout on a Seam blip.
+                    isDoorSecured = true
+                    env.toasts.show(result.message ?? "Couldn't confirm remotely — please check the door by hand.", kind: .warning)
                 }
             } catch {
                 env.toasts.show("Lock command not authorized.", kind: .error)
             }
-            isDoorSecured = true
             isSecuringDoor = false
-        }
-    }
-
-    // MARK: - Flow actions
-
-    private func advance(to nextStep: DayOfServiceStep, transition: BookingStatus) {
-        guard !isAdvancing else { return }
-        isAdvancing = true
-        SweeprHaptics.impact(.medium)
-        Task {
-            do {
-                try await env.cleanerAPI.transition(bookingId: job.booking.id, to: transition)
-            } catch {
-                // Server is authoritative; the UI still advances locally for
-                // offline continuity, but surface that the sync failed.
-                env.toasts.show("Saved locally — we'll resync when you're back online.", kind: .warning)
-            }
-            withAnimation(SweeprMotion.snappy) { step = nextStep }
-            isAdvancing = false
-        }
-    }
-
-    private func openInMaps() {
-        guard let addr = job.booking.address, let lat = addr.latitude, let lon = addr.longitude else {
-            env.toasts.show("No mappable address yet.", kind: .warning)
-            return
-        }
-        SweeprMaps.openInMaps(latitude: lat, longitude: lon, label: job.booking.packageDisplayName)
-    }
-
-    private enum PhotoPhase { case before, after }
-
-    private func capturePhoto(phase: PhotoPhase) {
-        // TODO(camera): wire real capture (PHPicker / UIImagePicker) + upload to
-        // R2. This records a placeholder so the >=2 gate is exercisable.
-        SweeprHaptics.impact(.light)
-        let photo = CapturedPhoto()
-        if phase == .before { beforePhotos.append(photo) } else { afterPhotos.append(photo) }
-        Task {
-            try? await env.cleanerAPI.recordPhotoCaptured(
-                bookingId: job.booking.id, phase: phase == .before ? "before" : "after"
-            )
         }
     }
 
@@ -663,25 +863,27 @@ public struct JobDetailScreen: View {
         #endif
     }
 
-    private func ensureChecklistLoaded() async {
-        if checklist.isEmpty { checklist = CleanerMock.checklist }
-    }
+    // MARK: - Error surfacing
 
-    private func load() async {
-        isLoading = true
-        do {
-            dos = try await env.api.dayOfServiceStatus(bookingId: job.booking.id)
-        } catch {
-            dos = DayOfServiceStatus(
-                bookingId: job.booking.id, status: job.booking.status,
-                checkedInAt: nil, arrivedAt: nil, startedAt: nil, completedAt: nil,
-                requiresBeforePhotos: true, requiresAfterPhotos: true,
-                smartEntry: SweeprMock.smartEntry
-            )
+    /// Show the server's own denial message when it sent one; the machine's
+    /// guards are the product truth, not something to paper over.
+    private func surfaceServerDenial(_ error: Error, fallback: String) {
+        SweeprHaptics.notify(.error)
+        if let apiError = error as? SweeprAPIError {
+            if case let .http(_, body) = apiError {
+                struct E: Decodable { let error: String?; let message: String? }
+                if let parsed = try? JSONDecoder().decode(E.self, from: Data(body.utf8)),
+                   let message = parsed.message ?? parsed.error {
+                    env.toasts.show(message.replacingOccurrences(of: "_", with: " "), kind: .warning)
+                    return
+                }
+            }
+            if case .unauthorized = apiError {
+                env.toasts.show("Not authorized for that yet — check your step.", kind: .warning)
+                return
+            }
         }
-        step = DayOfServiceStep.from(status: status)
-        checklist = (try? await env.cleanerAPI.checklist(bookingId: job.booking.id)) ?? CleanerMock.checklist
-        isLoading = false
+        env.toasts.show(fallback, kind: .error)
     }
 }
 
@@ -689,7 +891,7 @@ public struct JobDetailScreen: View {
 struct JobDetailScreen_Previews: PreviewProvider {
     static var previews: some View {
         NavigationStack {
-            JobDetailScreen(job: SweeprMock.jobs[0]).environmentObject(AppEnvironment.preview)
+            JobDetailScreen(job: CleanerMock.job()).environmentObject(AppEnvironment.preview)
         }
     }
 }

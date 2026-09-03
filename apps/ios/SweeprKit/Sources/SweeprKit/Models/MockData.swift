@@ -9,102 +9,81 @@
 //
 import Foundation
 
-// Deterministic mock data for SwiftUI previews and offline development, where the
-// network isn't reachable (e.g. this repo's CI, or a device without a Clerk
-// session). Screens fall back to these when a live fetch fails.
+// Sample data for SwiftUI PREVIEWS and unit tests ONLY. Production code paths
+// must never render these — screens show real loading/empty/error states
+// instead (App Review 2.1: no placeholder data in shipping flows).
 
 public enum SweeprMock {
-    public static let address = Address(
-        id: "addr_1", street: "1200 Market St", unit: "Apt 4B",
-        city: "Denver", state: "CO", zip: "80202",
-        latitude: 39.7466, longitude: -104.9899
-    )
-
-    public static let cleaner = Cleaner(
-        id: "cl_1", firstName: "Maya", lastName: "Rodriguez",
-        avatarUrl: nil, rating: 4.9, completedJobs: 312,
-        latitude: 39.7510, longitude: -104.9850
-    )
-
-    public static let quote = Quote(
-        subtotal: Money(cents: 15900),
-        levelSurcharge: Money(cents: 2400),
-        addOnsTotal: Money(cents: 3500),
-        discount: Money(cents: -1500),
-        tax: Money(cents: 0),
-        total: Money(cents: 20300)
-    )
-
     public static func booking(
-        id: String = "bk_1",
-        status: BookingStatus = .cleaner_on_the_way
+        id: String = "bk_preview_1",
+        status: BookingStatus = .confirmed,
+        dayStatus: DayStatus? = nil
     ) -> Booking {
         Booking(
-            id: id, status: status, serviceType: "standard_clean",
-            cleaningLevel: .extra_attention, bedrooms: 2, bathrooms: 1.5,
-            scheduledAt: Date().addingTimeInterval(3600),
-            address: address, cleaner: status.isTrackable ? cleaner : nil,
-            quote: quote, addOns: ["inside_fridge", "inside_oven"]
+            id: id,
+            status: status,
+            dayStatus: dayStatus,
+            cleanerId: nil,
+            addressId: nil,
+            serviceType: "standard",
+            cleaningLevel: .refresh,
+            bedrooms: 2,
+            bathrooms: 1,
+            sqft: 1200,
+            homeType: "apartment",
+            scheduledAt: Date().addingTimeInterval(60 * 60 * 26),
+            durationMinutes: 150,
+            arrivalWindowStart: "10:00:00",
+            arrivalWindowEnd: "12:00:00",
+            basePrice: 13900,
+            addonsTotal: 2500,
+            serviceFee: 1200,
+            tax: 900,
+            totalPrice: 18500,
+            cleaningLevelSurchargeCents: 0,
+            smartEntryFeeCents: 500,
+            sweeprPlusDiscountCents: 0,
+            cleanerLat: 39.7392,
+            cleanerLng: -104.9903,
+            addressLine1: "1200 Market St",
+            addressCity: "Denver",
+            addressState: "CO",
+            addressZip: "80202",
+            addonKeys: ["inside_fridge"],
+            deepCleanApplied: false,
+            notes: nil,
+            entryNotes: nil,
+            parkingNotes: nil,
+            accessMethod: "smart_entry",
+            createdAt: Date()
         )
     }
 
-    public static let bookings: [Booking] = [
-        booking(id: "bk_1", status: .cleaner_on_the_way),
-        booking(id: "bk_2", status: .confirmed),
-        booking(id: "bk_3", status: .completed),
-    ]
-
-    public static let membership = Membership(
-        active: true, planName: "Sweepr+",
-        renewsAt: Date().addingTimeInterval(60 * 60 * 24 * 21),
-        creditsCents: 2500, discountPct: 10
-    )
-
-    public static let jobs: [Job] = [
-        Job(id: "job_1", booking: booking(id: "bk_10", status: .confirmed),
-            payoutEstimate: Money(cents: 12000), distanceMeters: 2400),
-        Job(id: "job_2", booking: booking(id: "bk_11", status: .offered_to_cleaner),
-            payoutEstimate: Money(cents: 9800), distanceMeters: 5100),
-    ]
-
-    public static let earnings = EarningsSummary(
-        weekToDate: Money(cents: 48000),
-        pendingPayout: Money(cents: 12000),
-        lifetime: Money(cents: 1_250_000),
-        jobsThisWeek: 6
-    )
-
-    public static let smartEntry = SmartEntryAccess(
-        method: .lockbox,
-        instructions: "Lockbox on the gas meter, left of the front door.",
-        code: "4827", revealedAt: nil
-    )
-
-    // MARK: - Customer-flow mocks
+    public static var bookings: [Booking] {
+        [
+            booking(),
+            booking(id: "bk_preview_2", status: .completed),
+        ]
+    }
 
     public static let currentUser = CurrentUser(
-        clerkId: "user_mock", email: "alex@example.com",
-        firstName: "Alex", lastName: "Nguyen", role: "customer"
+        clerkId: "user_preview",
+        email: "preview@getsweepr.com",
+        userId: "00000000-0000-0000-0000-000000000001",
+        firstName: "Jordan",
+        lastName: "Rivera",
+        role: "customer"
     )
 
-    public static let coupons: [Coupon] = [
-        Coupon(id: "cp_1", code: "WELCOME20", title: "Welcome offer",
-               description: "20% off your first cleaning", theme: "seafoam",
-               kind: "percent", value: 20, addonKey: nil, usesLeft: 1,
-               minBookingTotalCents: 10000),
-        Coupon(id: "cp_2", code: "FRIDGE", title: "Free fridge clean",
-               description: "Inside-fridge add-on on us", theme: "amber",
-               kind: "free_addon", value: nil, addonKey: "inside_fridge",
-               usesLeft: 1, minBookingTotalCents: nil),
-    ]
-
     public static let membershipInfo = MembershipInfo(
-        enabled: true, member: true, status: "active",
+        enabled: true,
+        member: false,
+        status: nil,
         cancelAtPeriodEnd: false,
-        currentPeriodEnd: Date().addingTimeInterval(60 * 60 * 24 * 21),
+        currentPeriodEnd: nil,
         pricing: MembershipPricing(
-            monthlyCents: 1900, annualCents: 19000,
-            discountPercent: 10, monthlyDiscountCapCents: 3000
+            monthlyCents: 1299, annualCents: 12900,
+            discountPercent: 3, monthlyDiscountCapCents: 1500
         )
     )
 
@@ -112,32 +91,57 @@ public enum SweeprMock {
         enabled: true, remoteUnlockEnabled: true, manualCodeEnabled: true,
         feeCents: 500, includedWithMembership: false
     )
+}
 
-    public static let quoteResponse = QuoteResponse(
-        total: 203.00,
-        price: QuotePrice(
-            totalPrice: 20300,
-            levelSurchargeCents: 2400,
-            emergencySurchargeCents: 0,
-            isEmergency: false,
-            lineItems: [
-                QuoteLineItem(label: "Base fee", cents: 12000),
-                QuoteLineItem(label: "Bedrooms", cents: 2000),
-                QuoteLineItem(label: "Bathrooms", cents: 1500),
-                QuoteLineItem(label: "Cleaning intensity", cents: 2400),
-                QuoteLineItem(label: "Inside fridge", cents: 2000),
-                QuoteLineItem(label: "Inside oven", cents: 1500),
-                QuoteLineItem(label: "Member discount", cents: -1500),
-            ],
-            requiresCustomQuote: false
-        ),
-        engine: "rule_engine"
+public enum CleanerMock {
+    public static func job(
+        id: String = "bk_preview_1",
+        status: BookingStatus? = .confirmed,
+        dayStatus: DayStatus? = nil,
+        isOffer: Bool = false
+    ) -> CleanerJob {
+        CleanerJob(
+            id: id,
+            status: isOffer ? nil : status,
+            dayStatus: dayStatus,
+            serviceType: "standard",
+            scheduledAt: Date().addingTimeInterval(60 * 60 * 3),
+            totalPrice: 18500,
+            cleanerPayout: 12950,
+            bedrooms: 2,
+            bathrooms: 1,
+            arrivalWindowStart: "10:00:00",
+            arrivalWindowEnd: "12:00:00",
+            addressCity: "Denver",
+            addressState: "CO",
+            isOffer: isOffer
+        )
+    }
+
+    public static var jobs: [CleanerJob] {
+        [
+            job(),
+            job(id: "bk_preview_offer", isOffer: true),
+        ]
+    }
+
+    public static let earnings = EarningsSummary(
+        thisWeek: 42300, thisMonth: 168400, lastMonth: 154200, allTime: 1_240_000,
+        pendingPayout: 25900, nextPayoutDate: Date().addingTimeInterval(86_400 * 2),
+        stripeConnected: true, onboardingUrl: nil,
+        recent: [
+            EarningsRecentPayout(date: Date().addingTimeInterval(-86_400 * 3),
+                                 amount: 25900, status: "paid", bookingId: "bk_preview_2"),
+        ],
+        tipsThisMonth: 4500, tipsAllTime: 61200,
+        recentTips: []
     )
 
-    public static let bookingAccess = BookingAccessAuthorization(
-        accessMethod: "smart_entry", lockDeviceId: "dev_1",
-        customerAuthorizedAt: Date().addingTimeInterval(-3600),
-        accessStartsAt: Date(), accessEndsAt: Date().addingTimeInterval(7200),
-        revokedAt: nil
+    public static let onboarding = OnboardingProgress(
+        status: "approved",
+        steps: OnboardingSteps(
+            profile: true, training: true, background: true,
+            identity: true, insurance: true, submitted: true, approved: true
+        )
     )
 }

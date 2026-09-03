@@ -32,7 +32,36 @@ authRouter.post("/sync", requireAuth, async (c) => {
   return c.json({ user });
 });
 
-authRouter.get("/me", requireAuth, (c) => c.json({ user: c.get("user") }));
+// The identity check every app's nav polls. Enriched with the canonical users
+// row (name/role/id) so native clients can greet the user without a second
+// endpoint; additive fields — web callers that only read clerkId/email are
+// unaffected. requireAuth already touched the DB for this request, so the one
+// extra indexed SELECT is negligible.
+authRouter.get("/me", requireAuth, async (c) => {
+  const { clerkId, email } = c.get("user");
+  const sql = getDb(c.env.DATABASE_URL);
+  const rows = (await sql`
+    SELECT id, email, first_name, last_name, role
+    FROM users WHERE clerk_id = ${clerkId} LIMIT 1
+  `) as Array<{
+    id: string;
+    email: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    role: string | null;
+  }>;
+  const row = rows[0];
+  return c.json({
+    user: {
+      clerkId,
+      email: email ?? row?.email ?? undefined,
+      userId: row?.id ?? null,
+      firstName: row?.first_name ?? null,
+      lastName: row?.last_name ?? null,
+      role: row?.role ?? null,
+    },
+  });
+});
 
 // ---------------------------------------------------------------------------
 // GDPR — right to erasure (Art. 17)

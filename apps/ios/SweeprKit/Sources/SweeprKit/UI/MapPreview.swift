@@ -152,6 +152,22 @@ public enum SweeprMaps {
     /// Builds the Apple Maps directions URL for a destination coordinate — the
     /// external turn-by-turn handoff target. On Android, SKIP callers should
     /// instead hand off via a `geo:` intent; this URL form is the iOS path.
+    /// Directions by street address when no coordinate is available (the
+    /// customer booking detail returns only the address text).
+    public static func directionsURL(address: String) -> URL? {
+        guard let encoded = address.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return nil }
+        return URL(string: "https://maps.apple.com/?daddr=\(encoded)&dirflg=d")
+    }
+
+    /// Opens the system maps app with directions to a street address.
+    @MainActor
+    public static func openInMaps(address: String) {
+        guard let url = directionsURL(address: address) else { return }
+        #if os(iOS)
+        UIApplication.shared.open(url)
+        #endif
+    }
+
     public static func directionsURL(latitude: Double, longitude: Double, label: String? = nil) -> URL? {
         let coord = "\(latitude),\(longitude)"
         var string = "https://maps.apple.com/?daddr=\(coord)&dirflg=d"

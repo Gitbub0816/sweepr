@@ -12,21 +12,26 @@ import Foundation
 import FoundationNetworking
 #endif
 
-// Cleaner day-of-service network calls, hoisted into SweeprKit alongside
-// `SweeprAPI` so both apps (and Android via SKIP) can reuse them. Mirrors
-// `SweeprAPI`'s request-building conventions (Bearer auth via
-// `AuthTokenProvider`, camelCase request bodies, snake_case responses decoded
-// via `convertFromSnakeCase`, ISO-8601 dates). Endpoints map to
-// `apps/api/src/routes/cleanerAccess.ts` / `dayOfService.ts` /
-// `cleanerDashboard.ts`.
+// Cleaner network surface, field-audited against the real routes:
 //
-// Endpoints without a confirmed response shape yet are marked STUB — they fail
-// soft to `CleanerMock` data so the UI is always exercisable offline.
+//  - `cleanerDashboard.ts` (mounted /cleaner-dashboard): jobs, offers,
+//    accept/decline, earnings, availability, service-area, settings, Stripe
+//    Connect onboarding.
+//  - `dayOfService.ts` (mounted /jobs): the day-of-service machine. There is
+//    NO generic transition endpoint — each step is its own POST with its own
+//    guards, and arrival is GPS-verified server-side via /location pings.
+//  - `cleanerAccess.ts` (mounted /cleaner): Smart Entry reveal/unlock/lock,
+//    each carrying a proof-of-presence body.
+//  - `cleaners.ts`: onboarding progress. `storage.ts`: photo upload signing.
+//
+// Bodies for /jobs/* use snake_case keys (the dayOfService zod schemas);
+// bodies for /cleaner/* and /storage use camelCase — each call site says so.
 
 public actor CleanerAPI {
     private let baseURL: URL
     private let tokenProvider: AuthTokenProvider
     private let session: URLSession
+    private let decoder: JSONDecoder = SweeprJSON.decoder
 
     public init(
         baseURL: URL = SweeprAPIConfig.production.baseURL,
@@ -38,8 +43,24 @@ public actor CleanerAPI {
         self.session = session
     }
 
-    private func makeRequest(method: String, path: String, jsonBody: [String: Any]? = nil) async throws -> URLRequest {
-        var req = URLRequest(url: baseURL.appendingPathComponent(path))
+    // MARK: - Core request
+
+    private func send<T: Decodable>(
+        _ method: String,
+        _ path: String,
+        query: [String: String] = [:],
+        jsonBody: [String: Any]? = nil,
+        as type: T.Type
+    ) async throws -> T {
+        guard var components = URLComponents(
+            url: baseURL.appendingPathComponent(path),
+            resolvingAgainstBaseURL: false
+        ) else { throw SweeprAPIError.badURL }
+        if !query.isEmpty {
+            components.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) }
+        }
+        guard let url = components.url else { throw SweeprAPIError.badURL }
+        var req = URLRequest(url: url)
         req.httpMethod = method
         req.setValue("application/json", forHTTPHeaderField: "Accept")
         if let token = await tokenProvider.currentToken() {
@@ -49,55 +70,179 @@ public actor CleanerAPI {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
             req.httpBody = try JSONSerialization.data(withJSONObject: jsonBody)
         }
-        return req
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: req)
+        } catch {
+            throw SweeprAPIError.transport(error.localizedDescription)
+        }
+        guard let http = response as? HTTPURLResponse else {
+            throw SweeprAPIError.transport("Non-HTTP response")
+        }
+        if http.statusCode == 401 || http.statusCode == 403 {
+            throw SweeprAPIError.unauthorized
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            throw SweeprAPIError.http(
+                status: http.statusCode,
+                body: String(data: data, encoding: .utf8) ?? ""
+            )
+        }
+        do {
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            throw SweeprAPIError.decoding(String(describing: error))
+        }
     }
 
-    // MARK: - Job offers
+    private struct JobsEnvelope: Decodable { let jobs: [CleanerJob] }
+    private struct OKEnvelope: Decodable { let ok: Bool }
 
-    /// POST /cleaner-dashboard/jobs/:id/accept
-    public func acceptOffer(jobId: String) async throws {
-        let req = try await makeRequest(method: "POST", path: "cleaner-dashboard/jobs/\(jobId)/accept")
-        _ = try await session.data(for: req)
+    // MARK: - Jobs & offers
+
+    /// GET /cleaner-dashboard/my-jobs — accepted/active jobs (flat rows).
+    public func myJobs(limit: Int = 50) async throws -> [CleanerJob] {
+        try await send(
+            "GET", "cleaner-dashboard/my-jobs",
+            query: ["limit": String(limit)], as: JobsEnvelope.self
+        ).jobs
     }
 
-    /// POST /cleaner-dashboard/jobs/:id/decline
-    public func declineOffer(jobId: String) async throws {
-        let req = try await makeRequest(method: "POST", path: "cleaner-dashboard/jobs/\(jobId)/decline")
-        _ = try await session.data(for: req)
+    /// GET /cleaner-dashboard/available-offers — the offer inbox. Envelope key
+    /// is also `jobs`; rows carry no status. Stamped isOffer client-side.
+    public func availableOffers() async throws -> [CleanerJob] {
+        let jobs = try await send("GET", "cleaner-dashboard/available-offers", as: JobsEnvelope.self).jobs
+        return jobs.map { job in
+            var offer = job
+            offer.isOffer = true
+            return offer
+        }
     }
 
-    // MARK: - Day-of-service transitions
+    /// POST /cleaner-dashboard/jobs/:id/accept — no body.
+    public func acceptOffer(bookingId: String) async throws {
+        _ = try await send("POST", "cleaner-dashboard/jobs/\(bookingId)/accept", as: OKEnvelope.self)
+    }
 
-    /// POST /day-of-service/:bookingId/transition { transition }
-    /// Server validates against `lib/statusMachine.ts` — this call can fail and
-    /// the UI must not optimistically assume success beyond the response.
-    public func transition(bookingId: String, to status: BookingStatus) async throws {
-        let req = try await makeRequest(
-            method: "POST",
-            path: "day-of-service/\(bookingId)/transition",
-            jsonBody: ["transition": status.rawValue]
+    /// POST /cleaner-dashboard/jobs/:id/decline — no body.
+    public func declineOffer(bookingId: String) async throws {
+        _ = try await send("POST", "cleaner-dashboard/jobs/\(bookingId)/decline", as: OKEnvelope.self)
+    }
+
+    // MARK: - Day-of-service machine (/jobs/bookings/:id/*, snake_case bodies)
+    //
+    // en_route → arrived (server-flipped by GPS) → in_progress →
+    // awaiting_checkout → completed. Every response is authoritative — the UI
+    // must NEVER advance locally when one of these throws.
+
+    /// POST start-route — reveals the service address (time-windowed
+    /// server-side) and flips day_status to en_route.
+    public func startRoute(bookingId: String, lat: Double? = nil, lng: Double? = nil) async throws -> StartRouteResponse {
+        var body: [String: Any] = [:]
+        if let lat { body["lat"] = lat }
+        if let lng { body["lng"] = lng }
+        return try await send(
+            "POST", "jobs/bookings/\(bookingId)/start-route",
+            jsonBody: body, as: StartRouteResponse.self
         )
-        _ = try await session.data(for: req)
+    }
+
+    /// POST location — live position ping while en route. Within 150 m the
+    /// SERVER verifies arrival and flips day_status to arrived.
+    public func sendLocation(
+        bookingId: String, lat: Double, lng: Double, accuracyMeters: Double? = nil
+    ) async throws -> LocationPingResponse {
+        var body: [String: Any] = ["lat": lat, "lng": lng]
+        if let accuracyMeters { body["accuracy_m"] = accuracyMeters }
+        return try await send(
+            "POST", "jobs/bookings/\(bookingId)/location",
+            jsonBody: body, as: LocationPingResponse.self
+        )
+    }
+
+    /// POST start-clean — requires verified arrival; returns any legacy access
+    /// codes (keypad/lockbox notes) and flips to in_progress.
+    public func startClean(bookingId: String) async throws -> StartCleanResponse {
+        try await send("POST", "jobs/bookings/\(bookingId)/start-clean", jsonBody: [:], as: StartCleanResponse.self)
+    }
+
+    /// POST finish-clean — flips to awaiting_checkout (lead-only on crews).
+    public func finishClean(bookingId: String) async throws -> FinishCleanResponse {
+        try await send("POST", "jobs/bookings/\(bookingId)/finish-clean", jsonBody: [:], as: FinishCleanResponse.self)
+    }
+
+    /// POST complete — requires the before/after photo minimums already
+    /// recorded and a checkout photo storage key under `bookings/{id}/`.
+    public func completeJob(bookingId: String, checkoutPhotoKey: String) async throws -> CompleteJobResponse {
+        try await send(
+            "POST", "jobs/bookings/\(bookingId)/complete",
+            jsonBody: ["checkout_photo_key": checkoutPhotoKey],
+            as: CompleteJobResponse.self
+        )
+    }
+
+    /// GET live — the authoritative day-of-service snapshot (status, photos,
+    /// revealed address, access codes, last location).
+    public func liveStatus(bookingId: String) async throws -> LiveJobStatus {
+        try await send("GET", "jobs/bookings/\(bookingId)/live", as: LiveJobStatus.self)
+    }
+
+    // MARK: - Photos
+
+    /// POST /storage/sign-upload (camelCase body) — presigned R2 PUT for a
+    /// booking photo. The returned storageKey is `bookings/{bookingId}/…`,
+    /// which is exactly the prefix the day-of-service endpoints enforce.
+    public func signPhotoUpload(
+        bookingId: String, fileName: String, contentType: String, sizeBytes: Int
+    ) async throws -> SignedUpload {
+        try await send("POST", "storage/sign-upload", jsonBody: [
+            "fileName": fileName,
+            "contentType": contentType,
+            "sizeBytes": sizeBytes,
+            "purpose": "booking_photo",
+            "scope": "booking",
+            "refId": bookingId,
+        ], as: SignedUpload.self)
+    }
+
+    /// PUT the bytes to R2 using the presigned URL. The Content-Type MUST be
+    /// exactly the one bound into the signature.
+    public func uploadPhotoData(_ data: Data, to upload: SignedUpload) async throws {
+        guard let url = URL(string: upload.uploadUrl) else { throw SweeprAPIError.badURL }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PUT"
+        for (k, v) in upload.requiredHeaders ?? [:] {
+            req.setValue(v, forHTTPHeaderField: k)
+        }
+        req.httpBody = data
+        let (respData, response) = try await session.data(for: req)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw SweeprAPIError.http(
+                status: (response as? HTTPURLResponse)?.statusCode ?? -1,
+                body: String(data: respData, encoding: .utf8) ?? ""
+            )
+        }
+    }
+
+    /// POST /jobs/bookings/:id/photos (snake_case) — record an uploaded photo
+    /// against the job. photoType: before | after | checkout | damage.
+    public func recordPhoto(
+        bookingId: String, photoType: String, storageKey: String, roomLabel: String? = nil
+    ) async throws {
+        var body: [String: Any] = ["photo_type": photoType, "storage_key": storageKey]
+        if let roomLabel { body["room_label"] = roomLabel }
+        _ = try await send("POST", "jobs/bookings/\(bookingId)/photos", jsonBody: body, as: OKEnvelope.self)
     }
 
     // MARK: - Smart Entry (backend-driven, matches routes/cleanerAccess.ts)
     //
-    // The real backend (`app.route("/cleaner", cleanerAccessRouter)`) exposes
-    // THREE POST endpoints, each guarded by the full `authorizeHomeAccess`
-    // decision and each requiring a location proof-of-presence body
-    // (`locationSchema`):
-    //   POST /cleaner/bookings/:id/access/reveal → { credentialType, credential,
-    //                                                expiresAt, displaySeconds,
-    //                                                remainingRevealCount }
-    //   POST /cleaner/bookings/:id/access/unlock → { status, eventId?, message }
-    //   POST /cleaner/bookings/:id/access/lock   → { status, eventId?, message }
-    // Credentials are returned no-store; never persist or log them. These are
-    // ONLY usable once the cleaner is checked in — the client gates the UI, and
-    // the server re-validates regardless.
+    // POST /cleaner/bookings/:id/access/{reveal|unlock|lock} — camelCase
+    // proof-of-presence body; credential responses are no-store. Only usable
+    // once checked in; the server re-validates every call regardless.
 
     /// Location proof-of-presence sent with every Smart Entry access call
-    /// (mirrors `locationSchema` in `cleanerAccess.ts`). `capturedAt` /
-    /// `reauthenticatedAt` are ISO-8601 strings.
+    /// (mirrors `locationSchema` in `cleanerAccess.ts`).
     public struct SmartEntryLocation: Sendable {
         public var latitude: Double
         public var longitude: Double
@@ -108,13 +253,9 @@ public actor CleanerAPI {
         public var deviceReference: String?
 
         public init(
-            latitude: Double,
-            longitude: Double,
-            accuracyMeters: Double,
-            capturedAt: String,
-            reauthenticatedAt: String? = nil,
-            sessionId: String,
-            deviceReference: String? = nil
+            latitude: Double, longitude: Double, accuracyMeters: Double,
+            capturedAt: String, reauthenticatedAt: String? = nil,
+            sessionId: String, deviceReference: String? = nil
         ) {
             self.latitude = latitude
             self.longitude = longitude
@@ -126,28 +267,17 @@ public actor CleanerAPI {
         }
 
         /// Builds a proof-of-presence body stamped with the current time.
-        /// `capturedAt`/`reauthenticatedAt` are ISO-8601 (fractional seconds).
-        /// In production `latitude`/`longitude`/`accuracyMeters` come from
-        /// CoreLocation; callers without a live fix pass the job coordinate.
         public static func now(
-            latitude: Double,
-            longitude: Double,
-            accuracyMeters: Double,
-            sessionId: String,
-            reauthenticated: Bool = false,
-            deviceReference: String? = nil
+            latitude: Double, longitude: Double, accuracyMeters: Double,
+            sessionId: String, reauthenticated: Bool = false, deviceReference: String? = nil
         ) -> SmartEntryLocation {
             let f = ISO8601DateFormatter()
             f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
             let stamp = f.string(from: Date())
             return SmartEntryLocation(
-                latitude: latitude,
-                longitude: longitude,
-                accuracyMeters: accuracyMeters,
-                capturedAt: stamp,
-                reauthenticatedAt: reauthenticated ? stamp : nil,
-                sessionId: sessionId,
-                deviceReference: deviceReference
+                latitude: latitude, longitude: longitude, accuracyMeters: accuracyMeters,
+                capturedAt: stamp, reauthenticatedAt: reauthenticated ? stamp : nil,
+                sessionId: sessionId, deviceReference: deviceReference
             )
         }
 
@@ -169,17 +299,13 @@ public actor CleanerAPI {
     public struct AccessCredential: Sendable {
         public let credentialType: String
         public let credential: String
-        /// ISO-8601 expiry as returned by the server (may be nil).
         public let expiresAtRaw: String?
-        /// Seconds the client should keep the credential on screen (spec §11).
+        /// Seconds the client should keep the credential on screen.
         public let displaySeconds: Int
         public let remainingRevealCount: Int
 
         public var expiresAt: Date? {
-            guard let expiresAtRaw else { return nil }
-            let f = ISO8601DateFormatter()
-            f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            return f.date(from: expiresAtRaw) ?? ISO8601DateFormatter().date(from: expiresAtRaw)
+            expiresAtRaw.flatMap { SweeprJSON.parseDate($0) }
         }
 
         public init(credentialType: String, credential: String, expiresAtRaw: String?, displaySeconds: Int, remainingRevealCount: Int) {
@@ -192,6 +318,7 @@ public actor CleanerAPI {
     }
 
     /// Result of an unlock / lock action (`{ status, eventId?, message }`).
+    /// `eventId` is present only on a successful unlock.
     public struct AccessActionResult: Sendable {
         public enum Status: String, Sendable { case success = "SUCCESS", failed = "FAILED", unknown = "UNKNOWN" }
         public let status: Status
@@ -213,20 +340,29 @@ public actor CleanerAPI {
         return AccessActionResult(status: status, message: wire?.message, eventId: wire?.eventId)
     }
 
-    /// POST /cleaner/bookings/:id/access/reveal — reveal the working credential.
-    /// Callable only once checked in; the server re-validates and returns the
-    /// credential no-store. Throws on a non-2xx (e.g. 403 denied, 404/409 not
-    /// ready) so the caller can surface the reason.
-    public func revealAccessCredential(bookingId: String, location: SmartEntryLocation) async throws -> AccessCredential {
-        let req = try await makeRequest(
-            method: "POST",
-            path: "cleaner/bookings/\(bookingId)/access/reveal",
-            jsonBody: location.jsonObject
-        )
+    private func accessRequest(_ path: String, location: SmartEntryLocation) async throws -> (Data, HTTPURLResponse) {
+        var req = URLRequest(url: baseURL.appendingPathComponent(path))
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let token = await tokenProvider.currentToken() {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        req.httpBody = try JSONSerialization.data(withJSONObject: location.jsonObject)
         let (data, response) = try await session.data(for: req)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw SweeprAPIError.http(status: (response as? HTTPURLResponse)?.statusCode ?? -1,
-                                       body: String(data: data, encoding: .utf8) ?? "")
+        guard let http = response as? HTTPURLResponse else {
+            throw SweeprAPIError.transport("Non-HTTP response")
+        }
+        return (data, http)
+    }
+
+    /// POST /cleaner/bookings/:id/access/reveal — reveal the working
+    /// credential. Throws on denial (403 with a reason) so the caller can
+    /// surface it; the credential is no-store — never persist or log it.
+    public func revealAccessCredential(bookingId: String, location: SmartEntryLocation) async throws -> AccessCredential {
+        let (data, http) = try await accessRequest("cleaner/bookings/\(bookingId)/access/reveal", location: location)
+        guard (200..<300).contains(http.statusCode) else {
+            throw SweeprAPIError.http(status: http.statusCode, body: String(data: data, encoding: .utf8) ?? "")
         }
         struct Wire: Decodable {
             let credentialType: String?
@@ -245,156 +381,94 @@ public actor CleanerAPI {
         )
     }
 
-    /// POST /cleaner/bookings/:id/access/unlock — server-triggered remote unlock
-    /// (Seam). Returns the action result; never throws on a provider FAILED so
-    /// the UI can distinguish denial (throws) from a soft provider failure.
+    /// POST /cleaner/bookings/:id/access/unlock — server-triggered remote
+    /// unlock (Seam). 403 = authorization denied (throws); a 502 provider
+    /// failure returns `{status: FAILED}` so the UI can offer a retry.
     public func unlockDoor(bookingId: String, location: SmartEntryLocation) async throws -> AccessActionResult {
-        let req = try await makeRequest(
-            method: "POST",
-            path: "cleaner/bookings/\(bookingId)/access/unlock",
-            jsonBody: location.jsonObject
-        )
-        let (data, response) = try await session.data(for: req)
-        guard let http = response as? HTTPURLResponse else {
-            throw SweeprAPIError.transport("Non-HTTP response")
-        }
-        // 403 = authorization denied (not checked in / out of window); surface it.
+        let (data, http) = try await accessRequest("cleaner/bookings/\(bookingId)/access/unlock", location: location)
         if http.statusCode == 401 || http.statusCode == 403 {
             throw SweeprAPIError.unauthorized
         }
-        // 200 SUCCESS or 502 FAILED both carry a { status, message } body.
         return decodeAccessAction(data)
     }
 
     /// POST /cleaner/bookings/:id/access/lock — re-secure the lock at checkout.
     public func lockDoor(bookingId: String, location: SmartEntryLocation) async throws -> AccessActionResult {
-        let req = try await makeRequest(
-            method: "POST",
-            path: "cleaner/bookings/\(bookingId)/access/lock",
-            jsonBody: location.jsonObject
-        )
-        let (data, response) = try await session.data(for: req)
-        guard let http = response as? HTTPURLResponse else {
-            throw SweeprAPIError.transport("Non-HTTP response")
-        }
+        let (data, http) = try await accessRequest("cleaner/bookings/\(bookingId)/access/lock", location: location)
         if http.statusCode == 401 || http.statusCode == 403 {
             throw SweeprAPIError.unauthorized
         }
         return decodeAccessAction(data)
     }
 
-    // MARK: - Checklist (STUB — no confirmed backend contract yet; UI always
-    // falls back to `CleanerMock.checklist` on any failure).
+    // MARK: - Earnings
 
-    public func checklist(bookingId: String) async throws -> [RoomChecklist] {
-        let req = try await makeRequest(method: "GET", path: "day-of-service/\(bookingId)/checklist")
-        let (data, response) = try await session.data(for: req)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw SweeprAPIError.http(status: (response as? HTTPURLResponse)?.statusCode ?? -1, body: "")
-        }
-        struct WireItem: Decodable { let id: String; let label: String; let done: Bool }
-        struct WireRoom: Decodable { let id: String; let room: String; let items: [WireItem] }
-        let decoder = JSONDecoder()
-        let rooms = try decoder.decode([WireRoom].self, from: data)
-        return rooms.map { r in
-            RoomChecklist(id: r.id, room: r.room, items: r.items.map {
-                ChecklistItem(id: $0.id, label: $0.label, done: $0.done)
-            })
-        }
+    /// GET /cleaner-dashboard/earnings — cents everywhere; recent payout rows
+    /// have a null date until actually paid.
+    public func earnings() async throws -> EarningsSummary {
+        try await send("GET", "cleaner-dashboard/earnings", as: EarningsSummary.self)
     }
 
-    // MARK: - Payouts (STUB)
-
-    public func payouts() async throws -> [PayoutRecord] {
-        let req = try await makeRequest(method: "GET", path: "cleaner-dashboard/payouts")
-        let (data, response) = try await session.data(for: req)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw SweeprAPIError.http(status: (response as? HTTPURLResponse)?.statusCode ?? -1, body: "")
-        }
-        struct Wire: Decodable { let id: String; let paidAt: Date; let amountCents: Int; let jobsCount: Int; let includesTips: Bool }
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        decoder.dateDecodingStrategy = .iso8601
-        let wire = try decoder.decode([Wire].self, from: data)
-        return wire.map { PayoutRecord(id: $0.id, paidAt: $0.paidAt, amount: Money(cents: $0.amountCents),
-                                        jobsCount: $0.jobsCount, includesTips: $0.includesTips) }
+    /// POST /cleaner-dashboard/stripe-connect/onboard → { url } for payout setup.
+    public func stripeConnectOnboardingURL() async throws -> URL? {
+        struct Wire: Decodable { let url: String? }
+        let wire = try await send("POST", "cleaner-dashboard/stripe-connect/onboard", jsonBody: [:], as: Wire.self)
+        return wire.url.flatMap { URL(string: $0) }
     }
 
-    // MARK: - Availability & service area (STUB — shape divergence documented)
-    //
-    // NOTE: the real `routes/cleanerDashboard.ts` uses `PUT /availability`
-    // (`{ slots: [{ day_of_week, start_time, end_time, active }] }`) and
-    // `PUT /service-area` (`{ centerLat, centerLng, radiusMiles, label? }`) —
-    // richer than the simple availability toggle / ZIP field the current cleaner
-    // AccountScreen exposes. Wiring these to the real schemas requires the
-    // corresponding UI (an availability-slots editor + a lat/lng/radius picker);
-    // until then these calls stay best-effort and fail soft. Do NOT assume the
-    // simple bodies below validate server-side.
+    // MARK: - Onboarding / verification
 
-    /// STUB: simplified availability toggle (see note above).
-    public func setAvailability(_ available: Bool) async throws {
-        let req = try await makeRequest(method: "PATCH", path: "cleaner-dashboard/availability",
-                                         jsonBody: ["available": available])
-        _ = try await session.data(for: req)
+    /// GET /cleaners/onboarding-progress — the checklist the dashboard shows.
+    public func onboardingProgress() async throws -> OnboardingProgress {
+        try await send("GET", "cleaners/onboarding-progress", as: OnboardingProgress.self)
     }
 
-    /// PATCH /cleaner-dashboard/service-area { zip }
-    public func setServiceAreaZip(_ zip: String) async throws {
-        let req = try await makeRequest(method: "PATCH", path: "cleaner-dashboard/service-area",
-                                         jsonBody: ["zip": zip])
-        _ = try await session.data(for: req)
+    // MARK: - Availability & service area
+
+    /// GET /cleaner-dashboard/availability → { slots }.
+    public func availability() async throws -> [AvailabilitySlot] {
+        struct Wire: Decodable { let slots: [AvailabilitySlot] }
+        return try await send("GET", "cleaner-dashboard/availability", as: Wire.self).slots
     }
 
-    // MARK: - Verification status (STUB — Didit + Yardstik)
-
-    public func verificationStatus() async throws -> VerificationStatus {
-        let req = try await makeRequest(method: "GET", path: "cleaner-dashboard/verification")
-        let (data, response) = try await session.data(for: req)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw SweeprAPIError.http(status: (response as? HTTPURLResponse)?.statusCode ?? -1, body: "")
-        }
-        struct Wire: Decodable { let didit: String; let yardstik: String }
-        let wire = try JSONDecoder().decode(Wire.self, from: data)
-        return VerificationStatus(
-            didit: .init(rawValue: wire.didit) ?? .notStarted,
-            yardstik: .init(rawValue: wire.yardstik) ?? .notStarted
+    /// PUT /cleaner-dashboard/availability { slots } — snake_case slot keys.
+    public func setAvailability(_ slots: [AvailabilitySlot]) async throws {
+        _ = try await send(
+            "PUT", "cleaner-dashboard/availability",
+            jsonBody: ["slots": slots.map(\.putJSON)],
+            as: OKEnvelope.self
         )
+    }
+
+    /// GET /cleaner-dashboard/service-area → { area } (camelCase, nullable).
+    public func serviceArea() async throws -> ServiceArea? {
+        struct Wire: Decodable { let area: ServiceArea? }
+        return try await send("GET", "cleaner-dashboard/service-area", as: Wire.self).area
+    }
+
+    /// PUT /cleaner-dashboard/service-area (camelCase body).
+    public func setServiceArea(centerLat: Double, centerLng: Double, radiusMiles: Int, label: String? = nil) async throws {
+        var body: [String: Any] = [
+            "centerLat": centerLat, "centerLng": centerLng, "radiusMiles": radiusMiles,
+        ]
+        if let label { body["label"] = label }
+        _ = try await send("PUT", "cleaner-dashboard/service-area", jsonBody: body, as: OKEnvelope.self)
     }
 
     // MARK: - Account deletion (App Store Guideline 5.1.1(v))
-    //
-    // Maps to `POST /account/delete` in `apps/api/src/routes/account.ts`
-    // (`accountRouter`, guarded by `requireAuth`). The server re-verifies the
-    // signed-in user by requiring their exact email in `confirmEmail`, then
-    // HARD-deletes the account (FK ON DELETE CASCADE removes dependent rows) and
-    // deletes the Clerk identity. `scope` is "account_and_data" (default) or
-    // "account". Throws on a non-2xx so the UI can surface a mismatch/failure.
 
+    /// POST /account/delete — HARD-deletes the account (see routes/account.ts).
     public func requestAccountDeletion(confirmEmail: String, scope: String = "account_and_data") async throws {
-        let req = try await makeRequest(
-            method: "POST",
-            path: "account/delete",
-            jsonBody: ["confirmEmail": confirmEmail, "scope": scope]
-        )
-        let (data, response) = try await session.data(for: req)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw SweeprAPIError.http(
-                status: (response as? HTTPURLResponse)?.statusCode ?? -1,
-                body: String(data: data, encoding: .utf8) ?? ""
-            )
-        }
+        _ = try await send("POST", "account/delete", jsonBody: [
+            "confirmEmail": confirmEmail, "scope": scope,
+        ], as: OKEnvelope.self)
     }
+}
 
-    // MARK: - Photo uploads (STUB — real capture/upload to R2 not implemented;
-    // this only marks a photo as captured client-side for the checklist gate).
-
-    /// POST /day-of-service/:bookingId/photos { phase: "before"|"after" }
-    public func recordPhotoCaptured(bookingId: String, phase: String) async throws {
-        let req = try await makeRequest(
-            method: "POST",
-            path: "day-of-service/\(bookingId)/photos",
-            jsonBody: ["phase": phase]
-        )
-        _ = try await session.data(for: req)
-    }
+/// POST /storage/sign-upload response.
+public struct SignedUpload: Codable, Sendable {
+    public let uploadUrl: String
+    public let storageKey: String
+    public let publicUrl: String?
+    public let requiredHeaders: [String: String]?
 }

@@ -18,6 +18,8 @@ import Foundation
 public struct CurrentUser: Codable, Hashable, Sendable, Identifiable {
     public let clerkId: String
     public let email: String?
+    /// Canonical users.id (uuid) — null until the row exists.
+    public let userId: String?
     public let firstName: String?
     public let lastName: String?
     public let role: String?
@@ -178,16 +180,19 @@ public struct Coupon: Codable, Hashable, Sendable, Identifiable {
     public let title: String?
     public let description: String?
     public let theme: String?
-    public let kind: String?             // e.g. "percent", "amount", "free_addon"
+    /// Wire values (coupons.ts): "percent_off" | "amount_off" | "free_addon".
+    public let kind: String?
+    /// Percent (1–100) for percent_off; CENTS for amount_off.
     public let value: Double?
     public let addonKey: String?
     public let usesLeft: Int?
     public let minBookingTotalCents: Int?
+    public let expiresAt: Date?
 
     public var displayValue: String {
         switch kind {
-        case "percent": return value.map { "\(Int($0))% off" } ?? "Discount"
-        case "amount": return value.map { Money(cents: Int($0)).dollarsString + " off" } ?? "Discount"
+        case "percent_off": return value.map { "\(Int($0))% off" } ?? "Discount"
+        case "amount_off": return value.map { Money(cents: Int($0)).dollarsString + " off" } ?? "Discount"
         case "free_addon": return "Free add-on"
         default: return title ?? "Offer"
         }
