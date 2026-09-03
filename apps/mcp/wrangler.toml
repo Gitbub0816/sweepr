@@ -26,6 +26,14 @@ invocation_logs = true
 [vars]
 ENVIRONMENT = "production"
 MCP_ENABLED = "true"
+R2_PUBLIC_URL = "https://objects.getsweepr.com"
+
+# Course-asset uploads (upload_course_asset): direct binding to the main
+# bucket — no S3 credentials needed; keys land under training/ (same prefix
+# apps/api's /storage/sign-upload uses for scope "training").
+[[r2_buckets]]
+binding = "COURSE_ASSETS"
+bucket_name = "sweepr"
 
 # All three secrets below must ALSO exist as GitHub repo secrets of the same
 # name so the deploy-mcp job's "Sync worker secrets" step can push them to a
@@ -54,4 +62,8 @@ MCP_ENABLED = "true"
 #                         `wrangler deploy --var MCP_ENABLED:false` to disable.
 
 [env.production]
-vars = { ENVIRONMENT = "production", MCP_ENABLED = "true" }
+vars = { ENVIRONMENT = "production", MCP_ENABLED = "true", R2_PUBLIC_URL = "https://objects.getsweepr.com" }
+
+[[env.production.r2_buckets]]
+binding = "COURSE_ASSETS"
+bucket_name = "sweepr"

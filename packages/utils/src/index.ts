@@ -9,6 +9,7 @@
  */
 
 export * from "./cn";
+export * from "./courseInteractions";
 export * from "./courseSchema";
 export * from "./format";
 export * from "./pricing";

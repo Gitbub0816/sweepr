@@ -15,8 +15,15 @@ import {
   COURSE_BLOCK_DEFAULTS,
   COURSE_CALLOUT_STYLES,
   COURSE_FONTS,
+  COURSE_ICONS,
+  COURSE_STYLE_PADDINGS,
+  COURSE_STYLE_RADII,
+  COURSE_STYLE_VARIANTS,
   courseChecklistItems,
+  courseLocalizableSpecs,
+  courseStyleCss,
   courseText,
+  type CourseBlockType,
 } from "@sweepr/utils";
 import {
   Undo2, Redo2, Plus, Type, Heading, Image as ImageIcon, Video, ListChecks,
@@ -25,16 +32,17 @@ import {
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight,
   BringToFront, SendToBack, AlignHorizontalJustifyCenter,
   AlignVerticalJustifyCenter, Layout, Upload, Loader2, CheckCircle2,
+  ToggleLeft, Images, Columns3, ArrowUpDown, Link2, Crosshair,
+  MessagesSquare, SlidersHorizontal, Milestone, Frame, Languages,
 } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL ?? "https://api.getsweepr.com";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-type BlockType =
-  | "text" | "heading" | "image" | "video" | "embed"
-  | "shape" | "divider" | "spacer" | "callout"
-  | "quiz" | "button" | "checklist" | "acknowledgment";
+// The shared union from @sweepr/utils — the editor's palette, the learner
+// player and the MCP's validation all read the same schema.
+type BlockType = CourseBlockType;
 
 interface Block {
   id: string;
@@ -49,7 +57,21 @@ interface Slide {
   slide_order: number;
   background: Record<string, unknown>;
   completion_rule: Record<string, unknown>;
+  i18n: Record<string, { title?: string }>;
   blocks: Block[];
+}
+interface CourseMeta {
+  default_locale: string;
+  supported_locales: string[];
+  i18n: Record<string, { title?: string; description?: string }>;
+}
+interface Assessment {
+  passingScorePct?: number | null;
+  maxAttempts?: number | null;
+  shuffleQuestions?: boolean;
+  shuffleAnswers?: boolean;
+  showScore?: boolean;
+  showExplanations?: boolean;
 }
 
 const uid = () =>
@@ -70,6 +92,7 @@ const INSERT_GROUPS: { label: string; items: { type: BlockType; label: string; i
       { type: "text", label: "Text", icon: Type },
       { type: "image", label: "Image", icon: ImageIcon },
       { type: "video", label: "Video", icon: Video },
+      { type: "embed", label: "Embed", icon: Frame },
     ],
   },
   {
@@ -78,12 +101,21 @@ const INSERT_GROUPS: { label: string; items: { type: BlockType; label: string; i
       { type: "shape", label: "Shape", icon: Square },
       { type: "divider", label: "Divider", icon: Minus },
       { type: "callout", label: "Callout", icon: MessageSquare },
+      { type: "timeline", label: "Timeline", icon: Milestone },
+      { type: "before_after", label: "Before/After", icon: SlidersHorizontal },
     ],
   },
   {
     label: "Interactive",
     items: [
       { type: "quiz", label: "Quiz", icon: HelpCircle },
+      { type: "true_false", label: "True/False", icon: ToggleLeft },
+      { type: "image_choice", label: "Img Choice", icon: Images },
+      { type: "sort", label: "Sort", icon: Columns3 },
+      { type: "order", label: "Order", icon: ArrowUpDown },
+      { type: "matching", label: "Match", icon: Link2 },
+      { type: "hotspot", label: "Hotspot", icon: Crosshair },
+      { type: "scenario", label: "Scenario", icon: MessagesSquare },
       { type: "button", label: "Button", icon: MousePointerClick },
       { type: "checklist", label: "Checklist", icon: ListChecks },
       { type: "acknowledgment", label: "Acknowledge", icon: CheckSquare },
@@ -147,6 +179,8 @@ export function CourseEditorPage() {
   const { getToken } = useAuth();
 
   const [title, setTitle] = useState("");
+  const [meta, setMeta] = useState<CourseMeta>({ default_locale: "en", supported_locales: ["en"], i18n: {} });
+  const [assessment, setAssessment] = useState<Assessment>({});
   const [slides, setSlides] = useState<Slide[]>([]);
   const [current, setCurrent] = useState(0);
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
@@ -171,10 +205,17 @@ export function CourseEditorPage() {
       if (res.ok) {
         const data = await res.json();
         setTitle(data.course.title);
+        setMeta({
+          default_locale: data.course.default_locale ?? "en",
+          supported_locales: Array.isArray(data.course.supported_locales) ? data.course.supported_locales : ["en"],
+          i18n: data.course.i18n ?? {},
+        });
+        setAssessment((data.version?.settings as Assessment) ?? {});
         const loaded: Slide[] = (data.slides ?? []).map((s: Slide) => ({
           ...s,
           background: s.background ?? {},
           completion_rule: s.completion_rule ?? { type: "viewed" },
+          i18n: s.i18n ?? {},
           blocks: (s.blocks ?? []).map((b) => ({ ...b, props: b.props ?? {} })),
         }));
         setSlides(loaded.length ? loaded : [newSlide(0)]);
@@ -186,7 +227,7 @@ export function CourseEditorPage() {
   function newSlide(order: number): Slide {
     return {
       id: uid(), title: "Untitled slide", slide_type: "content",
-      slide_order: order, background: { color: "#ffffff" }, completion_rule: { type: "viewed" }, blocks: [],
+      slide_order: order, background: { color: "#ffffff" }, completion_rule: { type: "viewed" }, i18n: {}, blocks: [],
     };
   }
 
@@ -228,9 +269,14 @@ export function CourseEditorPage() {
     const token = await getToken();
     const payload = {
       title,
+      default_locale: meta.default_locale,
+      supported_locales: meta.supported_locales,
+      i18n: meta.i18n,
+      assessment,
       slides: slides.map((s, i) => ({
         title: s.title, slide_type: s.slide_type, slide_order: i,
         background: s.background, completion_rule: s.completion_rule,
+        i18n: s.i18n ?? {},
         blocks: s.blocks.map((b) => ({
           block_type: b.block_type, x: b.x, y: b.y, width: b.width,
           height: b.height, z_index: b.z_index, props: b.props,
@@ -243,7 +289,7 @@ export function CourseEditorPage() {
       body: JSON.stringify(payload),
     });
     setSaveStatus(res.ok ? "saved" : "dirty");
-  }, [getToken, id, slides, title]);
+  }, [getToken, id, slides, title, meta, assessment]);
 
   async function publish() {
     setPublishing(true);
@@ -604,12 +650,21 @@ export function CourseEditorPage() {
             {selected ? (
               <BlockInspector
                 block={selected}
+                courseId={id ?? ""}
+                locales={meta.supported_locales}
                 onChange={(props) => updateBlockProps(selected.id, props)}
                 onGeom={(patch) => updateBlock(selected.id, patch)}
                 onDelete={() => deleteBlock(selected.id)}
               />
             ) : (
-              <SlideInspector slide={slide} onChange={updateSlide} />
+              <SlideInspector
+                slide={slide}
+                onChange={updateSlide}
+                meta={meta}
+                assessment={assessment}
+                onMeta={(m) => { setMeta(m); setSaveStatus("dirty"); }}
+                onAssessment={(a) => { setAssessment(a); setSaveStatus("dirty"); }}
+              />
             )}
           </div>
         )}
@@ -774,13 +829,157 @@ function BlockContent({ block, editing, onEditContent, onEndEdit }: {
           <CheckSquare className="h-4 w-4" />{courseText(p.statement) || "I acknowledge."}
         </div>
       );
-    case "quiz":
+    case "quiz": {
+      const questions = Array.isArray(p.questions) ? (p.questions as Array<Record<string, unknown>>) : [];
       return (
-        <div className="h-full w-full rounded-lg border-2 border-dashed border-violet-300 bg-violet-50 p-3 text-xs text-violet-700">
-          <div className="flex items-center gap-1.5 font-semibold"><HelpCircle className="h-4 w-4" /> Quiz</div>
-          <div className="mt-1">{((p.questions as unknown[]) ?? []).length} question(s) · pass {(p.passingScore as number) ?? 80}%</div>
+        <div className="h-full w-full overflow-auto rounded-lg border-2 border-dashed border-violet-300 bg-violet-50 p-3 text-xs text-violet-700" style={courseStyleCss(p.style) as React.CSSProperties}>
+          <div className="flex items-center gap-1.5 font-semibold"><HelpCircle className="h-4 w-4" /> Quiz · pass {(p.passingScore as number) ?? 80}%</div>
+          {questions.map((q, i) => (
+            <div key={i} className="mt-1.5">
+              <div className="font-medium">{i + 1}. {courseText(q.question)}</div>
+              {(Array.isArray(q.options) ? (q.options as Array<Record<string, unknown>>) : []).map((o, oi) => (
+                <div key={oi} className={`ml-3 ${o.correct ? "font-semibold text-emerald-700" : ""}`}>• {courseText(o.text)}{o.correct ? " ✓" : ""}</div>
+              ))}
+            </div>
+          ))}
         </div>
       );
+    }
+    case "true_false":
+      return (
+        <div className="h-full w-full overflow-hidden rounded-lg border border-slate-200 bg-white p-3 text-xs" style={courseStyleCss(p.style) as React.CSSProperties}>
+          <div className="font-medium text-slate-800">{courseText(p.statement)}</div>
+          <div className="mt-2 grid grid-cols-2 gap-1.5">
+            <span className={`rounded-md border px-2 py-1 text-center font-semibold ${p.correct === true ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-slate-200 text-slate-600"}`}>True{p.correct === true ? " ✓" : ""}</span>
+            <span className={`rounded-md border px-2 py-1 text-center font-semibold ${p.correct === false ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-slate-200 text-slate-600"}`}>False{p.correct === false ? " ✓" : ""}</span>
+          </div>
+        </div>
+      );
+    case "image_choice": {
+      const options = Array.isArray(p.options) ? (p.options as Array<Record<string, unknown>>) : [];
+      return (
+        <div className="h-full w-full overflow-hidden rounded-lg border border-slate-200 bg-white p-2 text-xs" style={courseStyleCss(p.style) as React.CSSProperties}>
+          <div className="font-medium text-slate-800">{courseText(p.question)}</div>
+          <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+            {options.map((o, i) => (
+              <div key={i} className={`relative overflow-hidden rounded border-2 ${o.correct ? "border-emerald-400" : "border-slate-200"}`}>
+                {(o.url as string) ? <img src={o.url as string} alt="" className="aspect-video w-full object-cover" /> : <div className="grid aspect-video place-items-center bg-slate-100 text-slate-400"><ImageIcon className="h-4 w-4" /></div>}
+                {courseText(o.label) && <span className="absolute bottom-0.5 left-0.5 rounded bg-slate-900/70 px-1 text-[9px] font-semibold text-white">{courseText(o.label)}{o.correct ? " ✓" : ""}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    case "sort": {
+      const cats = Array.isArray(p.categories) ? (p.categories as string[]) : [];
+      const items = Array.isArray(p.items) ? (p.items as Array<Record<string, unknown>>) : [];
+      return (
+        <div className="h-full w-full overflow-auto rounded-lg border border-slate-200 bg-white p-2 text-[10px]" style={courseStyleCss(p.style) as React.CSSProperties}>
+          <div className="text-xs font-medium text-slate-800">{courseText(p.prompt)}</div>
+          <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+            {cats.map((cat) => (
+              <div key={cat} className="rounded-lg border border-dashed border-slate-300 p-1.5">
+                <div className="font-bold uppercase text-slate-500">{cat}</div>
+                {items.filter((it) => it.category === cat).map((it, i) => (
+                  <div key={i} className="mt-0.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-slate-700">{courseText(it.label)}</div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    case "order": {
+      const items = Array.isArray(p.items) ? (p.items as Array<Record<string, unknown>>) : [];
+      const sorted = [...items].sort((a, b) => (Number(a.correctOrder) || 0) - (Number(b.correctOrder) || 0));
+      return (
+        <div className="h-full w-full overflow-auto rounded-lg border border-slate-200 bg-white p-2 text-xs" style={courseStyleCss(p.style) as React.CSSProperties}>
+          <div className="font-medium text-slate-800">{courseText(p.prompt)}</div>
+          {sorted.map((it, i) => (
+            <div key={i} className="mt-1 flex items-center gap-1.5 rounded border border-slate-200 px-1.5 py-1">
+              <span className="grid h-4 w-4 place-items-center rounded-full bg-slate-100 text-[9px] font-bold">{i + 1}</span>
+              <span className="text-slate-700">{courseText(it.label)}</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    case "matching": {
+      const pairs = Array.isArray(p.pairs) ? (p.pairs as Array<Record<string, unknown>>) : [];
+      return (
+        <div className="h-full w-full overflow-auto rounded-lg border border-slate-200 bg-white p-2 text-[10px]" style={courseStyleCss(p.style) as React.CSSProperties}>
+          <div className="text-xs font-medium text-slate-800">{courseText(p.prompt)}</div>
+          {pairs.map((pair, i) => (
+            <div key={i} className="mt-1 grid grid-cols-2 gap-1">
+              <div className="rounded border border-slate-200 px-1.5 py-1 text-slate-700">{courseText(pair.left)}</div>
+              <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1 text-slate-700">{courseText(pair.right)}</div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    case "hotspot": {
+      const hotspots = Array.isArray(p.hotspots) ? (p.hotspots as Array<Record<string, unknown>>) : [];
+      return (
+        <div className="h-full w-full overflow-hidden rounded-lg border border-slate-200 bg-white p-2 text-xs" style={courseStyleCss(p.style) as React.CSSProperties}>
+          <div className="font-medium text-slate-800">{courseText(p.prompt)}</div>
+          <div className="relative mt-1.5">
+            {(p.url as string) ? <img src={p.url as string} alt="" className="w-full rounded" /> : <div className="grid aspect-video w-full place-items-center rounded bg-slate-100 text-slate-400"><Crosshair className="h-5 w-5" /></div>}
+            {hotspots.map((h, i) => (
+              <div key={i}
+                className={`absolute rounded border-2 ${h.correct ? "border-emerald-500 bg-emerald-300/20" : "border-slate-400 bg-slate-300/20"}`}
+                style={{ left: `${h.x}%`, top: `${h.y}%`, width: `${h.width}%`, height: `${h.height}%` }}
+                title={courseText(h.label)} />
+            ))}
+          </div>
+        </div>
+      );
+    }
+    case "scenario": {
+      const messages = Array.isArray(p.messages) ? (p.messages as Array<Record<string, unknown>>) : [];
+      const choices = Array.isArray(p.choices) ? (p.choices as Array<Record<string, unknown>>) : [];
+      return (
+        <div className="h-full w-full overflow-auto rounded-lg border border-slate-200 bg-white p-2 text-[10px]" style={courseStyleCss(p.style) as React.CSSProperties}>
+          {messages.map((m, i) => (
+            <div key={i} className="mb-1">
+              {courseText(m.speaker) && <div className="font-semibold uppercase text-slate-400">{courseText(m.speaker)}</div>}
+              <div className="rounded-xl rounded-tl-sm bg-slate-100 px-2 py-1 text-slate-800">{courseText(m.text)}</div>
+            </div>
+          ))}
+          {courseText(p.prompt) && <div className="mt-1 text-xs font-medium text-slate-800">{courseText(p.prompt)}</div>}
+          {choices.map((ch, i) => (
+            <div key={i} className={`mt-1 rounded-lg border px-1.5 py-1 ${ch.correct ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-slate-200 text-slate-700"}`}>
+              {courseText(ch.text)}{ch.correct ? " ✓" : ""}
+            </div>
+          ))}
+        </div>
+      );
+    }
+    case "before_after":
+      return (
+        <div className="grid h-full w-full grid-cols-2 gap-1" style={courseStyleCss(p.style) as React.CSSProperties}>
+          {([[p.beforeUrl, courseText(p.beforeLabel) || "Before"], [p.afterUrl, courseText(p.afterLabel) || "After"]] as Array<[unknown, string]>).map(([url, label], i) => (
+            <div key={i} className="relative overflow-hidden rounded" >
+              {(url as string) ? <img src={url as string} alt={label} className="h-full w-full object-cover" /> : <div className="grid h-full w-full place-items-center bg-slate-100 text-slate-400"><ImageIcon className="h-4 w-4" /></div>}
+              <span className="absolute left-1 top-1 rounded bg-slate-900/70 px-1 text-[9px] font-semibold text-white">{label}</span>
+            </div>
+          ))}
+        </div>
+      );
+    case "timeline": {
+      const steps = Array.isArray(p.steps) ? (p.steps as Array<Record<string, unknown>>) : [];
+      return (
+        <div className="flex h-full w-full items-center gap-1 overflow-hidden rounded-lg bg-white p-2" style={courseStyleCss(p.style) as React.CSSProperties}>
+          {steps.map((s, i) => (
+            <div key={i} className="flex min-w-0 flex-1 flex-col items-center text-center">
+              <div className="grid h-5 w-5 place-items-center rounded-full bg-seafoam-600 text-[9px] font-bold text-white">{i + 1}</div>
+              <div className="mt-0.5 truncate text-[9px] font-semibold text-slate-800 w-full">{courseText(s.title)}</div>
+            </div>
+          ))}
+        </div>
+      );
+    }
     default:
       return null;
   }
@@ -973,13 +1172,27 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 const inputCls = "w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 outline-none focus:border-seafoam-400";
 
-function SlideInspector({ slide, onChange }: { slide: Slide; onChange: (p: Partial<Slide>) => void }) {
+function SlideInspector({ slide, onChange, meta, assessment, onMeta, onAssessment }: {
+  slide: Slide;
+  onChange: (p: Partial<Slide>) => void;
+  meta: CourseMeta;
+  assessment: Assessment;
+  onMeta: (m: CourseMeta) => void;
+  onAssessment: (a: Assessment) => void;
+}) {
+  const spanish = meta.supported_locales.includes("es");
   return (
     <div>
       <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold"><Palette className="h-4 w-4 text-seafoam-500" /> Slide</h3>
       <Field label="Title">
         <input className={inputCls} value={slide.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} />
       </Field>
+      {spanish && (
+        <Field label="Title (Español)">
+          <input className={inputCls} value={slide.i18n?.es?.title ?? ""} placeholder={slide.title ?? ""}
+            onChange={(e) => onChange({ i18n: { ...slide.i18n, es: { ...slide.i18n?.es, title: e.target.value } } })} />
+        </Field>
+      )}
       <Field label="Layout type">
         <select className={inputCls} value={slide.slide_type} onChange={(e) => onChange({ slide_type: e.target.value })}>
           <option value="content">Content</option>
@@ -1004,6 +1217,63 @@ function SlideInspector({ slide, onChange }: { slide: Slide; onChange: (p: Parti
           <option value="acknowledgment_signed">Acknowledgment signed</option>
         </select>
       </Field>
+
+      {/* ── Course-level settings ── */}
+      <div className="mt-5 border-t border-slate-200 pt-4">
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Languages className="h-4 w-4 text-seafoam-500" /> Course</h3>
+        <label className="mb-3 flex items-center gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={spanish}
+            onChange={(e) =>
+              onMeta({
+                ...meta,
+                supported_locales: e.target.checked
+                  ? [...new Set([...meta.supported_locales, "es"])]
+                  : meta.supported_locales.filter((l) => l !== "es"),
+              })
+            }
+          />
+          Offer in Español
+        </label>
+        {spanish && (
+          <Field label="Course title (Español)">
+            <input className={inputCls} value={meta.i18n?.es?.title ?? ""}
+              onChange={(e) => onMeta({ ...meta, i18n: { ...meta.i18n, es: { ...meta.i18n?.es, title: e.target.value } } })} />
+          </Field>
+        )}
+
+        <Field label="Passing score % (blank = not pass/fail)">
+          <input type="number" min={1} max={100} className={inputCls}
+            value={assessment.passingScorePct ?? ""}
+            onChange={(e) => onAssessment({ ...assessment, passingScorePct: e.target.value === "" ? null : Number(e.target.value) })} />
+        </Field>
+        {assessment.passingScorePct != null && (
+          <>
+            <Field label="Max attempts (blank = unlimited)">
+              <input type="number" min={1} className={inputCls}
+                value={assessment.maxAttempts ?? ""}
+                onChange={(e) => onAssessment({ ...assessment, maxAttempts: e.target.value === "" ? null : Number(e.target.value) })} />
+            </Field>
+            {([
+              ["shuffleQuestions", "Shuffle assessment slides"],
+              ["shuffleAnswers", "Shuffle answer options"],
+              ["showScore", "Show score to learner"],
+              ["showExplanations", "Show explanations"],
+            ] as Array<[keyof Assessment, string]>).map(([key, label]) => (
+              <label key={key} className="mb-1.5 flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={key === "showScore" || key === "showExplanations" ? assessment[key] !== false : assessment[key] === true}
+                  onChange={(e) => onAssessment({ ...assessment, [key]: e.target.checked })}
+                />
+                {label}
+              </label>
+            ))}
+          </>
+        )}
+      </div>
+
       <p className="mt-6 rounded-lg bg-slate-50 p-3 text-[11px] leading-relaxed text-slate-600">
         Tip: double-click a text or heading block to edit it inline. Use arrow keys to nudge, ⌘D to duplicate, ⌫ to delete.
       </p>
@@ -1011,15 +1281,245 @@ function SlideInspector({ slide, onChange }: { slide: Slide; onChange: (p: Parti
   );
 }
 
-function BlockInspector({ block, onChange, onGeom, onDelete }: {
-  block: Block; onChange: (p: Record<string, unknown>) => void;
+// ─── R2 image uploader (sign-upload → PUT → public URL) ─────────────────────
+
+function ImageUploader({ courseId, value, onUploaded }: {
+  courseId: string;
+  value: string;
+  onUploaded: (url: string) => void;
+}) {
+  const { getToken } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function handleFile(file: File) {
+    setError("");
+    setBusy(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API}/storage/sign-upload`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          fileName: file.name,
+          contentType: file.type,
+          sizeBytes: file.size,
+          purpose: "training_asset",
+          scope: "training",
+          refId: courseId,
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json() as { error?: string }).error ?? "Failed to sign upload");
+      const { uploadUrl, publicUrl, requiredHeaders } = await res.json() as {
+        uploadUrl: string; publicUrl: string; requiredHeaders: Record<string, string>;
+      };
+      const put = await fetch(uploadUrl, { method: "PUT", headers: requiredHeaders, body: file });
+      if (!put.ok) throw new Error(`Upload failed (${put.status})`);
+      onUploaded(publicUrl);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-1.5">
+      {value && <img src={value} alt="" className="max-h-24 w-full rounded border border-slate-200 object-cover" />}
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        disabled={busy}
+        className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 px-3 py-2 text-xs text-slate-500 hover:border-seafoam-400 hover:text-seafoam-700 disabled:opacity-50 transition-colors"
+      >
+        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+        {value ? "Replace image" : "Upload image"}
+      </button>
+      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
+      {error && <p className="text-xs text-red-500">{error}</p>}
+    </div>
+  );
+}
+
+// ─── Shared inspector sections ──────────────────────────────────────────────
+
+function FeedbackFields({ p, onChange }: { p: Record<string, unknown>; onChange: (patch: Record<string, unknown>) => void }) {
+  return (
+    <div className="mt-3 border-t border-slate-200 pt-3">
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Feedback</div>
+      <Field label="When correct"><input className={inputCls} value={(p.correctFeedback as string) ?? ""} onChange={(e) => onChange({ correctFeedback: e.target.value })} /></Field>
+      <Field label="When incorrect"><input className={inputCls} value={(p.incorrectFeedback as string) ?? ""} onChange={(e) => onChange({ incorrectFeedback: e.target.value })} /></Field>
+      <Field label="Explanation"><textarea className={inputCls} rows={2} value={(p.explanation as string) ?? ""} onChange={(e) => onChange({ explanation: e.target.value })} /></Field>
+      <label className="mb-1.5 flex items-center gap-2 text-sm text-slate-700">
+        <input type="checkbox" checked={p.allowRetry !== false} onChange={(e) => onChange({ allowRetry: e.target.checked })} /> Allow retry
+      </label>
+      <label className="flex items-center gap-2 text-sm text-slate-700">
+        <input type="checkbox" checked={p.mustPass === true} onChange={(e) => onChange({ mustPass: e.target.checked })} /> Must answer correctly to continue
+      </label>
+    </div>
+  );
+}
+
+function StyleFields({ p, onChange }: { p: Record<string, unknown>; onChange: (patch: Record<string, unknown>) => void }) {
+  const style = (p.style as Record<string, unknown>) ?? {};
+  const set = (k: string, v: unknown) => onChange({ style: { ...style, [k]: v === "" || v === "none" ? undefined : v } });
+  return (
+    <div className="mt-3 border-t border-slate-200 pt-3">
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Style</div>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Variant">
+          <select className={inputCls} value={(style.variant as string) ?? "none"} onChange={(e) => set("variant", e.target.value)}>
+            {COURSE_STYLE_VARIANTS.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </Field>
+        <Field label="Icon">
+          <select className={inputCls} value={(style.icon as string) ?? ""} onChange={(e) => set("icon", e.target.value)}>
+            <option value="">none</option>
+            {COURSE_ICONS.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </Field>
+        <Field label="Radius">
+          <select className={inputCls} value={(style.radius as string) ?? ""} onChange={(e) => set("radius", e.target.value)}>
+            <option value="">default</option>
+            {COURSE_STYLE_RADII.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </Field>
+        <Field label="Padding">
+          <select className={inputCls} value={(style.padding as string) ?? ""} onChange={(e) => set("padding", e.target.value)}>
+            <option value="">default</option>
+            {COURSE_STYLE_PADDINGS.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </Field>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Spanish translations for every localizable prop of the block, driven by
+ * the shared spec table — scalars get an input; object-array props get one
+ * input per item text field (quiz options nested one level deeper).
+ */
+function TranslationFields({ block, onChange }: { block: Block; onChange: (patch: Record<string, unknown>) => void }) {
+  const specs = courseLocalizableSpecs(block.block_type);
+  if (specs.length === 0) return null;
+  const p = block.props;
+  const i18n = (p.i18n as Record<string, Record<string, unknown>>) ?? {};
+  const es = i18n.es ?? {};
+  const setKey = (key: string, value: unknown) => onChange({ i18n: { ...i18n, es: { ...es, [key]: value } } });
+
+  return (
+    <div className="mt-3 border-t border-slate-200 pt-3">
+      <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        <Languages className="h-3.5 w-3.5" /> Español
+      </div>
+      {specs.map((spec) => {
+        const base = p[spec.key];
+        if (spec.type === "string" && spec.localizable) {
+          return (
+            <Field key={spec.key} label={spec.key}>
+              <input className={inputCls} value={(es[spec.key] as string) ?? ""} placeholder={courseText(base)}
+                onChange={(e) => setKey(spec.key, e.target.value)} />
+            </Field>
+          );
+        }
+        if (spec.type === "string[]" && spec.localizable && Array.isArray(base)) {
+          const overlay = Array.isArray(es[spec.key]) ? (es[spec.key] as string[]) : base.map(() => "");
+          return (
+            <Field key={spec.key} label={spec.key}>
+              {base.map((item, i) => (
+                <input key={i} className={`${inputCls} mb-1`} value={overlay[i] ?? ""} placeholder={courseText(item)}
+                  onChange={(e) => {
+                    const next = base.map((_, bi) => overlay[bi] ?? "");
+                    next[i] = e.target.value;
+                    setKey(spec.key, next);
+                  }} />
+              ))}
+            </Field>
+          );
+        }
+        if (spec.type === "object[]" && Array.isArray(base)) {
+          const textFields = (spec.fields ?? []).filter((f) => f.localizable && f.type === "string");
+          if (textFields.length === 0) return null;
+          const overlay = Array.isArray(es[spec.key])
+            ? (es[spec.key] as Array<Record<string, unknown>>)
+            : base.map(() => ({} as Record<string, unknown>));
+          const setItem = (i: number, fk: string, v: string) => {
+            const next = base.map((_, bi) => ({ ...(overlay[bi] ?? {}) }));
+            next[i] = { ...next[i], [fk]: v };
+            setKey(spec.key, next);
+          };
+          return (
+            <Field key={spec.key} label={spec.key}>
+              {base.map((item, i) => (
+                <div key={i} className="mb-1.5 rounded border border-slate-200 p-1.5">
+                  {textFields.map((f) => (
+                    <input key={f.key} className={`${inputCls} mb-1`}
+                      value={((overlay[i] ?? ({} as Record<string, unknown>))[f.key] as string) ?? ""}
+                      placeholder={courseText((item as Record<string, unknown>)[f.key])}
+                      onChange={(e) => setItem(i, f.key, e.target.value)} />
+                  ))}
+                </div>
+              ))}
+            </Field>
+          );
+        }
+        return null;
+      })}
+    </div>
+  );
+}
+
+// ─── Per-type structured editors ─────────────────────────────────────────────
+
+function rowsOf(p: Record<string, unknown>, key: string): Array<Record<string, unknown>> {
+  return Array.isArray(p[key]) ? ([...(p[key] as Array<Record<string, unknown>>)]) : [];
+}
+
+function ListShell({ label, onAdd, children }: { label: string; onAdd: () => void; children: React.ReactNode }) {
+  return (
+    <div className="mb-3">
+      <div className="mb-1 flex items-center justify-between">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-slate-600">{label}</span>
+        <button onClick={onAdd} className="rounded p-0.5 text-seafoam-600 hover:bg-seafoam-50" title="Add"><Plus className="h-4 w-4" /></button>
+      </div>
+      <div className="space-y-1.5">{children}</div>
+    </div>
+  );
+}
+
+function RowShell({ onDelete, children }: { onDelete: () => void; children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-slate-200 p-2">
+      <div className="flex items-start gap-1">
+        <div className="min-w-0 flex-1 space-y-1">{children}</div>
+        <button onClick={onDelete} className="rounded p-1 text-rose-400 hover:bg-rose-50" title="Remove"><Trash2 className="h-3.5 w-3.5" /></button>
+      </div>
+    </div>
+  );
+}
+
+const GRADEABLE_TYPES = new Set<BlockType>([
+  "quiz", "true_false", "image_choice", "sort", "order", "matching", "hotspot", "scenario",
+]);
+const STYLEABLE_TYPES = new Set<BlockType>([
+  "heading", "text", "image", "video", "embed", "callout", "quiz", "button",
+  "checklist", "acknowledgment", "true_false", "image_choice", "sort", "order",
+  "matching", "hotspot", "scenario", "before_after", "timeline",
+]);
+
+function BlockInspector({ block, courseId, locales, onChange, onGeom, onDelete }: {
+  block: Block; courseId: string; locales: string[];
+  onChange: (p: Record<string, unknown>) => void;
   onGeom: (p: Partial<Block>) => void; onDelete: () => void;
 }) {
   const p = block.props;
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-semibold capitalize">{block.block_type}</h3>
+        <h3 className="text-sm font-semibold capitalize">{block.block_type.replace(/_/g, " ")}</h3>
         <button onClick={onDelete} className="rounded p-1 text-rose-500 hover:bg-rose-50" title="Delete block">
           <Trash2 className="h-4 w-4" />
         </button>
@@ -1045,7 +1545,11 @@ function BlockInspector({ block, onChange, onGeom, onDelete }: {
 
       {block.block_type === "image" && (
         <>
+          <Field label="Image">
+            <ImageUploader courseId={courseId} value={(p.url as string) ?? ""} onUploaded={(url) => onChange({ url })} />
+          </Field>
           <Field label="Image URL"><input className={inputCls} value={(p.url as string) ?? ""} onChange={(e) => onChange({ url: e.target.value })} placeholder="https://…" /></Field>
+          <Field label="Alt text"><input className={inputCls} value={courseText(p.alt)} onChange={(e) => onChange({ alt: e.target.value })} /></Field>
           <Field label="Caption"><input className={inputCls} value={courseText(p.caption)} onChange={(e) => onChange({ caption: e.target.value })} /></Field>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Fit">
@@ -1053,8 +1557,280 @@ function BlockInspector({ block, onChange, onGeom, onDelete }: {
                 <option value="cover">Cover</option><option value="contain">Contain</option>
               </select>
             </Field>
+            <Field label="Position">
+              <select className={inputCls} value={(p.position as string) ?? "center"} onChange={(e) => onChange({ position: e.target.value })}>
+                <option value="center">Center</option><option value="top">Top</option><option value="bottom">Bottom</option>
+                <option value="left">Left</option><option value="right">Right</option>
+              </select>
+            </Field>
             <Field label="Radius"><input type="number" className={inputCls} value={(p.radius as number) ?? 12} onChange={(e) => onChange({ radius: Number(e.target.value) })} /></Field>
+            <Field label="Link URL"><input className={inputCls} value={(p.href as string) ?? ""} onChange={(e) => onChange({ href: e.target.value })} placeholder="optional" /></Field>
           </div>
+          <ListShell label="Annotations" onAdd={() => onChange({ annotations: [...rowsOf(p, "annotations"), { kind: "marker", x: 50, y: 50, n: rowsOf(p, "annotations").length + 1, label: "" }] })}>
+            {rowsOf(p, "annotations").map((a, i) => {
+              const setA = (patch: Record<string, unknown>) => {
+                const next = rowsOf(p, "annotations");
+                next[i] = { ...next[i], ...patch };
+                onChange({ annotations: next });
+              };
+              return (
+                <RowShell key={i} onDelete={() => onChange({ annotations: rowsOf(p, "annotations").filter((_, ai) => ai !== i) })}>
+                  <div className="grid grid-cols-3 gap-1">
+                    <select className={inputCls} value={(a.kind as string) ?? "marker"} onChange={(e) => setA({ kind: e.target.value })}>
+                      <option value="marker">Marker</option><option value="box">Box</option><option value="arrow">Arrow</option>
+                    </select>
+                    <input type="number" className={inputCls} value={(a.x as number) ?? 0} onChange={(e) => setA({ x: Number(e.target.value) })} title="X %" />
+                    <input type="number" className={inputCls} value={(a.y as number) ?? 0} onChange={(e) => setA({ y: Number(e.target.value) })} title="Y %" />
+                  </div>
+                  {a.kind === "box" && (
+                    <div className="grid grid-cols-2 gap-1">
+                      <input type="number" className={inputCls} value={(a.width as number) ?? 10} onChange={(e) => setA({ width: Number(e.target.value) })} title="W %" />
+                      <input type="number" className={inputCls} value={(a.height as number) ?? 10} onChange={(e) => setA({ height: Number(e.target.value) })} title="H %" />
+                    </div>
+                  )}
+                  <input className={inputCls} value={courseText(a.label)} placeholder="Label" onChange={(e) => setA({ label: e.target.value })} />
+                </RowShell>
+              );
+            })}
+          </ListShell>
+        </>
+      )}
+
+      {block.block_type === "true_false" && (
+        <>
+          <Field label="Statement"><textarea className={inputCls} rows={2} value={courseText(p.statement)} onChange={(e) => onChange({ statement: e.target.value })} /></Field>
+          <Field label="Correct answer">
+            <select className={inputCls} value={String(p.correct ?? "true")} onChange={(e) => onChange({ correct: e.target.value === "true" })}>
+              <option value="true">True</option><option value="false">False</option>
+            </select>
+          </Field>
+        </>
+      )}
+
+      {block.block_type === "image_choice" && (
+        <>
+          <Field label="Question"><textarea className={inputCls} rows={2} value={courseText(p.question)} onChange={(e) => onChange({ question: e.target.value })} /></Field>
+          <ListShell label="Image options" onAdd={() => onChange({ options: [...rowsOf(p, "options"), { url: "", label: String.fromCharCode(65 + rowsOf(p, "options").length), correct: false }] })}>
+            {rowsOf(p, "options").map((o, i) => {
+              const setO = (patch: Record<string, unknown>) => {
+                const next = rowsOf(p, "options");
+                next[i] = { ...next[i], ...patch };
+                onChange({ options: next });
+              };
+              return (
+                <RowShell key={i} onDelete={() => onChange({ options: rowsOf(p, "options").filter((_, oi) => oi !== i) })}>
+                  <ImageUploader courseId={courseId} value={(o.url as string) ?? ""} onUploaded={(url) => setO({ url })} />
+                  <div className="flex items-center gap-2">
+                    <input className={inputCls} value={courseText(o.label)} placeholder="Label" onChange={(e) => setO({ label: e.target.value })} />
+                    <label className="flex shrink-0 items-center gap-1 text-xs text-slate-600">
+                      <input type="checkbox" checked={o.correct === true} onChange={(e) => setO({ correct: e.target.checked })} /> Correct
+                    </label>
+                  </div>
+                </RowShell>
+              );
+            })}
+          </ListShell>
+        </>
+      )}
+
+      {block.block_type === "sort" && (
+        <>
+          <Field label="Prompt"><input className={inputCls} value={courseText(p.prompt)} onChange={(e) => onChange({ prompt: e.target.value })} /></Field>
+          <Field label="Categories (one per line, 2–4)">
+            <textarea className={inputCls} rows={2}
+              value={(Array.isArray(p.categories) ? (p.categories as string[]) : []).join("\n")}
+              onChange={(e) => onChange({ categories: e.target.value.split("\n").filter(Boolean) })} />
+          </Field>
+          <ListShell label="Items" onAdd={() => onChange({ items: [...rowsOf(p, "items"), { id: String(Date.now()), label: "", category: (Array.isArray(p.categories) ? (p.categories as string[]) : [])[0] ?? "" }] })}>
+            {rowsOf(p, "items").map((it, i) => {
+              const setI = (patch: Record<string, unknown>) => {
+                const next = rowsOf(p, "items");
+                next[i] = { ...next[i], ...patch };
+                onChange({ items: next });
+              };
+              return (
+                <RowShell key={i} onDelete={() => onChange({ items: rowsOf(p, "items").filter((_, ii) => ii !== i) })}>
+                  <input className={inputCls} value={courseText(it.label)} placeholder="Item" onChange={(e) => setI({ label: e.target.value })} />
+                  <select className={inputCls} value={(it.category as string) ?? ""} onChange={(e) => setI({ category: e.target.value })}>
+                    {(Array.isArray(p.categories) ? (p.categories as string[]) : []).map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </RowShell>
+              );
+            })}
+          </ListShell>
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" checked={p.immediateFeedback === true} onChange={(e) => onChange({ immediateFeedback: e.target.checked })} /> Check automatically when all placed
+          </label>
+        </>
+      )}
+
+      {block.block_type === "order" && (
+        <>
+          <Field label="Prompt"><input className={inputCls} value={courseText(p.prompt)} onChange={(e) => onChange({ prompt: e.target.value })} /></Field>
+          <ListShell label="Steps (in CORRECT order)" onAdd={() => onChange({ items: [...rowsOf(p, "items"), { id: String(Date.now()), label: "", correctOrder: rowsOf(p, "items").length + 1 }] })}>
+            {[...rowsOf(p, "items")].sort((a, b) => (Number(a.correctOrder) || 0) - (Number(b.correctOrder) || 0)).map((it) => {
+              const items = rowsOf(p, "items");
+              const idx = items.findIndex((x) => x.id === it.id);
+              const setI = (patch: Record<string, unknown>) => {
+                const next = [...items];
+                next[idx] = { ...next[idx], ...patch };
+                onChange({ items: next });
+              };
+              return (
+                <RowShell key={it.id as string} onDelete={() => onChange({ items: items.filter((x) => x.id !== it.id) })}>
+                  <div className="flex items-center gap-1">
+                    <input type="number" className={`${inputCls} w-14 shrink-0`} value={(it.correctOrder as number) ?? 1} onChange={(e) => setI({ correctOrder: Number(e.target.value) })} />
+                    <input className={inputCls} value={courseText(it.label)} placeholder="Step" onChange={(e) => setI({ label: e.target.value })} />
+                  </div>
+                </RowShell>
+              );
+            })}
+          </ListShell>
+        </>
+      )}
+
+      {block.block_type === "matching" && (
+        <>
+          <Field label="Prompt"><input className={inputCls} value={courseText(p.prompt)} onChange={(e) => onChange({ prompt: e.target.value })} /></Field>
+          <ListShell label="Pairs" onAdd={() => onChange({ pairs: [...rowsOf(p, "pairs"), { left: "", right: "" }] })}>
+            {rowsOf(p, "pairs").map((pair, i) => {
+              const setP = (patch: Record<string, unknown>) => {
+                const next = rowsOf(p, "pairs");
+                next[i] = { ...next[i], ...patch };
+                onChange({ pairs: next });
+              };
+              return (
+                <RowShell key={i} onDelete={() => onChange({ pairs: rowsOf(p, "pairs").filter((_, pi) => pi !== i) })}>
+                  <input className={inputCls} value={courseText(pair.left)} placeholder="Left (situation)" onChange={(e) => setP({ left: e.target.value })} />
+                  <input className={inputCls} value={courseText(pair.right)} placeholder="Right (match)" onChange={(e) => setP({ right: e.target.value })} />
+                </RowShell>
+              );
+            })}
+          </ListShell>
+        </>
+      )}
+
+      {block.block_type === "hotspot" && (
+        <>
+          <Field label="Image">
+            <ImageUploader courseId={courseId} value={(p.url as string) ?? ""} onUploaded={(url) => onChange({ url })} />
+          </Field>
+          <Field label="Prompt"><input className={inputCls} value={courseText(p.prompt)} onChange={(e) => onChange({ prompt: e.target.value })} /></Field>
+          <ListShell label="Regions (% of image)" onAdd={() => onChange({ hotspots: [...rowsOf(p, "hotspots"), { x: 40, y: 40, width: 20, height: 15, correct: true, label: "" }] })}>
+            {rowsOf(p, "hotspots").map((h, i) => {
+              const setH = (patch: Record<string, unknown>) => {
+                const next = rowsOf(p, "hotspots");
+                next[i] = { ...next[i], ...patch };
+                onChange({ hotspots: next });
+              };
+              return (
+                <RowShell key={i} onDelete={() => onChange({ hotspots: rowsOf(p, "hotspots").filter((_, hi) => hi !== i) })}>
+                  <div className="grid grid-cols-4 gap-1">
+                    {(["x", "y", "width", "height"] as const).map((k) => (
+                      <input key={k} type="number" className={inputCls} value={(h[k] as number) ?? 0} title={`${k} %`} onChange={(e) => setH({ [k]: Number(e.target.value) })} />
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input className={inputCls} value={courseText(h.label)} placeholder="Label (shown when found)" onChange={(e) => setH({ label: e.target.value })} />
+                    <label className="flex shrink-0 items-center gap-1 text-xs text-slate-600">
+                      <input type="checkbox" checked={h.correct === true} onChange={(e) => setH({ correct: e.target.checked })} /> Find
+                    </label>
+                  </div>
+                </RowShell>
+              );
+            })}
+          </ListShell>
+          <p className="mb-3 rounded bg-slate-50 p-2 text-[11px] text-slate-500">Regions are drawn on the canvas preview — adjust x/y/width/height until the outline covers the target.</p>
+        </>
+      )}
+
+      {block.block_type === "scenario" && (
+        <>
+          <ListShell label="Messages" onAdd={() => onChange({ messages: [...rowsOf(p, "messages"), { speaker: "Customer", text: "" }] })}>
+            {rowsOf(p, "messages").map((m, i) => {
+              const setM = (patch: Record<string, unknown>) => {
+                const next = rowsOf(p, "messages");
+                next[i] = { ...next[i], ...patch };
+                onChange({ messages: next });
+              };
+              return (
+                <RowShell key={i} onDelete={() => onChange({ messages: rowsOf(p, "messages").filter((_, mi) => mi !== i) })}>
+                  <input className={inputCls} value={courseText(m.speaker)} placeholder="Speaker" onChange={(e) => setM({ speaker: e.target.value })} />
+                  <textarea className={inputCls} rows={2} value={courseText(m.text)} placeholder="Message" onChange={(e) => setM({ text: e.target.value })} />
+                </RowShell>
+              );
+            })}
+          </ListShell>
+          <Field label="Prompt"><input className={inputCls} value={courseText(p.prompt)} onChange={(e) => onChange({ prompt: e.target.value })} /></Field>
+          <ListShell label="Responses" onAdd={() => onChange({ choices: [...rowsOf(p, "choices"), { text: "", correct: false }] })}>
+            {rowsOf(p, "choices").map((ch, i) => {
+              const setC = (patch: Record<string, unknown>) => {
+                const next = rowsOf(p, "choices");
+                next[i] = { ...next[i], ...patch };
+                onChange({ choices: next });
+              };
+              return (
+                <RowShell key={i} onDelete={() => onChange({ choices: rowsOf(p, "choices").filter((_, ci) => ci !== i) })}>
+                  <textarea className={inputCls} rows={2} value={courseText(ch.text)} placeholder="Response" onChange={(e) => setC({ text: e.target.value })} />
+                  <div className="flex items-center gap-2">
+                    <input className={inputCls} value={courseText(ch.feedback)} placeholder="Feedback for this choice" onChange={(e) => setC({ feedback: e.target.value })} />
+                    <label className="flex shrink-0 items-center gap-1 text-xs text-slate-600">
+                      <input type="checkbox" checked={ch.correct === true} onChange={(e) => setC({ correct: e.target.checked })} /> Correct
+                    </label>
+                  </div>
+                </RowShell>
+              );
+            })}
+          </ListShell>
+        </>
+      )}
+
+      {block.block_type === "before_after" && (
+        <>
+          <Field label="Before image">
+            <ImageUploader courseId={courseId} value={(p.beforeUrl as string) ?? ""} onUploaded={(url) => onChange({ beforeUrl: url })} />
+          </Field>
+          <Field label="After image">
+            <ImageUploader courseId={courseId} value={(p.afterUrl as string) ?? ""} onUploaded={(url) => onChange({ afterUrl: url })} />
+          </Field>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Before label"><input className={inputCls} value={courseText(p.beforeLabel)} onChange={(e) => onChange({ beforeLabel: e.target.value })} /></Field>
+            <Field label="After label"><input className={inputCls} value={courseText(p.afterLabel)} onChange={(e) => onChange({ afterLabel: e.target.value })} /></Field>
+          </div>
+          <Field label="Mode">
+            <select className={inputCls} value={(p.mode as string) ?? "slider"} onChange={(e) => onChange({ mode: e.target.value })}>
+              <option value="slider">Slider</option><option value="side_by_side">Side by side</option>
+            </select>
+          </Field>
+        </>
+      )}
+
+      {block.block_type === "timeline" && (
+        <>
+          <ListShell label="Steps" onAdd={() => onChange({ steps: [...rowsOf(p, "steps"), { title: "" }] })}>
+            {rowsOf(p, "steps").map((s, i) => {
+              const setS = (patch: Record<string, unknown>) => {
+                const next = rowsOf(p, "steps");
+                next[i] = { ...next[i], ...patch };
+                onChange({ steps: next });
+              };
+              return (
+                <RowShell key={i} onDelete={() => onChange({ steps: rowsOf(p, "steps").filter((_, si) => si !== i) })}>
+                  <input className={inputCls} value={courseText(s.title)} placeholder="Title" onChange={(e) => setS({ title: e.target.value })} />
+                  <input className={inputCls} value={courseText(s.description)} placeholder="Description (optional)" onChange={(e) => setS({ description: e.target.value })} />
+                  <select className={inputCls} value={(s.icon as string) ?? ""} onChange={(e) => setS({ icon: e.target.value || undefined })}>
+                    <option value="">no icon</option>
+                    {COURSE_ICONS.map((ic) => <option key={ic} value={ic}>{ic}</option>)}
+                  </select>
+                </RowShell>
+              );
+            })}
+          </ListShell>
+          <Field label="Orientation">
+            <select className={inputCls} value={(p.orientation as string) ?? "horizontal"} onChange={(e) => onChange({ orientation: e.target.value })}>
+              <option value="horizontal">Horizontal</option><option value="vertical">Vertical</option>
+            </select>
+          </Field>
         </>
       )}
 
@@ -1149,10 +1925,52 @@ function BlockInspector({ block, onChange, onGeom, onDelete }: {
       )}
 
       {block.block_type === "quiz" && (
-        <Field label="Passing score %">
-          <input type="number" className={inputCls} value={(p.passingScore as number) ?? 80} onChange={(e) => onChange({ passingScore: Number(e.target.value) })} />
-        </Field>
+        <>
+          <Field label="Passing score % (this block)">
+            <input type="number" className={inputCls} value={(p.passingScore as number) ?? 80} onChange={(e) => onChange({ passingScore: Number(e.target.value) })} />
+          </Field>
+          <ListShell label="Questions" onAdd={() => onChange({ questions: [...rowsOf(p, "questions"), { question: "", options: [{ text: "", correct: true }, { text: "", correct: false }] }] })}>
+            {rowsOf(p, "questions").map((q, qi) => {
+              const setQ = (patch: Record<string, unknown>) => {
+                const next = rowsOf(p, "questions");
+                next[qi] = { ...next[qi], ...patch };
+                onChange({ questions: next });
+              };
+              const options = Array.isArray(q.options) ? ([...(q.options as Array<Record<string, unknown>>)]) : [];
+              const setOption = (oi: number, patch: Record<string, unknown>) => {
+                const nextOptions = [...options];
+                nextOptions[oi] = { ...nextOptions[oi], ...patch };
+                setQ({ options: nextOptions });
+              };
+              return (
+                <RowShell key={qi} onDelete={() => onChange({ questions: rowsOf(p, "questions").filter((_, i) => i !== qi) })}>
+                  <textarea className={inputCls} rows={2} value={courseText(q.question)} placeholder={`Question ${qi + 1}`} onChange={(e) => setQ({ question: e.target.value })} />
+                  {options.map((o, oi) => (
+                    <div key={oi} className="flex items-center gap-1.5">
+                      <input className={inputCls} value={courseText(o.text)} placeholder={`Option ${oi + 1}`} onChange={(e) => setOption(oi, { text: e.target.value })} />
+                      <label className="flex shrink-0 items-center gap-1 text-xs text-slate-600">
+                        <input type="checkbox" checked={o.correct === true} onChange={(e) => setOption(oi, { correct: e.target.checked })} /> ✓
+                      </label>
+                      <button onClick={() => setQ({ options: options.filter((_, i) => i !== oi) })} className="rounded p-0.5 text-rose-400 hover:bg-rose-50"><Trash2 className="h-3 w-3" /></button>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between">
+                    <button onClick={() => setQ({ options: [...options, { text: "", correct: false }] })} className="text-xs text-seafoam-700 hover:underline">+ option</button>
+                    <label className="flex items-center gap-1 text-xs text-slate-600">
+                      <input type="checkbox" checked={q.multi === true} onChange={(e) => setQ({ multi: e.target.checked })} /> multi-select
+                    </label>
+                  </div>
+                  <input className={inputCls} value={courseText(q.explanation)} placeholder="Explanation (optional)" onChange={(e) => setQ({ explanation: e.target.value })} />
+                </RowShell>
+              );
+            })}
+          </ListShell>
+        </>
       )}
+
+      {GRADEABLE_TYPES.has(block.block_type) && <FeedbackFields p={p} onChange={onChange} />}
+      {STYLEABLE_TYPES.has(block.block_type) && <StyleFields p={p} onChange={onChange} />}
+      {locales.includes("es") && <TranslationFields block={block} onChange={onChange} />}
 
       {/* Geometry */}
       <div className="mt-4 border-t border-slate-200 pt-3">

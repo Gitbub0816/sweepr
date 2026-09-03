@@ -228,27 +228,35 @@ cleaners the instant you publish.
 
 ## The design shape
 Read sweepr://courses-design-guide for the full slide/block shape before
-building one: slides in order, each a positioned canvas of blocks (text,
-heading, image, video, embed, shape, divider, spacer, callout, checklist,
-acknowledgment, button, quiz) placed by x/y/width/height PERCENTAGES of a
-16:9 canvas. Video blocks need a Cloudflare Stream id you cannot generate
-yourself — flag those to the human. Quiz blocks are accepted but not yet
-interactive for the learner — say so plainly if asked whether a quiz will
-grade cleaners.
+building one: slides in order, each a positioned canvas of blocks — content
+(text, heading, image with annotations, video, embed), layout (shape,
+divider, spacer, callout, timeline, before_after) and native INTERACTIVE
+blocks (quiz, true_false, image_choice, sort, order, matching, hotspot,
+scenario, checklist, acknowledgment, button) placed by x/y/width/height
+PERCENTAGES of a 16:9 canvas. Interactive blocks grade SERVER-SIDE with
+your correct/incorrect feedback; a course with assessment.passingScorePct
+set is a real pass/fail readiness check. Courses localize as ONE record
+with per-locale overlays (English + Español is the standard pair). Video
+blocks still need a Cloudflare Stream id you cannot generate yourself —
+flag those to the human; images you CAN upload via upload_course_asset.
 
-## Workflow: explore → draft → preview → publish (only when asked, or once you're confident)
+## Workflow: explore → assets → draft → preview → publish (only when asked, or once you're confident)
 1. **Explore**: list_courses (read-only) — shows both existing courses AND
    the legacy training_modules library, so you can see which legacy modules
    still need a v2 replacement and which already have one.
-2. **Draft**: save_course_draft{title, replaces_module_id?, slides?, ...}
-   to create a new course (always starts as an unpublished draft — never
-   shown to a cleaner) or keep editing one you're iterating on. Pass
+2. **Assets**: upload_course_asset for each image (base64 or a public https
+   source_url) and put the returned url into the block props that use it.
+3. **Draft**: save_course_draft{title, replaces_module_id?, slides?,
+   default_locale?, supported_locales?, i18n?, assessment?, ...} to create
+   a new course (always starts as an unpublished draft — never shown to a
+   cleaner) or keep editing one you're iterating on. Pass
    \`replaces_module_id\` only at creation, pointing at the legacy module
    this course is meant to take over from — omit it for a brand-new
    requirement with no legacy counterpart.
-3. **Preview**: preview_course{id} to sanity-check slide count, block-type
-   counts, and quiz question counts before anyone sees it.
-4. **Publish**: publish_course{id} makes it live AND performs the cutover
+4. **Preview**: preview_course{id} to sanity-check slide/block counts,
+   propIssues, assetIssues (images not uploaded yet) and translationGaps
+   (untranslated text per enabled locale) before anyone sees it.
+5. **Publish**: publish_course{id} makes it live AND performs the cutover
    in one step. This is the real, guarded write — see
    sweepr://courses-mcp-exception. Prefer drafting and previewing first;
    only skip straight to publish when the human explicitly asks for that.
@@ -264,12 +272,18 @@ grade cleaners.
   preview_course call as having gone live, and never describe a
   publish_course call as merely a proposal.
 - You cannot upload video — flag any video block missing a streamId to the
-  human rather than inventing one.
+  human rather than inventing one. Images, in contrast, upload through
+  upload_course_asset; never paste third-party hotlinks into image props.
+- Answer keys (correct flags, sort categories, correctOrder, hotspot
+  regions) never reach a learner — do not weaken a question because you
+  assume the learner can see the marking.
 
 ## Tool cheat-sheet
 READ:    list_courses | get_course{id,published?} | preview_course{id,published?}
+ASSETS:  upload_course_asset{filename?,content_type?,data_base64?|source_url,course_id?}
 DRAFT:   save_course_draft{title,id?,description?,category?,required?,
-         replaces_module_id?,slides?}
+         replaces_module_id?,default_locale?,supported_locales?,i18n?,
+         assessment?,slides?}
 PUBLISH: publish_course{id}
 
 Resources: sweepr://courses-design-guide, sweepr://courses-mcp-exception.`;

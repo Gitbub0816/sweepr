@@ -396,3 +396,175 @@ describe("publish_course — the deliberate exception, its guardrails, and the c
     expect(audit!.values.some((v) => typeof v === "string" && v.includes(MODULE_ID))).toBe(true);
   });
 });
+
+describe("localization + assessment fields round-trip through save/get", () => {
+  it("save_course_draft persists locales, course i18n and version settings on create", async () => {
+    const { ctx, calls } = ctxWith((text) => {
+      if (text.includes("FROM users")) return [{ email: OWNER_EMAIL, role: "super_admin", clerk_id: "ck_1" }];
+      if (text.trim().startsWith("INSERT INTO courses")) return [{ id: COURSE_ID }];
+      if (text.includes("INSERT INTO course_versions")) return [{ id: "v1" }];
+      if (text.includes("FROM courses WHERE id")) return [courseRow({ default_locale: "en", supported_locales: ["en", "es"] })];
+      return [];
+    });
+    const out = (await callTool(ctx, "save_course_draft", {
+      title: "Bilingual course",
+      default_locale: "en",
+      supported_locales: ["en", "es"],
+      i18n: { es: { title: "Curso bilingüe" } },
+      assessment: { passingScorePct: 80, maxAttempts: 3, shuffleAnswers: true },
+    })) as { saved: boolean };
+    expect(out.saved).toBe(true);
+    const courseInsert = calls.find((c) => c.text.trim().startsWith("INSERT INTO courses"));
+    expect(courseInsert?.text).toContain("default_locale");
+    expect(courseInsert?.values).toContainEqual(["en", "es"]);
+    const versionInsert = calls.find((c) => c.text.includes("INSERT INTO course_versions"));
+    expect(versionInsert?.text).toContain("settings");
+    expect(versionInsert?.values.some((v) => typeof v === "string" && v.includes("passingScorePct"))).toBe(true);
+  });
+
+  it("rejects supported_locales that exclude the default, and bad assessment settings", async () => {
+    const { ctx } = ctxWith(() => []);
+    await expect(
+      callTool(ctx, "save_course_draft", { title: "X", default_locale: "es", supported_locales: ["en"] }),
+    ).rejects.toThrow(/supported_locales must include default_locale/);
+    await expect(
+      callTool(ctx, "save_course_draft", { title: "X", assessment: { passingScorePct: 0 } }),
+    ).rejects.toThrow(/between 1 and 100/);
+  });
+
+  it("blocks may carry props.i18n overlays; answer keys stay untranslatable", async () => {
+    const { ctx } = ctxWith((text) => {
+      if (text.includes("FROM users")) return [{ email: OWNER_EMAIL, role: "super_admin", clerk_id: "ck_1" }];
+      if (text.includes("FROM courses WHERE id")) return [courseRow()];
+      if (text.includes("status = 'draft'")) return [{ id: "v1" }];
+      if (text.includes("INSERT INTO course_slides")) return [{ id: "s1" }];
+      return [];
+    });
+    const slide = (blockProps: Record<string, unknown>) => ({
+      slide_order: 0,
+      blocks: [{ block_type: "true_false", x: 10, y: 10, width: 60, height: 30, props: blockProps }],
+    });
+    const good = (await callTool(ctx, "save_course_draft", {
+      id: COURSE_ID,
+      slides: [slide({ statement: "S", correct: true, i18n: { es: { statement: "D" } } })],
+    })) as { saved: boolean };
+    expect(good.saved).toBe(true);
+    await expect(
+      callTool(ctx, "save_course_draft", {
+        id: COURSE_ID,
+        slides: [slide({ statement: "S", correct: true, i18n: { es: { correct: false } } })],
+      }),
+    ).rejects.toThrow(/not localizable/);
+  });
+
+  it("preview_course reports assetIssues and translationGaps", async () => {
+    const { ctx } = ctxWith((text) => {
+      if (text.includes("FROM courses WHERE id")) {
+        return [courseRow({ default_locale: "en", supported_locales: ["en", "es"], i18n: {} })];
+      }
+      if (text.includes("ORDER BY (status = 'draft')")) return [{ id: "v1", course_id: COURSE_ID, version_number: 1, status: "draft" }];
+      if (text.includes("SELECT settings FROM course_versions")) return [{ settings: { passingScorePct: 80 } }];
+      if (text.includes("FROM course_slides")) {
+        return [{ id: "s1", course_version_id: "v1", title: "Intro", slide_type: "content", slide_order: 0, background: {}, completion_rule: { type: "viewed" }, i18n: {} }];
+      }
+      if (text.includes("FROM slide_blocks")) {
+        return [
+          { id: "b1", slide_id: "s1", block_type: "image", x: 0, y: 0, width: 50, height: 50, z_index: 0, props: { url: "", caption: "A room" } },
+          { id: "b2", slide_id: "s1", block_type: "text", x: 0, y: 60, width: 50, height: 20, z_index: 1, props: { content: "Untranslated copy" } },
+        ];
+      }
+      return [];
+    });
+    const out = (await callTool(ctx, "preview_course", { id: COURSE_ID })) as {
+      assessment: Record<string, unknown>;
+      assetIssues: Array<{ blockType: string; problem: string }>;
+      translationGaps: Record<string, string[]>;
+    };
+    expect(out.assessment).toEqual({ passingScorePct: 80 });
+    expect(out.assetIssues.some((i) => i.blockType === "image" && i.problem.includes("no url"))).toBe(true);
+    expect(out.translationGaps.es).toContain("course.title");
+    expect(out.translationGaps.es.some((g) => g.includes("text.content"))).toBe(true);
+    expect(out.translationGaps.es.some((g) => g.includes("slide[0].title"))).toBe(true);
+  });
+});
+
+describe("upload_course_asset — image assets through the MCP", () => {
+  const PNG_B64 = Buffer.from("fake-png-bytes").toString("base64");
+
+  function ctxWithBucket(adminRole = "super_admin", withBinding = true) {
+    const puts: Array<{ key: string; bytes: number; contentType?: string }> = [];
+    const base = ctxWith((text) => {
+      if (text.includes("FROM users")) return [{ email: OWNER_EMAIL, role: adminRole, clerk_id: "ck_1" }];
+      return [];
+    });
+    const env = {
+      ...ENV,
+      R2_PUBLIC_URL: "https://objects.getsweepr.com",
+      ...(withBinding
+        ? {
+            COURSE_ASSETS: {
+              put: async (key: string, value: Uint8Array, opts?: { httpMetadata?: { contentType?: string } }) => {
+                puts.push({ key, bytes: value.length, contentType: opts?.httpMetadata?.contentType });
+                return {};
+              },
+            } as unknown as Env["COURSE_ASSETS"],
+          }
+        : {}),
+    };
+    return { ctx: { ...base.ctx, env }, puts };
+  }
+
+  it("stores a base64 image under the training/ prefix and returns its public url", async () => {
+    const { ctx, puts } = ctxWithBucket();
+    const out = (await callTool(ctx, "upload_course_asset", {
+      filename: "Bathroom Before.PNG",
+      content_type: "image/png",
+      data_base64: PNG_B64,
+      course_id: COURSE_ID,
+    })) as { uploaded: boolean; url: string; storageKey: string; contentType: string };
+    expect(out.uploaded).toBe(true);
+    expect(out.storageKey).toMatch(new RegExp(`^training/${COURSE_ID}/\\d+-bathroom-before\\.png$`));
+    expect(out.url).toBe(`https://objects.getsweepr.com/${out.storageKey}`);
+    expect(puts).toHaveLength(1);
+    expect(puts[0].contentType).toBe("image/png");
+  });
+
+  it("files assets with no course under the shared library prefix", async () => {
+    const { ctx } = ctxWithBucket();
+    const out = (await callTool(ctx, "upload_course_asset", {
+      filename: "supplies.png",
+      content_type: "image/png",
+      data_base64: PNG_B64,
+    })) as { storageKey: string };
+    expect(out.storageKey).toMatch(/^training\/mcp-library\//);
+  });
+
+  it("rejects disallowed content types, bad base64, plaintext/local source urls, and non-admins", async () => {
+    const { ctx } = ctxWithBucket();
+    await expect(
+      callTool(ctx, "upload_course_asset", { content_type: "image/gif", data_base64: PNG_B64 }),
+    ).rejects.toThrow(/content_type must be one of/);
+    await expect(
+      callTool(ctx, "upload_course_asset", { content_type: "image/png", data_base64: "!!not-base64!!" }),
+    ).rejects.toThrow(/not valid base64/);
+    await expect(
+      callTool(ctx, "upload_course_asset", { source_url: "http://internal.host/x.png" }),
+    ).rejects.toThrow(/public https/);
+    await expect(
+      callTool(ctx, "upload_course_asset", { source_url: "https://127.0.0.1/x.png" }),
+    ).rejects.toThrow(/public https/);
+
+    const nonAdmin = ctxWithBucket("cleaner");
+    nonAdmin.ctx.adminEmail = NON_ADMIN_EMAIL;
+    await expect(
+      callTool(nonAdmin.ctx, "upload_course_asset", { content_type: "image/png", data_base64: PNG_B64 }),
+    ).rejects.toThrow(/Not authorized/);
+  });
+
+  it("fails closed with a clear message when the R2 binding is missing", async () => {
+    const { ctx } = ctxWithBucket("super_admin", false);
+    await expect(
+      callTool(ctx, "upload_course_asset", { content_type: "image/png", data_base64: PNG_B64 }),
+    ).rejects.toThrow(/COURSE_ASSETS R2 binding missing/);
+  });
+});

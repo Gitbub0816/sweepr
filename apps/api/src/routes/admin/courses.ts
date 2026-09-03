@@ -21,6 +21,14 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { getUserByClerkId, syncLegacyModuleCutover } from "@sweepr/db";
+import {
+  COURSE_BLOCK_TYPES,
+  COURSE_COMPLETION_RULE_TYPES,
+  COURSE_LOCALES,
+  COURSE_SLIDE_TYPES,
+  validateCourseAssessmentSettings,
+  validateCourseBlockProps,
+} from "@sweepr/utils";
 import { getDb } from "../../lib/db";
 import { requireAuth } from "../../middleware/auth";
 import { isOwnerClerkId } from "../../lib/owner";
@@ -40,39 +48,81 @@ adminCoursesRouter.use("*", async (c, next) => {
 });
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
+// Same rigor as apps/mcp's course tools: block type from the shared enum and
+// per-type props validated against @sweepr/utils's courseSchema — the console
+// must not be able to store props the renderers can't read (that divergence
+// is what created the MCP's propIssues machinery in the first place).
 
-const blockSchema = z.object({
-  id: z.string().uuid().optional(),
-  block_type: z.enum([
-    "text", "heading", "image", "video", "embed",
-    "shape", "divider", "spacer", "callout",
-    "quiz", "button", "checklist", "acknowledgment",
-  ]),
-  x: z.number(),
-  y: z.number(),
-  width: z.number(),
-  height: z.number(),
-  z_index: z.number().int().default(0),
-  props: z.record(z.unknown()).default({}),
-});
+const localeEnum = z.enum(COURSE_LOCALES);
+
+const blockSchema = z
+  .object({
+    id: z.string().uuid().optional(),
+    block_type: z.enum(COURSE_BLOCK_TYPES),
+    x: z.number(),
+    y: z.number(),
+    width: z.number(),
+    height: z.number(),
+    z_index: z.number().int().default(0),
+    props: z.record(z.unknown()).default({}),
+  })
+  .superRefine((block, ctx) => {
+    for (const message of validateCourseBlockProps(block.block_type, block.props)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message, path: ["props"] });
+    }
+  });
+
+const slideI18nSchema = z.record(
+  localeEnum,
+  z.object({ title: z.string().max(255).optional() }).strict(),
+);
 
 const slideSchema = z.object({
   id: z.string().uuid().optional(),
   title: z.string().nullable().optional(),
-  slide_type: z.string().default("content"),
+  slide_type: z.enum(COURSE_SLIDE_TYPES).default("content"),
   slide_order: z.number().int(),
-  background: z.record(z.unknown()).default({}),
-  completion_rule: z.record(z.unknown()).default({ type: "viewed" }),
-  blocks: z.array(blockSchema).default([]),
+  background: z.object({ color: z.string().max(80).optional() }).strict().default({}),
+  completion_rule: z.object({ type: z.enum(COURSE_COMPLETION_RULE_TYPES) }).strict().default({ type: "viewed" }),
+  i18n: slideI18nSchema.default({}),
+  blocks: z.array(blockSchema).max(100).default([]),
 });
 
-const draftSchema = z.object({
-  title: z.string().min(1).max(255).optional(),
-  description: z.string().nullable().optional(),
-  category: z.string().nullable().optional(),
-  required: z.boolean().optional(),
-  slides: z.array(slideSchema),
-});
+const courseI18nSchema = z.record(
+  localeEnum,
+  z.object({ title: z.string().max(255).optional(), description: z.string().optional() }).strict(),
+);
+
+const assessmentSchema = z
+  .record(z.unknown())
+  .superRefine((value, ctx) => {
+    for (const message of validateCourseAssessmentSettings(value)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message });
+    }
+  });
+
+const localeFieldsSchema = {
+  default_locale: localeEnum.optional(),
+  supported_locales: z.array(localeEnum).min(1).max(COURSE_LOCALES.length).optional(),
+  i18n: courseI18nSchema.optional(),
+} as const;
+
+function localesConsistent(data: { default_locale?: string; supported_locales?: string[] }): boolean {
+  if (!data.default_locale || !data.supported_locales) return true;
+  return data.supported_locales.includes(data.default_locale);
+}
+
+const draftSchema = z
+  .object({
+    title: z.string().min(1).max(255).optional(),
+    description: z.string().nullable().optional(),
+    category: z.string().nullable().optional(),
+    required: z.boolean().optional(),
+    ...localeFieldsSchema,
+    assessment: assessmentSchema.optional(),
+    slides: z.array(slideSchema).max(200),
+  })
+  .refine(localesConsistent, { message: "supported_locales must include default_locale" });
 
 // ─── List ─────────────────────────────────────────────────────────────────
 
@@ -111,16 +161,20 @@ adminCoursesRouter.post(
     category: z.string().optional(),
     required: z.boolean().default(true),
     replaces_module_id: z.string().uuid().optional(),
-  })),
+    ...localeFieldsSchema,
+  }).refine(localesConsistent, { message: "supported_locales must include default_locale" })),
   async (c) => {
     const input = c.req.valid("json");
     const sql = getDb(c.env.DATABASE_URL);
     const createdBy = c.get("user").clerkId;
 
     const [course] = await sql`
-      INSERT INTO courses (title, description, category, required, replaces_module_id, created_by)
+      INSERT INTO courses (title, description, category, required, replaces_module_id, created_by,
+                           default_locale, supported_locales, i18n)
       VALUES (${input.title}, ${input.description ?? null}, ${input.category ?? null},
-              ${input.required}, ${input.replaces_module_id ?? null}, ${createdBy})
+              ${input.required}, ${input.replaces_module_id ?? null}, ${createdBy},
+              ${input.default_locale ?? "en"}, ${input.supported_locales ?? ["en"]},
+              ${JSON.stringify(input.i18n ?? {})}::jsonb)
       RETURNING *
     ` as Array<{ id: string }>;
 
@@ -195,7 +249,8 @@ adminCoursesRouter.patch(
     category: z.string().nullable().optional(),
     required: z.boolean().optional(),
     status: z.enum(["draft", "published", "archived"]).optional(),
-  })),
+    ...localeFieldsSchema,
+  }).refine(localesConsistent, { message: "supported_locales must include default_locale" })),
   async (c) => {
     const id = c.req.param("id");
     const input = c.req.valid("json");
@@ -207,6 +262,9 @@ adminCoursesRouter.patch(
         category = COALESCE(${input.category ?? null}, category),
         required = COALESCE(${input.required ?? null}, required),
         status = COALESCE(${input.status ?? null}, status),
+        default_locale = COALESCE(${input.default_locale ?? null}, default_locale),
+        supported_locales = COALESCE(${input.supported_locales ?? null}, supported_locales),
+        i18n = COALESCE(${input.i18n ? JSON.stringify(input.i18n) : null}::jsonb, i18n),
         updated_at = now()
       WHERE id = ${id}
       RETURNING replaces_module_id
@@ -262,15 +320,29 @@ adminCoursesRouter.put(
 
     // Update course metadata if provided.
     if (input.title !== undefined || input.description !== undefined ||
-        input.category !== undefined || input.required !== undefined) {
+        input.category !== undefined || input.required !== undefined ||
+        input.default_locale !== undefined || input.supported_locales !== undefined ||
+        input.i18n !== undefined) {
       await sql`
         UPDATE courses SET
           title = COALESCE(${input.title ?? null}, title),
           description = COALESCE(${input.description ?? null}, description),
           category = COALESCE(${input.category ?? null}, category),
           required = COALESCE(${input.required ?? null}, required),
+          default_locale = COALESCE(${input.default_locale ?? null}, default_locale),
+          supported_locales = COALESCE(${input.supported_locales ?? null}, supported_locales),
+          i18n = COALESCE(${input.i18n ? JSON.stringify(input.i18n) : null}::jsonb, i18n),
           updated_at = now()
         WHERE id = ${id}
+      `;
+    }
+
+    // Assessment settings live on the draft VERSION (published versions keep
+    // the settings they shipped with).
+    if (input.assessment !== undefined) {
+      await sql`
+        UPDATE course_versions SET settings = ${JSON.stringify(input.assessment)}::jsonb
+        WHERE id = ${version.id}
       `;
     }
 
@@ -279,10 +351,11 @@ adminCoursesRouter.put(
 
     for (const slide of input.slides) {
       const [newSlide] = await sql`
-        INSERT INTO course_slides (course_version_id, title, slide_type, slide_order, background, completion_rule)
+        INSERT INTO course_slides (course_version_id, title, slide_type, slide_order, background, completion_rule, i18n)
         VALUES (${version.id}, ${slide.title ?? null}, ${slide.slide_type},
                 ${slide.slide_order}, ${JSON.stringify(slide.background)}::jsonb,
-                ${JSON.stringify(slide.completion_rule)}::jsonb)
+                ${JSON.stringify(slide.completion_rule)}::jsonb,
+                ${JSON.stringify(slide.i18n ?? {})}::jsonb)
         RETURNING id
       ` as Array<{ id: string }>;
 
@@ -343,23 +416,25 @@ adminCoursesRouter.post(
     // syncLegacyModuleCutover's doc comment in @sweepr/db.
     await syncLegacyModuleCutover(sql, course.replaces_module_id);
 
-    // Clone published version into a new editable draft.
+    // Clone published version into a new editable draft (settings included).
     const nextNumber = draft.version_number + 1;
     const [newDraft] = await sql`
-      INSERT INTO course_versions (course_id, version_number, status)
-      VALUES (${id}, ${nextNumber}, 'draft')
+      INSERT INTO course_versions (course_id, version_number, status, settings)
+      VALUES (${id}, ${nextNumber}, 'draft',
+              (SELECT settings FROM course_versions WHERE id = ${draft.id}))
       RETURNING id
     ` as Array<{ id: string }>;
 
     const slides = await sql`
       SELECT * FROM course_slides WHERE course_version_id = ${draft.id} ORDER BY slide_order ASC
-    ` as Array<{ id: string; title: string | null; slide_type: string; slide_order: number; background: unknown; completion_rule: unknown }>;
+    ` as Array<{ id: string; title: string | null; slide_type: string; slide_order: number; background: unknown; completion_rule: unknown; i18n: unknown }>;
 
     for (const s of slides) {
       const [ns] = await sql`
-        INSERT INTO course_slides (course_version_id, title, slide_type, slide_order, background, completion_rule)
+        INSERT INTO course_slides (course_version_id, title, slide_type, slide_order, background, completion_rule, i18n)
         VALUES (${newDraft.id}, ${s.title}, ${s.slide_type}, ${s.slide_order},
-                ${JSON.stringify(s.background)}::jsonb, ${JSON.stringify(s.completion_rule)}::jsonb)
+                ${JSON.stringify(s.background)}::jsonb, ${JSON.stringify(s.completion_rule)}::jsonb,
+                ${JSON.stringify(s.i18n ?? {})}::jsonb)
         RETURNING id
       ` as Array<{ id: string }>;
       const blocks = await sql`SELECT * FROM slide_blocks WHERE slide_id = ${s.id}` as Array<{

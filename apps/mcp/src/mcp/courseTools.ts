@@ -77,9 +77,14 @@ import { z } from "zod";
 import {
   COURSE_BLOCK_TYPES,
   COURSE_COMPLETION_RULE_TYPES,
+  COURSE_LOCALES,
   COURSE_SLIDE_TYPES,
+  courseLocalizableSpecs,
+  courseTranslationGaps,
   describeCourseBlockProps,
+  validateCourseAssessmentSettings,
   validateCourseBlockProps,
+  type CourseBlockType,
 } from "@sweepr/utils";
 import { verifyAdminForCourses } from "../lib/adminAuth";
 import { ToolError, type ToolContext } from "./toolContext";
@@ -91,6 +96,7 @@ export const COURSE_TOOL_NAMES = [
   "save_course_draft",
   "preview_course",
   "publish_course",
+  "upload_course_asset",
 ] as const;
 
 // ── zod schema ──────────────────────────────────────────────────────────────
@@ -119,6 +125,8 @@ const blockSchema = z
     }
   });
 
+const localeEnum = z.enum(COURSE_LOCALES);
+
 const slideSchema = z.object({
   id: z.string().uuid().optional(),
   title: z.string().nullable().optional(),
@@ -132,21 +140,46 @@ const slideSchema = z.object({
     .object({ type: z.enum(COURSE_COMPLETION_RULE_TYPES) })
     .strict()
     .default({ type: "viewed" }),
+  // Per-locale slide-title overlay: { "es": { "title": "…" } }. Block-level
+  // translations live inside each block's props.i18n instead.
+  i18n: z.record(localeEnum, z.object({ title: z.string().max(255).optional() }).strict()).default({}),
   blocks: z.array(blockSchema).max(100).default([]),
 });
 
-const saveArgsSchema = z.object({
-  id: z.string().uuid().optional(),
-  title: z.string().min(1).max(255).optional(),
-  description: z.string().nullable().optional(),
-  category: z.string().nullable().optional(),
-  required: z.boolean().optional(),
-  // Only meaningful (and only accepted) on CREATE — same as the admin
-  // console, which has no way to change it after the fact either.
-  replaces_module_id: z.string().uuid().nullable().optional(),
-  // Omit entirely to update metadata only, without touching slides.
-  slides: z.array(slideSchema).max(200).optional(),
+const assessmentSchema = z.record(z.unknown()).superRefine((value, ctx) => {
+  for (const message of validateCourseAssessmentSettings(value)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message });
+  }
 });
+
+const saveArgsSchema = z
+  .object({
+    id: z.string().uuid().optional(),
+    title: z.string().min(1).max(255).optional(),
+    description: z.string().nullable().optional(),
+    category: z.string().nullable().optional(),
+    required: z.boolean().optional(),
+    // Only meaningful (and only accepted) on CREATE — same as the admin
+    // console, which has no way to change it after the fact either.
+    replaces_module_id: z.string().uuid().nullable().optional(),
+    // Localization: ONE course record, per-locale overlays. i18n here covers
+    // the course title/description; slide titles via slides[].i18n; block
+    // copy via each block's props.i18n.
+    default_locale: localeEnum.optional(),
+    supported_locales: z.array(localeEnum).min(1).max(COURSE_LOCALES.length).optional(),
+    i18n: z
+      .record(localeEnum, z.object({ title: z.string().max(255).optional(), description: z.string().optional() }).strict())
+      .optional(),
+    // Assessment settings for the DRAFT version (passingScorePct, maxAttempts,
+    // shuffleQuestions, shuffleAnswers, showScore, showExplanations).
+    assessment: assessmentSchema.optional(),
+    // Omit entirely to update metadata only, without touching slides.
+    slides: z.array(slideSchema).max(200).optional(),
+  })
+  .refine(
+    (d) => !d.default_locale || !d.supported_locales || d.supported_locales.includes(d.default_locale),
+    { message: "supported_locales must include default_locale" },
+  );
 
 // ── Tool definitions ─────────────────────────────────────────────────────
 
@@ -198,7 +231,34 @@ export const COURSE_TOOL_DEFS: ToolDef[] = [
         category: { type: "string" },
         required: { type: "boolean", description: "Whether this counts toward the cleaner's required-training total. Defaults true on create." },
         replaces_module_id: { type: "string", description: "CREATE ONLY: legacy training_modules.id this course will replace once published." },
+        default_locale: { type: "string", description: "The locale the base content is written in. Default \"en\"." },
+        supported_locales: {
+          type: "array",
+          description: `Locales this course offers (must include default_locale). One course record serves every locale — translations are OVERLAYS: course title/description here in \`i18n\`, slide titles in slides[].i18n, block copy in each block's props.i18n ({\"es\": {\"content\": \"…\"}} — only text props, structured props element-wise). Learner progress counts once regardless of language. Allowed: ${COURSE_LOCALES.join(", ")}.`,
+        },
+        i18n: { type: "object", description: "Course title/description translations: {\"es\": {\"title\": \"…\", \"description\": \"…\"}}." },
+        assessment: {
+          type: "object",
+          description:
+            "Assessment settings for the draft version: passingScorePct (1-100, null = not pass/fail), maxAttempts (null = unlimited), shuffleQuestions, shuffleAnswers, showScore, showExplanations. A course with passingScorePct set completes ONLY when the server-scored attempt passes; the learner player enforces retakes from these settings.",
+        },
         slides: { type: "array", description: slidesArgDescription },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "upload_course_asset",
+    description:
+      "WRITE (asset storage): store an image in Sweepr's normal R2 asset storage and get back a stable public URL for image-bearing block props (image.url, image_choice options[].url, hotspot.url, before_after beforeUrl/afterUrl, scenario messages[].url). Pass the file as base64 (data_base64) OR give a public https source_url for the server to fetch. JPEG/PNG/WebP only, 10 MB max. The returned `url` is permanent — save it straight into block props.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        filename: { type: "string", description: "Original filename — its extension names the stored object (e.g. bathroom-before.jpg)." },
+        content_type: { type: "string", description: "image/jpeg, image/png or image/webp. Required with data_base64; inferred from the response for source_url." },
+        data_base64: { type: "string", description: "The file bytes, base64-encoded (standard or URL-safe alphabet)." },
+        source_url: { type: "string", description: "Alternative to data_base64: a public https URL the server fetches the image from." },
+        course_id: { type: "string", description: "Optional courses.id to file the asset under (training/<course_id>/…); otherwise it lands in the shared training library prefix." },
       },
       additionalProperties: false,
     },
@@ -206,7 +266,7 @@ export const COURSE_TOOL_DEFS: ToolDef[] = [
   {
     name: "preview_course",
     description:
-      "READ-ONLY / pure computation: summarize a course's DRAFT (default) or published slides — per-slide title, block-type counts, and for any quiz block its question count — without reading the raw slide/block JSON yourself. Flags video blocks missing a streamId (this MCP surface cannot upload video) AND any block whose stored props fail schema validation, which is how you find blocks saved before write validation existed that render blank or break the learner's slide.",
+      "READ-ONLY / pure computation: summarize a course's DRAFT (default) or published slides — per-slide title, block-type counts, and for any quiz block its question count — without reading the raw slide/block JSON yourself. Lints the whole course: blocks whose stored props fail schema validation (propIssues), image-bearing props with no URL yet and video blocks missing a streamId (assetIssues — upload images with upload_course_asset; video needs the admin editor), and, for every supported locale beyond the default, text still missing a translation (translationGaps).",
     inputSchema: {
       type: "object",
       properties: {
@@ -243,6 +303,9 @@ interface CourseRow {
   required: boolean;
   replaces_module_id: string | null;
   current_version_id: string | null;
+  default_locale: string;
+  supported_locales: string[];
+  i18n: unknown;
   created_at: string;
   updated_at: string;
 }
@@ -262,6 +325,7 @@ interface SlideRow {
   slide_order: number;
   background: unknown;
   completion_rule: unknown;
+  i18n: unknown;
 }
 
 interface BlockRow {
@@ -345,6 +409,7 @@ function toSaveShape(slides: Array<SlideRow & { blocks: BlockRow[] }>) {
     slide_order: s.slide_order,
     background: s.background,
     completion_rule: s.completion_rule,
+    i18n: s.i18n ?? {},
     blocks: s.blocks.map((b) => ({
       id: b.id,
       block_type: b.block_type,
@@ -375,6 +440,87 @@ function collectPropIssues(slides: Array<SlideRow & { blocks: BlockRow[] }>) {
     }
   }
   return issues;
+}
+
+const isObj = (v: unknown): v is Record<string, unknown> =>
+  v !== null && typeof v === "object" && !Array.isArray(v);
+const rows = (v: unknown): Array<Record<string, unknown>> =>
+  Array.isArray(v) ? (v.filter(isObj) as Array<Record<string, unknown>>) : [];
+
+/**
+ * Image-bearing props still missing their upload (plus video blocks with no
+ * streamId). These are LINT, not save-time errors — an author fills URLs in
+ * as they upload assets.
+ */
+function collectAssetIssues(slides: Array<SlideRow & { blocks: BlockRow[] }>) {
+  const issues: Array<{ slideId: string; blockId: string; blockType: string; problem: string }> = [];
+  const flag = (s: SlideRow, b: BlockRow, problem: string) =>
+    issues.push({ slideId: s.id, blockId: b.id, blockType: b.block_type, problem });
+  for (const s of slides) {
+    for (const b of s.blocks) {
+      const p = b.props ?? {};
+      switch (b.block_type) {
+        case "image":
+          if (!p.url) flag(s, b, "image block has no url — upload with upload_course_asset");
+          break;
+        case "hotspot":
+          if (!p.url) flag(s, b, "hotspot block has no url — the learner needs an image to tap");
+          break;
+        case "image_choice":
+          rows(p.options).forEach((o, i) => {
+            if (!o.url) flag(s, b, `image_choice option ${i} has no url`);
+          });
+          break;
+        case "before_after":
+          if (!p.beforeUrl) flag(s, b, "before_after has no beforeUrl");
+          if (!p.afterUrl) flag(s, b, "before_after has no afterUrl");
+          break;
+        case "video":
+          if (!p.streamId) flag(s, b, "video block has no streamId (video uploads happen in the admin editor)");
+          break;
+      }
+    }
+  }
+  return issues;
+}
+
+/**
+ * For every supported locale beyond the default: which learner-visible text
+ * still has no translation (course/slide titles + each block's localizable
+ * props, via the shared spec table).
+ */
+function collectTranslationGaps(
+  course: CourseRow,
+  slides: Array<SlideRow & { blocks: BlockRow[] }>,
+): Record<string, string[]> {
+  const supported = Array.isArray(course.supported_locales) ? course.supported_locales : ["en"];
+  const def = course.default_locale ?? "en";
+  const out: Record<string, string[]> = {};
+  for (const locale of supported.filter((l) => l !== def)) {
+    const gaps: string[] = [];
+    const ci = isObj(course.i18n) && isObj((course.i18n as Record<string, unknown>)[locale])
+      ? ((course.i18n as Record<string, unknown>)[locale] as Record<string, unknown>)
+      : {};
+    if (course.title && typeof ci.title !== "string") gaps.push("course.title");
+    if (course.description && typeof ci.description !== "string") gaps.push("course.description");
+    for (const s of slides) {
+      const si = isObj(s.i18n) && isObj((s.i18n as Record<string, unknown>)[locale])
+        ? ((s.i18n as Record<string, unknown>)[locale] as Record<string, unknown>)
+        : {};
+      if (s.title && typeof si.title !== "string") gaps.push(`slide[${s.slide_order}].title`);
+      for (const b of s.blocks) {
+        if (!COURSE_BLOCK_TYPES.includes(b.block_type as CourseBlockType)) continue;
+        const type = b.block_type as CourseBlockType;
+        gaps.push(
+          ...courseTranslationGaps(type, b.props ?? {}, locale, courseLocalizableSpecs(type)).map(
+            (g) => `slide[${s.slide_order}].${g}`,
+          ),
+        );
+      }
+    }
+    if (gaps.length) out[locale] = gaps;
+  }
+  return out;
 }
 
 /** The draft version to read/write: the latest status='draft' row, or (for
@@ -459,13 +605,18 @@ export async function callCourseTool(
       const [course] = (await ctx.sql`SELECT * FROM courses WHERE id = ${id} LIMIT 1`) as CourseRow[];
       if (!course) throw new ToolError("No course with that id.");
       const version = await resolveVersion(ctx, id, published);
-      const rows = version ? await fetchSlidesWithBlocks(ctx, version.id) : [];
-      const propIssues = collectPropIssues(rows);
+      const slideRows = version ? await fetchSlidesWithBlocks(ctx, version.id) : [];
+      const propIssues = collectPropIssues(slideRows);
+      const [versionSettings] = version
+        ? ((await ctx.sql`SELECT settings FROM course_versions WHERE id = ${version.id} LIMIT 1`) as Array<{ settings: unknown }>)
+        : [];
       return {
         course,
         version,
+        // Round-trips into save_course_draft's `assessment` argument.
+        assessment: versionSettings?.settings ?? {},
         // Exactly save_course_draft's `slides` shape — pass it straight back.
-        slides: toSaveShape(rows),
+        slides: toSaveShape(slideRows),
         propIssues,
         ...(propIssues.length
           ? {
@@ -486,13 +637,28 @@ export async function callCourseTool(
       if (!version) return { course: { id: course.id, title: course.title }, slideCount: 0, slides: [] };
       const slides = await fetchSlidesWithBlocks(ctx, version.id);
       const propIssues = collectPropIssues(slides);
+      const assetIssues = collectAssetIssues(slides);
+      const translationGaps = collectTranslationGaps(course, slides);
+      const [versionSettings] = (await ctx.sql`
+        SELECT settings FROM course_versions WHERE id = ${version.id} LIMIT 1
+      `) as Array<{ settings: unknown }>;
       return {
-        course: { id: course.id, title: course.title, status: course.status, replacesModuleId: course.replaces_module_id },
+        course: {
+          id: course.id,
+          title: course.title,
+          status: course.status,
+          replacesModuleId: course.replaces_module_id,
+          defaultLocale: course.default_locale,
+          supportedLocales: course.supported_locales,
+        },
         versionNumber: version.version_number,
         versionStatus: version.status,
+        assessment: versionSettings?.settings ?? {},
         slideCount: slides.length,
         slides: describeSlides(slides),
         propIssues,
+        assetIssues,
+        translationGaps,
       };
     }
 
@@ -508,39 +674,53 @@ export async function callCourseTool(
         const [existing] = (await ctx.sql`SELECT id FROM courses WHERE id = ${b.id} LIMIT 1`) as Array<{ id: string }>;
         if (!existing) throw new ToolError("No course with that id.");
 
-        if (b.title !== undefined || b.description !== undefined || b.category !== undefined || b.required !== undefined) {
+        if (b.title !== undefined || b.description !== undefined || b.category !== undefined || b.required !== undefined ||
+            b.default_locale !== undefined || b.supported_locales !== undefined || b.i18n !== undefined) {
           await ctx.sql`
             UPDATE courses SET
               title = COALESCE(${b.title ?? null}, title),
               description = COALESCE(${b.description ?? null}, description),
               category = COALESCE(${b.category ?? null}, category),
               required = COALESCE(${b.required ?? null}, required),
+              default_locale = COALESCE(${b.default_locale ?? null}, default_locale),
+              supported_locales = COALESCE(${b.supported_locales ?? null}, supported_locales),
+              i18n = COALESCE(${b.i18n ? JSON.stringify(b.i18n) : null}::jsonb, i18n),
               updated_at = now()
             WHERE id = ${b.id}
           `;
         }
 
-        if (b.slides !== undefined) {
+        if (b.assessment !== undefined || b.slides !== undefined) {
           const [version] = (await ctx.sql`
             SELECT id FROM course_versions WHERE course_id = ${b.id} AND status = 'draft'
             ORDER BY version_number DESC LIMIT 1
           `) as Array<{ id: string }>;
           if (!version) throw new ToolError("No editable draft version — this course may only have published versions.");
 
-          await ctx.sql`DELETE FROM course_slides WHERE course_version_id = ${version.id}`;
-          for (const slide of b.slides) {
-            const [newSlide] = (await ctx.sql`
-              INSERT INTO course_slides (course_version_id, title, slide_type, slide_order, background, completion_rule)
-              VALUES (${version.id}, ${slide.title ?? null}, ${slide.slide_type}, ${slide.slide_order},
-                      ${JSON.stringify(slide.background)}::jsonb, ${JSON.stringify(slide.completion_rule)}::jsonb)
-              RETURNING id
-            `) as Array<{ id: string }>;
-            for (const block of slide.blocks) {
-              await ctx.sql`
-                INSERT INTO slide_blocks (slide_id, block_type, x, y, width, height, z_index, props)
-                VALUES (${newSlide.id}, ${block.block_type}, ${block.x}, ${block.y},
-                        ${block.width}, ${block.height}, ${block.z_index}, ${JSON.stringify(block.props)}::jsonb)
-              `;
+          if (b.assessment !== undefined) {
+            await ctx.sql`
+              UPDATE course_versions SET settings = ${JSON.stringify(b.assessment)}::jsonb
+              WHERE id = ${version.id}
+            `;
+          }
+
+          if (b.slides !== undefined) {
+            await ctx.sql`DELETE FROM course_slides WHERE course_version_id = ${version.id}`;
+            for (const slide of b.slides) {
+              const [newSlide] = (await ctx.sql`
+                INSERT INTO course_slides (course_version_id, title, slide_type, slide_order, background, completion_rule, i18n)
+                VALUES (${version.id}, ${slide.title ?? null}, ${slide.slide_type}, ${slide.slide_order},
+                        ${JSON.stringify(slide.background)}::jsonb, ${JSON.stringify(slide.completion_rule)}::jsonb,
+                        ${JSON.stringify(slide.i18n ?? {})}::jsonb)
+                RETURNING id
+              `) as Array<{ id: string }>;
+              for (const block of slide.blocks) {
+                await ctx.sql`
+                  INSERT INTO slide_blocks (slide_id, block_type, x, y, width, height, z_index, props)
+                  VALUES (${newSlide.id}, ${block.block_type}, ${block.x}, ${block.y},
+                          ${block.width}, ${block.height}, ${block.z_index}, ${JSON.stringify(block.props)}::jsonb)
+                `;
+              }
             }
           }
         }
@@ -558,14 +738,17 @@ export async function callCourseTool(
       if (!b.title) throw new ToolError("title is required to create a course.");
       const createdBy = `mcp:${verdict.admin.email}`;
       const [course] = (await ctx.sql`
-        INSERT INTO courses (title, description, category, required, replaces_module_id, created_by)
+        INSERT INTO courses (title, description, category, required, replaces_module_id, created_by,
+                             default_locale, supported_locales, i18n)
         VALUES (${b.title}, ${b.description ?? null}, ${b.category ?? null},
-                ${b.required ?? true}, ${b.replaces_module_id ?? null}, ${createdBy})
+                ${b.required ?? true}, ${b.replaces_module_id ?? null}, ${createdBy},
+                ${b.default_locale ?? "en"}, ${b.supported_locales ?? ["en"]},
+                ${JSON.stringify(b.i18n ?? {})}::jsonb)
         RETURNING id
       `) as Array<{ id: string }>;
       const [version] = (await ctx.sql`
-        INSERT INTO course_versions (course_id, version_number, status)
-        VALUES (${course.id}, 1, 'draft')
+        INSERT INTO course_versions (course_id, version_number, status, settings)
+        VALUES (${course.id}, 1, 'draft', ${JSON.stringify(b.assessment ?? {})}::jsonb)
         RETURNING id
       `) as Array<{ id: string }>;
       await ctx.sql`UPDATE courses SET current_version_id = ${version.id} WHERE id = ${course.id}`;
@@ -573,9 +756,10 @@ export async function callCourseTool(
       if (b.slides && b.slides.length > 0) {
         for (const slide of b.slides) {
           const [newSlide] = (await ctx.sql`
-            INSERT INTO course_slides (course_version_id, title, slide_type, slide_order, background, completion_rule)
+            INSERT INTO course_slides (course_version_id, title, slide_type, slide_order, background, completion_rule, i18n)
             VALUES (${version.id}, ${slide.title ?? null}, ${slide.slide_type}, ${slide.slide_order},
-                    ${JSON.stringify(slide.background)}::jsonb, ${JSON.stringify(slide.completion_rule)}::jsonb)
+                    ${JSON.stringify(slide.background)}::jsonb, ${JSON.stringify(slide.completion_rule)}::jsonb,
+                    ${JSON.stringify(slide.i18n ?? {})}::jsonb)
             RETURNING id
           `) as Array<{ id: string }>;
           for (const block of slide.blocks) {
@@ -646,16 +830,18 @@ export async function callCourseTool(
       // draft, exactly like the admin console's Publish button.
       const nextNumber = draft.version_number + 1;
       const [newDraft] = (await ctx.sql`
-        INSERT INTO course_versions (course_id, version_number, status)
-        VALUES (${id}, ${nextNumber}, 'draft')
+        INSERT INTO course_versions (course_id, version_number, status, settings)
+        VALUES (${id}, ${nextNumber}, 'draft',
+                (SELECT settings FROM course_versions WHERE id = ${draft.id}))
         RETURNING id
       `) as Array<{ id: string }>;
       const slides = await fetchSlidesWithBlocks(ctx, draft.id);
       for (const s of slides) {
         const [ns] = (await ctx.sql`
-          INSERT INTO course_slides (course_version_id, title, slide_type, slide_order, background, completion_rule)
+          INSERT INTO course_slides (course_version_id, title, slide_type, slide_order, background, completion_rule, i18n)
           VALUES (${newDraft.id}, ${s.title}, ${s.slide_type}, ${s.slide_order},
-                  ${JSON.stringify(s.background)}::jsonb, ${JSON.stringify(s.completion_rule)}::jsonb)
+                  ${JSON.stringify(s.background)}::jsonb, ${JSON.stringify(s.completion_rule)}::jsonb,
+                  ${JSON.stringify(s.i18n ?? {})}::jsonb)
           RETURNING id
         `) as Array<{ id: string }>;
         for (const bl of s.blocks) {
@@ -689,6 +875,112 @@ export async function callCourseTool(
         guardrails:
           "Re-verified your admin role from the database and logged this to admin_audit_log " +
           "(course.published_via_mcp) alongside the standard MCP action log.",
+      };
+    }
+
+    case "upload_course_asset": {
+      // Same admin gate as the write tools — asset storage is a write.
+      const verdict = await verifyAdminForCourses(ctx.env, ctx.sql, ctx.adminEmail);
+      if (!verdict.ok) throw new ToolError(`Not authorized to upload course assets (${verdict.reason}).`);
+
+      const bucket = ctx.env.COURSE_ASSETS;
+      if (!bucket) {
+        throw new ToolError(
+          "Asset storage is not configured on this worker (COURSE_ASSETS R2 binding missing) — redeploy with the binding in wrangler.toml.",
+        );
+      }
+
+      const filename = typeof args.filename === "string" ? args.filename : "";
+      const declaredType = typeof args.content_type === "string" ? args.content_type.toLowerCase() : "";
+      const dataB64 = typeof args.data_base64 === "string" ? args.data_base64 : "";
+      const sourceUrl = typeof args.source_url === "string" ? args.source_url : "";
+      const courseId = typeof args.course_id === "string" ? args.course_id : "";
+
+      // Mirrors apps/api's /storage/sign-upload allowlist for scope "training".
+      const ALLOWED: Record<string, string> = {
+        "image/jpeg": "jpg",
+        "image/png": "png",
+        "image/webp": "webp",
+      };
+      const MAX_BYTES = 10 * 1024 * 1024;
+
+      let bytes: Uint8Array;
+      let contentType: string;
+      if (dataB64) {
+        if (!ALLOWED[declaredType]) {
+          throw new ToolError(`content_type must be one of: ${Object.keys(ALLOWED).join(", ")}.`);
+        }
+        contentType = declaredType;
+        const normalized = dataB64.replace(/-/g, "+").replace(/_/g, "/").replace(/\s+/g, "");
+        let binary: string;
+        try {
+          binary = atob(normalized);
+        } catch {
+          throw new ToolError("data_base64 is not valid base64.");
+        }
+        if (binary.length > MAX_BYTES) throw new ToolError("Image exceeds the 10 MB limit.");
+        bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      } else if (sourceUrl) {
+        let parsed: URL;
+        try {
+          parsed = new URL(sourceUrl);
+        } catch {
+          throw new ToolError("source_url is not a valid URL.");
+        }
+        // Server-side fetch guard: public https hosts only — no plaintext,
+        // no localhost/IP-literal targets for this worker to poke at.
+        const host = parsed.hostname.toLowerCase();
+        const isIpLiteral = /^[\d.]+$/.test(host) || host.includes(":");
+        if (parsed.protocol !== "https:" || isIpLiteral || host === "localhost" || host.endsWith(".local") || host.endsWith(".internal")) {
+          throw new ToolError("source_url must be a public https URL.");
+        }
+        const res = await fetch(parsed.toString(), { redirect: "follow" });
+        if (!res.ok) throw new ToolError(`Fetching source_url failed (${res.status}).`);
+        contentType = (res.headers.get("content-type") ?? declaredType).split(";")[0].trim().toLowerCase();
+        if (!ALLOWED[contentType]) {
+          throw new ToolError(`source_url served "${contentType || "unknown"}" — must be one of: ${Object.keys(ALLOWED).join(", ")}.`);
+        }
+        const buf = await res.arrayBuffer();
+        if (buf.byteLength > MAX_BYTES) throw new ToolError("Image exceeds the 10 MB limit.");
+        bytes = new Uint8Array(buf);
+      } else {
+        throw new ToolError("Pass the file as data_base64 (with content_type) or a public https source_url.");
+      }
+
+      // Same training/ prefix apps/api uses for scope "training", so retention
+      // and serving rules treat these like any other course asset.
+      const ext = ALLOWED[contentType];
+      const slug = filename
+        .replace(/\.[A-Za-z0-9]+$/, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 48) || "asset";
+      const folder = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(courseId)
+        ? courseId
+        : "mcp-library";
+      const storageKey = `training/${folder}/${Date.now()}-${slug}.${ext}`;
+
+      await bucket.put(storageKey, bytes, { httpMetadata: { contentType } });
+
+      const publicBase = (ctx.env.R2_PUBLIC_URL ?? "https://objects.getsweepr.com").replace(/\/$/, "");
+      const url = `${publicBase}/${storageKey}`;
+
+      await writeAdminAudit(ctx, {
+        action: "course.asset_uploaded_via_mcp",
+        actorClerkId: verdict.admin.clerkId ?? `mcp:${verdict.admin.email}`,
+        targetId: folder,
+        metadata: { via: "mcp", adminEmail: verdict.admin.email, storageKey, contentType, bytes: bytes.length },
+      });
+
+      return {
+        uploaded: true,
+        url,
+        storageKey,
+        contentType,
+        bytes: bytes.length,
+        note: "Use `url` verbatim in image-bearing block props (image.url, image_choice options[].url, hotspot.url, before_after beforeUrl/afterUrl, scenario messages[].url).",
       };
     }
 

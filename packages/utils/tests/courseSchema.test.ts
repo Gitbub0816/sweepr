@@ -50,9 +50,119 @@ describe("the spec table and the editor's defaults agree", () => {
   it("documents every block type, and marks the props nothing renders yet", () => {
     const doc = describeCourseBlockProps();
     for (const type of COURSE_BLOCK_TYPES) expect(doc).toContain(`**${type}**`);
-    // The quiz questions array is stored but not rendered — say so, so nobody
-    // promises a human that quizzes grade cleaners today.
-    expect(doc).toMatch(/`questions` \(object\[\]\) — NOT RENDERED YET/);
+    // Video gating is stored but not enforced — say so, so nobody promises a
+    // human a watch-percentage gate that doesn't exist.
+    expect(doc).toMatch(/`requireWatchPercent` \(number\) \[NOT RENDERED YET\]/);
+    // Quiz questions are real now (graded server-side) — the doc must NOT
+    // call them inert anymore, and must flag the answer key as never served.
+    expect(doc).not.toMatch(/`questions`[^\n]*NOT RENDERED YET/);
+    expect(doc).toContain("never receives the `correct` flags");
+  });
+});
+
+describe("interactive block invariants (write-time, so a block always grades sensibly)", () => {
+  it("true_false requires the answer key", () => {
+    expect(validateCourseBlockProps("true_false", { statement: "S" })[0]).toContain("true_false.correct is required");
+    expect(validateCourseBlockProps("true_false", { statement: "S", correct: false })).toEqual([]);
+  });
+
+  it("image_choice needs 2–6 options with at least one correct", () => {
+    expect(validateCourseBlockProps("image_choice", { options: [{ url: "a" }] })[0]).toContain("2–6 options");
+    expect(
+      validateCourseBlockProps("image_choice", { options: [{ url: "a" }, { url: "b" }] })[0],
+    ).toContain("no correct option");
+  });
+
+  it("sort items must point at real categories with unique ids", () => {
+    const errs = validateCourseBlockProps("sort", {
+      categories: ["A", "B"],
+      items: [
+        { id: "1", label: "x", category: "A" },
+        { id: "1", label: "y", category: "C" },
+      ],
+    });
+    expect(errs.join(" ")).toContain('"1" is duplicated');
+    expect(errs.join(" ")).toContain('"C" is not one of');
+  });
+
+  it("order positions must be distinct; quiz single-select needs exactly one correct", () => {
+    expect(
+      validateCourseBlockProps("order", {
+        items: [
+          { id: "a", label: "x", correctOrder: 1 },
+          { id: "b", label: "y", correctOrder: 1 },
+        ],
+      })[0],
+    ).toContain("is duplicated");
+    expect(
+      validateCourseBlockProps("quiz", {
+        questions: [
+          { question: "Q", options: [{ text: "a", correct: true }, { text: "b", correct: true }] },
+        ],
+      })[0],
+    ).toContain("set multi: true");
+  });
+
+  it("hotspot needs a correct region with percentage coordinates", () => {
+    expect(validateCourseBlockProps("hotspot", { hotspots: [{ x: 1, y: 1, width: 5, height: 5 }] })[0]).toContain(
+      "no correct region",
+    );
+    expect(
+      validateCourseBlockProps("hotspot", { hotspots: [{ x: 150, y: 1, width: 5, height: 5, correct: true }] })[0],
+    ).toContain("must be a percentage");
+  });
+
+  it("nested required item fields are enforced (quiz option text, scenario message text)", () => {
+    expect(
+      validateCourseBlockProps("quiz", { questions: [{ question: "Q", options: [{ correct: true }, { text: "b" }] }] }).join(" "),
+    ).toContain("options[0].text is required");
+    expect(validateCourseBlockProps("scenario", { messages: [{ speaker: "Customer" }], choices: [{ text: "a", correct: true }, { text: "b" }] }).join(" ")).toContain(
+      "messages[0].text is required",
+    );
+  });
+
+  it("style tokens are constrained enums, not arbitrary CSS", () => {
+    expect(validateCourseBlockProps("callout", { style: { radius: "huge" } })[0]).toContain("must be one of: none, sm, md, lg, xl");
+    expect(validateCourseBlockProps("callout", { style: { zIndex: 4 } })[0]).toContain('"zIndex" is not a valid key');
+    expect(validateCourseBlockProps("callout", { style: { variant: "info", radius: "lg", padding: "md", icon: "checklist" } })).toEqual([]);
+  });
+});
+
+describe("props.i18n locale overlays", () => {
+  it("accepts a scalar translation of a localizable prop", () => {
+    expect(
+      validateCourseBlockProps("text", { content: "Welcome", i18n: { es: { content: "Bienvenido" } } }),
+    ).toEqual([]);
+  });
+
+  it("rejects unknown locales, non-localizable props, and length mismatches", () => {
+    expect(validateCourseBlockProps("text", { i18n: { klingon: { content: "x" } } })[0]).toContain("unknown locale");
+    expect(validateCourseBlockProps("text", { size: 20, i18n: { es: { size: 22 } } })[0]).toContain("not localizable");
+    expect(
+      validateCourseBlockProps("checklist", { items: ["a", "b"], i18n: { es: { items: ["uno"] } } })[0],
+    ).toContain("same number of entries");
+  });
+
+  it("structured overlays may translate text fields but never answer keys", () => {
+    const base = {
+      categories: ["Included", "Add-On"],
+      items: [
+        { id: "1", label: "Vacuum", category: "Included" },
+        { id: "2", label: "Oven", category: "Add-On" },
+      ],
+    };
+    expect(
+      validateCourseBlockProps("sort", {
+        ...base,
+        i18n: { es: { items: [{ label: "Aspirar" }, { label: "Horno" }] } },
+      }),
+    ).toEqual([]);
+    expect(
+      validateCourseBlockProps("sort", {
+        ...base,
+        i18n: { es: { items: [{ category: "Incluido" }, { label: "Horno" }] } },
+      })[0],
+    ).toContain("not localizable");
   });
 });
 

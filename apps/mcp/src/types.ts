@@ -25,6 +25,11 @@ export interface Env {
   /** Optional comma-separated overrides matching apps/api owner bootstrap. */
   SUPER_ADMIN_EMAILS?: string;
   SUPER_ADMIN_CLERK_IDS?: string;
+  /** R2 binding to the main `sweepr` bucket — course-asset uploads
+   *  (upload_course_asset) land under the training/ prefix. */
+  COURSE_ASSETS?: R2Bucket;
+  /** Public base for that bucket (var, not secret): https://objects.getsweepr.com */
+  R2_PUBLIC_URL?: string;
 }
 
 /** Hono generics for this app. */

@@ -12,6 +12,65 @@ Stable conventions live in root `/CLAUDE.md` — this file is state + recent wor
 
 ---
 
+## Session 2026-09-03 (later) — Course Builder v2: the interactive layer
+
+Caleb's spec (visual/interactive competency training, not lecture decks)
+implemented end to end. **`packages/utils/src/courseSchema.ts` stays the ONE
+source of truth** — palette, both renderers, API validation, MCP validation
+and the MCP design guide all derive from it; `courseInteractions.ts` is its
+server-authoritative sibling (localize → sanitize → grade).
+
+- **9 new block types** (migration 111 widened the CHECK): `true_false`,
+  `image_choice`, `sort`, `order`, `matching`, `hotspot`, `scenario`,
+  `before_after`, `timeline`; `image` grew alt/position/href/annotations
+  (numbered markers/boxes/arrows for screenshots); `quiz` questions are REAL
+  now (graded, per-question feedback); `button` actions wired; checklist/ack
+  stateful. Shared `style` token object (variant/radius/padding/icon/… —
+  constrained enums, `courseStyleCss` maps to CSS) + `COURSE_ICONS` (20
+  names → lucide in each app).
+- **Server-authoritative grading.** Learner GET serves props through
+  `localizeCourseBlockProps` + `sanitizeCourseBlockPropsForLearner` — answer
+  keys/feedback NEVER reach the client (hotspot regions → targetCount;
+  matching pairs → two columns, right side seed-shuffled by block id so ids
+  don't leak pairing; order/sort items seed-shuffled). `POST
+  /courses/:id/respond` grades from stored props (`gradeCourseBlock`),
+  records into `course_interaction_responses` (per user/version/block/
+  attempt), returns verdict + author feedback. `POST /courses/:id/finish`
+  scores the attempt; `course_versions.settings` carries assessment config
+  (passingScorePct/maxAttempts/shuffle*/showScore/showExplanations);
+  pass/fail courses complete ONLY via finish (a client `completed:true` on
+  /progress is demoted). This table IS our learning-record store — no
+  Learning Locker/xAPI dependency; an admin analytics view over it is the
+  natural follow-up.
+- **Localization**: ONE course, per-locale overlays (courses.default_locale/
+  supported_locales/i18n, course_slides.i18n, block props.i18n — only
+  `localizable` props, structured props element-wise, answer keys never).
+  Learner player has an English|Español toggle; progress counts once. Player
+  chrome i18n'd (cleaner.courses.* keys in en+es).
+- **MCP**: new `upload_course_asset` (base64 or https source_url → R2
+  binding COURSE_ASSETS on bucket `sweepr`, training/ prefix,
+  objects.getsweepr.com URL); save/get round-trip locales+assessment+slide
+  i18n; preview lints propIssues + assetIssues + translationGaps; design
+  guide/prompt rewritten. Admin route validation now matches MCP rigor
+  (shared per-type prop validation — the console can no longer store junk).
+- **Renderers**: cleaner `CourseViewerPage` fully rebuilt — tap-first
+  interactions (tap-item→tap-category sort, arrow-button ordering,
+  tap-to-pair matching, tap-dot hotspots), FeedbackPanel with retry,
+  mustPass gates Next, results screen with retakes, and below-md the 16:9
+  canvas reflows to a vertical stack. Admin editor: palette entries, canvas
+  previews (hotspot regions drawn), full inspectors (quiz question editor,
+  R2 ImageUploader via /storage/sign-upload scope=training, annotations,
+  feedback/style/Español translation sections driven by the spec table),
+  course settings (Español toggle + assessment) in the slide inspector.
+- **Tests**: utils 80 (incl. 15 interaction + i18n/validators), MCP 35 course
+  tools (upload/lint/locales), API 720 (11 new courses-interactive:
+  sanitization, es serving, grading, finish rules, demotion guard).
+- Also this session: mobile broker auth went LIVE (API worker secrets synced
+  via deploy re-run after `API_BROKER_TOKEN_SECRET` was added; smoke test
+  now 401 authentication_failed), stale-Clerk-session recovery shipped in
+  SweeprKit (`session_exists` auto-clear + retry), and the deploy workflow
+  now syncs the four mobile BFF secrets to the API worker.
+
 ## Session 2026-09-03 — iOS apps to launch-ready (auth, contracts, payments)
 
 The two native apps (`apps/ios`: Sweepr customer + Clean with Sweepr cleaner,

@@ -651,17 +651,74 @@ cleaner works through top to bottom. \`save_course_draft\` and
   published. Leave unset for a standalone new requirement with no legacy
   counterpart. Cannot be changed after creation — not even the admin
   console can do that; create a new course if you got it wrong.
+- \`default_locale\` + \`supported_locales\` + \`i18n\` — localization (below).
+- \`assessment\` — pass/fail settings for the draft version:
+  \`{ passingScorePct?, maxAttempts?, shuffleQuestions?, shuffleAnswers?,
+  showScore?, showExplanations? }\`. With \`passingScorePct\` set, the course
+  completes ONLY when the learner's server-scored attempt reaches it; the
+  player then offers retakes until \`maxAttempts\` is exhausted. Without it,
+  interactions still grade + give feedback, but finishing the slides
+  completes the course.
+
+## Localization — ONE course, per-locale overlays (never duplicate a course)
+The base content is written in \`default_locale\` (usually "en"). Every
+other locale in \`supported_locales\` is an OVERLAY that translates text
+only — layout, ids and answer keys stay single-source:
+- Course title/description: top-level \`i18n\`, e.g.
+  \`{"es": {"title": "Bienvenido a Sweepr"}}\`.
+- Slide titles: each slide's \`i18n\`, e.g. \`{"es": {"title": "…"}}\`.
+- Block copy: each block's \`props.i18n\`, e.g.
+  \`{"es": {"content": "…"}}\`. Only props marked \`localizable\` in the
+  table below may appear; structured props translate ELEMENT-WISE — the
+  overlay array must have the same length, and each item carries only its
+  text fields: \`{"es": {"items": [{"label": "Aspirar"}, {"label":
+  "Horno"}]}}\`. Answer keys (correct/category/correctOrder) are never
+  localizable.
+The learner picks English | Español in the player; progress counts once
+regardless of language. \`preview_course\`'s \`translationGaps\` lists every
+text still untranslated per enabled locale.
 
 ## Slides
 Each slide: \`{ title?, slide_type?, slide_order, background?,
-completion_rule?, blocks: [...] }\`.
+completion_rule?, i18n?, blocks: [...] }\`.
 - \`slide_order\` controls sequence (0-indexed).
 - \`slide_type\`: ${COURSE_SLIDE_TYPES.map((t) => `\`"${t}"\``).join(" | ")}.
+  With \`assessment.shuffleQuestions\`, the player shuffles the
+  \`"assessment"\`-type slides per attempt.
 - \`background\`: \`{ color?: "#ffffff" }\` — that one key, nothing else.
 - \`completion_rule\`: \`{ type }\`, one of
   ${COURSE_COMPLETION_RULE_TYPES.map((t) => `\`"${t}"\``).join(" | ")}.
-  Defaults to \`{ type: "viewed" }\`. NOTE: none of these are enforced by
-  the player yet — advancing past a slide is always enough today.
+  Defaults to \`{ type: "viewed" }\`.
+
+## Interactive blocks — server-graded, tap-first, mobile-safe
+The gradeable types (quiz, true_false, image_choice, sort, order, matching,
+hotspot, scenario, acknowledgment) carry their answer keys in props, but a
+LEARNER NEVER RECEIVES THEM: the API strips correct flags / categories /
+correctOrder / hotspot regions (and all feedback strings) before serving,
+and grades each submission server-side, returning the verdict + your
+\`correctFeedback\`/\`incorrectFeedback\`/\`explanation\`. \`allowRetry\`
+(default true) lets the learner retry until correct; \`mustPass\` locks the
+slide's Next button until they do. Every interaction is tap-based (tap item
+→ tap category; arrow buttons for ordering) — no precision dragging, and
+keyboard-accessible.
+
+## Images — upload through this MCP
+\`upload_course_asset\` stores a JPEG/PNG/WebP (≤10 MB, base64 or a public
+https source_url) in Sweepr's asset storage and returns a permanent \`url\`
+for any image-bearing prop: \`image.url\` (with alt/caption/fit/position/
+radius/href and \`annotations\` — numbered markers, boxes and arrows over a
+screenshot), \`image_choice.options[].url\`, \`hotspot.url\`,
+\`before_after.beforeUrl/afterUrl\`, \`scenario.messages[].url\`. VIDEO is
+the one thing you cannot upload — that still happens in the admin editor.
+
+## Styling — tokens, not CSS
+Most blocks accept a \`style\` object of constrained tokens
+(variant/fill/textColor/borderColor/borderWidth/radius/padding/align/
+fontSize/fontWeight/shadow/icon) — see each type's \`style\` row below. The
+icon vocabulary (usable in \`style.icon\` and timeline steps): calendar,
+clock, location, money, shield, camera, warning, checklist, home, customer,
+cleaner, support, insurance, document, sparkle, star, info, check, phone,
+lock.
 
 ## Blocks — positioned on a 16:9 canvas, coordinates as PERCENTAGES (0-100)
 Every block: \`{ block_type, x, y, width, height, z_index?, props }\`.
@@ -692,13 +749,16 @@ known-good structure rather than guess.
 ## Workflow
 1. \`list_courses\` to see what exists (courses + the legacy modules array,
    so you can see which legacy modules still need a v2 replacement).
-2. \`save_course_draft\` to create (with slides inline, or empty and filled
+2. \`upload_course_asset\` for every image the course needs — save each
+   returned \`url\` straight into the block props that reference it.
+3. \`save_course_draft\` to create (with slides inline, or empty and filled
    in with a follow-up call) or keep iterating on an existing draft. If it
    rejects a block, the error names the block type and the offending key.
-3. \`preview_course\` to sanity-check slide/block counts, quiz question
-   counts, and \`propIssues\` (blocks stored before write validation
-   existed) before publishing.
-4. \`publish_course\` — see sweepr://courses-mcp-exception first.
+4. \`preview_course\` to sanity-check slide/block counts, quiz question
+   counts, \`propIssues\` (invalid stored props), \`assetIssues\` (image
+   props with no upload yet) and \`translationGaps\` (untranslated text per
+   enabled locale) before publishing.
+5. \`publish_course\` — see sweepr://courses-mcp-exception first.
 `;
 
 /** Read one resource by uri; returns null for unknown uris. */
