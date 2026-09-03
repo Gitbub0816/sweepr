@@ -109,6 +109,16 @@ public struct QuoteRequest: Codable, Hashable, Sendable {
     public var suppliesNeeded: Bool
     public var addOnKeys: [String]
     public var scheduledAt: String       // ISO-8601 string (server expects datetime)
+    /// Optional 2-hour arrival window ("HH:MM", 24h) chosen from
+    /// GET /cleaners/availability-slots. Omit entirely for an exact-time
+    /// booking (backward compatible with the server's `.optional()` schema).
+    public var arrivalWindowStart: String?
+    public var arrivalWindowEnd: String?
+    /// Minutes EAST of UTC (`TimeZone.current.secondsFromGMT() / 60`) — lets
+    /// the server build the arrival instant from the customer's LOCAL date +
+    /// window instead of the request's own UTC day, matching the web
+    /// client's `-new Date().getTimezoneOffset()` convention.
+    public var timezoneOffsetMinutes: Int?
     public var cleaningLevel: CleaningLevel
     public var addressId: String?
     public var notes: String?
@@ -124,6 +134,9 @@ public struct QuoteRequest: Codable, Hashable, Sendable {
         suppliesNeeded: Bool = false,
         addOnKeys: [String] = [],
         scheduledAt: String,
+        arrivalWindowStart: String? = nil,
+        arrivalWindowEnd: String? = nil,
+        timezoneOffsetMinutes: Int? = nil,
         cleaningLevel: CleaningLevel = .refresh,
         addressId: String? = nil,
         notes: String? = nil
@@ -138,6 +151,9 @@ public struct QuoteRequest: Codable, Hashable, Sendable {
         self.suppliesNeeded = suppliesNeeded
         self.addOnKeys = addOnKeys
         self.scheduledAt = scheduledAt
+        self.arrivalWindowStart = arrivalWindowStart
+        self.arrivalWindowEnd = arrivalWindowEnd
+        self.timezoneOffsetMinutes = timezoneOffsetMinutes
         self.cleaningLevel = cleaningLevel
         self.addressId = addressId
         self.notes = notes
@@ -170,6 +186,46 @@ public struct QuoteResponse: Codable, Hashable, Sendable {
     public let engine: String?
 
     public var totalMoney: Money { price.total }
+}
+
+// MARK: - Calendar availability (GET /calendar/availability?from&to&lat&lng)
+//
+// Public/advisory: greys out blocked dates and shows adjustment/promo
+// markers on the picker BEFORE the customer commits to a date. The server
+// still re-checks at quote and booking-create time (`date_unavailable`) —
+// this is UX, not the source of truth.
+
+public struct CalendarDayInfo: Codable, Hashable, Sendable {
+    public let date: String                  // "YYYY-MM-DD", customer's local calendar date
+    public let blocked: Bool?
+    public let adjustmentLabel: String?       // e.g. surge pricing note
+    public let promoLabel: String?
+}
+
+/// GET /calendar/availability → { days: [...] }.
+public struct CalendarAvailabilityResponse: Codable, Sendable {
+    public let days: [CalendarDayInfo]
+}
+
+// MARK: - Arrival windows (GET /cleaners/availability-slots?date&zip)
+//
+// The real 2-hour arrival windows for ONE date, with per-window cleaner
+// availability. Distinct from `AvailabilitySlot` (CleanerModels.swift), which
+// is a cleaner's own recurring WEEKLY schedule — different shape, different
+// endpoint, different domain concept.
+
+public struct ArrivalWindow: Codable, Hashable, Sendable, Identifiable {
+    public let start: String                  // "08:00"
+    public let end: String                    // "10:00"
+    public let label: String                  // "8:00 – 10:00 AM"
+    public let available: Bool
+    public var id: String { start }
+}
+
+/// GET /cleaners/availability-slots → { date, slots }.
+public struct ArrivalWindowsResponse: Codable, Sendable {
+    public let date: String?
+    public let slots: [ArrivalWindow]
 }
 
 // MARK: - Coupons (GET /coupons/mine → { coupons })

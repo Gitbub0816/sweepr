@@ -12,6 +12,63 @@ Stable conventions live in root `/CLAUDE.md` — this file is state + recent wor
 
 ---
 
+## Session 2026-09-03 (latest) — iOS: native Stripe, live calendar, settings, no more pills
+
+Four customer-requested iOS fixes, all verified together via
+`bash apps/ios/Verify/verify.sh` (41 tests green):
+
+- **Native Stripe PaymentSheet** replaces the hosted-page/Safari bounce-out
+  for both booking payment and tips. Customer app (only —
+  `apps/ios/Sweepr/Package.swift`, never SweeprKit/CleanWithSweepr) now links
+  `stripe-ios-spm` (`StripeCore`+`StripePaymentSheet`);
+  `Support/StripePaymentPresenter.swift` mints the intent via the existing
+  authed endpoints and presents PaymentSheet in-app
+  (`BookFlowScreen.submit()`/`presentPayment`, `BookingDetailScreen.startTip()`).
+  `/payments/intent-status` + `/tips/booking/:id` polling stays as a safety
+  net alongside the `.completed` callback. `sweepr://stripe-redirect`
+  (Info.plist + `SweeprApp.onOpenURL` → `StripeAPI.handleURLCallback`) is
+  PaymentSheet's `returnURL` for bank-redirect/3DS flows. Removed the now-dead
+  `PayPage` hosted-page URL builder from `SweeprAPI.swift`.
+  **Owner action before shipping**: `Support/StripeConfig.swift` ships an
+  obvious placeholder publishable key
+  (`pk_live_REPLACE_WITH_REAL_STRIPE_PUBLISHABLE_KEY`) — swap for the real
+  value (same as web's `VITE_STRIPE_PUBLISHABLE_KEY`). Apple Pay stays off
+  (`applePayMerchantId = nil`, card-only PaymentSheet already solves "leaves
+  the app") until a real Merchant ID + entitlement are provisioned — documented
+  fast-follow, see docs/MOBILE_LAUNCH_RUNBOOK.md. SPM package version
+  (`from: "24.0.0"`) is UNVERIFIED (no network access this session to confirm
+  the current release) — bump if Xcode resolution fails.
+  Verify harness gained matching `StripeCore`/`StripePaymentSheet` compile
+  shims (`apps/ios/Verify/Shims/`) — faithful API surface, no real network/SDK.
+- **Calendar shows unavailable dates up front.** New
+  `SweeprMonthCalendar` (SweeprKit) greys out server-flagged blocked dates
+  from `GET /calendar/availability` in the booking wizard's schedule step,
+  then real 2-hour arrival windows from `GET /cleaners/availability-slots`
+  once a date is picked — mirrors web's `ScheduleStep.tsx`. Still advisory
+  only; server still enforces `date_unavailable` at quote/create.
+  `BookingDraft`/`QuoteRequest` gained `arrivalWindowStart`/`End` +
+  `timezoneOffsetMinutes` (both apps' create schema already supported these).
+- **Rich, real Settings screens**, both apps (`Screens/SettingsScreen.swift`,
+  linked from `AccountScreen`). Appearance (system/light/dark +
+  haptics-on-off) is genuinely local (`SweeprKit/Support/AppPreferences.swift`,
+  `UserDefaults`-backed `ObservableObject`, injected at both app roots,
+  `.preferredColorScheme` applied). Everything else round-trips a real
+  endpoint — nothing fabricated: customer gets language +
+  SMS consent (`GET/PATCH /customer-profile`); cleaner gets job-matching
+  (max jobs/day, max distance, last-minute, accepted job types),
+  4 notification toggles, and language (`GET/PUT /cleaner-dashboard/settings`).
+- **Pills are gone.** `SweeprBadge` (the only Capsule-chip component in the
+  codebase) redrawn as a small color dot + text — same public API, so every
+  existing call site (booking status, verification steps, coupon values, role
+  tags) picked up the new look with no call-site changes.
+- New SweeprKit tests: `AppPreferencesTests` (UserDefaults round-trip,
+  isolated suite per test — note the Linux/XCTest gotcha: `@MainActor` test
+  methods must be `async` too, or the auto-generated `allTests` discovery
+  fails to compile; see `SweeprAppTests.swift` for the established pattern),
+  plus `CalendarAvailabilityResponse`/`ArrivalWindowsResponse` decode tests.
+- Docs: `apps/ios/CLAUDE.md` rule 8 and `docs/MOBILE_LAUNCH_RUNBOOK.md`
+  rewritten for the native-payment flow.
+
 ## Session 2026-09-03 (later) — Course Builder v2: the interactive layer
 
 Caleb's spec (visual/interactive competency training, not lecture decks)

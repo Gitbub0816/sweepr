@@ -45,10 +45,17 @@ commands.
 7. **No mock data on production paths** (App Review 2.1): `SweeprMock` /
    `CleanerMock` are for previews/tests only; failures render retryable
    error/empty states and keep whatever real data is on screen.
-8. Payments carry no Stripe SDK: the app mints intents via the authed API and
-   hands the client secret to the hosted page `app.getsweepr.com/pay` in the
-   URL fragment, then polls `/payments/intent-status` (bookings) or
-   `/tips/booking/:id` (tips). Ops: docs/MOBILE_LAUNCH_RUNBOOK.md.
+8. Payments: the customer app (only — `Sweepr/Package.swift`, never SweeprKit
+   or CleanWithSweepr) links the Stripe iOS SDK (`stripe-ios-spm`,
+   `StripeCore`/`StripePaymentSheet`) and confirms in-app with native
+   PaymentSheet (`Support/StripePaymentPresenter.swift`): mint the intent via
+   the authed API, present PaymentSheet with the client secret, then poll
+   `/payments/intent-status` (bookings) or `/tips/booking/:id` (tips) as a
+   safety net alongside the `.completed` callback. `sweepr://stripe-redirect`
+   (Info.plist + `SweeprApp.onOpenURL`) is PaymentSheet's return URL for
+   redirect/3DS flows. Publishable key only (`pk_…`) in
+   `Support/StripeConfig.swift` — never a secret key. Ops:
+   docs/MOBILE_LAUNCH_RUNBOOK.md.
 
 ## SKIP constraints
 SKIP is currently **neutralized** (deps + skipstone plugin removed from the

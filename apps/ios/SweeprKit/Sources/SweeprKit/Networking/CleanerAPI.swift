@@ -455,6 +455,41 @@ public actor CleanerAPI {
         _ = try await send("PUT", "cleaner-dashboard/service-area", jsonBody: body, as: OKEnvelope.self)
     }
 
+    // MARK: - Settings (real, server-backed — GET/PUT /cleaner-dashboard/settings)
+
+    /// GET /cleaner-dashboard/settings — job-matching criteria, notification
+    /// toggles, and preferred language. The server returns sane defaults even
+    /// before a `cleaners` row exists, so this never fails onboarding.
+    public func settings() async throws -> CleanerSettings {
+        try await send("GET", "cleaner-dashboard/settings", as: CleanerSettings.self)
+    }
+
+    /// PUT /cleaner-dashboard/settings — partial update; only the fields you
+    /// pass change server-side (mirrors `settingsSchema`'s all-optional shape).
+    public func updateSettings(
+        maxJobsPerDay: Int? = nil,
+        maxDistanceMiles: Double? = nil,
+        acceptsLastMinute: Bool? = nil,
+        notificationJobOffer: Bool? = nil,
+        notificationReminder: Bool? = nil,
+        notificationPayout: Bool? = nil,
+        notificationMarketing: Bool? = nil,
+        acceptedJobTypes: [String]? = nil,
+        preferredLanguage: SweeprLanguage? = nil
+    ) async throws {
+        var body: [String: Any] = [:]
+        if let maxJobsPerDay { body["max_jobs_per_day"] = maxJobsPerDay }
+        if let maxDistanceMiles { body["max_distance_miles"] = maxDistanceMiles }
+        if let acceptsLastMinute { body["accepts_last_minute"] = acceptsLastMinute }
+        if let notificationJobOffer { body["notification_job_offer"] = notificationJobOffer }
+        if let notificationReminder { body["notification_reminder"] = notificationReminder }
+        if let notificationPayout { body["notification_payout"] = notificationPayout }
+        if let notificationMarketing { body["notification_marketing"] = notificationMarketing }
+        if let acceptedJobTypes { body["accepted_job_types"] = acceptedJobTypes }
+        if let preferredLanguage { body["preferred_language"] = preferredLanguage.rawValue }
+        _ = try await send("PUT", "cleaner-dashboard/settings", jsonBody: body, as: OKEnvelope.self)
+    }
+
     // MARK: - Account deletion (App Store Guideline 5.1.1(v))
 
     /// POST /account/delete — HARD-deletes the account (see routes/account.ts).

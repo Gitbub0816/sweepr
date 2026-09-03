@@ -43,12 +43,25 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../SweeprKit"),
+        // Native embedded payments (StripePaymentPresenter.swift) — the
+        // customer app is the ONLY target that takes this dependency
+        // (SweeprKit and CleanWithSweepr never link Stripe). Xcode resolves
+        // this automatically the first time it opens the workspace.
+        //
+        // VERSION UNVERIFIED FROM THIS SESSION (no network access to confirm
+        // the current release tag) — if resolution fails in Xcode, open
+        // https://github.com/stripe/stripe-ios-spm/releases and bump this
+        // `from:` to the latest version; the `stripe/stripe-ios` monorepo URL
+        // is the fallback if `-spm` itself is unavailable.
+        .package(url: "https://github.com/stripe/stripe-ios-spm", from: "24.0.0"),
     ],
     targets: [
         .target(
             name: "Sweepr",
             dependencies: [
                 .product(name: "SweeprKit", package: "SweeprKit"),
+                .product(name: "StripeCore", package: "stripe-ios-spm"),
+                .product(name: "StripePaymentSheet", package: "stripe-ios-spm"),
             ],
             resources: [.process("Resources")]
         ),

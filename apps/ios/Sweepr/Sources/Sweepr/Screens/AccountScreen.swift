@@ -34,6 +34,7 @@ public struct AccountScreen: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: SweeprSpacing.lg) {
                     profileHeader
+                    settingsLink
                     membershipCard
                     couponsSection
                     settingsSection
@@ -76,6 +77,26 @@ public struct AccountScreen: View {
         let f = u?.firstName?.first.map(String.init) ?? "?"
         let l = u?.lastName?.first.map(String.init) ?? ""
         return (f + l).uppercased()
+    }
+
+    private var settingsLink: some View {
+        NavigationLink(destination: SettingsScreen()) {
+            SweeprCard(elevation: .low) {
+                HStack(spacing: SweeprSpacing.md) {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(SweeprColor.brand)
+                        .frame(width: 36, height: 36)
+                        .background(SweeprColor.seafoam100)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    Text("Settings").font(SweeprFont.body().weight(.semibold))
+                        .foregroundColor(SweeprColor.textPrimary)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right").foregroundColor(SweeprColor.separator)
+                }
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     private var membershipCard: some View {

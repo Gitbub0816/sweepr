@@ -81,12 +81,21 @@ the latest deploy run (unset GitHub secrets are skipped silently).
    Push Notifications (fast-follow — server sender not built yet, harmless to
    enable now), Associated Domains (`applinks:app.getsweepr.com` /
    `applinks:clean.getsweepr.com`).
-3. The customer app registers the `sweepr://` URL scheme (pay-page bounce-back)
-   — already in Info.plist, nothing to do.
-4. Run both apps on a device: sign up, book (pays through the hosted Stripe
-   page at app.getsweepr.com/pay — Apple Pay appears automatically in Safari),
-   and run a cleaner job end-to-end (route → GPS check-in → photos →
-   complete).
+3. The customer app links the Stripe iOS SDK and registers the `sweepr://`
+   URL scheme (PaymentSheet's redirect return target) — both already wired in
+   Package.swift / Info.plist, nothing to do, **except**:
+   swap `StripeConfig.publishableKey` (`apps/ios/Sweepr/Sources/Sweepr/Support/StripeConfig.swift`)
+   for the real `pk_live_…` value (same one the web apps use as
+   `VITE_STRIPE_PUBLISHABLE_KEY`) before archiving — it ships as an obvious
+   placeholder that fails loudly if forgotten. Xcode resolves the
+   `stripe-ios-spm` package automatically the first time it opens the
+   workspace; if resolution fails, check the version pinned in
+   `apps/ios/Sweepr/Package.swift` against the latest release. Apple Pay stays
+   off (`applePayMerchantId = nil`) until a real Merchant ID + entitlement are
+   provisioned — fast-follow, not a blocker.
+4. Run both apps on a device: sign up, book (pays in-app with Stripe's native
+   PaymentSheet — card entry now, Apple Pay once provisioned per above), and
+   run a cleaner job end-to-end (route → GPS check-in → photos → complete).
 5. Screenshots (6.9" + 6.5"), then archive → upload → TestFlight.
 6. App Store Connect metadata: copy from `apps/ios/docs/appstore/*/metadata.md`;
    App Privacy answers from `privacy-nutrition-label.md`; paste

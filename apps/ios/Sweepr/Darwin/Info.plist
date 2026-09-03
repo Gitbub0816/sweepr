@@ -33,8 +33,10 @@
         <string>UIInterfaceOrientationPortrait</string>
     </array>
 
-    <!-- Custom scheme the hosted Stripe pay page (app.getsweepr.com/pay) uses
-         for its "Open the Sweepr app" bounce-back after payment. -->
+    <!-- Custom scheme passed as PaymentSheet.Configuration.returnURL
+         (StripePaymentPresenter) — Stripe's target for bank-redirect / 3DS
+         "return to app" flows during native in-app payment, handled by
+         SweeprApp's .onOpenURL + StripeAPI.handleURLCallback(with:). -->
     <key>CFBundleURLTypes</key>
     <array>
         <dict>

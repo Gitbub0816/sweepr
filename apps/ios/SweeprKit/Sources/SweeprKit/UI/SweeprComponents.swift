@@ -124,6 +124,12 @@ public struct SweeprCard<Content: View>: View {
 
 // MARK: - SweeprBadge
 
+/// A status label — a small color dot plus text, the way Apple's own apps
+/// (Settings, Mail, App Store Connect) convey state. Deliberately NOT a
+/// filled pill/chip: that background-capsule pattern reads as a web
+/// dashboard, not a native iOS surface. Every existing call site (booking
+/// status, "Active"/"Default", verification steps, coupon values, role
+/// tags) keeps working unchanged — only the rendering changed.
 public struct SweeprBadge: View {
     public enum Tone { case neutral, brand, success, warning, danger }
 
@@ -135,27 +141,26 @@ public struct SweeprBadge: View {
     }
 
     public var body: some View {
-        Text(text)
-            .font(SweeprFont.caption())
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .foregroundColor(fg)
-            .background(bg)
-            .clipShape(Capsule())
+        HStack(spacing: 5) {
+            Circle().fill(dot).frame(width: 6, height: 6)
+            Text(text)
+                .font(SweeprFont.caption().weight(.semibold))
+        }
+        .foregroundColor(fg)
     }
 
-    private var bg: Color {
+    private var dot: Color {
         switch tone {
-        case .neutral: return SweeprColor.graphite100
-        case .brand: return SweeprColor.seafoam100
-        case .success: return Color(hex: 0xdcfce7)
-        case .warning: return Color(hex: 0xfef3c7)
-        case .danger: return Color(hex: 0xfee2e2)
+        case .neutral: return SweeprColor.graphite500
+        case .brand: return SweeprColor.seafoam600
+        case .success: return Color(hex: 0x16a34a)
+        case .warning: return SweeprColor.amber
+        case .danger: return Color(hex: 0xdc2626)
         }
     }
     private var fg: Color {
         switch tone {
-        case .neutral: return SweeprColor.graphite700
+        case .neutral: return SweeprColor.textSecondary
         case .brand: return SweeprColor.seafoam700
         case .success: return Color(hex: 0x166534)
         case .warning: return Color(hex: 0x92400e)

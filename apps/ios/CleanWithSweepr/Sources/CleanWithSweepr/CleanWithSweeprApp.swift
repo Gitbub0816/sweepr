@@ -14,6 +14,7 @@ import SweeprKit
 @main
 public struct CleanWithSweeprApp: App {
     @StateObject private var env: AppEnvironment
+    @StateObject private var preferences = AppPreferences()
 
     public init() {
         _env = StateObject(wrappedValue: AppEnvironment())
@@ -23,7 +24,9 @@ public struct CleanWithSweeprApp: App {
         WindowGroup {
             RootView()
                 .environmentObject(env)
+                .environmentObject(preferences)
                 .tint(SweeprColor.brand)
+                .preferredColorScheme(preferences.appearance.colorScheme)
         }
     }
 }

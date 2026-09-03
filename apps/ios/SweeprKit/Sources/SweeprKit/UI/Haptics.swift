@@ -17,7 +17,13 @@ public enum SweeprHaptics {
     public enum Impact { case light, medium, heavy, soft, rigid }
     public enum Notify { case success, warning, error }
 
+    /// Set from `AppPreferences` at launch and whenever the person flips the
+    /// Settings toggle. Every call below no-ops while this is false, so
+    /// nothing else needs to check the preference itself.
+    nonisolated(unsafe) public static var isEnabled = true
+
     public static func impact(_ style: Impact = .light) {
+        guard isEnabled else { return }
         #if os(iOS)
         let mapped: UIImpactFeedbackGenerator.FeedbackStyle
         switch style {
@@ -34,6 +40,7 @@ public enum SweeprHaptics {
     }
 
     public static func selection() {
+        guard isEnabled else { return }
         #if os(iOS)
         let generator = UISelectionFeedbackGenerator()
         generator.prepare()
@@ -42,6 +49,7 @@ public enum SweeprHaptics {
     }
 
     public static func notify(_ type: Notify) {
+        guard isEnabled else { return }
         #if os(iOS)
         let mapped: UINotificationFeedbackGenerator.FeedbackType
         switch type {

@@ -96,6 +96,41 @@ final class SweeprKitTests: XCTestCase {
         XCTAssertEqual(booking.cleanerId, "cl_9")
     }
 
+    // MARK: - Calendar availability (GET /calendar/availability) + arrival
+    // windows (GET /cleaners/availability-slots) — both native camelCase
+    // JSON built by the routes, unlike the raw snake_case booking rows above.
+
+    func testCalendarAvailabilityDecodesBlockedAndLabeledDays() throws {
+        let payload = """
+        { "days": [
+          { "date": "2026-09-10", "blocked": true, "adjustmentLabel": null, "promoLabel": null },
+          { "date": "2026-09-11", "blocked": false, "adjustmentLabel": "Surge pricing", "promoLabel": null },
+          { "date": "2026-09-12" }
+        ] }
+        """
+        let days = try SweeprJSON.decoder.decode(CalendarAvailabilityResponse.self, from: Data(payload.utf8)).days
+        XCTAssertEqual(days.count, 3)
+        XCTAssertEqual(days[0].date, "2026-09-10")
+        XCTAssertEqual(days[0].blocked, true)
+        XCTAssertEqual(days[1].adjustmentLabel, "Surge pricing")
+        XCTAssertNil(days[2].blocked) // omitted key, not a decode failure
+    }
+
+    func testArrivalWindowsResponseDecodesRealSlots() throws {
+        let payload = """
+        { "date": "2026-09-10", "slots": [
+          { "start": "08:00", "end": "10:00", "label": "8:00 – 10:00 AM", "available": true },
+          { "start": "10:00", "end": "12:00", "label": "10:00 AM – 12:00 PM", "available": false }
+        ] }
+        """
+        let resp = try SweeprJSON.decoder.decode(ArrivalWindowsResponse.self, from: Data(payload.utf8))
+        XCTAssertEqual(resp.date, "2026-09-10")
+        XCTAssertEqual(resp.slots.count, 2)
+        XCTAssertEqual(resp.slots[0].id, "08:00") // id mirrors start
+        XCTAssertTrue(resp.slots[0].available)
+        XCTAssertFalse(resp.slots[1].available)
+    }
+
     func testTolerantDateParsing() {
         XCTAssertNotNil(SweeprJSON.parseDate("2026-09-03T04:00:00.000Z"))
         XCTAssertNotNil(SweeprJSON.parseDate("2026-09-03T04:00:00Z"))
@@ -231,11 +266,6 @@ final class SweeprKitTests: XCTestCase {
                                     manualCodeEnabled: true, feeCents: 500,
                                     includedWithMembership: false)
         XCTAssertEqual(paid.feeLabel, "$5.00")
-    }
-
-    func testPayPageURLCarriesSecretInFragment() {
-        let url = PayPage.url(clientSecret: "pi_1_secret_2", kind: .booking, amountCents: 27000)
-        XCTAssertEqual(url?.absoluteString, "https://app.getsweepr.com/pay#cs=pi_1_secret_2&kind=booking&amount=27000")
     }
 
     func testCleaningGuideScalesWithScope() {

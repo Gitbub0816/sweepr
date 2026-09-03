@@ -30,9 +30,12 @@ echo "==> Assembling scratch package at $SCRATCH"
 rm -rf "$SCRATCH"
 mkdir -p "$SCRATCH/Sources" "$SCRATCH/Tests"
 
-# Shims (named SwiftUI / MapKit so app sources import them unchanged).
-cp -R "$HERE/Shims/SwiftUI" "$SCRATCH/Sources/SwiftUI"
-cp -R "$HERE/Shims/MapKit"  "$SCRATCH/Sources/MapKit"
+# Shims (named SwiftUI / MapKit / StripeCore / StripePaymentSheet so app
+# sources import them unchanged).
+cp -R "$HERE/Shims/SwiftUI"             "$SCRATCH/Sources/SwiftUI"
+cp -R "$HERE/Shims/MapKit"              "$SCRATCH/Sources/MapKit"
+cp -R "$HERE/Shims/StripeCore"          "$SCRATCH/Sources/StripeCore"
+cp -R "$HERE/Shims/StripePaymentSheet"  "$SCRATCH/Sources/StripePaymentSheet"
 
 # Real product sources. Module names match the shipping packages so the
 # Darwin/ shells and app tests compile with their real `import` lines.
@@ -73,8 +76,12 @@ let package = Package(
     targets: [
         .target(name: "SwiftUI"),
         .target(name: "MapKit", dependencies: ["SwiftUI"]),
+        .target(name: "StripeCore"),
+        .target(name: "StripePaymentSheet", dependencies: ["StripeCore"]),
         .target(name: "SweeprKit", dependencies: ["SwiftUI", "MapKit"]),
-        .target(name: "Sweepr", dependencies: ["SweeprKit", "SwiftUI", "MapKit"]),
+        // Stripe deps ONLY here — the customer app is the only one that takes
+        // payments; CleanWithSweepr and SweeprKit never link it.
+        .target(name: "Sweepr", dependencies: ["SweeprKit", "SwiftUI", "MapKit", "StripeCore", "StripePaymentSheet"]),
         .target(name: "CleanWithSweepr", dependencies: ["SweeprKit", "SwiftUI", "MapKit"]),
         .target(name: "AppShells", dependencies: ["Sweepr", "CleanWithSweepr"]),
         .testTarget(name: "SweeprKitTests", dependencies: ["SweeprKit"]),

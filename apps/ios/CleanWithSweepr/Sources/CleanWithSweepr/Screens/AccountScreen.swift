@@ -50,6 +50,7 @@ public struct AccountScreen: View {
             ScrollView {
                 VStack(spacing: SweeprSpacing.md) {
                     profileHeader
+                    settingsLink
                     availabilityCard
                     serviceAreaCard
                     verificationCard
@@ -119,6 +120,26 @@ public struct AccountScreen: View {
         let l = user?.lastName?.first.map(String.init) ?? ""
         let s = "\(f)\(l)"
         return s.isEmpty ? "S" : s.uppercased()
+    }
+
+    private var settingsLink: some View {
+        NavigationLink(destination: SettingsScreen()) {
+            SweeprCard(elevation: .low) {
+                HStack(spacing: SweeprSpacing.md) {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(SweeprColor.brand)
+                        .frame(width: 36, height: 36)
+                        .background(SweeprColor.brand.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    Text("Settings").font(SweeprFont.body().weight(.semibold))
+                        .foregroundColor(SweeprColor.textPrimary)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right").foregroundColor(SweeprColor.separator)
+                }
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Weekly availability (PUT /cleaner-dashboard/availability)

@@ -17,8 +17,8 @@ import SweeprKit
 // (which is what carries the address join + add-on keys).
 //
 // Tips run through the real money path: POST /tips mints the immediate-capture
-// intent, the hosted pay page confirms it, and this screen polls
-// GET /tips/booking/:id until the webhook settles — nothing is faked.
+// intent, Stripe's native PaymentSheet confirms it in-app, and this screen
+// polls GET /tips/booking/:id until the webhook settles — nothing is faked.
 public struct BookingDetailScreen: View {
     @EnvironmentObject private var env: AppEnvironment
     private let bookingId: String
@@ -279,7 +279,7 @@ public struct BookingDetailScreen: View {
         }
     }
 
-    // MARK: - Tip (real money — POST /tips + hosted pay page + webhook poll)
+    // MARK: - Tip (real money — POST /tips + native PaymentSheet + webhook poll)
 
     @ViewBuilder private var tipCard: some View {
         SweeprCard(elevation: .low) {
@@ -344,15 +344,21 @@ public struct BookingDetailScreen: View {
         defer { isStartingTip = false }
         do {
             let grant = try await env.api.createTip(bookingId: bookingId, amountCents: cents)
-            guard let secret = grant.clientSecret,
-                  let url = PayPage.url(clientSecret: secret, kind: .tip, amountCents: cents) else {
+            guard let secret = grant.clientSecret else {
                 env.toast.show("Couldn't start the tip — try again.", kind: .error)
                 return
             }
             SweeprHaptics.impact(.medium)
-            SweeprExternal.open(url)
-            tip = TipRecord(id: grant.id ?? "pending", amountCents: cents, status: "pending", createdAt: Date())
-            startTipPolling()
+            let outcome = await StripePaymentPresenter().pay(clientSecret: secret)
+            switch outcome {
+            case .completed:
+                tip = TipRecord(id: grant.id ?? "pending", amountCents: cents, status: "pending", createdAt: Date())
+                startTipPolling()
+            case .canceled:
+                break
+            case .failed:
+                env.toast.show("Couldn't complete the tip — try again.", kind: .error)
+            }
         } catch {
             let code = (error as? SweeprAPIError)?.serverCode
             if code == "tip_window_closed" {

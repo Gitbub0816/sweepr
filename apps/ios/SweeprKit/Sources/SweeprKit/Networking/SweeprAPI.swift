@@ -184,6 +184,28 @@ public actor SweeprAPI {
         try await request(.POST, "customer-profile/addresses", body: req, as: CreatedIdResponse.self).id
     }
 
+    // MARK: - Customer profile (real, server-backed preferences)
+
+    /// GET /customer-profile — Settings only reads the two preference fields;
+    /// the rest of `profile` (home details, addresses) is used elsewhere.
+    public func customerProfilePreferences() async throws -> CustomerProfilePreferences {
+        try await request(.GET, "customer-profile", as: CustomerProfileEnvelope.self).profile
+    }
+
+    /// PATCH /customer-profile — partial update; omit a parameter to leave it
+    /// unchanged server-side (mirrors the zod schema's all-optional fields).
+    public func updateCustomerProfilePreferences(
+        preferredLanguage: SweeprLanguage? = nil, smsConsent: Bool? = nil
+    ) async throws {
+        struct Body: Encodable { let preferredLanguage: String?; let smsConsent: Bool? }
+        struct Ignored: Decodable {}
+        _ = try await request(
+            .PATCH, "customer-profile",
+            body: Body(preferredLanguage: preferredLanguage?.rawValue, smsConsent: smsConsent),
+            as: Ignored.self
+        )
+    }
+
     // MARK: - Auth
 
     /// GET /auth/me — the signed-in identity (generous rate bucket server-side).
@@ -229,13 +251,35 @@ public actor SweeprAPI {
         try await request(.POST, "membership/resume", as: OKResponse.self).ok
     }
 
+    // MARK: - Calendar availability (advisory — the server re-checks at quote/create)
+
+    /// GET /calendar/availability — blocked dates + pricing/promo markers for
+    /// the visible month. Public endpoint (no auth required server-side, but
+    /// attaching a token when we have one is harmless).
+    public func calendarAvailability(
+        from: String, to: String, lat: Double? = nil, lng: Double? = nil
+    ) async throws -> [CalendarDayInfo] {
+        var query = ["from": from, "to": to]
+        if let lat { query["lat"] = String(lat) }
+        if let lng { query["lng"] = String(lng) }
+        return try await request(.GET, "calendar/availability", query: query, as: CalendarAvailabilityResponse.self).days
+    }
+
+    /// GET /cleaners/availability-slots — the six 2-hour arrival windows and
+    /// real per-window availability for one date.
+    public func arrivalWindows(date: String, zip: String? = nil) async throws -> ArrivalWindowsResponse {
+        var query = ["date": date]
+        if let zip { query["zip"] = zip }
+        return try await request(.GET, "cleaners/availability-slots", query: query, as: ArrivalWindowsResponse.self)
+    }
+
     // MARK: - Payments
     //
-    // The apps carry no Stripe SDK (SKIP constraint). They create the
-    // PaymentIntent through these AUTHENTICATED endpoints, then hand the
-    // client secret to the hosted pay page (app.getsweepr.com/pay) in the URL
-    // fragment — the same client-side confirmation role Stripe's own redirect
-    // flows use. `PayPage.url(...)` builds that hand-off URL.
+    // The customer app (only) links the Stripe iOS SDK (SKIP constraint means
+    // CleanWithSweepr and SweeprKit never do). It creates the PaymentIntent
+    // through these AUTHENTICATED endpoints, then hands the client secret to
+    // `StripePaymentPresenter` (apps/ios/Sweepr) to confirm in-app with
+    // Stripe's native PaymentSheet — no more hand-off to a hosted web page.
 
     /// GET /payments/methods — saved cards; degrades to [] server-side.
     public func paymentMethods() async throws -> [PaymentMethodSummary] {
@@ -268,8 +312,9 @@ public actor SweeprAPI {
         try await request(.GET, "tips/booking/\(bookingId)", as: TipEnvelope.self).tip
     }
 
-    /// GET /payments/intent-status/:bookingId — polled while the hosted pay
-    /// page confirms. `paid` = authorized (manual capture) or settled.
+    /// GET /payments/intent-status/:bookingId — polled as a safety net
+    /// alongside the native PaymentSheet. `paid` = authorized (manual
+    /// capture) or settled.
     public func bookingPaymentStatus(bookingId: String) async throws -> BookingPaymentStatus {
         try await request(.GET, "payments/intent-status/\(bookingId)", as: BookingPaymentStatus.self)
     }
@@ -348,6 +393,7 @@ private struct AddressListResponse: Decodable { let addresses: [CustomerAddress]
 private struct CreatedIdResponse: Decodable { let id: String }
 private struct CurrentUserResponse: Decodable { let user: CurrentUser }
 private struct CouponListResponse: Decodable { let coupons: [Coupon] }
+private struct CustomerProfileEnvelope: Decodable { let profile: CustomerProfilePreferences }
 private struct PaymentMethodsResponse: Decodable { let methods: [PaymentMethodSummary] }
 private struct OKResponse: Decodable { let ok: Bool }
 private struct StatusChangeRequest: Encodable { let status: String }
@@ -396,22 +442,6 @@ public struct TipRecord: Codable, Hashable, Sendable {
 }
 
 private struct TipEnvelope: Decodable { let tip: TipRecord? }
-
-// MARK: - Hosted pay page hand-off
-
-/// Builds the app.getsweepr.com/pay URL that hosts Stripe Elements for a
-/// client secret (carried in the URL fragment — client-side only).
-public enum PayPage {
-    public static let base = "https://app.getsweepr.com/pay"
-
-    public enum Kind: String { case booking, tip }
-
-    public static func url(clientSecret: String, kind: Kind, amountCents: Int?) -> URL? {
-        var fragment = "cs=\(clientSecret)&kind=\(kind.rawValue)"
-        if let amountCents { fragment += "&amount=\(amountCents)" }
-        return URL(string: "\(base)#\(fragment)")
-    }
-}
 
 // MARK: - Encodable erasure (for request bodies)
 

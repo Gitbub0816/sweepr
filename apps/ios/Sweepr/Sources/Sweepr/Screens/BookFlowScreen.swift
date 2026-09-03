@@ -32,11 +32,25 @@ public struct BookFlowScreen: View {
     @State private var savedAddresses: [CustomerAddress] = []
     @State private var selectedAddressId: String?
 
-    // Payment hand-off: after the booking is created, the hosted pay page
-    // (Stripe Elements, Apple Pay in Safari) confirms the manual-capture
-    // intent while we poll /payments/intent-status.
+    // Schedule step: a native month calendar shows blocked dates BEFORE the
+    // customer picks one (GET /calendar/availability), then real 2-hour
+    // arrival windows for the chosen date (GET /cleaners/availability-slots)
+    // — mirrors apps/customer's ScheduleStep.tsx. Advisory only; the server
+    // still re-checks at quote/create (`date_unavailable`).
+    @State private var selectedCalendarDate: Date?
+    @State private var calendarMarkers: [String: SweeprMonthCalendar.DayMarker] = [:]
+    @State private var arrivalWindows: [ArrivalWindow] = []
+    @State private var isLoadingWindows = false
+    @State private var windowsError: String?
+
+    // Payment hand-off: after the booking is created, Stripe's native
+    // PaymentSheet confirms the manual-capture intent in-app (no more
+    // bouncing out to Safari); /payments/intent-status polling keeps
+    // running underneath as a safety net in case the sheet's callback is
+    // ever missed (backgrounded app, etc.).
     @State private var payingBookingId: String?
     @State private var paymentConfirmed = false
+    @State private var isPresentingPaymentSheet = false
     @State private var paymentPollTask: Task<Void, Never>?
 
     private let stepTitles = [
@@ -209,16 +223,83 @@ public struct BookFlowScreen: View {
     private var scheduleStep: some View {
         VStack(alignment: .leading, spacing: SweeprSpacing.md) {
             SweeprCard {
-                DatePicker(
-                    "When",
-                    selection: $draft.scheduledAt,
-                    in: Date()...,
-                    displayedComponents: [.date, .hourAndMinute]
+                SweeprMonthCalendar(
+                    selectedDate: Binding(
+                        get: { selectedCalendarDate },
+                        set: { newDate in
+                            selectedCalendarDate = newDate
+                            // A new date invalidates any previously chosen window.
+                            arrivalWindows = []
+                            windowsError = nil
+                            draft.arrivalWindowStart = nil
+                            draft.arrivalWindowEnd = nil
+                            if let newDate {
+                                Task { await loadArrivalWindows(for: newDate) }
+                            }
+                        }
+                    ),
+                    markers: calendarMarkers,
+                    onMonthChange: { month in Task { await loadCalendarMonth(month) } }
                 )
-                .datePickerStyle(.graphical)
-                .tint(SweeprColor.brand)
+            }
+
+            if selectedCalendarDate != nil {
+                VStack(alignment: .leading, spacing: SweeprSpacing.sm) {
+                    HStack(spacing: SweeprSpacing.xs) {
+                        Image(systemName: "clock").foregroundColor(SweeprColor.brand)
+                        Text("Choose an arrival window").font(SweeprFont.body().weight(.semibold))
+                            .foregroundColor(SweeprColor.textPrimary)
+                    }
+                    if isLoadingWindows {
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: SweeprSpacing.sm) {
+                            ForEach(0..<4, id: \.self) { _ in SkeletonBlock(height: 52) }
+                        }
+                    } else if let windowsError {
+                        HStack(alignment: .top, spacing: SweeprSpacing.sm) {
+                            Image(systemName: "exclamationmark.circle.fill").foregroundColor(SweeprColor.amber)
+                            Text(windowsError).font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
+                        }
+                    } else if arrivalWindows.isEmpty {
+                        Text("No arrival windows are available on this date. Please pick another date.")
+                            .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
+                    } else {
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: SweeprSpacing.sm) {
+                            ForEach(arrivalWindows) { window in windowChip(window) }
+                        }
+                        if !arrivalWindows.contains(where: \.available) {
+                            Text("No cleaners are available on this date — try another.")
+                                .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
+                        }
+                    }
+                }
             }
         }
+    }
+
+    private func windowChip(_ window: ArrivalWindow) -> some View {
+        let isSelected = draft.arrivalWindowStart == window.start
+        return Button {
+            selectWindow(window)
+        } label: {
+            VStack(spacing: 2) {
+                Text(window.label).font(SweeprFont.footnote().weight(.semibold))
+                if !window.available {
+                    Text("No cleaners").font(.system(size: 10)).foregroundColor(SweeprColor.textSecondary)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, SweeprSpacing.sm)
+            .foregroundColor(window.available ? (isSelected ? .white : SweeprColor.textPrimary) : SweeprColor.separator)
+            .background(isSelected ? SweeprColor.brand : SweeprColor.surface)
+            .clipShape(RoundedRectangle(cornerRadius: SweeprRadius.button, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: SweeprRadius.button, style: .continuous)
+                    .stroke(isSelected ? SweeprColor.brand : SweeprColor.separator, lineWidth: isSelected ? 2 : 1)
+            )
+        }
+        .buttonStyle(SweeprPressableButtonStyle())
+        .disabled(!window.available)
+        .accessibilityLabel("\(window.label)\(window.available ? "" : ", no cleaners available")")
     }
 
     private var accessStep: some View {
@@ -280,17 +361,26 @@ public struct BookFlowScreen: View {
                     SweeprButton("Done", systemIcon: "checkmark") {
                         finishAndClose()
                     }
-                } else {
+                } else if isPresentingPaymentSheet {
                     HStack(spacing: SweeprSpacing.sm) {
                         ProgressView()
-                        Text("Finish paying in the secure Stripe window…")
+                        Text("Confirming payment…")
                             .font(SweeprFont.body().weight(.semibold))
                             .foregroundColor(SweeprColor.textPrimary)
                     }
-                    Text("We opened your browser to confirm payment (Apple Pay works there too). This screen updates the moment it's done.")
+                    Text("Securely handled by Stripe, right here in the app.")
                         .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
-                    SweeprButton("Reopen payment page", style: .secondary, systemIcon: "safari") {
-                        Task { await openPaymentPage(bookingId: bookingId) }
+                } else {
+                    HStack(spacing: SweeprSpacing.sm) {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .foregroundColor(SweeprColor.amber)
+                        Text("Payment didn't finish").font(SweeprFont.body().weight(.semibold))
+                            .foregroundColor(SweeprColor.textPrimary)
+                    }
+                    Text("Your booking is held — try the payment again to confirm it.")
+                        .font(SweeprFont.caption()).foregroundColor(SweeprColor.textSecondary)
+                    SweeprButton("Try payment again", style: .secondary, systemIcon: "creditcard") {
+                        Task { await presentPayment(bookingId: bookingId) }
                     }
                 }
             }
@@ -324,7 +414,7 @@ public struct BookFlowScreen: View {
                 reviewRow("Package", draft.serviceType.displayName)
                 reviewRow("Level", draft.cleaningLevel.displayLabel)
                 reviewRow("Home", "\(draft.bedrooms) bd · \(draft.bathrooms) ba · \(draft.sqftHundreds * 100) sqft")
-                reviewRow("When", draft.scheduledAt.formatted(date: .abbreviated, time: .shortened))
+                reviewRow("When", scheduleSummary)
                 reviewRow("Access", draft.accessMethod.displayName)
                 if !draft.addOnKeys.isEmpty {
                     reviewRow("Add-ons", "\(draft.addOnKeys.count) selected")
@@ -414,6 +504,8 @@ public struct BookFlowScreen: View {
             if selectedAddressId != nil { return true }
             return !draft.street.trimmed.isEmpty && !draft.city.trimmed.isEmpty
                 && draft.state.trimmed.count == 2 && draft.zip.trimmed.count >= 5
+        case 4:
+            return draft.arrivalWindowStart != nil
         default:
             return true
         }
@@ -470,8 +562,8 @@ public struct BookFlowScreen: View {
             }
             let booking = try await env.api.createBooking(request)
             withAnimation(SweeprMotion.smooth) { payingBookingId = booking.id }
-            await openPaymentPage(bookingId: booking.id)
             startPaymentPolling(bookingId: booking.id)
+            await presentPayment(bookingId: booking.id)
         } catch {
             SweeprHaptics.notify(.error)
             let code = (error as? SweeprAPIError)?.serverCode
@@ -488,18 +580,111 @@ public struct BookFlowScreen: View {
         }
     }
 
-    private func openPaymentPage(bookingId: String) async {
+    // MARK: - Schedule (calendar availability + arrival windows)
+
+    /// Address zip if a saved address is selected, else the draft's own zip
+    /// field — either way, best-effort input to the availability-slots call.
+    private var effectiveZip: String? {
+        if let id = selectedAddressId, let addr = savedAddresses.first(where: { $0.id == id }) {
+            return addr.zip
+        }
+        return draft.zip.trimmed.isEmpty ? nil : draft.zip.trimmed
+    }
+
+    private var effectiveCoordinate: (lat: Double, lng: Double)? {
+        guard let id = selectedAddressId, let addr = savedAddresses.first(where: { $0.id == id }),
+              let lat = addr.lat, let lng = addr.lng else { return nil }
+        return (lat, lng)
+    }
+
+    private func loadCalendarMonth(_ month: Date) async {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = .current
+        guard let interval = cal.dateInterval(of: .month, for: month),
+              let lastDay = cal.date(byAdding: .day, value: -1, to: interval.end) else { return }
+        let coordinate = effectiveCoordinate
+        do {
+            let days = try await env.api.calendarAvailability(
+                from: SweeprMonthCalendar.key(interval.start),
+                to: SweeprMonthCalendar.key(lastDay),
+                lat: coordinate?.lat, lng: coordinate?.lng
+            )
+            var next = calendarMarkers
+            for day in days {
+                next[day.date] = .init(blocked: day.blocked ?? false, label: day.adjustmentLabel ?? day.promoLabel)
+            }
+            calendarMarkers = next
+        } catch {
+            // Best-effort: without this data every date stays selectable and
+            // the server still enforces blocks at quote/create time.
+        }
+    }
+
+    private func loadArrivalWindows(for date: Date) async {
+        isLoadingWindows = true
+        windowsError = nil
+        defer { isLoadingWindows = false }
+        do {
+            let resp = try await env.api.arrivalWindows(date: SweeprMonthCalendar.key(date), zip: effectiveZip)
+            arrivalWindows = resp.slots
+        } catch {
+            arrivalWindows = []
+            windowsError = "Couldn't load availability for this date. Please try again."
+        }
+    }
+
+    private func selectWindow(_ window: ArrivalWindow) {
+        guard window.available, let date = selectedCalendarDate else { return }
+        let parts = window.start.split(separator: ":")
+        guard parts.count == 2, let hour = Int(parts[0]), let minute = Int(parts[1]) else { return }
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = .current
+        var comps = cal.dateComponents([.year, .month, .day], from: date)
+        comps.hour = hour
+        comps.minute = minute
+        guard let combined = cal.date(from: comps) else { return }
+        SweeprHaptics.selection()
+        draft.scheduledAt = combined
+        draft.arrivalWindowStart = window.start
+        draft.arrivalWindowEnd = window.end
+    }
+
+    private var scheduleSummary: String {
+        let dateText = draft.scheduledAt.formatted(date: .abbreviated, time: .omitted)
+        guard let matched = arrivalWindows.first(where: { $0.start == draft.arrivalWindowStart }) else {
+            return dateText
+        }
+        return "\(dateText) · Arrives \(matched.label)"
+    }
+
+    /// Presents Stripe's native PaymentSheet in-app for the booking's
+    /// manual-capture intent. `/payments/intent-status` polling (started
+    /// alongside this in `submit()`) keeps running underneath as a safety
+    /// net; a `.completed` result here just short-circuits the wait.
+    private func presentPayment(bookingId: String) async {
         do {
             let grant = try await env.api.createBookingPaymentIntent(bookingId: bookingId)
-            guard let secret = grant.clientSecret,
-                  let url = PayPage.url(clientSecret: secret, kind: .booking,
-                                        amountCents: grant.resolvedAmountCents) else {
-                env.toast.show("Couldn't start payment — tap Reopen to retry.", kind: .error)
+            guard let secret = grant.clientSecret else {
+                env.toast.show("Couldn't start payment — try again.", kind: .error)
                 return
             }
-            SweeprExternal.open(url)
+            isPresentingPaymentSheet = true
+            let outcome = await StripePaymentPresenter().pay(clientSecret: secret)
+            isPresentingPaymentSheet = false
+            switch outcome {
+            case .completed:
+                paymentPollTask?.cancel()
+                SweeprHaptics.notify(.success)
+                withAnimation(SweeprMotion.smooth) { paymentConfirmed = true }
+                await env.bookingStore.refresh()
+            case .canceled:
+                break
+            case .failed:
+                env.toast.show("Payment failed — try again.", kind: .error)
+            }
         } catch {
-            env.toast.show("Couldn't start payment — tap Reopen to retry.", kind: .error)
+            isPresentingPaymentSheet = false
+            env.toast.show("Couldn't start payment — try again.", kind: .error)
         }
     }
 
@@ -611,6 +796,8 @@ struct BookingDraft {
     var cleaningLevel: CleaningLevel = .refresh
     var addOnKeys: [String] = []
     var scheduledAt = Date().addingTimeInterval(60 * 60 * 24)
+    var arrivalWindowStart: String?
+    var arrivalWindowEnd: String?
     var accessMethod: AccessMethod = .home
     var hasPets = false
     var heavyMess = false
@@ -636,6 +823,9 @@ struct BookingDraft {
             suppliesNeeded: suppliesNeeded,
             addOnKeys: addOnKeys,
             scheduledAt: ISO8601DateFormatter().string(from: scheduledAt),
+            arrivalWindowStart: arrivalWindowStart,
+            arrivalWindowEnd: arrivalWindowEnd,
+            timezoneOffsetMinutes: TimeZone.current.secondsFromGMT() / 60,
             cleaningLevel: cleaningLevel,
             addressId: nil,
             notes: nil

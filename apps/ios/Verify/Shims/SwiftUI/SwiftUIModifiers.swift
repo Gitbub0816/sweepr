@@ -20,6 +20,7 @@ public extension View {
     func foregroundColor(_ color: Color?) -> AnyShimView { AnyShimView() }
     func foregroundStyle<S: ShapeStyle>(_ style: S) -> AnyShimView { AnyShimView() }
     func tint(_ tint: Color?) -> AnyShimView { AnyShimView() }
+    func preferredColorScheme(_ colorScheme: ColorScheme?) -> AnyShimView { AnyShimView() }
     func opacity(_ opacity: Double) -> AnyShimView { AnyShimView() }
     func multilineTextAlignment(_ alignment: TextAlignment) -> AnyShimView { AnyShimView() }
     func lineLimit(_ number: Int?) -> AnyShimView { AnyShimView() }
@@ -77,6 +78,7 @@ public extension View {
     ) -> AnyShimView { AnyShimView() }
     func onAppear(perform action: (() -> Void)? = nil) -> AnyShimView { AnyShimView() }
     func onDisappear(perform action: (() -> Void)? = nil) -> AnyShimView { AnyShimView() }
+    func onOpenURL(perform action: @escaping (URL) -> Void) -> AnyShimView { AnyShimView() }
     func onChange<V: Equatable>(of value: V, _ action: @escaping (V, V) -> Void) -> AnyShimView { AnyShimView() }
     func task(priority: TaskPriority = .userInitiated, _ action: @escaping () async -> Void) -> AnyShimView { AnyShimView() }
     func refreshable(action: @escaping () async -> Void) -> AnyShimView { AnyShimView() }
