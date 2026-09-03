@@ -28,7 +28,7 @@ final class CleanWithSweeprAppTests: XCTestCase {
     /// state. All inits are inert (no tasks, no requests).
     @MainActor
     func testAppEnvironmentWiresDependencies() async {
-        let env = AppEnvironment(tokenProvider: AnonymousTokenProvider())
+        let env = AppEnvironment(vault: MemoryTokenVault())
         XCTAssertNil(env.activeJob)
         XCTAssertFalse(env.smartEntrySessionId.isEmpty)
     }

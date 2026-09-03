@@ -17,9 +17,7 @@ public struct SweeprApp: App {
     @StateObject private var env: AppEnvironment
 
     public init() {
-        // TODO(Clerk): swap AnonymousTokenProvider for a ClerkTokenProvider that
-        // bridges Clerk.shared.session?.getToken(). Publishable key from Skip.env.
-        _env = StateObject(wrappedValue: AppEnvironment(tokenProvider: AnonymousTokenProvider()))
+        _env = StateObject(wrappedValue: AppEnvironment())
     }
 
     public var body: some Scene {

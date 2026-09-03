@@ -51,6 +51,19 @@ export interface Env {
    * misconfiguration fails closed rather than trusting unsigned identities.
    */
   API_BROKER_TOKEN_SECRET?: string;
+  /**
+   * Mobile BFF → central auth broker (routes/mobileAuth.ts). The native apps
+   * sign in via Clerk, then this worker — the only holder of these service
+   * keys on the mobile path — exchanges the Clerk proof for a long-lived
+   * broker app session. BROKER_URL is the off-zone Fly origin (defaults to
+   * https://sweepr.fly.dev); ORIGIN_SHARED_SECRET is the broker's
+   * origin-verify header value. All optional: missing config = mobile auth
+   * endpoints 503 (fail closed), web auth untouched.
+   */
+  BROKER_URL?: string;
+  BROKER_KEY_CUSTOMER?: string;
+  BROKER_KEY_CLEANER?: string;
+  ORIGIN_SHARED_SECRET?: string;
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
   MAILERSEND_API_KEY: string;

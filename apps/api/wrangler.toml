@@ -117,6 +117,14 @@ binding = "MYBROWSER"
 #                            API tokens after introspecting the broker session; MUST equal the value the
 #                            deploy.yml sync-central-auth job puts on the Pages projects. Any long random
 #                            string. Unset = broker-issued API tokens are rejected, Clerk tokens still work)
+# BROKER_KEY_CUSTOMER       (mobile BFF → broker service key for the customer app; same value the broker
+#                            holds as its own BROKER_KEY_CUSTOMER. Unset = customer mobile auth 503s)
+# BROKER_KEY_CLEANER        (mobile BFF → broker service key for the cleaner app; same value the broker
+#                            holds as its own BROKER_KEY_CLEANER. Unset = cleaner mobile auth 503s)
+# ORIGIN_SHARED_SECRET      (broker origin-verify header value, same as the broker's ORIGIN_SHARED_SECRET;
+#                            presented on off-zone calls to the Fly origin. Unset = header omitted)
+# BROKER_URL                 (optional override of the broker's off-zone origin; defaults to
+#                            https://sweepr.fly.dev — a plain var, not a secret)
 # SLACK_CLIENT_ID           (Slack app → Basic Information → App Credentials)
 # SLACK_CLIENT_SECRET       (Slack app → Basic Information → App Credentials)
 # SLACK_SIGNING_SECRET      (Slack app → Basic Information → App Credentials; verifies inbound webhooks)

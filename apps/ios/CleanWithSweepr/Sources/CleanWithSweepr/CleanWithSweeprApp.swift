@@ -16,8 +16,7 @@ public struct CleanWithSweeprApp: App {
     @StateObject private var env: AppEnvironment
 
     public init() {
-        // TODO(Clerk): inject a real ClerkTokenProvider (primary application).
-        _env = StateObject(wrappedValue: AppEnvironment(tokenProvider: AnonymousTokenProvider()))
+        _env = StateObject(wrappedValue: AppEnvironment())
     }
 
     public var body: some Scene {

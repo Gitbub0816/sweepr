@@ -190,9 +190,12 @@ public struct AccountScreen: View {
             SweeprSectionTitle("Account")
             SweeprButton("Sign out", style: .secondary, systemIcon: "rectangle.portrait.and.arrow.right") {
                 SweeprHaptics.impact(.medium)
-                // TODO(Clerk): call the app's ClerkTokenProvider sign-out, then:
-                env.session.clearLocalSession()
-                env.toast.show("Signed out", kind: .info)
+                Task {
+                    // Revokes the broker session and wipes the keychain; the
+                    // root view flips to the auth wall on the phase change.
+                    await env.session.signOut()
+                    env.toast.show("Signed out", kind: .info)
+                }
             }
             NavigationLink(destination: DeleteAccountView()) {
                 HStack(spacing: SweeprSpacing.sm) {
@@ -350,7 +353,9 @@ struct DeleteAccountView: View {
                 .trimmingCharacters(in: .whitespacesAndNewlines))
             if resp.ok {
                 SweeprHaptics.notify(.success)
-                env.session.clearLocalSession()
+                // The server already removed the Clerk identity; this clears
+                // the broker session + keychain so the device forgets too.
+                await env.session.signOut()
                 env.toast.show("Your account has been deleted", kind: .success)
                 dismiss()
             } else {

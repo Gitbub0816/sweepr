@@ -14,6 +14,7 @@ import { securityHeaders } from "./middleware/securityHeaders";
 import { ipBlocklist } from "./middleware/blocklist";
 import { rateLimit } from "./middleware/rateLimit";
 import { authRouter } from "./routes/auth";
+import { mobileAuthRouter } from "./routes/mobileAuth";
 import { bookingsRouter } from "./routes/bookings";
 import { rentalsRouter } from "./routes/rentals";
 import { pricingRouter } from "./routes/pricing";
@@ -367,6 +368,15 @@ const strictAuthLimiter = rateLimit({ limit: 5, windowMs: 15 * 60_000, keyPrefix
 app.use("/auth/*", (c, next) =>
   c.req.path === "/auth/me" && c.req.method === "GET" ? next() : strictAuthLimiter(c, next),
 );
+// Mobile BFF: /session is a sign-in mutation (moderate — several attempts per
+// sign-in are normal: wrong password, code resend); /token is REPEATED by
+// every signed-in device roughly every 10 minutes and on each foreground, so
+// per convention 14 it gets its own generous bucket, never the strict one.
+app.use("/mobile-auth/token", rateLimit({ limit: 240, windowMs: 15 * 60_000, keyPrefix: "mobile-auth-poll" }));
+const strictMobileAuthLimiter = rateLimit({ limit: 20, windowMs: 15 * 60_000, keyPrefix: "mobile-auth", strict: true });
+app.use("/mobile-auth/*", (c, next) =>
+  c.req.path === "/mobile-auth/token" ? next() : strictMobileAuthLimiter(c, next),
+);
 // Keyed per-user (not IP) and generous enough for a real checkout flow, which
 // legitimately hits /payments/methods (read) + /create-intent plus retries as
 // the customer edits their booking. 5/15m was blocking normal checkout with 429s.
@@ -448,6 +458,7 @@ app.get("/", (c) => c.json({ name: "sweepr-api", status: "ok" }));
 app.get("/health", (c) => c.json({ ok: true }));
 
 app.route("/auth", authRouter);
+app.route("/mobile-auth", mobileAuthRouter);
 app.route("/client-errors", clientErrorsRouter);
 app.route("/customer-profile", customerProfileRouter);
 app.route("/bookings", bookingsRouter);

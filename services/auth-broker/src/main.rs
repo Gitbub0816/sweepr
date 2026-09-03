@@ -53,6 +53,12 @@ const TX_TTL_SECONDS: i64 = 300; // 5-minute login transactions
 const CODE_TTL_SECONDS: i64 = 45; // one-time authorization codes
 const CLERK_TOKEN_MAX_AGE: i64 = 120; // "explicit ceremony" freshness bound
 
+// Mobile sessions persist sign-in: a long idle window that slides on every
+// successful introspection, capped by an absolute bound. Web sessions keep
+// their 72h absolute expiry — only client_kind='mobile' rows ever slide.
+const MOBILE_SESSION_IDLE_SECONDS: i64 = 5_184_000; // 60 days, sliding
+const MOBILE_SESSION_MAX_AGE_SECONDS: i64 = 31_536_000; // 1 year, absolute cap
+
 // ── Configuration (fail closed) ───────────────────────────────────────────────
 
 struct Config {
@@ -191,6 +197,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             post(precheck_transaction),
         )
         .route("/v1/auth/exchange", post(exchange))
+        .route("/v1/auth/native/exchange", post(native_exchange))
         .route("/v1/auth/introspect", post(introspect))
         .route("/v1/auth/logout", post(logout_app))
         .route("/v1/auth/logout-all", post(logout_all))
@@ -368,6 +375,10 @@ struct Exchange {
 #[derive(Deserialize)]
 struct SessionRef {
     session_token: String,
+}
+#[derive(Deserialize)]
+struct NativeExchange {
+    clerk_token: String,
 }
 
 // ── Step 2: create login transaction (server-to-server) ──────────────────────
@@ -1022,6 +1033,141 @@ async fn exchange(
         .into_response()
 }
 
+// ── Native (mobile) exchange: Clerk proof → long-lived sliding session ───────
+//
+// The iOS/Android apps render their own sign-in UI and authenticate against
+// Clerk's REST API directly; Clerk still proves WHO. The phone then presents
+// its fresh Clerk session JWT to api.getsweepr.com, which — as the mobile BFF
+// and the only holder of broker service keys — calls this endpoint to mint the
+// per-app session. The phone NEVER reaches the broker itself.
+//
+// The browser ceremony (transaction → one-time code → PKCE exchange) exists
+// because the credential transits a redirect an attacker could observe. Here
+// there is no redirect: the Clerk proof arrives over one TLS hop from a keyed
+// backend, and the session token returns over the same hop — so the ceremony
+// state adds nothing and is deliberately absent. What is kept, identically to
+// complete_transaction: instance binding, signature verification against this
+// deployment's Clerk JWKS, the 120s explicit-ceremony freshness bound (a
+// lingering Clerk session cannot silently mint a session), and app admission
+// via authorize(). The minted session is client_kind='mobile': a 60-day idle
+// window that slides on introspection, capped at 1 year absolute.
+async fn native_exchange(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    Json(body): Json<NativeExchange>,
+) -> Response {
+    let Some(app_id) = app_for_service_key(&state, &headers) else {
+        return fail(StatusCode::UNAUTHORIZED, "service_auth_required");
+    };
+    let def = app(app_id);
+    if def.auth_instance != state.cfg.deployment {
+        return fail(StatusCode::FORBIDDEN, "wrong_auth_instance");
+    }
+    let (ip_hash, ua_hash) = ip_ua_hashes(&state, &headers);
+    // Per-IP (the BFF forwards cf-connecting-ip) so one device can't grind the
+    // exchange, and loose enough for a whole household behind NAT.
+    if !rate_limit(&state, "native_exchange", &ip_hash, 30, 60).await {
+        return fail(StatusCode::TOO_MANY_REQUESTS, "rate_limited");
+    }
+
+    let jwks = match jwt::fetch_jwks(&state.http, &state.cfg.clerk_issuer).await {
+        Ok(j) => j,
+        Err(_) => return fail(StatusCode::BAD_GATEWAY, "identity_provider_unavailable"),
+    };
+    let now = now_epoch();
+    let claims =
+        match jwt::verify_rs256(&body.clerk_token, &jwks, &state.cfg.clerk_issuer, None, now) {
+            Ok(c) => c,
+            Err(e) => {
+                audit(
+                    &state,
+                    "auth.authentication.failed",
+                    Some(app_id),
+                    json!({"reason": format!("{e:?}"), "channel": "native"}),
+                    &ip_hash,
+                )
+                .await;
+                return fail(StatusCode::UNAUTHORIZED, "authentication_failed");
+            }
+        };
+    if !token_is_fresh(&body.clerk_token, now) {
+        audit(
+            &state,
+            "auth.reverification.required",
+            Some(app_id),
+            json!({"channel": "native"}),
+            &ip_hash,
+        )
+        .await;
+        return fail(StatusCode::UNAUTHORIZED, "reverification_required");
+    }
+
+    let principal_id = match authorize(&state, app_id, &claims).await {
+        Ok(p) => p,
+        Err(reason) => {
+            audit(
+                &state,
+                "auth.authorization.denied",
+                Some(app_id),
+                json!({"reason": reason, "channel": "native"}),
+                &ip_hash,
+            )
+            .await;
+            return fail(StatusCode::FORBIDDEN, "not_authorized_for_application");
+        }
+    };
+
+    let token = crypto::random_token();
+    let session = sqlx::query(
+        "INSERT INTO app_sessions
+           (token_digest, app_id, auth_instance, principal_user_id, clerk_user_id,
+            client_kind, expires_at, absolute_expires_at,
+            created_ip_hash, created_ua_hash, last_ip_hash, last_ua_hash)
+         VALUES ($1,$2,$3,$4,$5,'mobile',
+                 NOW() + make_interval(secs => $6),
+                 NOW() + make_interval(secs => $7),
+                 $8,$9,$8,$9)
+         RETURNING id, to_char(expires_at, 'YYYY-MM-DD\"T\"HH24:MI:SSOF') AS expires_at",
+    )
+    .bind(crypto::digest(&token))
+    .bind(app_id.as_str())
+    .bind(def.auth_instance.as_str())
+    .bind(principal_id)
+    .bind(&claims.sub)
+    .bind(MOBILE_SESSION_IDLE_SECONDS as f64)
+    .bind(MOBILE_SESSION_MAX_AGE_SECONDS as f64)
+    .bind(&ip_hash)
+    .bind(&ua_hash)
+    .fetch_one(&state.pool)
+    .await;
+    let session = match session {
+        Ok(s) => s,
+        Err(_) => return fail(StatusCode::INTERNAL_SERVER_ERROR, "server_error"),
+    };
+    let session_id: Uuid = session.get("id");
+    audit(
+        &state,
+        "auth.session.created",
+        Some(app_id),
+        json!({ "session_id": session_id, "client_kind": "mobile" }),
+        &ip_hash,
+    )
+    .await;
+
+    (
+        StatusCode::OK,
+        no_store(),
+        Json(json!({
+            "session_token": token,
+            "session_id": session_id,
+            "principal_user_id": principal_id,
+            "clerk_user_id": claims.sub,
+            "expires_at": session.get::<String, _>("expires_at"),
+        })),
+    )
+        .into_response()
+}
+
 // ── Introspection: the ONLY way an app validates signed-in state ──────────────
 
 async fn introspect(
@@ -1035,11 +1181,21 @@ async fn introspect(
     let (ip_hash, ua_hash) = ip_ua_hashes(&state, &headers);
     // App binding lives in the WHERE clause: a Business token presented via the
     // Customer BFF simply does not match — cross-app reuse is impossible.
+    // Mobile sessions (client_kind='mobile') slide their idle expiry forward on
+    // every successful introspection — that is what keeps a phone signed in —
+    // but never past absolute_expires_at. Web sessions keep absolute expiry.
     let row = sqlx::query(
         "UPDATE app_sessions
-         SET last_seen_at = NOW(), last_ip_hash = $3, last_ua_hash = $4
+         SET last_seen_at = NOW(), last_ip_hash = $3, last_ua_hash = $4,
+             expires_at = CASE
+               WHEN client_kind = 'mobile' THEN LEAST(
+                 NOW() + make_interval(secs => $5),
+                 COALESCE(absolute_expires_at, NOW() + make_interval(secs => $5)))
+               ELSE expires_at
+             END
          WHERE token_digest = $1 AND app_id = $2
            AND revoked_at IS NULL AND expires_at > NOW()
+           AND (absolute_expires_at IS NULL OR absolute_expires_at > NOW())
          RETURNING principal_user_id, clerk_user_id,
                    to_char(expires_at, 'YYYY-MM-DD\"T\"HH24:MI:SSOF') AS expires_at",
     )
@@ -1047,6 +1203,7 @@ async fn introspect(
     .bind(app_id.as_str())
     .bind(&ip_hash)
     .bind(&ua_hash)
+    .bind(MOBILE_SESSION_IDLE_SECONDS as f64)
     .fetch_optional(&state.pool)
     .await;
 

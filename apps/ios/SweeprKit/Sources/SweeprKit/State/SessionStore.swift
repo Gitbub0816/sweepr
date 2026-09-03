@@ -10,64 +10,119 @@
 import Foundation
 import Observation
 
-// SessionStore — owns the auth token provider and the current user. Uses the
-// Observation framework's `@Observable` (iOS 26 / SKIP 1.5.x SkipModel supports
-// the macro), so SwiftUI views observe only the properties they read.
+// SessionStore — the app-wide source of truth for "who is signed in".
 //
-// The store never holds secrets: the Bearer token stays inside the injected
-// `AuthTokenProvider` (a Clerk bridge in the app layer). SessionStore only tracks
-// the resolved `CurrentUser` and a coarse auth phase for gating UI.
+// The persistent credential is the broker app session in the TokenVault
+// (BrokerTokenProvider); this store derives UI phase from it:
+//  - launch with a persisted session → .signedIn immediately (optimistic: the
+//    user sees their app, not a login wall), then the profile resolves in the
+//    background;
+//  - launch without one → .signedOut → auth wall;
+//  - the broker revoking the session (sign-out elsewhere, expiry) flips the
+//    store to .signedOut via the invalidation relay.
+//
+// There is deliberately NO mock fallback here: a network failure keeps the
+// last known user and raises `isOffline` — production screens must never
+// render fabricated data (App Review 2.1, and basic honesty).
+
+/// Bridges the token provider's session-invalidated signal (an actor, any
+/// thread) onto the MainActor store without a construction-order cycle.
+public final class SessionInvalidationRelay: @unchecked Sendable {
+    private let lock = NSLock()
+    private var handler: (@Sendable () -> Void)?
+    public init() {}
+
+    public func setHandler(_ h: @escaping @Sendable () -> Void) {
+        lock.lock(); defer { lock.unlock() }
+        handler = h
+    }
+    public func fire() {
+        lock.lock()
+        let h = handler
+        lock.unlock()
+        h?()
+    }
+}
 
 @MainActor
 @Observable
 public final class SessionStore {
     public enum Phase: Equatable, Sendable {
-        case unknown          // haven't checked yet
+        case unknown   // pre-bootstrap
         case signedOut
         case signedIn
     }
 
     public private(set) var phase: Phase = .unknown
     public private(set) var user: CurrentUser?
+    /// True when the last refresh failed on transport (never on auth).
+    public private(set) var isOffline = false
     public private(set) var lastError: String?
 
     private let api: SweeprAPI
-    private let tokenProvider: AuthTokenProvider
+    private let tokenProvider: BrokerTokenProvider
 
-    public init(api: SweeprAPI, tokenProvider: AuthTokenProvider) {
+    public init(api: SweeprAPI, tokenProvider: BrokerTokenProvider, relay: SessionInvalidationRelay? = nil) {
         self.api = api
         self.tokenProvider = tokenProvider
+        relay?.setHandler { [weak self] in
+            Task { @MainActor in self?.handleSessionInvalidated() }
+        }
     }
 
     public var isSignedIn: Bool { phase == .signedIn }
 
     public var greetingName: String { user?.greetingName ?? "there" }
 
-    /// Resolve the current user from the session token. Falls back to a mock
-    /// identity when offline / no Clerk session so previews stay coherent.
+    /// Decide the launch phase from local state only — instant, no network.
+    public func bootstrap() {
+        phase = tokenProvider.hasPersistedSession ? .signedIn : .signedOut
+    }
+
+    /// Resolve/refresh the profile. Auth loss signs out; transport loss keeps
+    /// the session and flags offline.
     public func refresh() async {
         lastError = nil
-        // No token → treat as signed out but keep the UI coherent with a guest.
-        guard await tokenProvider.currentToken() != nil else {
-            user = SweeprMock.currentUser
+        guard tokenProvider.hasPersistedSession else {
+            user = nil
             phase = .signedOut
             return
         }
+        phase = .signedIn
         do {
             user = try await api.currentUser()
-            phase = .signedIn
+            isOffline = false
+        } catch SweeprAPIError.unauthorized {
+            // The provider wipes the vault when the broker says the session is
+            // dead; re-check to distinguish revocation from a transient 401.
+            if !tokenProvider.hasPersistedSession {
+                user = nil
+                phase = .signedOut
+            } else {
+                lastError = "unauthorized"
+            }
         } catch {
-            // Session present but the call failed (offline): keep last user, or
-            // show the mock so the greeting isn't empty.
-            if user == nil { user = SweeprMock.currentUser }
+            isOffline = true
             lastError = String(describing: error)
-            phase = user == nil ? .signedOut : .signedIn
         }
     }
 
-    /// Clears the local session view. The concrete Clerk sign-out lives in the
-    /// app layer's `AuthTokenProvider`; the app calls that, then this.
-    public func clearLocalSession() {
+    /// Call after the AuthEngine returns `.complete`.
+    public func didSignIn() async {
+        phase = .signedIn
+        isOffline = false
+        await refresh()
+    }
+
+    /// Sign out this device: broker revocation + vault wipe, then UI flip.
+    public func signOut() async {
+        await tokenProvider.signOut()
+        user = nil
+        phase = .signedOut
+    }
+
+    /// Broker/BFF reported the session inactive mid-use.
+    public func handleSessionInvalidated() {
         user = nil
         phase = .signedOut
     }
