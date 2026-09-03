@@ -244,9 +244,11 @@ export function IndependentContractorAgreement() {
       <Section id="insurance" title="12. Insurance">
         <p>
           Sweepr does not provide workers' compensation coverage to Service
-          Providers. The Service Provider is encouraged to obtain appropriate
-          liability insurance and any other coverage required by law or prudent
-          for their business.
+          Providers, and does not sell, provide, or procure insurance for them.
+          The Service Provider must obtain and maintain general liability
+          insurance meeting the minimum Sweepr specifies, in their own business's
+          name, as a condition of accepting jobs, along with any other coverage
+          required by law or prudent for their business.
         </p>
       </Section>
 

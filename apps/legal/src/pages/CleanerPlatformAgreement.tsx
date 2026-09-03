@@ -159,6 +159,12 @@ export function CleanerPlatformAgreement() {
           <Link className="text-seafoam-700 underline" to="/damage-claims">
             Damage Claims Policy
           </Link>
+          . You must carry your own general liability insurance meeting Sweepr's
+          stated minimum for as long as you accept jobs, and provide a current
+          certificate on request, as set out in the{" "}
+          <Link className="text-seafoam-700 underline" to="/insurance-protection">
+            Insurance &amp; Protection Policy
+          </Link>
           . Sweepr may offset or recover validated negligence amounts consistent
           with applicable law and this Agreement.
         </p>

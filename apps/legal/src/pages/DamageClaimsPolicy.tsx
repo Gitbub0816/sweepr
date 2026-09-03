@@ -77,7 +77,7 @@ export function DamageClaimsPolicy() {
       <Section id="limits" title="5. Claim Limits">
         <p>
           Claim resolutions may be subject to maximum limits unless covered under
-          an applicable insurance program described in the{" "}
+          an applicable insurance policy, subject to the{" "}
           <Link className="text-seafoam-700 underline" to="/insurance-protection">
             Insurance &amp; Protection Policy
           </Link>
@@ -97,8 +97,9 @@ export function DamageClaimsPolicy() {
 
       <Section id="insurance" title="7. Insurance Coordination">
         <p>
-          Where applicable, claims may be submitted to an insurance program and
-          coordinated with any Cleaner-negligence process. See the{" "}
+          Where applicable, claims may be submitted to an applicable insurance
+          policy, which may be the Cleaner's own coverage or Sweepr's platform
+          policy, and coordinated with any Cleaner-negligence process. See the{" "}
           <Link className="text-seafoam-700 underline" to="/insurance-protection">
             Insurance &amp; Protection Policy
           </Link>
