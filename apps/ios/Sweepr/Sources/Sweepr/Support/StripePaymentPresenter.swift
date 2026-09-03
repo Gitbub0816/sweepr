@@ -8,7 +8,9 @@
 // distribution, reverse engineering, or use is prohibited.
 //
 import Foundation
-import StripeCore
+// StripePaymentSheet re-exports the core Stripe symbols (STPAPIClient etc.) —
+// Stripe's own PaymentSheet guide uses this single import; `StripeCore` is
+// not a product of stripe-ios-spm and must never be imported directly.
 import StripePaymentSheet
 #if os(iOS)
 import UIKit

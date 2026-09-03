@@ -46,8 +46,9 @@ commands.
    `CleanerMock` are for previews/tests only; failures render retryable
    error/empty states and keep whatever real data is on screen.
 8. Payments: the customer app (only — `Sweepr/Package.swift`, never SweeprKit
-   or CleanWithSweepr) links the Stripe iOS SDK (`stripe-ios-spm`,
-   `StripeCore`/`StripePaymentSheet`) and confirms in-app with native
+   or CleanWithSweepr) links the Stripe iOS SDK (`stripe-ios-spm`, products
+   `StripePayments`/`StripePaymentSheet` — `StripeCore` is NOT a product of
+   that package, never depend on or import it) and confirms in-app with native
    PaymentSheet (`Support/StripePaymentPresenter.swift`): mint the intent via
    the authed API, present PaymentSheet with the client secret, then poll
    `/payments/intent-status` (bookings) or `/tips/booking/:id` (tips) as a

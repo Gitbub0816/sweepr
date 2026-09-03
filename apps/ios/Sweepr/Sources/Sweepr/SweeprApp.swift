@@ -9,7 +9,9 @@
 //
 import SwiftUI
 import SweeprKit
-import StripeCore
+// StripePayments (a real stripe-ios-spm product; `StripeCore` is not one) is
+// the documented home of `StripeAPI.handleURLCallback(with:)`.
+import StripePayments
 
 // Entry point for the customer "Sweepr" app. On iOS this is the SwiftUI @main; on
 // Android, SkipUI generates the equivalent Compose Activity from this same source.

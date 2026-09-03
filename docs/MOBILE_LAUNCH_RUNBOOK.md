@@ -89,8 +89,8 @@ the latest deploy run (unset GitHub secrets are skipped silently).
    `VITE_STRIPE_PUBLISHABLE_KEY`) before archiving — it ships as an obvious
    placeholder that fails loudly if forgotten. Xcode resolves the
    `stripe-ios-spm` package automatically the first time it opens the
-   workspace; if resolution fails, check the version pinned in
-   `apps/ios/Sweepr/Package.swift` against the latest release. Apple Pay stays
+   workspace (version + product names verified against the real manifest,
+   release 26.9.0, on 2026-09-03). Apple Pay stays
    off (`applePayMerchantId = nil`) until a real Merchant ID + entitlement are
    provisioned — fast-follow, not a blocker.
 4. Run both apps on a device: sign up, book (pays in-app with Stripe's native

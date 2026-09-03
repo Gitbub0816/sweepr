@@ -28,6 +28,12 @@
 // apps/ios/Verify/README.md.
 // ============================================================================
 
+// The real StripePaymentSheet re-exports the core symbols (Stripe's own
+// PaymentSheet guide sets `STPAPIClient.shared.publishableKey` under a single
+// `import StripePaymentSheet`); mirror that so the presenter's lone import
+// resolves the same names here as on-device.
+@_exported import StripePayments
+
 public struct PaymentSheet: Sendable {
     public struct ApplePayConfiguration: Sendable {
         public let merchantId: String
@@ -49,15 +55,16 @@ public struct PaymentSheet: Sendable {
         public init() {}
     }
 
-    /// The outcome `present(from:completion:)` hands back. `failed` carries
-    /// the underlying `Error` in the real SDK.
-    public enum PaymentSheetResult: Sendable {
-        case completed
-        case canceled
-        case failed(error: PaymentSheetShimError)
-    }
-
     public init(paymentIntentClientSecret: String, configuration: Configuration) {}
+}
+
+/// The outcome `present(from:completion:)` hands back — a TOP-LEVEL enum in
+/// the real SDK (not nested in PaymentSheet). `failed` carries the
+/// underlying `Error` there.
+public enum PaymentSheetResult: Sendable {
+    case completed
+    case canceled
+    case failed(error: PaymentSheetShimError)
 }
 
 /// Stand-in `Error` type so `PaymentSheetResult.failed`'s payload

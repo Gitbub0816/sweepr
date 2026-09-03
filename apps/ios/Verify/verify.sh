@@ -30,11 +30,12 @@ echo "==> Assembling scratch package at $SCRATCH"
 rm -rf "$SCRATCH"
 mkdir -p "$SCRATCH/Sources" "$SCRATCH/Tests"
 
-# Shims (named SwiftUI / MapKit / StripeCore / StripePaymentSheet so app
-# sources import them unchanged).
+# Shims (named SwiftUI / MapKit / StripePayments / StripePaymentSheet so app
+# sources import them unchanged; both Stripe names are REAL stripe-ios-spm
+# products — `StripeCore` is not one, so no shim may bear that name).
 cp -R "$HERE/Shims/SwiftUI"             "$SCRATCH/Sources/SwiftUI"
 cp -R "$HERE/Shims/MapKit"              "$SCRATCH/Sources/MapKit"
-cp -R "$HERE/Shims/StripeCore"          "$SCRATCH/Sources/StripeCore"
+cp -R "$HERE/Shims/StripePayments"      "$SCRATCH/Sources/StripePayments"
 cp -R "$HERE/Shims/StripePaymentSheet"  "$SCRATCH/Sources/StripePaymentSheet"
 
 # Real product sources. Module names match the shipping packages so the
@@ -76,12 +77,12 @@ let package = Package(
     targets: [
         .target(name: "SwiftUI"),
         .target(name: "MapKit", dependencies: ["SwiftUI"]),
-        .target(name: "StripeCore"),
-        .target(name: "StripePaymentSheet", dependencies: ["StripeCore"]),
+        .target(name: "StripePayments"),
+        .target(name: "StripePaymentSheet", dependencies: ["StripePayments"]),
         .target(name: "SweeprKit", dependencies: ["SwiftUI", "MapKit"]),
         // Stripe deps ONLY here — the customer app is the only one that takes
         // payments; CleanWithSweepr and SweeprKit never link it.
-        .target(name: "Sweepr", dependencies: ["SweeprKit", "SwiftUI", "MapKit", "StripeCore", "StripePaymentSheet"]),
+        .target(name: "Sweepr", dependencies: ["SweeprKit", "SwiftUI", "MapKit", "StripePayments", "StripePaymentSheet"]),
         .target(name: "CleanWithSweepr", dependencies: ["SweeprKit", "SwiftUI", "MapKit"]),
         .target(name: "AppShells", dependencies: ["Sweepr", "CleanWithSweepr"]),
         .testTarget(name: "SweeprKitTests", dependencies: ["SweeprKit"]),

@@ -20,7 +20,10 @@ Four customer-requested iOS fixes, all verified together via
 - **Native Stripe PaymentSheet** replaces the hosted-page/Safari bounce-out
   for both booking payment and tips. Customer app (only —
   `apps/ios/Sweepr/Package.swift`, never SweeprKit/CleanWithSweepr) now links
-  `stripe-ios-spm` (`StripeCore`+`StripePaymentSheet`);
+  `stripe-ios-spm` products `StripePayments`+`StripePaymentSheet`,
+  `from: "26.9.0"` (version + product names verified against the package's
+  real manifest 2026-09-03 after the first cut broke the Xcode build — see
+  the hard-won lesson below);
   `Support/StripePaymentPresenter.swift` mints the intent via the existing
   authed endpoints and presents PaymentSheet in-app
   (`BookFlowScreen.submit()`/`presentPayment`, `BookingDetailScreen.startTip()`).
@@ -29,17 +32,24 @@ Four customer-requested iOS fixes, all verified together via
   (Info.plist + `SweeprApp.onOpenURL` → `StripeAPI.handleURLCallback`) is
   PaymentSheet's `returnURL` for bank-redirect/3DS flows. Removed the now-dead
   `PayPage` hosted-page URL builder from `SweeprAPI.swift`.
+  **Hard-won lesson**: `StripeCore` is an INTERNAL target of stripe-ios-spm,
+  NOT a product — `.product(name: "StripeCore", …)` fails Xcode package
+  resolution outright (this broke the first build attempt on the Mac).
+  `import StripePaymentSheet` alone re-exports the core symbols
+  (`STPAPIClient` — Stripe's own guide uses that single import);
+  `StripeAPI.handleURLCallback(with:)` lives in the `StripePayments` product,
+  imported by `SweeprApp.swift`.
   **Owner action before shipping**: `Support/StripeConfig.swift` ships an
   obvious placeholder publishable key
   (`pk_live_REPLACE_WITH_REAL_STRIPE_PUBLISHABLE_KEY`) — swap for the real
   value (same as web's `VITE_STRIPE_PUBLISHABLE_KEY`). Apple Pay stays off
   (`applePayMerchantId = nil`, card-only PaymentSheet already solves "leaves
   the app") until a real Merchant ID + entitlement are provisioned — documented
-  fast-follow, see docs/MOBILE_LAUNCH_RUNBOOK.md. SPM package version
-  (`from: "24.0.0"`) is UNVERIFIED (no network access this session to confirm
-  the current release) — bump if Xcode resolution fails.
-  Verify harness gained matching `StripeCore`/`StripePaymentSheet` compile
-  shims (`apps/ios/Verify/Shims/`) — faithful API surface, no real network/SDK.
+  fast-follow, see docs/MOBILE_LAUNCH_RUNBOOK.md.
+  Verify harness gained matching `StripePayments`/`StripePaymentSheet` compile
+  shims (`apps/ios/Verify/Shims/`; the sheet shim `@_exported import`s the
+  payments shim, mirroring the real SDK's re-export) — faithful API surface,
+  no real network/SDK.
 - **Calendar shows unavailable dates up front.** New
   `SweeprMonthCalendar` (SweeprKit) greys out server-flagged blocked dates
   from `GET /calendar/availability` in the booking wizard's schedule step,
