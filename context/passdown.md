@@ -4,10 +4,64 @@
 
 # Sweepr — Session Passdown
 
-Last updated: **2026-07-13**. Branch: `claude/wonderful-fermi-nmlpre`
-(everything merged to `main`; branch kept fast-forwarded to main).
+Last updated: **2026-09-03**. Branch (this session):
+`claude/sweepr-reporting-pricing-calendar-dibtoh` (everything merged to `main`;
+branch kept fast-forwarded to main).
 Standing instruction: finished, verified work merges to `main`.
 Stable conventions live in root `/CLAUDE.md` — this file is state + recent work.
+
+---
+
+## Session 2026-09-03 — iOS apps to launch-ready (auth, contracts, payments)
+
+The two native apps (`apps/ios`: Sweepr customer + Clean with Sweepr cleaner,
+SwiftUI/SKIP-subset) went from unauthenticated mock-data shells to
+launch-candidate. Everything verified via the Linux harness
+(`bash apps/ios/Verify/verify.sh` — Swift 6.0.3 toolchain must be installed at
+/opt in a fresh container) + API vitest (720 incl. 11 new mobile-auth) +
+turbo typecheck. **Owner ops before the apps work: docs/MOBILE_LAUNCH_RUNBOOK.md**
+(broker Fly deploy + worker secrets; everything fail-closes 503 until then).
+
+- **Auth = central broker, persistent sign-in.** Native SwiftUI
+  sign-in/up/reset/2FA screens (shared `SweeprKit/AuthUI`, per-app branding)
+  drive Clerk's REST FAPI directly (contract probed live: native mode enabled,
+  no CAPTCHA, names+password required). The API worker is the mobile BFF
+  (`routes/mobileAuth.ts`, holds BROKER_KEY_CUSTOMER/CLEANER +
+  ORIGIN_SHARED_SECRET, calls the Fly origin off-zone); new broker endpoint
+  `POST /v1/auth/native/exchange` mints `client_kind='mobile'` sessions —
+  60-day sliding idle expiry, 1-year cap (migration 110; introspection slides).
+  Session token lives in Keychain (`TokenVault`); `BrokerTokenProvider`
+  re-mints 10-min HS256 API bearers (the existing BFF-token path in
+  middleware/auth.ts verifies them). Broker revocation flips the app to the
+  auth wall; outages never sign anyone out.
+- **Contract realignment** (the "every page errors" fix): full audit of client
+  calls vs Hono routes. Highlights: fractional-second dates broke ALL decodes
+  (shared tolerant `SweeprJSON` decoder now); bookings are raw snake_case rows
+  (no nesting); status change is PATCH; `/day-of-service/*` never existed —
+  cleaner flow rebuilt on `/jobs/bookings/:id/*` (start-route reveals address,
+  server-verified GPS arrival via location pings, start/finish-clean,
+  complete(checkout_photo_key)); earnings/availability/service-area/onboarding
+  all realigned; `/auth/me` enriched server-side (name/role/userId, additive).
+- **Payments without a Stripe SDK**: app mints intents via authed
+  create-intent/tips, opens `app.getsweepr.com/pay#cs=…` (new public
+  MobilePayPage in apps/customer — Stripe Elements, Apple Pay in Safari),
+  polls new `GET /payments/intent-status/:bookingId`. BookFlow now creates a
+  real address (state field added; `/customer-profile/addresses`), gates
+  confirm on a real quote, and lands on live payment confirmation; tips +
+  reviews on booking detail are real (no faked success anywhere).
+- **Photos**: camera capture (iOS UIImagePickerController behind os(iOS)) →
+  `/storage/sign-upload` presigned R2 PUT → `/jobs/.../photos`
+  {photo_type, storage_key}; checkout photo gates completion.
+- **Mock purge + honest UX**: all production mock fallbacks removed (incl. a
+  fake quote, fake "Visa •••• 4242", mock jobs/earnings, and a Smart Entry
+  credential fallback that showed codes after server denial). RouteScreen is
+  now the day's schedule (addresses are privacy-gated until start-route — no
+  fabricated ETAs/pins). Real tab deep-switching; customer Account shows real
+  saved addresses + cards.
+- App Store docs refreshed (`apps/ios/docs/appstore/*`), privacy manifests
+  already complete; customer Info.plist got the `sweepr://` scheme.
+- **Deferred on purpose**: push notifications (backend APNs sender), Android
+  re-enable via SKIP, in-app Seam lock provisioning (web /smart-locks covers).
 
 ---
 

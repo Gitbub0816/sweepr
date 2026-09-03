@@ -33,6 +33,20 @@
         <string>UIInterfaceOrientationPortrait</string>
     </array>
 
+    <!-- Custom scheme the hosted Stripe pay page (app.getsweepr.com/pay) uses
+         for its "Open the Sweepr app" bounce-back after payment. -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.getsweepr.customer</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>sweepr</string>
+            </array>
+        </dict>
+    </array>
+
     <!-- ===== Privacy usage strings (App Review 5.1.1) ===== -->
 
     <!-- Foreground-only: LiveTracking shows the cleaner's approach on a MapKit

@@ -12,18 +12,22 @@ separate app, **Clean with Sweepr** (`com.getsweepr.cleaner`).
 - Email: `REPLACE_WITH_DEMO_CUSTOMER_EMAIL`
 - Password / code: `REPLACE_WITH_DEMO_CREDENTIALS`
 - The demo account is pre-seeded with a sample upcoming booking so you can see
-  live tracking, Smart Entry, tipping, and Sweepr+ management. If the network is
-  unavailable, screens fall back to representative sample data.
+  live tracking, Smart Entry, tipping, and Sweepr+ management.
 
-Sign-in is Clerk (email + one-time code). If a code is required during review,
-contact us at the review-contact email and we will relay it, or use the seeded
-demo credentials above.
+Sign-in is fully native: email + password, with an email one-time-code
+fallback (no third-party/social login, so Sign in with Apple is not required
+under Guideline 4.8). If a code is required during review, contact us at the
+review-contact email and we will relay it, or use the seeded demo credentials
+above.
 
 ## Payments are for real-world services — NOT In-App Purchase (Guideline 3.1.1 / 3.1.3(e))
 All money in Sweepr pays for **physical, real-world cleaning services** delivered
 at the customer's home:
 
-- **Bookings** — one charge per cleaning, captured after the service is performed.
+- **Bookings** — one charge per cleaning, captured after the service is
+  performed. Card entry happens on our secure Stripe-hosted payment page
+  (app.getsweepr.com/pay) opened in the browser — standard for real-world
+  services under 3.1.3(e), and it gives customers Apple Pay automatically.
 - **Tips** — optional, paid to the cleaner.
 - **Sweepr+ membership** — a subscription that provides **discounts and perks on
   physical cleaning services**, not digital content or app features.

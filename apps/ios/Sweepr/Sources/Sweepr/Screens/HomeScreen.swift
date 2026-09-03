@@ -19,7 +19,6 @@ import SweeprKit
 public struct HomeScreen: View {
     @EnvironmentObject private var env: AppEnvironment
     @State private var membership: MembershipInfo?
-    @State private var showBookFlow = false
     @State private var appeared = false
 
     public init() {}
@@ -53,7 +52,6 @@ public struct HomeScreen: View {
                 await store.refresh()
                 await loadMembership()
             }
-            .navigationDestination(isPresented: $showBookFlow) { BookFlowScreen() }
         }
         .task {
             await loadMembership()
@@ -226,7 +224,7 @@ public struct HomeScreen: View {
                 actionTitle: "Book a cleaning",
                 action: {
                     SweeprHaptics.impact(.medium)
-                    showBookFlow = true
+                    withAnimation(SweeprMotion.snappy) { env.selectedTab = .book }
                 }
             )
         }
@@ -239,7 +237,7 @@ public struct HomeScreen: View {
             SweeprSectionTitle("Quick actions")
             HStack(spacing: SweeprSpacing.md) {
                 SweeprQuickAction("Book again", systemIcon: "arrow.clockwise") {
-                    showBookFlow = true
+                    withAnimation(SweeprMotion.snappy) { env.selectedTab = .book }
                 }
                 NavigationLink(destination: AccountScreen()) {
                     SweeprQuickAction("Coupons", systemIcon: "tag.fill", tint: SweeprColor.amber) {}

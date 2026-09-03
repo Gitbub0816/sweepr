@@ -199,9 +199,8 @@ public struct BookingsScreen: View {
         }
     }
 
-    /// Jump to the Book tab. The TabView owns navigation, so surface a nudge and
-    /// let the customer tap Book — deep tab selection isn't wired in the shim UI.
+    /// Deep-switch to the Book tab (real selection, no nudge toasts).
     private func tabToBook() {
-        env.toast.show("Tap Book to start a new cleaning", kind: .info)
+        withAnimation(SweeprMotion.snappy) { env.selectedTab = .book }
     }
 }

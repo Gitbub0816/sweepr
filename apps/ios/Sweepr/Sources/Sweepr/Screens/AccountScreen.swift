@@ -19,6 +19,8 @@ public struct AccountScreen: View {
     @Environment(\.openURL) private var openURL
     @State private var membership: MembershipInfo?
     @State private var coupons: [Coupon] = []
+    @State private var addresses: [CustomerAddress] = []
+    @State private var paymentMethods: [PaymentMethodSummary] = []
     @State private var isLoading = true
 
     private let privacyURL = URL(string: "https://legal.getsweepr.com/privacy")
@@ -145,19 +147,51 @@ public struct AccountScreen: View {
 
     private var settingsSection: some View {
         VStack(alignment: .leading, spacing: SweeprSpacing.sm) {
-            SweeprSectionTitle("Settings")
+            SweeprSectionTitle("Saved details")
             SweeprCard(elevation: .low) {
-                VStack(spacing: SweeprSpacing.xs) {
-                    SweeprListRow(title: "Addresses", systemIcon: "mappin.and.ellipse") {
-                        env.toast.show("Manage addresses during booking", kind: .info)
+                VStack(alignment: .leading, spacing: SweeprSpacing.sm) {
+                    if addresses.isEmpty && paymentMethods.isEmpty {
+                        HStack(spacing: SweeprSpacing.md) {
+                            Image(systemName: "sparkles").foregroundColor(SweeprColor.textSecondary)
+                            Text("Your addresses and cards appear here after your first booking.")
+                                .font(SweeprFont.body()).foregroundColor(SweeprColor.textSecondary)
+                            Spacer(minLength: 0)
+                        }
                     }
-                    SweeprDivider(inset: 52)
-                    SweeprListRow(title: "Payment methods", systemIcon: "creditcard") {
-                        env.toast.show("Payment methods are managed at checkout", kind: .info)
+                    ForEach(addresses) { address in
+                        HStack(spacing: SweeprSpacing.md) {
+                            Image(systemName: "mappin.and.ellipse")
+                                .foregroundColor(SweeprColor.brand)
+                                .frame(width: 24)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(address.label ?? address.line1)
+                                    .font(SweeprFont.body().weight(.semibold))
+                                    .foregroundColor(SweeprColor.textPrimary)
+                                Text(address.oneLine)
+                                    .font(SweeprFont.caption())
+                                    .foregroundColor(SweeprColor.textSecondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer(minLength: 0)
+                            if address.isDefault == true {
+                                SweeprBadge("Default", tone: .neutral)
+                            }
+                        }
+                        SweeprDivider(inset: 40)
                     }
-                    SweeprDivider(inset: 52)
-                    SweeprListRow(title: "Notifications", systemIcon: "bell") {
-                        env.toast.show("Notification settings coming soon", kind: .info)
+                    ForEach(paymentMethods) { method in
+                        HStack(spacing: SweeprSpacing.md) {
+                            Image(systemName: "creditcard")
+                                .foregroundColor(SweeprColor.brand)
+                                .frame(width: 24)
+                            Text("\(method.brand.capitalized) •••• \(method.last4)")
+                                .font(SweeprFont.body().weight(.semibold))
+                                .foregroundColor(SweeprColor.textPrimary)
+                            Spacer(minLength: 0)
+                            if method.isDefault {
+                                SweeprBadge("Default", tone: .neutral)
+                            }
+                        }
                     }
                 }
             }
@@ -228,8 +262,12 @@ public struct AccountScreen: View {
         await env.session.refresh()
         async let m = env.api.membershipInfo()
         async let c = env.api.coupons()
+        async let a = env.api.addresses()
+        async let p = env.api.paymentMethods()
         membership = try? await m
         coupons = (try? await c) ?? []
+        addresses = (try? await a) ?? []
+        paymentMethods = (try? await p) ?? []
         isLoading = false
     }
 }

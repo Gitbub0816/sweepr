@@ -17,11 +17,20 @@ import SweeprKit
 // the AuthEngine runs the native sign-in/sign-up ceremony (Clerk proves WHO;
 // the broker session is the credential that keeps you signed in). A broker
 // revocation fires the relay → SessionStore flips to the auth wall.
+/// Customer app tabs — a published selection so any screen can deep-switch
+/// (e.g. an empty state's "Book a cleaning" actually opens the Book tab).
+public enum CustomerTab: Hashable, Sendable {
+    case home, book, bookings, account
+}
+
 @MainActor
 public final class AppEnvironment: ObservableObject {
     public let api: SweeprAPI
     public let tokenProvider: BrokerTokenProvider
     public let authEngine: AuthEngine
+
+    /// Programmatic tab selection (bound by RootView's TabView).
+    @Published public var selectedTab: CustomerTab = .home
 
     // Shared @Observable stores — one instance app-wide so every screen stays
     // consistent. Read their properties directly in view bodies; Observation

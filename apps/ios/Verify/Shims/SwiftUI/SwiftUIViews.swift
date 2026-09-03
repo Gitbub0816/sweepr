@@ -133,6 +133,7 @@ public struct ScrollView: View {
 public struct TabView: View {
     public typealias Body = AnyShimView
     public init(@ViewBuilder content: () -> AnyShimView) {}
+    public init<S: Hashable>(selection: Binding<S>?, @ViewBuilder content: () -> AnyShimView) {}
 }
 
 public struct NavigationStack: View {

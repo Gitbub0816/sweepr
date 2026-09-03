@@ -138,6 +138,21 @@ public struct EnvironmentObject<ObjectType: AnyObject> {
     // `@EnvironmentObject var x: T` type-checks. It is never invoked (bodies are
     // not evaluated).
     public init() { fatalError("EnvironmentObject is compile-only in the shim") }
+
+    /// Mirrors the real wrapper: `$env.someVar` yields a Binding via dynamic
+    /// member lookup on the projected wrapper (used for TabView selection).
+    @dynamicMemberLookup
+    public struct Wrapper {
+        let object: ObjectType
+        public subscript<Subject>(dynamicMember keyPath: ReferenceWritableKeyPath<ObjectType, Subject>) -> Binding<Subject> {
+            Binding(
+                get: { object[keyPath: keyPath] },
+                set: { object[keyPath: keyPath] = $0 }
+            )
+        }
+    }
+
+    public var projectedValue: Wrapper { Wrapper(object: wrappedValue) }
 }
 
 @propertyWrapper

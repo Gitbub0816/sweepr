@@ -45,18 +45,22 @@ public struct RootView: View {
     }
 
     private var tabs: some View {
-        TabView {
+        TabView(selection: $env.selectedTab) {
             HomeScreen()
                 .tabItem { Label("Home", systemImage: "house.fill") }
+                .tag(CustomerTab.home)
 
             BookFlowScreen()
                 .tabItem { Label("Book", systemImage: "plus.circle.fill") }
+                .tag(CustomerTab.book)
 
             BookingsScreen()
                 .tabItem { Label("Bookings", systemImage: "calendar") }
+                .tag(CustomerTab.bookings)
 
             AccountScreen()
                 .tabItem { Label("Account", systemImage: "person.crop.circle") }
+                .tag(CustomerTab.account)
         }
         .sweeprToast(env.toast)
     }

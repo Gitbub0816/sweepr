@@ -26,14 +26,29 @@ commands.
 2. Money is **integer cents** on the wire (`Money`); never compute totals on the
    client — the server is authoritative (mirrors the web "never trust frontend
    pricing" rule).
-3. Booking statuses mirror `apps/api/src/lib/statusMachine.ts` (`BookingStatus`).
-   The client only reads status; transitions happen server-side.
-4. Backend is Hono at `https://api.getsweepr.com`; auth is Clerk primary
-   application (`clerk.getsweepr.com`), Bearer token via `AuthTokenProvider`.
-   Publishable keys (`pk_…`) only in source — never secrets.
+3. Booking statuses mirror `apps/api/src/lib/statusMachine.ts` (`BookingStatus`),
+   and the cleaner day-of-service flow mirrors `routes/dayOfService.ts`
+   (`DayStatus`): discrete endpoints with server guards, GPS-verified arrival —
+   a failed call NEVER advances the UI locally.
+4. Backend is Hono at `https://api.getsweepr.com`. **Auth is the central
+   broker**: native screens drive Clerk's REST API (`SweeprKit/Auth/ClerkAPI`,
+   clerk.getsweepr.com proves WHO), then the API worker (`/mobile-auth/*`, the
+   mobile BFF holding the broker service keys) exchanges that proof at the
+   broker's `/v1/auth/native/exchange` for a per-app mobile session (60-day
+   sliding, Keychain via `TokenVault`) — that session is what persists sign-in;
+   `BrokerTokenProvider` transparently re-mints the short-lived API bearers.
+   Publishable keys (`pk_…`) only in source — never secrets, never tokens in
+   URLs or logs.
 5. Brand is "Sweepr" (never "Sweepr Pro"); dark mode is warm graphite, no blue.
 6. Smart Entry access codes stay behind a deliberate reveal-unlock and are only
    fetched once the cleaner is checked in.
+7. **No mock data on production paths** (App Review 2.1): `SweeprMock` /
+   `CleanerMock` are for previews/tests only; failures render retryable
+   error/empty states and keep whatever real data is on screen.
+8. Payments carry no Stripe SDK: the app mints intents via the authed API and
+   hands the client secret to the hosted page `app.getsweepr.com/pay` in the
+   URL fragment, then polls `/payments/intent-status` (bookings) or
+   `/tips/booking/:id` (tips). Ops: docs/MOBILE_LAUNCH_RUNBOOK.md.
 
 ## SKIP constraints
 SKIP is currently **neutralized** (deps + skipstone plugin removed from the

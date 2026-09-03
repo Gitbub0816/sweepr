@@ -13,13 +13,14 @@ to open the door, and track earnings. The customer side is a separate app,
 - Email: `REPLACE_WITH_DEMO_CLEANER_EMAIL`
 - Password / code: `REPLACE_WITH_DEMO_CREDENTIALS`
 - The demo cleaner is pre-seeded with a sample assigned job for the current day
-  so you can see the route handoff, check-in photo flow, Smart Entry
-  reveal/unlock, and the earnings screen. Screens fall back to representative
-  sample data if the network is unavailable.
+  so you can see the route handoff, GPS check-in, photo capture, Smart Entry
+  reveal/unlock, and the earnings screen.
 
-Sign-in is Clerk (email + one-time code, same primary application as customers —
-one person can be both). If a code is needed during review, contact us and we
-will relay it, or use the seeded demo credentials above.
+Sign-in is fully native: email + password with an email one-time-code fallback
+(no third-party/social login, so Sign in with Apple is not required under
+Guideline 4.8; the same identity backend serves customers — one person can be
+both). If a code is needed during review, contact us and we will relay it, or
+use the seeded demo credentials above.
 
 ## Location — foreground and background (Guideline 5.1.1)
 The cleaner app uses location both in the foreground and, **during an active
@@ -27,8 +28,8 @@ job**, in the background:
 
 - **When-in-use** — routing to the job and sharing live arrival with the customer.
 - **Always / background** — on the day of service, to keep the customer's live
-  arrival updated as the cleaner travels and to trigger **geofenced Smart Entry**
-  when the cleaner reaches the property.
+  arrival updated as the cleaner travels. Arrival check-in itself is
+  server-verified from these position updates (within 150 m of the property).
 
 Background location is disclosed clearly in
 `NSLocationAlwaysAndWhenInUseUsageDescription` and is used only during a
