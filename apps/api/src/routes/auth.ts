@@ -33,16 +33,32 @@ authRouter.post("/sync", requireAuth, async (c) => {
 });
 
 // The identity check every app's nav polls. Enriched with the canonical users
-// row (name/role/id) so native clients can greet the user without a second
+// row (id/role) so native clients can greet the user without a second
 // endpoint; additive fields — web callers that only read clerkId/email are
 // unaffected. requireAuth already touched the DB for this request, so the one
 // extra indexed SELECT is negligible.
+//
+// NAMES: `users` has NO name columns (001_initial.sql) — first/last name live
+// on the role tables (`customers`, `cleaners`; onboarding writes the cleaner's,
+// customers' are often NULL and clients fall back to the email prefix). Prefer
+// the persona matching the row's role; fall back to the other, since one
+// account can be both.
 authRouter.get("/me", requireAuth, async (c) => {
   const { clerkId, email } = c.get("user");
   const sql = getDb(c.env.DATABASE_URL);
   const rows = (await sql`
-    SELECT id, email, first_name, last_name, role
-    FROM users WHERE clerk_id = ${clerkId} LIMIT 1
+    SELECT u.id, u.email, u.role,
+           CASE WHEN u.role = 'cleaner'
+                THEN COALESCE(cl.first_name, cu.first_name)
+                ELSE COALESCE(cu.first_name, cl.first_name) END AS first_name,
+           CASE WHEN u.role = 'cleaner'
+                THEN COALESCE(cl.last_name, cu.last_name)
+                ELSE COALESCE(cu.last_name, cl.last_name) END AS last_name
+    FROM users u
+    LEFT JOIN customers cu ON cu.user_id = u.id
+    LEFT JOIN cleaners cl ON cl.user_id = u.id
+    WHERE u.clerk_id = ${clerkId}
+    LIMIT 1
   `) as Array<{
     id: string;
     email: string | null;

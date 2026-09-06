@@ -17,6 +17,25 @@ Stable conventions live in root `/CLAUDE.md` — this file is state + recent wor
 Four customer-requested iOS fixes, all verified together via
 `bash apps/ios/Verify/verify.sh` (41 tests green):
 
+**Production incident (same day): GET /auth/me 500 — `column "first_name"
+does not exist`.** The mobile-session enrichment of /auth/me selected
+first_name/last_name straight off `users`, but `users` has NEVER had name
+columns (001_initial.sql) — names live on the role tables (`customers`,
+`cleaners`). Incorrect query, not a missing migration; no DB change needed.
+Fix: /auth/me now LEFT JOINs customers+cleaners and prefers the persona
+matching `users.role` (COALESCE fallback for dual-persona accounts) —
+response contract unchanged (camelCase firstName/lastName; customers are
+created name-less, so firstName is often null and clients fall back to the
+email prefix). Same drift also fixed in scopeReviewEngine's two
+notification queries (`u.first_name` → `cl.`/`cu.` — tables were already
+joined). Regression suite `apps/api/tests/auth-me.test.ts` uses a
+schema-faithful fake sql that throws the production error if anyone selects
+name columns from bare `users` again. NOTE: this 500 was also why the iOS
+app greeted "Hi there" — SessionStore.refresh() treats non-401 failures as
+offline and keeps user nil. The MailerSend SMS 422s in the same window were
+just the admin-alert pipeline failing to REPORT this error (bad/over-quota
+from-number) — separate, untouched.
+
 **Follow-up round (same day, after Caleb's on-device test video):**
 - PaymentSheet presented but failed to load → the placeholder publishable key.
   `StripeConfig.publishableKey` now carries the REAL live key, extracted from

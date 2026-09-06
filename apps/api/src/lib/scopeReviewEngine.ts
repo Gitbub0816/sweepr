@@ -616,7 +616,7 @@ async function notifyCleanerPrivilegeDisabled(
   adminId: string,
 ): Promise<void> {
   const rows = (await sql`
-    SELECT u.email AS email, u.first_name AS first_name
+    SELECT u.email AS email, cl.first_name AS first_name
     FROM cleaners cl JOIN users u ON u.id = cl.user_id
     WHERE cl.id = ${cleanerId} LIMIT 1
   `) as Array<{ email: string | null; first_name: string | null }>;
@@ -681,7 +681,7 @@ async function notifyCustomerSuspended(
   adminId: string,
 ): Promise<void> {
   const rows = (await sql`
-    SELECT u.email AS email, u.first_name AS first_name
+    SELECT u.email AS email, cu.first_name AS first_name
     FROM customers cu JOIN users u ON u.id = cu.user_id
     WHERE cu.id = ${customerId} LIMIT 1
   `) as Array<{ email: string | null; first_name: string | null }>;
