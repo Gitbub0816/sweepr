@@ -15,7 +15,7 @@
     "@neondatabase/serverless": "^0.10.4",
     "@sweepr/quote-engine": "workspace:*",
     "@sweepr/utils": "workspace:*",
-    "hono": "^4.12.26",
+    "hono": "^4.13.5",
     "zod": "^3.25.76"
   },
   "devDependencies": {
